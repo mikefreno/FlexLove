@@ -62,7 +62,7 @@ function Color:toRGBA()
   return self.r, self.g, self.b, self.a
 end
 
-local enums
+local enums = {}
 
 --- @enum TextAlign
 enums.TextAlign = {
@@ -127,9 +127,14 @@ function Gui.resize()
 end
 
 function Gui.draw()
-  for _, win in ipairs(Gui.topWindows) do
-    win:draw()
-  end
+   -- Sort windows by z-index before drawing
+   table.sort(Gui.topWindows, function(a, b)
+     return a.zIndex < b.zIndex
+   end)
+   
+   for _, win in ipairs(Gui.topWindows) do
+     win:draw()
+   end
 end
 
 function Gui.update(dt)
@@ -222,6 +227,7 @@ local FONT_CACHE = {}
 ---@field alignItems AlignItems -- default: start
 ---@field alignContent AlignContent -- default: start
 ---@field textSize number?
+---@field zIndex number -- default: 0
 local Window = {}
 Window.__index = Window
 
@@ -245,6 +251,7 @@ Window.__index = Window
 ---@field justifyContent JustifyContent? -- default: FLEX_START
 ---@field alignItems AlignItems? -- default: STRETCH
 ---@field alignContent AlignContent? -- default: STRETCH
+---@field zIndex number? -- default: 0
 local WindowProps = {}
 
 ---@param props WindowProps
@@ -315,13 +322,15 @@ function Window.new(props)
     self.alignContent = props.alignContent or AlignContent.STRETCH
   end
 
-  local gw, gh = love.window.getMode()
-  self.prevGameSize = { width = gw, height = gh }
+local gw, gh = love.window.getMode()
+   self.prevGameSize = { width = gw, height = gh }
+   
+   self.zIndex = props.zIndex or 0
 
-  if not props.parent then
-    table.insert(Gui.topWindows, self)
-  end
-  return self
+   if not props.parent then
+     table.insert(Gui.topWindows, self)
+   end
+   return self
 end
 
 ---@return { x:number, y:number, width:number, height:number }
@@ -621,6 +630,7 @@ end
 ---@field _touchPressed boolean
 ---@field positioning Positioning --default: ABSOLUTE (checks parent first)
 ---@field textSize number?
+---@field zIndex number -- default: 0
 local Button = {}
 Button.__index = Button
 
@@ -672,11 +682,13 @@ function Button.new(props)
   self.textSize = props.textSize
   self.background = props.background or Color.new(0, 0, 0, 0)
 
-  self.positioning = props.positioning or props.parent.positioning
+self.positioning = props.positioning or props.parent.positioning
+   
+   self.zIndex = props.zIndex or 0
 
-  self.callback = props.callback or function() end
-  self._pressed = false
-  self._touchPressed = false
+   self.callback = props.callback or function() end
+   self._pressed = false
+   self._touchPressed = false
 
   props.parent:addChild(self)
   return self
@@ -829,4 +841,4 @@ end
 
 Gui.Button = Button
 Gui.Window = Window
-return Gui, Color, enums
+return { GUI = Gui, Color = Color, enums = enums }

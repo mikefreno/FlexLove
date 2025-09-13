@@ -127,14 +127,14 @@ function Gui.resize()
 end
 
 function Gui.draw()
-   -- Sort windows by z-index before drawing
-   table.sort(Gui.topWindows, function(a, b)
-     return a.zIndex < b.zIndex
-   end)
-   
-   for _, win in ipairs(Gui.topWindows) do
-     win:draw()
-   end
+  -- Sort windows by z-index before drawing
+  table.sort(Gui.topWindows, function(a, b)
+    return a.z < b.z
+  end)
+
+  for _, win in ipairs(Gui.topWindows) do
+    win:draw()
+  end
 end
 
 function Gui.update(dt)
@@ -197,6 +197,27 @@ end
 
 local FONT_CACHE = {}
 
+--- Create or get a font from cache
+---@param size number
+---@return love.Font
+function FONT_CACHE.get(size)
+  if not FONT_CACHE[size] then
+    FONT_CACHE[size] = love.graphics.newFont(size)
+  end
+  return FONT_CACHE[size]
+end
+
+--- Get font for text size (cached)
+---@param textSize number?
+---@return love.Font
+function FONT_CACHE.getFont(textSize)
+  if textSize then
+    return FONT_CACHE.get(textSize)
+  else
+    return love.graphics.getFont()
+  end
+end
+
 ---@class Border
 ---@field top boolean?
 ---@field right boolean?
@@ -209,6 +230,7 @@ local FONT_CACHE = {}
 ---@class Window
 ---@field x number
 ---@field y number
+---@field z number -- default: 0
 ---@field width number
 ---@field height number
 ---@field children table<integer, Button|Window>
@@ -227,7 +249,6 @@ local FONT_CACHE = {}
 ---@field alignItems AlignItems -- default: start
 ---@field alignContent AlignContent -- default: start
 ---@field textSize number?
----@field zIndex number -- default: 0
 local Window = {}
 Window.__index = Window
 
@@ -235,6 +256,7 @@ Window.__index = Window
 ---@field parent Window?
 ---@field x number?
 ---@field y number?
+---@field z number? -- default: 0
 ---@field w number?
 ---@field h number?
 ---@field border Border?
@@ -251,7 +273,6 @@ Window.__index = Window
 ---@field justifyContent JustifyContent? -- default: FLEX_START
 ---@field alignItems AlignItems? -- default: STRETCH
 ---@field alignContent AlignContent? -- default: STRETCH
----@field zIndex number? -- default: 0
 local WindowProps = {}
 
 ---@param props WindowProps
@@ -322,15 +343,15 @@ function Window.new(props)
     self.alignContent = props.alignContent or AlignContent.STRETCH
   end
 
-local gw, gh = love.window.getMode()
-   self.prevGameSize = { width = gw, height = gh }
-   
-   self.zIndex = props.zIndex or 0
+  local gw, gh = love.window.getMode()
+  self.prevGameSize = { width = gw, height = gh }
 
-   if not props.parent then
-     table.insert(Gui.topWindows, self)
-   end
-   return self
+  self.z = props.z or 0
+
+  if not props.parent then
+    table.insert(Gui.topWindows, self)
+  end
+  return self
 end
 
 ---@return { x:number, y:number, width:number, height:number }
@@ -616,6 +637,7 @@ end
 ---@class Button
 ---@field x number
 ---@field y number
+---@field z number -- default: 0
 ---@field width number
 ---@field height number
 ---@field px number
@@ -630,7 +652,6 @@ end
 ---@field _touchPressed boolean
 ---@field positioning Positioning --default: ABSOLUTE (checks parent first)
 ---@field textSize number?
----@field zIndex number -- default: 0
 local Button = {}
 Button.__index = Button
 
@@ -638,6 +659,7 @@ Button.__index = Button
 ---@field parent Window? -- optional
 ---@field x number?
 ---@field y number?
+---@field z number?
 ---@field w number?
 ---@field h number?
 ---@field px number?
@@ -657,13 +679,14 @@ local ButtonProps = {}
 function Button.new(props)
   local self = setmetatable({}, Button)
   self.parent = props.parent
+  self.textSize = props.textSize
+  self.text = props.text or nil
   self.x = props.x or 0
   self.y = props.y or 0
   self.px = props.px or 0
   self.py = props.py or 0
-  self.width = props.w or 0
-  self.height = props.h or 0
-  self.text = props.text or nil
+  self.width = props.w or self:calculateTextWidth()
+  self.height = props.h or self:calculateTextHeight()
   self.border = props.border
       and {
         top = props.border.top or true,
@@ -679,16 +702,15 @@ function Button.new(props)
     }
   self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
   self.textColor = props.textColor
-  self.textSize = props.textSize
   self.background = props.background or Color.new(0, 0, 0, 0)
 
-self.positioning = props.positioning or props.parent.positioning
-   
-   self.zIndex = props.zIndex or 0
+  self.positioning = props.positioning or props.parent.positioning
 
-   self.callback = props.callback or function() end
-   self._pressed = false
-   self._touchPressed = false
+  self.z = props.z or 0
+
+  self.callback = props.callback or function() end
+  self._pressed = false
+  self._touchPressed = false
 
   props.parent:addChild(self)
   return self
@@ -704,8 +726,10 @@ end
 function Button:resize(ratioW, ratioH)
   self.x = self.x * (ratioW or 1)
   self.y = self.y * (ratioH or 1)
-  self.width = math.max(self.width * (ratioW or 1), self:calculateTextWidth())
-  self.height = math.max(self.height * (ratioH or 1), self:calculateTextHeight())
+  local textWidth = self:calculateTextWidth()
+  local textHeight = self:calculateTextHeight()
+  self.width = math.max(self.width * (ratioW or 1), textWidth)
+  self.height = math.max(self.height * (ratioH or 1), textHeight)
 end
 
 ---@param newText string
@@ -779,6 +803,15 @@ function Button:calculateTextWidth()
   end
   local font = love.graphics.getFont()
 
+  -- If textSize is specified, use that font size instead of default
+  if self.textSize then
+    local tempFont = love.graphics.newFont(self.textSize)
+    love.graphics.setFont(tempFont)
+    local width = tempFont:getWidth(self.text)
+    love.graphics.setFont(font) -- restore original font
+    return width
+  end
+
   local width = font:getWidth(self.text)
   return width
 end
@@ -786,6 +819,15 @@ end
 ---@return number
 function Button:calculateTextHeight()
   local font = love.graphics.getFont()
+
+  -- If textSize is specified, use that font size instead of default
+  if self.textSize then
+    local tempFont = love.graphics.newFont(self.textSize)
+    love.graphics.setFont(tempFont)
+    local height = tempFont:getHeight()
+    love.graphics.setFont(font) -- restore original font
+    return height
+  end
 
   local height = font:getHeight()
   return height

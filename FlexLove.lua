@@ -281,8 +281,8 @@ function Window.new(props)
   local self = setmetatable({}, Window)
   self.x = props.x or 0
   self.y = props.y or 0
-  self.width = props.w or self:calculateAutoWidth()
-  self.height = props.h or self:calculateAutoHeight()
+  self.width = props.w or 0
+  self.height = props.h or 0
   self.parent = props.parent
   if props.parent then
     props.parent:addChild(self)
@@ -371,6 +371,9 @@ function Window:layoutChildren()
   if self.positioning == Positioning.ABSOLUTE then
     return
   end
+  Logger:debug("width before: " .. self.width)
+  self:calculateAutoWidth()
+  Logger:debug("width after: " .. self.width)
 
   -- Calculate total size of children
   local totalSize = 0
@@ -599,6 +602,7 @@ function Window:calculateAutoWidth()
   if not self.children or #self.children == 0 then
     return 0
   end
+  Logger:debug("children count: " .. #self.children)
 
   local maxWidth = 0
   for _, child in ipairs(self.children) do
@@ -611,7 +615,7 @@ function Window:calculateAutoWidth()
     end
   end
 
-  return maxWidth
+  self.width = maxWidth
 end
 
 --- Calculate auto height based on children
@@ -631,7 +635,23 @@ function Window:calculateAutoHeight()
     end
   end
 
-  return maxHeight
+  self.height = maxHeight
+end
+
+--- Update window size to fit children automatically
+function Window:updateAutoSize()
+  -- Store current dimensions for comparison
+  local oldWidth, oldHeight = self.width, self.height
+  if self.width == 0 then
+    self.width = self:calculateAutoWidth()
+  end
+  if self.height == 0 then
+    self.height = self:calculateAutoHeight()
+  end
+  -- Only re-layout children if dimensions changed
+  if oldWidth ~= self.width or oldHeight ~= self.height then
+    self:layoutChildren()
+  end
 end
 
 ---@class Button
@@ -801,34 +821,28 @@ function Button:calculateTextWidth()
   if self.text == nil then
     return 0
   end
-  local font = love.graphics.getFont()
-
   -- If textSize is specified, use that font size instead of default
   if self.textSize then
-    local tempFont = love.graphics.newFont(self.textSize)
-    love.graphics.setFont(tempFont)
+    local tempFont = FONT_CACHE.get(self.textSize)
     local width = tempFont:getWidth(self.text)
-    love.graphics.setFont(font) -- restore original font
     return width
   end
 
+  local font = love.graphics.getFont()
   local width = font:getWidth(self.text)
   return width
 end
 
 ---@return number
 function Button:calculateTextHeight()
-  local font = love.graphics.getFont()
-
   -- If textSize is specified, use that font size instead of default
   if self.textSize then
-    local tempFont = love.graphics.newFont(self.textSize)
-    love.graphics.setFont(tempFont)
+    local tempFont = FONT_CACHE.get(self.textSize)
     local height = tempFont:getHeight()
-    love.graphics.setFont(font) -- restore original font
     return height
   end
 
+  local font = love.graphics.getFont()
   local height = font:getHeight()
   return height
 end

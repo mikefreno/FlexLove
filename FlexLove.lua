@@ -1,11 +1,68 @@
 -- Utility class for color handling
 ---@class Color
----@field r number
----@field g number
----@field b number
----@field a number
+---@field r number -- Red component (0-1)
+---@field g number -- Green component (0-1)
+---@field b number -- Blue component (0-1)
+---@field a number -- Alpha component (0-1)
+---@field toHex fun(self:Color): string -- Converts color to hex string
+---@field toRGBA fun(self:Color): number, number, number, number -- Returns RGBA components as numbers
 local Color = {}
 Color.__index = Color
+
+--- Create a new color instance
+---@param r number -- Red component (0-1)
+---@param g number -- Green component (0-1)
+---@param b number -- Blue component (0-1)
+---@param a number? -- Alpha component (0-1), default 1
+---@return Color
+function Color.new(r, g, b, a)
+  local self = setmetatable({}, Color)
+  self.r = r or 0
+  self.g = g or 0
+  self.b = b or 0
+  self.a = a or 1
+  return self
+end
+
+--- Convert hex string to color
+---@param hex string -- e.g. "#RRGGBB" or "#RRGGBBAA"
+---@return Color
+function Color.fromHex(hex)
+  local hex = hex:gsub("#", "")
+  if #hex == 6 then
+    local r = tonumber("0x" .. hex:sub(1, 2))
+    local g = tonumber("0x" .. hex:sub(3, 4))
+    local b = tonumber("0x" .. hex:sub(5, 6))
+    return Color.new(r, g, b, 1)
+  elseif #hex == 8 then
+    local r = tonumber("0x" .. hex:sub(1, 2))
+    local g = tonumber("0x" .. hex:sub(3, 4))
+    local b = tonumber("0x" .. hex:sub(5, 6))
+    local a = tonumber("0x" .. hex:sub(7, 8)) / 255
+    return Color.new(r, g, b, a)
+  else
+    error("Invalid hex string")
+  end
+end
+
+--- Convert color to hex string
+---@return string -- Hex color string in format "#RRGGBB" or "#RRGGBBAA"
+function Color:toHex()
+  local r = math.floor(self.r * 255)
+  local g = math.floor(self.g * 255)
+  local b = math.floor(self.b * 255)
+  local a = math.floor(self.a * 255)
+  if self.a ~= 1 then
+    return string.format("#%02X%02X%02X%02X", r, g, b, a)
+  else
+    return string.format("#%02X%02X%02X", r, g, b)
+  end
+end
+
+---@return number r, number g, number b, number a
+function Color:toRGBA()
+  return self.r, self.g, self.b, self.a
+end
 
 --- Create a new color instance
 ---@param r number
@@ -94,8 +151,29 @@ enums.JustifyContent = {
   SPACE_BETWEEN = "space-between",
 }
 
+--- @enum JustifySelf
+enums.JustifySelf = {
+  AUTO = "auto",
+  FLEX_START = "flex-start",
+  CENTER = "center",
+  FLEX_END = "flex-end",
+  SPACE_AROUND = "space-around",
+  SPACE_EVENLY = "space-evenly",
+  SPACE_BETWEEN = "space-between",
+}
+
 --- @enum AlignItems
 enums.AlignItems = {
+  STRETCH = "stretch",
+  FLEX_START = "flex-start",
+  FLEX_END = "flex-end",
+  CENTER = "center",
+  BASELINE = "baseline",
+}
+
+--- @enum AlignSelf
+enums.AlignSelf = {
+  AUTO = "auto",
   STRETCH = "stretch",
   FLEX_START = "flex-start",
   FLEX_END = "flex-end",
@@ -113,10 +191,23 @@ enums.AlignContent = {
   SPACE_AROUND = "space-around",
 }
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign =
-  enums.Positioning, enums.FlexDirection, enums.JustifyContent, enums.AlignContent, enums.AlignItems, enums.TextAlign
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf =
+  enums.Positioning,
+  enums.FlexDirection,
+  enums.JustifyContent,
+  enums.AlignContent,
+  enums.AlignItems,
+  enums.TextAlign,
+  enums.AlignSelf,
+  enums.JustifySelf
 
 --- Top level GUI manager
+---@class Gui
+---@field topWindows table<integer, Window>
+---@field resize fun(): void
+---@field draw fun(): void
+---@field update fun(dt:number): void
+---@field destroy fun(): void
 local Gui = { topWindows = {} }
 
 function Gui.resize()
@@ -156,23 +247,27 @@ end
 
 ---@class Animation
 ---@field duration number
----@field start table{width:number,height:number}
----@field final table{width:number,height:number}
+---@field start {width?:number, height?:number, opacity?:number}
+---@field final {width?:number, height?:number, opacity?:number}
 ---@field elapsed number
 ---@field transform table?
 ---@field transition table?
+---@field update fun(self:Animation, dt:number): boolean
+---@field interpolate fun(self:Animation): table
+---@field apply fun(self:Animation, element:Window|Button): void
 local Animation = {}
 Animation.__index = Animation
 
 ---@class AnimationProps
 ---@field duration number
----@field start table{width:number,height:number}
----@field final table{width:number,height:number}
+---@field start {width?:number, height?:number, opacity?:number}
+---@field final {width?:number, height?:number, opacity?:number}
 ---@field transform table?
 ---@field transition table?
 local AnimationProps = {}
 
 ---@param props AnimationProps
+---@return Animation
 function Animation.new(props)
   local self = setmetatable({}, Animation)
   self.duration = props.duration
@@ -195,18 +290,29 @@ end
 
 function Animation:interpolate()
   local t = math.min(self.elapsed / self.duration, 1)
-  local result = {
-    width = self.start.width * (1 - t) + self.final.width * t,
-    height = self.start.height * (1 - t) + self.final.height * t,
-  }
-  
+  local result = {}
+
+  -- Handle width and height if present
+  if self.start.width and self.final.width then
+    result.width = self.start.width * (1 - t) + self.final.width * t
+  end
+
+  if self.start.height and self.final.height then
+    result.height = self.start.height * (1 - t) + self.final.height * t
+  end
+
+  -- Handle other properties like opacity
+  if self.start.opacity and self.final.opacity then
+    result.opacity = self.start.opacity * (1 - t) + self.final.opacity * t
+  end
+
   -- Apply transform if present
   if self.transform then
     for key, value in pairs(self.transform) do
       result[key] = value
     end
   end
-  
+
   return result
 end
 
@@ -232,7 +338,7 @@ function Animation.fade(duration, fromOpacity, toOpacity)
     start = { opacity = fromOpacity },
     final = { opacity = toOpacity },
     transform = {},
-    transition = {}
+    transition = {},
   })
 end
 
@@ -247,7 +353,7 @@ function Animation.scale(duration, fromScale, toScale)
     start = { width = fromScale.width, height = fromScale.height },
     final = { width = toScale.width, height = toScale.height },
     transform = {},
-    transition = {}
+    transition = {},
   })
 end
 
@@ -284,58 +390,72 @@ end
 -- Window Object
 -- ====================
 ---@class Window
----@field autosizing boolean
----@field x number
----@field y number
----@field z number -- default: 0
----@field width number
----@field height number
----@field children table<integer, Button|Window>
----@field parent Window?
----@field border Border
----@field borderColor Color
----@field background Color
----@field prevGameSize {width:number, height:number}
----@field text string?
----@field textColor Color
----@field textAlign TextAlign
----@field gap number
----@field px number
----@field py number
----@field positioning Positioning -- default: ABSOLUTE
----@field flexDirection FlexDirection -- default: horizontal
----@field justifyContent JustifyContent -- default: start
----@field alignItems AlignItems -- default: start
----@field alignContent AlignContent -- default: start
----@field textSize number?
----@field transform table
----@field transition table
+---@field autosizing boolean -- Whether the window should automatically size to fit its children
+---@field x number -- X coordinate of the window
+---@field y number -- Y coordinate of the window
+---@field z number -- Z-index for layering (default: 0)
+---@field width number -- Width of the window
+---@field height number -- Height of the window
+---@field children table<integer, Button|Window> -- Children of this window
+---@field parent Window? -- Parent window (nil if top-level)
+---@field border Border -- Border configuration for the window
+---@field borderColor Color -- Color of the border
+---@field background Color -- Background color of the window
+---@field prevGameSize {width:number, height:number} -- Previous game size for resize calculations
+---@field text string? -- Text content to display in the window
+---@field textColor Color -- Color of the text content
+---@field textAlign TextAlign -- Alignment of the text content
+---@field gap number -- Space between children elements (default: 10)
+---@field px number -- Horizontal padding around children (default: 0)
+---@field py number -- Vertical padding around children (default: 0)
+---@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
+---@field flexDirection FlexDirection -- Direction of flex layout (default: HORIZONTAL)
+---@field justifyContent JustifyContent -- Alignment of items along main axis (default: FLEX_START)
+---@field alignItems AlignItems -- Alignment of items along cross axis (default: STRETCH)
+---@field alignContent AlignContent -- Alignment of lines in multi-line flex containers (default: STRETCH)
+---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
+---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
+---@field textSize number? -- Font size for text content
+---@field transform table -- Transform properties for animations and styling
+---@field transition table -- Transition settings for animations
+---@field getBounds fun(self:Window): {x:number, y:number, width:number, height:number} -- Returns window bounds
+---@field addChild fun(self:Window, child:Button|Window): void -- Adds a child to this window
+---@field layoutChildren fun(self:Window): void -- Layouts all children based on current settings
+---@field destroy fun(self:Window): void -- Destroys the window and its children
+---@field draw fun(self:Window): void -- Draws the window and its children
+---@field update fun(self:Window, dt:number): void -- Updates the window and its children
+---@field resize fun(self:Window, newGameWidth:number, newGameHeight:number): void -- Resizes the window based on game size change
+---@field calculateAutoWidth fun(self:Window): void -- Calculates auto width based on children
+---@field calculateAutoHeight fun(self:Window): void -- Calculates auto height based on children
+---@field updateAutoSize fun(self:Window): void -- Updates the window size to fit its children automatically
 local Window = {}
 Window.__index = Window
 
 ---@class WindowProps
----@field parent Window?
----@field x number?
----@field y number?
----@field z number? -- default: 0
----@field w number?
----@field h number?
----@field border Border?
----@field borderColor Color? -- default: black? -- default: none
----@field background Color?  --default: transparent
----@field gap number? -- default: 10
----@field px number? -- default: 0
----@field py number? -- default: 0
----@field text string? -- default: nil
----@field titleColor Color? -- default: black
----@field textAlign TextAlign?
----@field textColor Color? -- default: black
----@field textSize number? -- default: nil
----@field positioning Positioning? -- default: ABSOLUTE
----@field flexDirection FlexDirection? -- default: HORIZONTAL
----@field justifyContent JustifyContent? -- default: FLEX_START
----@field alignItems AlignItems? -- default: STRETCH
----@field alignContent AlignContent? -- default: STRETCH
+---@field parent Window? -- Parent window for hierarchical structure
+---@field x number? -- X coordinate of the window (default: 0)
+---@field y number? -- Y coordinate of the window (default: 0)
+---@field z number? -- Z-index for layering (default: 0)
+---@field w number? -- Width of the window (default: calculated automatically)
+---@field h number? -- Height of the window (default: calculated automatically)
+---@field border Border? -- Border configuration for the window
+---@field borderColor Color? -- Color of the border (default: black)
+---@field background Color? -- Background color (default: transparent)
+---@field gap number? -- Space between children elements (default: 10)
+---@field px number? -- Horizontal padding around children (default: 0)
+---@field py number? -- Vertical padding around children (default: 0)
+---@field text string? -- Text content to display (default: nil)
+---@field titleColor Color? -- Color of the text content (default: black)
+---@field textAlign TextAlign? -- Alignment of the text content (default: START)
+---@field textColor Color? -- Color of the text content (default: black)
+---@field textSize number? -- Font size for text content (default: nil)
+---@field positioning Positioning? -- Layout positioning mode (default: ABSOLUTE)
+---@field flexDirection FlexDirection? -- Direction of flex layout (default: HORIZONTAL)
+---@field justifyContent JustifyContent? -- Alignment of items along main axis (default: FLEX_START)
+---@field alignItems AlignItems? -- Alignment of items along cross axis (default: STRETCH)
+---@field alignContent AlignContent? -- Alignment of lines in multi-line flex containers (default: STRETCH)
+---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
+---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
 local WindowProps = {}
 
 ---@param props WindowProps
@@ -411,6 +531,8 @@ function Window.new(props)
     self.justifyContent = props.justifyContent or JustifyContent.FLEX_START
     self.alignItems = props.alignItems or AlignItems.STRETCH
     self.alignContent = props.alignContent or AlignContent.STRETCH
+    self.justifySelf = props.justifySelf or AlignSelf.AUTO
+    self.alignSelf = props.alignSelf or AlignSelf.AUTO
   end
 
   local gw, gh = love.window.getMode()
@@ -422,12 +544,16 @@ function Window.new(props)
   self.transform = props.transform or {}
   self.transition = props.transition or {}
 
+  -- Initialize opacity for animations to work properly
+  self.opacity = self.background.a
+
   if not props.parent then
     table.insert(Gui.topWindows, self)
   end
   return self
 end
 
+--- Get window bounds
 ---@return { x:number, y:number, width:number, height:number }
 function Window:getBounds()
   return { x = self.x, y = self.y, width = self.width, height = self.height }
@@ -490,6 +616,30 @@ function Window:layoutChildren()
     end
   end
 
+  -- Apply justifySelf for individual children
+  local childSpacing = {}
+  for i, child in ipairs(self.children) do
+    if child.justifySelf == JustifySelf.FLEX_START then
+      childSpacing[i] = 0
+    elseif child.justifySelf == JustifySelf.CENTER then
+      childSpacing[i] = freeSpace / 2
+    elseif child.justifySelf == JustifySelf.FLEX_END then
+      childSpacing[i] = freeSpace
+    elseif child.justifySelf == JustifySelf.SPACE_AROUND then
+      childSpacing[i] = freeSpace / (childCount + 1)
+    elseif child.justifySelf == JustifySelf.SPACE_EVENLY then
+      childSpacing[i] = freeSpace / (childCount + 1)
+    elseif child.justifySelf == JustifySelf.SPACE_BETWEEN then
+      if childCount > 1 then
+        childSpacing[i] = freeSpace / (childCount - 1)
+      else
+        childSpacing[i] = 0
+      end
+    else
+      childSpacing[i] = 0 -- default to flex-start
+    end
+  end
+
   -- Position children
   local currentPos = spacing
   for _, child in ipairs(self.children) do
@@ -510,6 +660,18 @@ function Window:layoutChildren()
       elseif self.alignItems == AlignItems.STRETCH then
         child.height = self.height
       end
+
+      -- Apply self alignment to vertical axis (alignSelf)
+      if child.alignSelf == AlignSelf.FLEX_START then
+        --nothing, currentPos is all
+      elseif child.alignSelf == AlignSelf.CENTER then
+        child.y = (self.height - (child.height or 0)) / 2
+      elseif child.alignSelf == AlignSelf.FLEX_END then
+        child.y = self.height - (child.height or 0)
+      elseif child.alignSelf == AlignSelf.STRETCH then
+        child.height = self.height
+      end
+
       currentPos = currentPos + (child.width or 0) + self.gap
     else
       child.y = currentPos
@@ -521,6 +683,17 @@ function Window:layoutChildren()
       elseif self.alignItems == AlignItems.FLEX_END then
         child.x = self.width - (child.width or 0)
       elseif self.alignItems == AlignItems.STRETCH then
+        child.width = self.width
+      end
+
+      -- Apply self alignment to horizontal axis (alignSelf)
+      if child.alignSelf == AlignSelf.FLEX_START then
+        --nothing, currentPos is all
+      elseif child.alignSelf == AlignSelf.CENTER then
+        child.x = (self.width - (child.width or 0)) / 2
+      elseif child.alignSelf == AlignSelf.FLEX_END then
+        child.x = self.width - (child.width or 0)
+      elseif child.alignSelf == AlignSelf.STRETCH then
         child.width = self.width
       end
 
@@ -569,7 +742,16 @@ end
 
 --- Draw window and its children
 function Window:draw()
-  love.graphics.setColor(self.background:toRGBA())
+  -- Handle opacity during animation
+  local drawBackground = self.background
+  if self.animation then
+    local anim = self.animation:interpolate()
+    if anim.opacity then
+      drawBackground = Color.new(self.background.r, self.background.g, self.background.b, anim.opacity)
+    end
+  end
+
+  love.graphics.setColor(drawBackground:toRGBA())
   love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
   -- Draw borders based on border property
   love.graphics.setColor(self.borderColor:toRGBA())
@@ -640,8 +822,13 @@ function Window:update(dt)
     else
       -- Apply animation interpolation during update
       local anim = self.animation:interpolate()
-      self.width = anim.width
-      self.height = anim.height
+      self.width = anim.width or self.width
+      self.height = anim.height or self.height
+      self.opacity = anim.opacity or self.opacity
+      -- Update background color with interpolated opacity
+      if anim.opacity then
+        self.background.a = anim.opacity
+      end
     end
   end
 end
@@ -749,11 +936,21 @@ end
 ---@field parent Window
 ---@field callback function
 ---@field textColor Color?
----@field _touchPressed boolean
+---@field _touchPressed table<number, boolean>
 ---@field positioning Positioning --default: ABSOLUTE (checks parent first)
 ---@field textSize number?
+---@field justifySelf JustifySelf -- default: auto
+---@field alignSelf AlignSelf -- default: auto
 ---@field transform table
 ---@field transition table
+---@field bounds fun(self:Button): {x:number, y:number, width:number, height:number}
+---@field resize fun(self:Button, ratioW?:number, ratioH?:number): void
+---@field updateText fun(self:Button, newText:string, autoresize?:boolean): void
+---@field draw fun(self:Button): void
+---@field calculateTextWidth fun(self:Button): number
+---@field calculateTextHeight fun(self:Button): number
+---@field update fun(self:Button, dt:number): void
+---@field destroy fun(self:Button): void
 local Button = {}
 Button.__index = Button
 
@@ -774,6 +971,8 @@ Button.__index = Button
 ---@field textColor Color? -- default: black,
 ---@field textSize number? -- default: nil
 ---@field positioning Positioning? --default: ABSOLUTE (checks parent first)
+---@field justifySelf JustifySelf? -- default: AUTO
+---@field alignSelf AlignSelf? -- default: AUTO
 local ButtonProps = {}
 
 ---@param props ButtonProps
@@ -807,6 +1006,8 @@ function Button.new(props)
   self.background = props.background or Color.new(0, 0, 0, 0)
 
   self.positioning = props.positioning or props.parent.positioning
+  self.justifySelf = props.justifySelf or AlignSelf.AUTO
+  self.alignSelf = props.alignSelf or AlignSelf.AUTO
 
   self.z = props.z or 0
 
@@ -817,6 +1018,9 @@ function Button.new(props)
   -- Add transform and transition properties
   self.transform = props.transform or {}
   self.transition = props.transition or {}
+
+  -- Initialize opacity for animations to work properly
+  self.opacity = self.background.a
 
   props.parent:addChild(self)
   return self
@@ -933,7 +1137,7 @@ function Button:calculateTextHeight()
   return height
 end
 
---- Check if mouse is over button and handle click
+--- Update button (propagate to children)
 ---@param dt number
 function Button:update(dt)
   local mx, my = love.mouse.getPosition()
@@ -961,6 +1165,24 @@ function Button:update(dt)
       self._touchPressed[id] = false
     end
   end
+
+  -- Update animation if exists (similar to Window:update)
+  if self.animation then
+    local finished = self.animation:update(dt)
+    if finished then
+      self.animation = nil -- remove finished animation
+    else
+      -- Apply animation interpolation during update
+      local anim = self.animation:interpolate()
+      self.width = anim.width or self.width
+      self.height = anim.height or self.height
+      self.opacity = anim.opacity or self.opacity
+      -- Update background color with interpolated opacity
+      if anim.opacity then
+        self.background.a = anim.opacity
+      end
+    end
+  end
 end
 
 --- Destroy button
@@ -981,6 +1203,104 @@ function Button:destroy()
   self._touchPressed = nil
 end
 
+--- Find a child element by name or id (if applicable)
+---@param name string -- Name or id to search for
+---@return Button|Window|nil
+function Window:findChild(name)
+  for _, child in ipairs(self.children) do
+    if child.name == name or child.id == name then
+      return child
+    end
+  end
+  return nil
+end
+
+--- Get all children of a specific type
+---@param type string -- "Button" or "Window"
+---@return table<integer, Button|Window>
+function Window:getChildrenOfType(type)
+  local result = {}
+  for _, child in ipairs(self.children) do
+    if getmetatable(child).__name == type then
+      table.insert(result, child)
+    end
+  end
+  return result
+end
+
+--- Set the visibility of this window and its children
+---@param visible boolean -- Whether to show or hide the window
+function Window:setVisible(visible)
+  self.visible = visible
+  for _, child in ipairs(self.children) do
+    if child.setVisible then
+      child:setVisible(visible)
+    end
+  end
+end
+
+--- Get the absolute position of this window relative to screen
+---@return number x, number y
+function Window:getAbsolutePosition()
+  local x, y = self.x, self.y
+  local parent = self.parent
+  while parent do
+    x = x + parent.x
+    y = y + parent.y
+    parent = parent.parent
+  end
+  return x, y
+end
+
+--- Get the absolute bounds of this window
+---@return {x:number, y:number, width:number, height:number}
+function Window:getAbsoluteBounds()
+  local x, y = self:getAbsolutePosition()
+  return {
+    x = x,
+    y = y,
+    width = self.width,
+    height = self.height,
+  }
+end
+
+--- Set the size of this window and all its children proportionally
+---@param width number -- New width
+---@param height number -- New height
+function Window:setSize(width, height)
+  local oldWidth = self.width
+  local oldHeight = self.height
+  if oldWidth > 0 and oldHeight > 0 then
+    local ratioW = width / oldWidth
+    local ratioH = height / oldHeight
+    self.width = width
+    self.height = height
+    -- Resize children proportionally
+    for _, child in ipairs(self.children) do
+      if child.resize then
+        child:resize(ratioW, ratioH)
+      end
+    end
+  else
+    self.width = width
+    self.height = height
+  end
+end
+
+--- Center this window within its parent or screen
+---@param parent Window? -- Parent window to center within (optional)
+function Window:center(parent)
+  local parentWidth, parentHeight = love.window.getMode()
+  if parent then
+    parentWidth = parent.width
+    parentHeight = parent.height
+  end
+
+  self.x = (parentWidth - self.width) / 2
+  self.y = (parentHeight - self.height) / 2
+end
+
 Gui.Button = Button
 Gui.Window = Window
+Gui.Animation = Animation
 return { GUI = Gui, Color = Color, enums = enums }

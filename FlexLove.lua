@@ -551,33 +551,9 @@ function Window:layoutChildren()
     end
   end
 
-  -- Apply justifySelf for individual children
-  local childSpacing = {}
-  for i, child in ipairs(self.children) do
-    if child.justifySelf == JustifySelf.FLEX_START then
-      childSpacing[i] = 0
-    elseif child.justifySelf == JustifySelf.CENTER then
-      childSpacing[i] = freeSpace / 2
-    elseif child.justifySelf == JustifySelf.FLEX_END then
-      childSpacing[i] = freeSpace
-    elseif child.justifySelf == JustifySelf.SPACE_AROUND then
-      childSpacing[i] = freeSpace / (childCount + 1)
-    elseif child.justifySelf == JustifySelf.SPACE_EVENLY then
-      childSpacing[i] = freeSpace / (childCount + 1)
-    elseif child.justifySelf == JustifySelf.SPACE_BETWEEN then
-      if childCount > 1 then
-        childSpacing[i] = freeSpace / (childCount - 1)
-      else
-        childSpacing[i] = 0
-      end
-    else
-      childSpacing[i] = 0 -- default to flex-start
-    end
-  end
-
   -- Position children
   local currentPos = spacing
-  for _, child in ipairs(self.children) do
+  for i, child in ipairs(self.children) do
     if child.positioning == Positioning.ABSOLUTE then
       goto continue
     end

@@ -23,10 +23,10 @@ function Color.new(r, g, b, a)
 end
 
 --- Convert hex string to color
----@param hex string -- e.g. "#RRGGBB" or "#RRGGBBAA"
+---@param hexWithTag string -- e.g. "#RRGGBB" or "#RRGGBBAA"
 ---@return Color
-function Color.fromHex(hex)
-  local hex = hex:gsub("#", "")
+function Color.fromHex(hexWithTag)
+  local hex = hexWithTag:gsub("#", "")
   if #hex == 6 then
     local r = tonumber("0x" .. hex:sub(1, 2))
     local g = tonumber("0x" .. hex:sub(3, 4))
@@ -206,6 +206,16 @@ Animation.__index = Animation
 ---@field transition table?
 local AnimationProps = {}
 
+---@class TransformProps
+---@field scale {x?:number, y?:number}?
+---@field rotate number?
+---@field translate {x?:number, y?:number}?
+---@field skew {x?:number, y?:number}?
+
+---@class TransitionProps
+---@field duration number?
+---@field easing string?
+
 ---@param props AnimationProps
 ---@return Animation
 function Animation.new(props)
@@ -359,8 +369,8 @@ end
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field textSize number? -- Font size for text content
----@field transform table -- Transform properties for animations and styling
----@field transition table -- Transition settings for animations
+---@field transform TransformProps -- Transform properties for animations and styling
+---@field transition TransitionProps -- Transition settings for animations
 local Window = {}
 Window.__index = Window
 
@@ -553,7 +563,7 @@ function Window:layoutChildren()
 
   -- Position children
   local currentPos = spacing
-  for i, child in ipairs(self.children) do
+  for _, child in ipairs(self.children) do
     if child.positioning == Positioning.ABSOLUTE then
       goto continue
     end
@@ -949,8 +959,8 @@ end
 ---@field textSize number?
 ---@field justifySelf JustifySelf -- default: auto
 ---@field alignSelf AlignSelf -- default: auto
----@field transform table
----@field transition table
+---@field transform TransformProps
+---@field transition TransitionProps
 local Button = {}
 Button.__index = Button
 

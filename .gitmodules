@@ -1,0 +1,4 @@
+[submodule "game/libs"]
+	path = game/libs
+	url = https://github.com/mikefreno/FlexLove.git
+	branch = main

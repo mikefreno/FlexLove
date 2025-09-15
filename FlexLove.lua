@@ -611,7 +611,8 @@ function Window:calculateAutoWidth()
   for _, child in ipairs(self.children) do
     local childWidth = child.width or 0
     local childX = child.x or 0
-    local totalWidth = childX + childWidth
+    local paddingAdjustment = child.px * 2
+    local totalWidth = childX + childWidth + paddingAdjustment
 
     if totalWidth > maxWidth then
       maxWidth = totalWidth
@@ -631,7 +632,8 @@ function Window:calculateAutoHeight()
   for _, child in ipairs(self.children) do
     local childHeight = child.height or 0
     local childY = child.y or 0
-    local totalHeight = childY + childHeight
+    local paddingAdjustment = child.py * 2
+    local totalHeight = childY + childHeight + paddingAdjustment
 
     if totalHeight > maxHeight then
       maxHeight = totalHeight

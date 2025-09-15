@@ -159,6 +159,8 @@ end
 ---@field start table{width:number,height:number}
 ---@field final table{width:number,height:number}
 ---@field elapsed number
+---@field transform table?
+---@field transition table?
 local Animation = {}
 Animation.__index = Animation
 
@@ -166,6 +168,8 @@ Animation.__index = Animation
 ---@field duration number
 ---@field start table{width:number,height:number}
 ---@field final table{width:number,height:number}
+---@field transform table?
+---@field transition table?
 local AnimationProps = {}
 
 ---@param props AnimationProps
@@ -174,6 +178,8 @@ function Animation.new(props)
   self.duration = props.duration
   self.start = props.start
   self.final = props.final
+  self.transform = props.transform
+  self.transition = props.transition
   self.elapsed = 0
   return self
 end
@@ -189,10 +195,60 @@ end
 
 function Animation:interpolate()
   local t = math.min(self.elapsed / self.duration, 1)
-  return {
+  local result = {
     width = self.start.width * (1 - t) + self.final.width * t,
     height = self.start.height * (1 - t) + self.final.height * t,
   }
+  
+  -- Apply transform if present
+  if self.transform then
+    for key, value in pairs(self.transform) do
+      result[key] = value
+    end
+  end
+  
+  return result
+end
+
+--- Apply animation to a GUI element
+---@param element Window|Button
+function Animation:apply(element)
+  if element.animation then
+    -- If there's an existing animation, we should probably stop it or replace it
+    element.animation = self
+  else
+    element.animation = self
+  end
+end
+
+--- Create a simple fade animation
+---@param duration number
+---@param fromOpacity number
+---@param toOpacity number
+---@return Animation
+function Animation.fade(duration, fromOpacity, toOpacity)
+  return Animation.new({
+    duration = duration,
+    start = { opacity = fromOpacity },
+    final = { opacity = toOpacity },
+    transform = {},
+    transition = {}
+  })
+end
+
+--- Create a simple scale animation
+---@param duration number
+---@param fromScale table{width:number,height:number}
+---@param toScale table{width:number,height:number}
+---@return Animation
+function Animation.scale(duration, fromScale, toScale)
+  return Animation.new({
+    duration = duration,
+    start = { width = fromScale.width, height = fromScale.height },
+    final = { width = toScale.width, height = toScale.height },
+    transform = {},
+    transition = {}
+  })
 end
 
 local FONT_CACHE = {}
@@ -252,6 +308,8 @@ end
 ---@field alignItems AlignItems -- default: start
 ---@field alignContent AlignContent -- default: start
 ---@field textSize number?
+---@field transform table
+---@field transition table
 local Window = {}
 Window.__index = Window
 
@@ -359,6 +417,10 @@ function Window.new(props)
   self.prevGameSize = { width = gw, height = gh }
 
   self.z = props.z or 0
+
+  -- Add transform and transition properties
+  self.transform = props.transform or {}
+  self.transition = props.transition or {}
 
   if not props.parent then
     table.insert(Gui.topWindows, self)
@@ -690,6 +752,8 @@ end
 ---@field _touchPressed boolean
 ---@field positioning Positioning --default: ABSOLUTE (checks parent first)
 ---@field textSize number?
+---@field transform table
+---@field transition table
 local Button = {}
 Button.__index = Button
 
@@ -749,6 +813,10 @@ function Button.new(props)
   self.callback = props.callback or function() end
   self._pressed = false
   self._touchPressed = false
+
+  -- Add transform and transition properties
+  self.transform = props.transform or {}
+  self.transition = props.transition or {}
 
   props.parent:addChild(self)
   return self

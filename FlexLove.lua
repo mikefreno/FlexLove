@@ -228,6 +228,7 @@ end
 -- Window Object
 -- ====================
 ---@class Window
+---@field autosizing boolean
 ---@field x number
 ---@field y number
 ---@field z number -- default: 0
@@ -285,6 +286,11 @@ function Window.new(props)
   local self = setmetatable({}, Window)
   self.x = props.x or 0
   self.y = props.y or 0
+  if props.w == nil and props.h == nil then
+    self.autosizing = true
+  else
+    self.autosizing = false
+  end
   self.width = props.w or 0
   self.height = props.h or 0
   self.parent = props.parent
@@ -378,6 +384,7 @@ function Window:layoutChildren()
     return
   end
   self:calculateAutoWidth()
+  self:calculateAutoHeight()
 
   local totalSize = 0
   local childCount = #self.children
@@ -602,8 +609,11 @@ end
 
 --- Calculate auto width based on children
 function Window:calculateAutoWidth()
+  if self.autosizing == false then
+    return
+  end
   if not self.children or #self.children == 0 then
-    return 0
+    self.width = 0
   end
   Logger:debug("children count: " .. #self.children)
 
@@ -624,8 +634,11 @@ end
 
 --- Calculate auto height based on children
 function Window:calculateAutoHeight()
+  if self.autosizing == false then
+    return
+  end
   if not self.children or #self.children == 0 then
-    return 0
+    self.height = 0
   end
 
   local maxHeight = 0

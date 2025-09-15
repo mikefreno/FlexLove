@@ -4,65 +4,8 @@
 ---@field g number -- Green component (0-1)
 ---@field b number -- Blue component (0-1)
 ---@field a number -- Alpha component (0-1)
----@field toHex fun(self:Color): string -- Converts color to hex string
----@field toRGBA fun(self:Color): number, number, number, number -- Returns RGBA components as numbers
 local Color = {}
 Color.__index = Color
-
---- Create a new color instance
----@param r number -- Red component (0-1)
----@param g number -- Green component (0-1)
----@param b number -- Blue component (0-1)
----@param a number? -- Alpha component (0-1), default 1
----@return Color
-function Color.new(r, g, b, a)
-  local self = setmetatable({}, Color)
-  self.r = r or 0
-  self.g = g or 0
-  self.b = b or 0
-  self.a = a or 1
-  return self
-end
-
---- Convert hex string to color
----@param hex string -- e.g. "#RRGGBB" or "#RRGGBBAA"
----@return Color
-function Color.fromHex(hex)
-  local hex = hex:gsub("#", "")
-  if #hex == 6 then
-    local r = tonumber("0x" .. hex:sub(1, 2))
-    local g = tonumber("0x" .. hex:sub(3, 4))
-    local b = tonumber("0x" .. hex:sub(5, 6))
-    return Color.new(r, g, b, 1)
-  elseif #hex == 8 then
-    local r = tonumber("0x" .. hex:sub(1, 2))
-    local g = tonumber("0x" .. hex:sub(3, 4))
-    local b = tonumber("0x" .. hex:sub(5, 6))
-    local a = tonumber("0x" .. hex:sub(7, 8)) / 255
-    return Color.new(r, g, b, a)
-  else
-    error("Invalid hex string")
-  end
-end
-
---- Convert color to hex string
----@return string -- Hex color string in format "#RRGGBB" or "#RRGGBBAA"
-function Color:toHex()
-  local r = math.floor(self.r * 255)
-  local g = math.floor(self.g * 255)
-  local b = math.floor(self.b * 255)
-  local a = math.floor(self.a * 255)
-  if self.a ~= 1 then
-    return string.format("#%02X%02X%02X%02X", r, g, b, a)
-  else
-    return string.format("#%02X%02X%02X", r, g, b)
-  end
-end
-
----@return number r, number g, number b, number a
-function Color:toRGBA()
-  return self.r, self.g, self.b, self.a
-end
 
 --- Create a new color instance
 ---@param r number
@@ -204,10 +147,10 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
 --- Top level GUI manager
 ---@class Gui
 ---@field topWindows table<integer, Window>
----@field resize fun(): void
----@field draw fun(): void
----@field update fun(dt:number): void
----@field destroy fun(): void
+---@field resize fun(): nil
+---@field draw fun(): nil
+---@field update fun(dt:number): nil
+---@field destroy fun(): nil
 local Gui = { topWindows = {} }
 
 function Gui.resize()
@@ -252,9 +195,6 @@ end
 ---@field elapsed number
 ---@field transform table?
 ---@field transition table?
----@field update fun(self:Animation, dt:number): boolean
----@field interpolate fun(self:Animation): table
----@field apply fun(self:Animation, element:Window|Button): void
 local Animation = {}
 Animation.__index = Animation
 
@@ -279,6 +219,8 @@ function Animation.new(props)
   return self
 end
 
+---@param dt number
+---@return boolean
 function Animation:update(dt)
   self.elapsed = self.elapsed + dt
   if self.elapsed >= self.duration then
@@ -288,6 +230,7 @@ function Animation:update(dt)
   end
 end
 
+---@return table
 function Animation:interpolate()
   local t = math.min(self.elapsed / self.duration, 1)
   local result = {}
@@ -418,16 +361,6 @@ end
 ---@field textSize number? -- Font size for text content
 ---@field transform table -- Transform properties for animations and styling
 ---@field transition table -- Transition settings for animations
----@field getBounds fun(self:Window): {x:number, y:number, width:number, height:number} -- Returns window bounds
----@field addChild fun(self:Window, child:Button|Window): void -- Adds a child to this window
----@field layoutChildren fun(self:Window): void -- Layouts all children based on current settings
----@field destroy fun(self:Window): void -- Destroys the window and its children
----@field draw fun(self:Window): void -- Draws the window and its children
----@field update fun(self:Window, dt:number): void -- Updates the window and its children
----@field resize fun(self:Window, newGameWidth:number, newGameHeight:number): void -- Resizes the window based on game size change
----@field calculateAutoWidth fun(self:Window): void -- Calculates auto width based on children
----@field calculateAutoHeight fun(self:Window): void -- Calculates auto height based on children
----@field updateAutoSize fun(self:Window): void -- Updates the window size to fit its children automatically
 local Window = {}
 Window.__index = Window
 
@@ -456,6 +389,8 @@ Window.__index = Window
 ---@field alignContent AlignContent? -- Alignment of lines in multi-line flex containers (default: STRETCH)
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
+---@field transform table? -- Transform properties for animations and styling
+---@field transition table? -- Transition settings for animations
 local WindowProps = {}
 
 ---@param props WindowProps
@@ -910,15 +845,112 @@ function Window:updateAutoSize()
   -- Store current dimensions for comparison
   local oldWidth, oldHeight = self.width, self.height
   if self.width == 0 then
-    self.width = self:calculateAutoWidth()
+    self.width = self:calculateAutoWidth() or 0
   end
   if self.height == 0 then
-    self.height = self:calculateAutoHeight()
+    self.height = self:calculateAutoHeight() or 0
   end
   -- Only re-layout children if dimensions changed
   if oldWidth ~= self.width or oldHeight ~= self.height then
     self:layoutChildren()
   end
+end
+
+--- Find a child element by name or id (if applicable)
+---@param name string -- Name or id to search for
+---@return Button|Window|nil
+function Window:findChild(name)
+  for _, child in ipairs(self.children) do
+    if child.name == name or child.id == name then
+      return child
+    end
+  end
+  return nil
+end
+
+--- Get all children of a specific type
+---@param type string -- "Button" or "Window"
+---@return table<integer, Button|Window>
+function Window:getChildrenOfType(type)
+  local result = {}
+  for _, child in ipairs(self.children) do
+    if getmetatable(child).__name == type then
+      table.insert(result, child)
+    end
+  end
+  return result
+end
+
+--- Set the visibility of this window and its children
+---@param visible boolean -- Whether to show or hide the window
+function Window:setVisible(visible)
+  self.visible = visible
+  for _, child in ipairs(self.children) do
+    if child.setVisible then
+      child:setVisible(visible)
+    end
+  end
+end
+
+--- Get the absolute position of this window relative to screen
+---@return number x, number y
+function Window:getAbsolutePosition()
+  local x, y = self.x, self.y
+  local parent = self.parent
+  while parent do
+    x = x + parent.x
+    y = y + parent.y
+    parent = parent.parent
+  end
+  return x, y
+end
+
+--- Get the absolute bounds of this window
+---@return {x:number, y:number, width:number, height:number}
+function Window:getAbsoluteBounds()
+  local x, y = self:getAbsolutePosition()
+  return {
+    x = x,
+    y = y,
+    width = self.width,
+    height = self.height,
+  }
+end
+
+--- Set the size of this window and all its children proportionally
+---@param width number -- New width
+---@param height number -- New height
+function Window:setSize(width, height)
+  local oldWidth = self.width
+  local oldHeight = self.height
+  if oldWidth > 0 and oldHeight > 0 then
+    local ratioW = width / oldWidth
+    local ratioH = height / oldHeight
+    self.width = width
+    self.height = height
+    -- Resize children proportionally
+    for _, child in ipairs(self.children) do
+      if child.resize then
+        child:resize(ratioW, ratioH)
+      end
+    end
+  else
+    self.width = width
+    self.height = height
+  end
+end
+
+--- Center this window within its parent or screen
+---@param parent Window? -- Parent window to center within (optional)
+function Window:center(parent)
+  local parentWidth, parentHeight = love.window.getMode()
+  if parent then
+    parentWidth = parent.width
+    parentHeight = parent.height
+  end
+
+  self.x = (parentWidth - self.width) / 2
+  self.y = (parentHeight - self.height) / 2
 end
 
 ---@class Button
@@ -943,14 +975,6 @@ end
 ---@field alignSelf AlignSelf -- default: auto
 ---@field transform table
 ---@field transition table
----@field bounds fun(self:Button): {x:number, y:number, width:number, height:number}
----@field resize fun(self:Button, ratioW?:number, ratioH?:number): void
----@field updateText fun(self:Button, newText:string, autoresize?:boolean): void
----@field draw fun(self:Button): void
----@field calculateTextWidth fun(self:Button): number
----@field calculateTextHeight fun(self:Button): number
----@field update fun(self:Button, dt:number): void
----@field destroy fun(self:Button): void
 local Button = {}
 Button.__index = Button
 
@@ -973,6 +997,8 @@ Button.__index = Button
 ---@field positioning Positioning? --default: ABSOLUTE (checks parent first)
 ---@field justifySelf JustifySelf? -- default: AUTO
 ---@field alignSelf AlignSelf? -- default: AUTO
+---@field transform table?
+---@field transition table?
 local ButtonProps = {}
 
 ---@param props ButtonProps
@@ -1013,7 +1039,7 @@ function Button.new(props)
 
   self.callback = props.callback or function() end
   self._pressed = false
-  self._touchPressed = false
+  self._touchPressed = {}
 
   -- Add transform and transition properties
   self.transform = props.transform or {}
@@ -1201,103 +1227,6 @@ function Button:destroy()
   self.callback = nil
   -- Clear touchPressed references
   self._touchPressed = nil
-end
-
---- Find a child element by name or id (if applicable)
----@param name string -- Name or id to search for
----@return Button|Window|nil
-function Window:findChild(name)
-  for _, child in ipairs(self.children) do
-    if child.name == name or child.id == name then
-      return child
-    end
-  end
-  return nil
-end
-
---- Get all children of a specific type
----@param type string -- "Button" or "Window"
----@return table<integer, Button|Window>
-function Window:getChildrenOfType(type)
-  local result = {}
-  for _, child in ipairs(self.children) do
-    if getmetatable(child).__name == type then
-      table.insert(result, child)
-    end
-  end
-  return result
-end
-
---- Set the visibility of this window and its children
----@param visible boolean -- Whether to show or hide the window
-function Window:setVisible(visible)
-  self.visible = visible
-  for _, child in ipairs(self.children) do
-    if child.setVisible then
-      child:setVisible(visible)
-    end
-  end
-end
-
---- Get the absolute position of this window relative to screen
----@return number x, number y
-function Window:getAbsolutePosition()
-  local x, y = self.x, self.y
-  local parent = self.parent
-  while parent do
-    x = x + parent.x
-    y = y + parent.y
-    parent = parent.parent
-  end
-  return x, y
-end
-
---- Get the absolute bounds of this window
----@return {x:number, y:number, width:number, height:number}
-function Window:getAbsoluteBounds()
-  local x, y = self:getAbsolutePosition()
-  return {
-    x = x,
-    y = y,
-    width = self.width,
-    height = self.height,
-  }
-end
-
---- Set the size of this window and all its children proportionally
----@param width number -- New width
----@param height number -- New height
-function Window:setSize(width, height)
-  local oldWidth = self.width
-  local oldHeight = self.height
-  if oldWidth > 0 and oldHeight > 0 then
-    local ratioW = width / oldWidth
-    local ratioH = height / oldHeight
-    self.width = width
-    self.height = height
-    -- Resize children proportionally
-    for _, child in ipairs(self.children) do
-      if child.resize then
-        child:resize(ratioW, ratioH)
-      end
-    end
-  else
-    self.width = width
-    self.height = height
-  end
-end
-
---- Center this window within its parent or screen
----@param parent Window? -- Parent window to center within (optional)
-function Window:center(parent)
-  local parentWidth, parentHeight = love.window.getMode()
-  if parent then
-    parentWidth = parent.width
-    parentHeight = parent.height
-  end
-
-  self.x = (parentWidth - self.width) / 2
-  self.y = (parentHeight - self.height) / 2
 end
 
 Gui.Button = Button

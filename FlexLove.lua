@@ -243,6 +243,8 @@ end
 ---@field textColor Color
 ---@field textAlign TextAlign
 ---@field gap number
+---@field px number
+---@field py number
 ---@field positioning Positioning -- default: ABSOLUTE
 ---@field flexDirection FlexDirection -- default: horizontal
 ---@field justifyContent JustifyContent -- default: start
@@ -263,6 +265,8 @@ Window.__index = Window
 ---@field borderColor Color? -- default: black? -- default: none
 ---@field background Color?  --default: transparent
 ---@field gap number? -- default: 10
+---@field px number? -- default: 0
+---@field py number? -- default: 0
 ---@field text string? -- default: nil
 ---@field titleColor Color? -- default: black
 ---@field textAlign TextAlign?
@@ -314,6 +318,8 @@ function Window.new(props)
   end
 
   self.gap = props.gap or 10
+  self.px = props.px or 0
+  self.py = props.py or 0
   self.text = props.text
 
   self.textColor = props.textColor
@@ -371,11 +377,8 @@ function Window:layoutChildren()
   if self.positioning == Positioning.ABSOLUTE then
     return
   end
-  Logger:debug("width before: " .. self.width)
   self:calculateAutoWidth()
-  Logger:debug("width after: " .. self.width)
 
-  -- Calculate total size of children
   local totalSize = 0
   local childCount = #self.children
 

@@ -4,6 +4,8 @@ A Löve Gui based on Flexbox
 
 FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system. It provides a simple way to create and manage UI elements like windows and buttons with automatic layout calculations, animations, and responsive design.
 
+# This library is no where near ready for sane use, there are many broken, incomplete and missing features. 
+
 ## Features
 
 - **Flexbox Layout**: Implement modern flexbox layouts for UI elements

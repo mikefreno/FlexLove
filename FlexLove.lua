@@ -567,67 +567,67 @@ function Window:layoutChildren()
     end
   end
 
-  -- Position children
-  local currentPos = spacing
-  for _, child in ipairs(self.children) do
-    if child.positioning == Positioning.ABSOLUTE then
-      goto continue
-    end
-    if self.flexDirection == FlexDirection.VERTICAL then
-      child.x = currentPos
-      child.y = 0
+-- Position children
+   local currentPos = spacing
+   for _, child in ipairs(self.children) do
+     if child.positioning == Positioning.ABSOLUTE then
+       goto continue
+     end
+     if self.flexDirection == FlexDirection.VERTICAL then
+       child.x = currentPos + self.mx
+       child.y = 0
 
-      -- Apply alignment to vertical axis (alignItems)
-      if self.alignItems == AlignItems.FLEX_START then
-        --nothing, currentPos is all
-      elseif self.alignItems == AlignItems.CENTER then
-        child.y = (self.height - (child.height or 0)) / 2
-      elseif self.alignItems == AlignItems.FLEX_END then
-        child.y = self.height - (child.height or 0)
-      elseif self.alignItems == AlignItems.STRETCH then
-        child.height = self.height
-      end
+       -- Apply alignment to vertical axis (alignItems)
+       if self.alignItems == AlignItems.FLEX_START then
+         --nothing, currentPos is all
+       elseif self.alignItems == AlignItems.CENTER then
+         child.y = (self.height - (child.height or 0)) / 2
+       elseif self.alignItems == AlignItems.FLEX_END then
+         child.y = self.height - (child.height or 0)
+       elseif self.alignItems == AlignItems.STRETCH then
+         child.height = self.height
+       end
 
-      -- Apply self alignment to vertical axis (alignSelf)
-      if child.alignSelf == AlignSelf.FLEX_START then
-        --nothing, currentPos is all
-      elseif child.alignSelf == AlignSelf.CENTER then
-        child.y = (self.height - (child.height or 0)) / 2
-      elseif child.alignSelf == AlignSelf.FLEX_END then
-        child.y = self.height - (child.height or 0)
-      elseif child.alignSelf == AlignSelf.STRETCH then
-        child.height = self.height
-      end
+       -- Apply self alignment to vertical axis (alignSelf)
+       if child.alignSelf == AlignSelf.FLEX_START then
+         --nothing, currentPos is all
+       elseif child.alignSelf == AlignSelf.CENTER then
+         child.y = (self.height - (child.height or 0)) / 2
+       elseif child.alignSelf == AlignSelf.FLEX_END then
+         child.y = self.height - (child.height or 0)
+       elseif child.alignSelf == AlignSelf.STRETCH then
+         child.height = self.height
+       end
 
-      currentPos = currentPos + (child.width or 0) + self.gap
-    else
-      child.y = currentPos
-      -- Apply alignment to horizontal axis (alignItems)
-      if self.alignItems == AlignItems.FLEX_START then
-        --nothing, currentPos is all
-      elseif self.alignItems == AlignItems.CENTER then
-        child.x = (self.width - (child.width or 0)) / 2
-      elseif self.alignItems == AlignItems.FLEX_END then
-        child.x = self.width - (child.width or 0)
-      elseif self.alignItems == AlignItems.STRETCH then
-        child.width = self.width
-      end
+       currentPos = currentPos + (child.width or 0) + self.gap + self.mx * 2
+     else
+       child.y = currentPos + self.my
+       -- Apply alignment to horizontal axis (alignItems)
+       if self.alignItems == AlignItems.FLEX_START then
+         --nothing, currentPos is all
+       elseif self.alignItems == AlignItems.CENTER then
+         child.x = (self.width - (child.width or 0)) / 2
+       elseif self.alignItems == AlignItems.FLEX_END then
+         child.x = self.width - (child.width or 0)
+       elseif self.alignItems == AlignItems.STRETCH then
+         child.width = self.width
+       end
 
-      -- Apply self alignment to horizontal axis (alignSelf)
-      if child.alignSelf == AlignSelf.FLEX_START then
-        --nothing, currentPos is all
-      elseif child.alignSelf == AlignSelf.CENTER then
-        child.x = (self.width - (child.width or 0)) / 2
-      elseif child.alignSelf == AlignSelf.FLEX_END then
-        child.x = self.width - (child.width or 0)
-      elseif child.alignSelf == AlignSelf.STRETCH then
-        child.width = self.width
-      end
+       -- Apply self alignment to horizontal axis (alignSelf)
+       if child.alignSelf == AlignSelf.FLEX_START then
+         --nothing, currentPos is all
+       elseif child.alignSelf == AlignSelf.CENTER then
+         child.x = (self.width - (child.width or 0)) / 2
+       elseif child.alignSelf == AlignSelf.FLEX_END then
+         child.x = self.width - (child.width or 0)
+       elseif child.alignSelf == AlignSelf.STRETCH then
+         child.width = self.width
+       end
 
-      currentPos = currentPos + (child.height or 0) + self.gap
-    end
-    ::continue::
-  end
+       currentPos = currentPos + (child.height or 0) + self.gap + self.my * 2
+     end
+     ::continue::
+   end
 end
 
 --- Destroy window and its children
@@ -794,53 +794,54 @@ function Window:resize(newGameWidth, newGameHeight)
 end
 
 --- Calculate auto width based on children
-function Window:calculateAutoWidth()
-  if self.autosizing == false then
-    return
-  end
-  if not self.children or #self.children == 0 then
-    self.width = 0
-  end
-  Logger:debug("children count: " .. #self.children)
+   function Window:calculateAutoWidth()
+   if self.autosizing == false then
+     return
+   end
+   if not self.children or #self.children == 0 then
+     self.width = 0
+   end
+   Logger:debug("children count: " .. #self.children)
 
-  local maxWidth = 0
-  for _, child in ipairs(self.children) do
-    local childWidth = child.width or 0
-    local childX = child.x or 0
-    local paddingAdjustment = child.px * 2
-    local totalWidth = childX + childWidth + paddingAdjustment
+   local maxWidth = 0
+   for _, child in ipairs(self.children) do
+     local childWidth = child.width or 0
+     local childX = child.x or 0
+     local paddingAdjustment = child.px * 2
+     local totalWidth = childX + childWidth + paddingAdjustment
 
-    if totalWidth > maxWidth then
-      maxWidth = totalWidth
-    end
-  end
+     if totalWidth > maxWidth then
+       maxWidth = totalWidth
+     end
+   end
 
-  self.width = maxWidth + (self.px * 2)
+   -- Add window's own px padding and mx margins to the final width
+   self.width = maxWidth + (self.px * 2) + (self.mx * 2)
 end
 
 --- Calculate auto height based on children
-function Window:calculateAutoHeight()
-  if self.autosizing == false then
-    return
-  end
-  if not self.children or #self.children == 0 then
-    self.height = 0
-  end
+   function Window:calculateAutoHeight()
+   if self.autosizing == false then
+     return
+   end
+   if not self.children or #self.children == 0 then
+     self.height = 0
+   end
 
-  local maxHeight = 0
-  for _, child in ipairs(self.children) do
-    local childHeight = child.height or 0
-    local childY = child.y or 0
-    local paddingAdjustment = child.py * 2
-    local totalHeight = childY + childHeight + paddingAdjustment
+   local maxHeight = 0
+   for _, child in ipairs(self.children) do
+     local childHeight = child.height or 0
+     local childY = child.y or 0
+     local paddingAdjustment = child.py * 2
+     local totalHeight = childY + childHeight + paddingAdjustment
 
-    if totalHeight > maxHeight then
-      maxHeight = totalHeight
-    end
-  end
+     if totalHeight > maxHeight then
+       maxHeight = totalHeight
+     end
+   end
 
-  -- Add window's own py padding to the final height
-  self.height = maxHeight + (self.py * 2)
+   -- Add window's own py padding and my margins to the final height
+   self.height = maxHeight + (self.py * 2) + (self.my * 2)
 end
 
 --- Update window size to fit children automatically
@@ -1097,18 +1098,18 @@ function Button:resize(ratioW, ratioH)
 end
 
 ---@param newText string
----@param autoresize boolean? --default: false
-function Button:updateText(newText, autoresize)
-  self.text = newText or self.text
-  if autoresize then
-    self.width = self:calculateTextWidth() + self.px
-    self.height = self:calculateTextHeight() + self.py
-  end
+   ---@param autoresize boolean? --default: false
+   function Button:updateText(newText, autoresize)
+   self.text = newText or self.text
+   if autoresize then
+     self.width = self:calculateTextWidth() + (self.px * 2)
+     self.height = self:calculateTextHeight() + (self.py * 2)
+   end
 
-  -- If autosizing is enabled, recalculate size after text update
-  if self.autosizing then
-    self:autosize()
-  end
+   -- If autosizing is enabled, recalculate size after text update
+   if self.autosizing then
+     self:autosize()
+   end
 end
 
 function Button:draw()

@@ -359,10 +359,8 @@ end
 ---@field textColor Color -- Color of the text content
 ---@field textAlign TextAlign -- Alignment of the text content
 ---@field gap number -- Space between children elements (default: 10)
----@field px number -- Horizontal padding around children (default: 0)
----@field py number -- Vertical padding around children (default: 0)
----@field mx number -- Horizontal margin around children (default: 0)
----@field my number -- Vertical margin around children (default: 0)
+---@field padding {top?:number, right?:number, bottom?:number, left?:number} -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
+---@field margin {top?:number, right?:number, bottom?:number, left?:number} -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection -- Direction of flex layout (default: HORIZONTAL)
 ---@field justifyContent JustifyContent -- Alignment of items along main axis (default: FLEX_START)
@@ -387,10 +385,8 @@ Window.__index = Window
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field background Color? -- Background color (default: transparent)
 ---@field gap number? -- Space between children elements (default: 10)
----@field px number? -- Horizontal padding around children (default: 0)
----@field py number? -- Vertical padding around children (default: 0)
----@field mx number? -- Horizontal margin around children (default: 0)
----@field my number? -- Vertical margin around children (default: 0)
+---@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
+---@field margin {top?:number, right?:number, bottom?:number, left?:number}? -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field text string? -- Text content to display (default: nil)
 ---@field titleColor Color? -- Color of the text content (default: black)
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
@@ -451,10 +447,8 @@ function Window.new(props)
   end
 
   self.gap = props.gap or 10
-  self.px = props.px or 0
-  self.py = props.py or 0
-  self.mx = props.mx or 0
-  self.my = props.my or 0
+  self.padding = props.padding or { top = 0, right = 0, bottom = 0, left = 0 }
+  self.margin = props.margin or { top = 0, right = 0, bottom = 0, left = 0 }
   self.text = props.text
 
   self.textColor = props.textColor
@@ -567,67 +561,67 @@ function Window:layoutChildren()
     end
   end
 
--- Position children
-   local currentPos = spacing
-   for _, child in ipairs(self.children) do
-     if child.positioning == Positioning.ABSOLUTE then
-       goto continue
-     end
-     if self.flexDirection == FlexDirection.VERTICAL then
-       child.x = currentPos + self.mx
-       child.y = 0
+  -- Position children
+  local currentPos = spacing
+  for _, child in ipairs(self.children) do
+    if child.positioning == Positioning.ABSOLUTE then
+      goto continue
+    end
+    if self.flexDirection == FlexDirection.VERTICAL then
+      child.x = currentPos + (self.margin.left or 0)
+      child.y = 0
 
-       -- Apply alignment to vertical axis (alignItems)
-       if self.alignItems == AlignItems.FLEX_START then
-         --nothing, currentPos is all
-       elseif self.alignItems == AlignItems.CENTER then
-         child.y = (self.height - (child.height or 0)) / 2
-       elseif self.alignItems == AlignItems.FLEX_END then
-         child.y = self.height - (child.height or 0)
-       elseif self.alignItems == AlignItems.STRETCH then
-         child.height = self.height
-       end
+      -- Apply alignment to vertical axis (alignItems)
+      if self.alignItems == AlignItems.FLEX_START then
+        --nothing, currentPos is all
+      elseif self.alignItems == AlignItems.CENTER then
+        child.y = (self.height - (child.height or 0)) / 2
+      elseif self.alignItems == AlignItems.FLEX_END then
+        child.y = self.height - (child.height or 0)
+      elseif self.alignItems == AlignItems.STRETCH then
+        child.height = self.height
+      end
 
-       -- Apply self alignment to vertical axis (alignSelf)
-       if child.alignSelf == AlignSelf.FLEX_START then
-         --nothing, currentPos is all
-       elseif child.alignSelf == AlignSelf.CENTER then
-         child.y = (self.height - (child.height or 0)) / 2
-       elseif child.alignSelf == AlignSelf.FLEX_END then
-         child.y = self.height - (child.height or 0)
-       elseif child.alignSelf == AlignSelf.STRETCH then
-         child.height = self.height
-       end
+      -- Apply self alignment to vertical axis (alignSelf)
+      if child.alignSelf == AlignSelf.FLEX_START then
+        --nothing, currentPos is all
+      elseif child.alignSelf == AlignSelf.CENTER then
+        child.y = (self.height - (child.height or 0)) / 2
+      elseif child.alignSelf == AlignSelf.FLEX_END then
+        child.y = self.height - (child.height or 0)
+      elseif child.alignSelf == AlignSelf.STRETCH then
+        child.height = self.height
+      end
 
-       currentPos = currentPos + (child.width or 0) + self.gap + self.mx * 2
-     else
-       child.y = currentPos + self.my
-       -- Apply alignment to horizontal axis (alignItems)
-       if self.alignItems == AlignItems.FLEX_START then
-         --nothing, currentPos is all
-       elseif self.alignItems == AlignItems.CENTER then
-         child.x = (self.width - (child.width or 0)) / 2
-       elseif self.alignItems == AlignItems.FLEX_END then
-         child.x = self.width - (child.width or 0)
-       elseif self.alignItems == AlignItems.STRETCH then
-         child.width = self.width
-       end
+      currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)
+    else
+      child.y = currentPos + (self.margin.top or 0)
+      -- Apply alignment to horizontal axis (alignItems)
+      if self.alignItems == AlignItems.FLEX_START then
+        --nothing, currentPos is all
+      elseif self.alignItems == AlignItems.CENTER then
+        child.x = (self.width - (child.width or 0)) / 2
+      elseif self.alignItems == AlignItems.FLEX_END then
+        child.x = self.width - (child.width or 0)
+      elseif self.alignItems == AlignItems.STRETCH then
+        child.width = self.width
+      end
 
-       -- Apply self alignment to horizontal axis (alignSelf)
-       if child.alignSelf == AlignSelf.FLEX_START then
-         --nothing, currentPos is all
-       elseif child.alignSelf == AlignSelf.CENTER then
-         child.x = (self.width - (child.width or 0)) / 2
-       elseif child.alignSelf == AlignSelf.FLEX_END then
-         child.x = self.width - (child.width or 0)
-       elseif child.alignSelf == AlignSelf.STRETCH then
-         child.width = self.width
-       end
+      -- Apply self alignment to horizontal axis (alignSelf)
+      if child.alignSelf == AlignSelf.FLEX_START then
+        --nothing, currentPos is all
+      elseif child.alignSelf == AlignSelf.CENTER then
+        child.x = (self.width - (child.width or 0)) / 2
+      elseif child.alignSelf == AlignSelf.FLEX_END then
+        child.x = self.width - (child.width or 0)
+      elseif child.alignSelf == AlignSelf.STRETCH then
+        child.width = self.width
+      end
 
-       currentPos = currentPos + (child.height or 0) + self.gap + self.my * 2
-     end
-     ::continue::
-   end
+      currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
+    end
+    ::continue::
+  end
 end
 
 --- Destroy window and its children
@@ -683,25 +677,35 @@ function Window:draw()
   -- Draw borders based on border property
   love.graphics.setColor(self.borderColor:toRGBA())
   if self.border.top then
-    love.graphics.line(self.x + self.px, self.y + self.py, self.x + self.width - self.px, self.y + self.py)
+    love.graphics.line(
+      self.x + (self.padding.left or 0),
+      self.y + (self.padding.top or 0),
+      self.x + self.width - (self.padding.right or 0),
+      self.y + (self.padding.top or 0)
+    )
   end
   if self.border.bottom then
     love.graphics.line(
-      self.x + self.px,
-      self.y + self.height - self.py,
-      self.x + self.width - self.px,
-      self.y + self.height - self.py
+      self.x + (self.padding.left or 0),
+      self.y + self.height - (self.padding.bottom or 0),
+      self.x + self.width - (self.padding.right or 0),
+      self.y + self.height - (self.padding.bottom or 0)
     )
   end
   if self.border.left then
-    love.graphics.line(self.x + self.px, self.y + self.py, self.x + self.px, self.y + self.height - self.py)
+    love.graphics.line(
+      self.x + (self.padding.left or 0),
+      self.y + (self.padding.top or 0),
+      self.x + (self.padding.left or 0),
+      self.y + self.height - (self.padding.bottom or 0)
+    )
   end
   if self.border.right then
     love.graphics.line(
-      self.x + self.width - self.px,
-      self.y + self.py,
-      self.x + self.width - self.px,
-      self.y + self.height - self.py
+      self.x + self.width - (self.padding.right or 0),
+      self.y + (self.padding.top or 0),
+      self.x + self.width - (self.padding.right or 0),
+      self.y + self.height - (self.padding.bottom or 0)
     )
   end
 
@@ -794,54 +798,62 @@ function Window:resize(newGameWidth, newGameHeight)
 end
 
 --- Calculate auto width based on children
-   function Window:calculateAutoWidth()
-   if self.autosizing == false then
-     return
-   end
-   if not self.children or #self.children == 0 then
-     self.width = 0
-   end
-   Logger:debug("children count: " .. #self.children)
+function Window:calculateAutoWidth()
+  if self.autosizing == false then
+    return
+  end
+  if not self.children or #self.children == 0 then
+    self.width = 0
+  end
+  Logger:debug("children count: " .. #self.children)
 
-   local maxWidth = 0
-   for _, child in ipairs(self.children) do
-     local childWidth = child.width or 0
-     local childX = child.x or 0
-     local paddingAdjustment = child.px * 2
-     local totalWidth = childX + childWidth + paddingAdjustment
+  local maxWidth = 0
+  for _, child in ipairs(self.children) do
+    local childWidth = child.width or 0
+    local childX = child.x or 0
+    local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
+    local totalWidth = childX + childWidth + paddingAdjustment
 
-     if totalWidth > maxWidth then
-       maxWidth = totalWidth
-     end
-   end
+    if totalWidth > maxWidth then
+      maxWidth = totalWidth
+    end
+  end
 
-   -- Add window's own px padding and mx margins to the final width
-   self.width = maxWidth + (self.px * 2) + (self.mx * 2)
+  -- Add window's own padding and margin to the final width
+  self.width = maxWidth
+    + (self.padding.left or 0)
+    + (self.padding.right or 0)
+    + (self.margin.left or 0)
+    + (self.margin.right or 0)
 end
 
 --- Calculate auto height based on children
-   function Window:calculateAutoHeight()
-   if self.autosizing == false then
-     return
-   end
-   if not self.children or #self.children == 0 then
-     self.height = 0
-   end
+function Window:calculateAutoHeight()
+  if self.autosizing == false then
+    return
+  end
+  if not self.children or #self.children == 0 then
+    self.height = 0
+  end
 
-   local maxHeight = 0
-   for _, child in ipairs(self.children) do
-     local childHeight = child.height or 0
-     local childY = child.y or 0
-     local paddingAdjustment = child.py * 2
-     local totalHeight = childY + childHeight + paddingAdjustment
+  local maxHeight = 0
+  for _, child in ipairs(self.children) do
+    local childHeight = child.height or 0
+    local childY = child.y or 0
+    local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
+    local totalHeight = childY + childHeight + paddingAdjustment
 
-     if totalHeight > maxHeight then
-       maxHeight = totalHeight
-     end
-   end
+    if totalHeight > maxHeight then
+      maxHeight = totalHeight
+    end
+  end
 
-   -- Add window's own py padding and my margins to the final height
-   self.height = maxHeight + (self.py * 2) + (self.my * 2)
+  -- Add window's own padding and margin to the final height
+  self.height = maxHeight
+    + (self.padding.top or 0)
+    + (self.padding.bottom or 0)
+    + (self.margin.top or 0)
+    + (self.margin.bottom or 0)
 end
 
 --- Update window size to fit children automatically
@@ -963,10 +975,8 @@ end
 ---@field z number -- default: 0
 ---@field width number
 ---@field height number
----@field px number -- Horizontal padding (default: 0)
----@field py number -- Vertical padding (default: 0)
----@field mx number
----@field my number
+---@field padding {top?:number, right?:number, bottom?:number, left?:number} -- Padding (default: {top=0, right=0, bottom=0, left=0})
+---@field margin {top?:number, right?:number, bottom?:number, left?:number} -- Margin (default: {top=0, right=0, bottom=0, left=0})
 ---@field text string?
 ---@field border Border
 ---@field borderColor Color?
@@ -992,10 +1002,8 @@ Button.__index = Button
 ---@field z number?
 ---@field w number?
 ---@field h number?
----@field px number?
----@field py number?
----@field mx number?
----@field my number?
+---@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding (default: {top=0, right=0, bottom=0, left=0})
+---@field margin {top?:number, right?:number, bottom?:number, left?:number}? -- Margin (default: {top=0, right=0, bottom=0, left=0})
 ---@field text string?
 ---@field callback function?
 ---@field background Color?
@@ -1019,10 +1027,8 @@ function Button.new(props)
   self.text = props.text or nil
   self.x = props.x or 0
   self.y = props.y or 0
-  self.px = props.px or 0
-  self.py = props.py or 0
-  self.mx = props.mx or 0
-  self.my = props.my or 0
+  self.padding = props.padding or { top = 0, right = 0, bottom = 0, left = 0 }
+  self.margin = props.margin or { top = 0, right = 0, bottom = 0, left = 0 }
 
   -- Add autosizing logic similar to Window class
   if props.w == nil or props.h == nil then
@@ -1098,18 +1104,18 @@ function Button:resize(ratioW, ratioH)
 end
 
 ---@param newText string
-   ---@param autoresize boolean? --default: false
-   function Button:updateText(newText, autoresize)
-   self.text = newText or self.text
-   if autoresize then
-     self.width = self:calculateTextWidth() + (self.px * 2)
-     self.height = self:calculateTextHeight() + (self.py * 2)
-   end
+---@param autoresize boolean? --default: false
+function Button:updateText(newText, autoresize)
+  self.text = newText or self.text
+  if autoresize then
+    self.width = self:calculateTextWidth() + (self.padding.left or 0) + (self.padding.right or 0)
+    self.height = self:calculateTextHeight() + (self.padding.top or 0) + (self.padding.bottom or 0)
+  end
 
-   -- If autosizing is enabled, recalculate size after text update
-   if self.autosizing then
-     self:autosize()
-   end
+  -- If autosizing is enabled, recalculate size after text update
+  if self.autosizing then
+    self:autosize()
+  end
 end
 
 function Button:draw()
@@ -1201,8 +1207,8 @@ end
 function Button:autosize()
   local textWidth = self:calculateTextWidth()
   local textHeight = self:calculateTextHeight()
-  self.width = textWidth + (self.px * 2)
-  self.height = textHeight + (self.py * 2)
+  self.width = textWidth + (self.padding.left or 0) + (self.padding.right or 0)
+  self.height = textHeight + (self.padding.top or 0) + (self.padding.bottom or 0)
 end
 
 --- Update button (propagate to children)

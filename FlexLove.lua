@@ -797,7 +797,7 @@ function Window:resize(newGameWidth, newGameHeight)
   self.prevGameSize.height = newGameHeight
 end
 
---- Calculate auto width based on children
+--- Calculate auto width based on children content size
 function Window:calculateAutoWidth()
   if self.autosizing == false then
     return
@@ -809,10 +809,19 @@ function Window:calculateAutoWidth()
 
   local maxWidth = 0
   for _, child in ipairs(self.children) do
-    local childWidth = child.width or 0
+    -- Calculate content width based on child's actual content, not existing dimensions
+    local contentWidth = 0
+    if child.text then
+      contentWidth = child:calculateTextWidth()
+    elseif child.width and not child.autosizing then
+      contentWidth = child.width
+    else
+      contentWidth = 0
+    end
+    
     local childX = child.x or 0
     local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
-    local totalWidth = childX + childWidth + paddingAdjustment
+    local totalWidth = childX + contentWidth + paddingAdjustment
 
     if totalWidth > maxWidth then
       maxWidth = totalWidth
@@ -838,10 +847,19 @@ function Window:calculateAutoHeight()
 
   local maxHeight = 0
   for _, child in ipairs(self.children) do
-    local childHeight = child.height or 0
+    -- Calculate content height based on child's actual content, not existing dimensions
+    local contentHeight = 0
+    if child.text then
+      contentHeight = child:calculateTextHeight()
+    elseif child.height and not child.autosizing then
+      contentHeight = child.height
+    else
+      contentHeight = 0
+    end
+    
     local childY = child.y or 0
     local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
-    local totalHeight = childY + childHeight + paddingAdjustment
+    local totalHeight = childY + contentHeight + paddingAdjustment
 
     if totalHeight > maxHeight then
       maxHeight = totalHeight

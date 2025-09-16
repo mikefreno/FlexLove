@@ -371,6 +371,7 @@ end
 ---@field textSize number? -- Font size for text content
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
+---@field callback function? -- Callback function for click events
 local Window = {}
 Window.__index = Window
 
@@ -399,6 +400,7 @@ Window.__index = Window
 ---@field alignContent AlignContent? -- Alignment of lines in multi-line flex containers (default: STRETCH)
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
+---@field callback function? -- Callback function for click events
 ---@field transform table? -- Transform properties for animations and styling
 ---@field transition table? -- Transition settings for animations
 local WindowProps = {}
@@ -491,6 +493,9 @@ function Window.new(props)
 
   -- Initialize opacity for animations to work properly
   self.opacity = self.background.a
+  
+  -- Store callback function for click events
+  self.callback = props.callback or nil
 
   if not props.parent then
     table.insert(Gui.topWindows, self)
@@ -743,6 +748,12 @@ function Window:draw()
     end
   end
 
+  -- Draw visual feedback when window is pressed (if it has a callback)
+  if self.callback and self._pressed then
+    love.graphics.setColor(0.5, 0.5, 0.5, 0.3) -- Semi-transparent gray for pressed state
+    love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
+  end
+
   for _, child in ipairs(self.children) do
     child:draw()
   end
@@ -769,6 +780,35 @@ function Window:update(dt)
       -- Update background color with interpolated opacity
       if anim.opacity then
         self.background.a = anim.opacity
+      end
+    end
+  end
+
+  -- Handle click detection for window
+  if self.callback then
+    local mx, my = love.mouse.getPosition()
+    local bx = self.x
+    local by = self.y
+    if mx >= bx and mx <= bx + self.width and my >= by and my <= by + self.height then
+      if love.mouse.isDown(1) then
+        -- set pressed flag
+        self._pressed = true
+      elseif not love.mouse.isDown(1) and self._pressed then
+        self.callback(self)
+        self._pressed = false
+      end
+    else
+      self._pressed = false
+    end
+
+    local touches = love.touch.getTouches()
+    for _, id in ipairs(touches) do
+      local tx, ty = love.touch.getPosition(id)
+      if tx >= bx and tx <= bx + self.width and ty >= by and ty <= by + self.height then
+        self._touchPressed[id] = true
+      elseif self._touchPressed[id] then
+        self.callback(self)
+        self._touchPressed[id] = false
       end
     end
   end
@@ -987,315 +1027,7 @@ function Window:center(parent)
   self.y = (parentHeight - self.height) / 2
 end
 
----@class Button
----@field x number
----@field y number
----@field z number -- default: 0
----@field width number
----@field height number
----@field padding {top?:number, right?:number, bottom?:number, left?:number} -- Padding (default: {top=0, right=0, bottom=0, left=0})
----@field margin {top?:number, right?:number, bottom?:number, left?:number} -- Margin (default: {top=0, right=0, bottom=0, left=0})
----@field text string?
----@field border Border
----@field borderColor Color?
----@field background Color
----@field parent Window
----@field callback function
----@field textColor Color?
----@field _touchPressed table<number, boolean>
----@field positioning Positioning --default: ABSOLUTE (checks parent first)
----@field textSize number?
----@field justifySelf JustifySelf -- default: auto
----@field alignSelf AlignSelf -- default: auto
----@field transform TransformProps
----@field transition TransitionProps
----@field autosizing boolean
-local Button = {}
-Button.__index = Button
 
----@class ButtonProps
----@field parent Window? -- optional
----@field x number?
----@field y number?
----@field z number?
----@field w number?
----@field h number?
----@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding (default: {top=0, right=0, bottom=0, left=0})
----@field margin {top?:number, right?:number, bottom?:number, left?:number}? -- Margin (default: {top=0, right=0, bottom=0, left=0})
----@field text string?
----@field callback function?
----@field background Color?
----@field border Border?
----@field borderColor Color? -- default: black
----@field textColor Color? -- default: black,
----@field textSize number? -- default: nil
----@field positioning Positioning? --default: ABSOLUTE (checks parent first)
----@field justifySelf JustifySelf? -- default: AUTO
----@field alignSelf AlignSelf? -- default: AUTO
----@field transform table?
----@field transition table?
-local ButtonProps = {}
-
----@param props ButtonProps
----@return Button
-function Button.new(props)
-  local self = setmetatable({}, Button)
-  self.parent = props.parent
-  self.textSize = props.textSize
-  self.text = props.text or nil
-  self.x = props.x or 0
-  self.y = props.y or 0
-  self.padding = props.padding or { top = 0, right = 0, bottom = 0, left = 0 }
-  self.margin = props.margin or { top = 0, right = 0, bottom = 0, left = 0 }
-
-  -- Add autosizing logic similar to Window class
-  if props.w == nil or props.h == nil then
-    self.autosizing = true
-  else
-    self.autosizing = false
-  end
-
-  self.width = props.w or self:calculateTextWidth()
-  self.height = props.h or self:calculateTextHeight()
-  self.border = props.border
-      and {
-        top = props.border.top or true,
-        right = props.border.right or true,
-        bottom = props.border.bottom or true,
-        left = props.border.left or true,
-      }
-    or {
-      top = true,
-      right = true,
-      bottom = true,
-      left = true,
-    }
-  self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
-  self.textColor = props.textColor
-  self.background = props.background or Color.new(0, 0, 0, 0)
-
-  self.positioning = props.positioning or props.parent.positioning
-  self.justifySelf = props.justifySelf or AlignSelf.AUTO
-  self.alignSelf = props.alignSelf or AlignSelf.AUTO
-
-  self.z = props.z or 0
-
-  self.callback = props.callback or function() end
-  self._pressed = false
-  self._touchPressed = {}
-
-  -- Add transform and transition properties
-  self.transform = props.transform or {}
-  self.transition = props.transition or {}
-
-  -- Initialize opacity for animations to work properly
-  self.opacity = self.background.a
-
-  -- If autosizing is enabled, calculate the size based on text
-  if self.autosizing then
-    self:autosize()
-  end
-
-  props.parent:addChild(self)
-  return self
-end
-
-function Button:bounds()
-  return { x = self.parent.x + self.x, y = self.parent.y + self.y, width = self.width, height = self.height }
-end
-
----comment
----@param ratioW number?
----@param ratioH number?
-function Button:resize(ratioW, ratioH)
-  self.x = self.x * (ratioW or 1)
-  self.y = self.y * (ratioH or 1)
-  local textWidth = self:calculateTextWidth()
-  local textHeight = self:calculateTextHeight()
-  self.width = math.max(self.width * (ratioW or 1), textWidth)
-  self.height = math.max(self.height * (ratioH or 1), textHeight)
-
-  -- If autosizing is enabled, recalculate size after resize
-  if self.autosizing then
-    self:autosize()
-  end
-end
-
----@param newText string
----@param autoresize boolean? --default: false
-function Button:updateText(newText, autoresize)
-  self.text = newText or self.text
-  if autoresize then
-    self.width = self:calculateTextWidth() + (self.padding.left or 0) + (self.padding.right or 0)
-    self.height = self:calculateTextHeight() + (self.padding.top or 0) + (self.padding.bottom or 0)
-  end
-
-  -- If autosizing is enabled, recalculate size after text update
-  if self.autosizing then
-    self:autosize()
-  end
-end
-
-function Button:draw()
-  love.graphics.setColor(self.background:toRGBA())
-  love.graphics.rectangle("fill", self.parent.x + self.x, self.parent.y + self.y, self.width, self.height)
-  -- Draw borders based on border property
-  love.graphics.setColor(self.borderColor:toRGBA())
-  if self.border.top then
-    love.graphics.line(
-      self.parent.x + self.x,
-      self.parent.y + self.y,
-      self.parent.x + self.x + self.width,
-      self.parent.y + self.y
-    )
-  end
-  if self.border.bottom then
-    love.graphics.line(
-      self.parent.x + self.x,
-      self.parent.y + self.y + self.height,
-      self.parent.x + self.x + self.width,
-      self.parent.y + self.y + self.height
-    )
-  end
-  if self.border.left then
-    love.graphics.line(
-      self.parent.x + self.x,
-      self.parent.y + self.y,
-      self.parent.x + self.x,
-      self.parent.y + self.y + self.height
-    )
-  end
-  if self.border.right then
-    love.graphics.line(
-      self.parent.x + self.x + self.width,
-      self.parent.y + self.y,
-      self.parent.x + self.x + self.width,
-      self.parent.y + self.y + self.height
-    )
-  end
-
-  local origFont = love.graphics.getFont()
-  if self.textSize then
-    local tempFont = love.graphics.newFont(self.textSize)
-    love.graphics.setFont(tempFont)
-  end
-  local textColor = self.textColor or self.parent.textColor
-  love.graphics.setColor(textColor:toRGBA())
-  local tx = self.parent.x + self.x + (self.width - self:calculateTextWidth()) / 2
-  local ty = self.parent.y + self.y + (self.height - self:calculateTextHeight()) / 3
-  love.graphics.print(self.text, tx, ty)
-  if self.textSize then
-    love.graphics.setFont(origFont)
-  end
-end
-
---- Calculate text width for button
----@return number
-function Button:calculateTextWidth()
-  if self.text == nil then
-    return 0
-  end
-  -- If textSize is specified, use that font size instead of default
-  if self.textSize then
-    local tempFont = FONT_CACHE.get(self.textSize)
-    local width = tempFont:getWidth(self.text)
-    return width
-  end
-
-  local font = love.graphics.getFont()
-  local width = font:getWidth(self.text)
-  return width
-end
-
----@return number
-function Button:calculateTextHeight()
-  -- If textSize is specified, use that font size instead of default
-  if self.textSize then
-    local tempFont = FONT_CACHE.get(self.textSize)
-    local height = tempFont:getHeight()
-    return height
-  end
-
-  local font = love.graphics.getFont()
-  local height = font:getHeight()
-  return height
-end
-
---- Set button dimensions based on text size plus padding (auto-sizing)
-function Button:autosize()
-  local textWidth = self:calculateTextWidth()
-  local textHeight = self:calculateTextHeight()
-  self.width = textWidth + (self.padding.left or 0) + (self.padding.right or 0)
-  self.height = textHeight + (self.padding.top or 0) + (self.padding.bottom or 0)
-end
-
---- Update button (propagate to children)
----@param dt number
-function Button:update(dt)
-  local mx, my = love.mouse.getPosition()
-  local bx = self.parent.x + self.x
-  local by = self.parent.y + self.y
-  if mx >= bx and mx <= bx + self.width and my >= by and my <= by + self.height then
-    if love.mouse.isDown(1) then
-      -- set pressed flag
-      self._pressed = true
-    elseif not love.mouse.isDown(1) and self._pressed then
-      self.callback(self)
-      self._pressed = false
-    end
-  else
-    self._pressed = false
-  end
-
-  local touches = love.touch.getTouches()
-  for _, id in ipairs(touches) do
-    local tx, ty = love.touch.getPosition(id)
-    if tx >= bx and tx <= bx + self.width and ty >= by and ty <= by + self.height then
-      self._touchPressed[id] = true
-    elseif self._touchPressed[id] then
-      self.callback(self)
-      self._touchPressed[id] = false
-    end
-  end
-
-  -- Update animation if exists (similar to Window:update)
-  if self.animation then
-    local finished = self.animation:update(dt)
-    if finished then
-      self.animation = nil -- remove finished animation
-    else
-      -- Apply animation interpolation during update
-      local anim = self.animation:interpolate()
-      self.width = anim.width or self.width
-      self.height = anim.height or self.height
-      self.opacity = anim.opacity or self.opacity
-      -- Update background color with interpolated opacity
-      if anim.opacity then
-        self.background.a = anim.opacity
-      end
-    end
-  end
-end
-
---- Destroy button
-function Button:destroy()
-  -- Remove from parent's children list
-  if self.parent then
-    for i, child in ipairs(self.parent.children) do
-      if child == self then
-        table.remove(self.parent.children, i)
-        break
-      end
-    end
-    self.parent = nil
-  end
-  -- Clear callback reference
-  self.callback = nil
-  -- Clear touchPressed references
-  self._touchPressed = nil
-end
-
-Gui.Button = Button
 Gui.Window = Window
 Gui.Animation = Animation
 return { GUI = Gui, Color = Color, enums = enums }

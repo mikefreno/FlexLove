@@ -144,6 +144,47 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.AlignSelf,
   enums.JustifySelf
 
+--- Top level GUI manager
+---@class Gui
+---@field topElements table<integer, Element>
+---@field resize fun(): nil
+---@field draw fun(): nil
+---@field update fun(dt:number): nil
+---@field destroy fun(): nil
+local Gui = { topElements = {} }
+
+function Gui.resize()
+  local newWidth, newHeight = love.window.getMode()
+  for _, win in ipairs(Gui.topElements) do
+    win:resize(newWidth, newHeight)
+  end
+end
+
+function Gui.draw()
+  -- Sort elements by z-index before drawing
+  table.sort(Gui.topElements, function(a, b)
+    return a.z < b.z
+  end)
+
+  for _, win in ipairs(Gui.topElements) do
+    win:draw()
+  end
+end
+
+function Gui.update(dt)
+  for _, win in ipairs(Gui.topElements) do
+    win:update(dt)
+  end
+end
+
+--- Destroy all elements and their children
+function Gui.destroy()
+  for _, win in ipairs(Gui.topElements) do
+    win:destroy()
+  end
+  Gui.topElements = {}
+end
+
 -- Simple GUI library for LOVE2D
 -- Provides element and button creation, drawing, and click handling.
 
@@ -302,7 +343,7 @@ end
 -- Element Object
 -- ====================
 ---@class Element
----@field autosizing boolean -- Whether the element should automatically size to fit its children
+---@field autosizing {width:boolean, height:boolean} -- Whether the element should automatically size to fit its children
 ---@field x number -- X coordinate of the element
 ---@field y number -- Y coordinate of the element
 ---@field z number -- Z-index for layering (default: 0)
@@ -318,7 +359,7 @@ end
 ---@field textColor Color -- Color of the text content
 ---@field textAlign TextAlign -- Alignment of the text content
 ---@field gap number -- Space between children elements (default: 10)
----@field padding {top?:number, right?:number, bottom?:number, left?:number} -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
+---@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field margin {top?:number, right?:number, bottom?:number, left?:number} -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection -- Direction of flex layout (default: HORIZONTAL)
@@ -370,18 +411,22 @@ function Element.new(props)
   local self = setmetatable({}, Element)
   self.x = props.x or 0
   self.y = props.y or 0
-  if props.w == nil or props.h == nil then
-    self.autosizing = true
+  self.autosizing = { width = false, height = false }
+
+  if props.w then
+    self.width = props.w
   else
-    self.autosizing = false
+    self.autosizing.width = true
+    self.width = self:calculateAutoWidth()
   end
-  self.width = props.w or 0
-  self.height = props.h or 0
-  self.parent = props.parent
-  if props.parent then
-    props.parent:addChild(self)
+
+  if props.h then
+    self.height = props.h
+  else
+    self.autosizing.height = true
+    self.height = self:calculateAutoHeight()
   end
-  self.children = {}
+
   self.border = props.border
       and {
         top = props.border.top or false,
@@ -408,8 +453,32 @@ function Element.new(props)
   end
 
   self.gap = props.gap or 10
-  self.padding = props.padding or { top = 0, right = 0, bottom = 0, left = 0 }
-  self.margin = props.margin or { top = 0, right = 0, bottom = 0, left = 0 }
+  self.padding = props.padding
+      and {
+        top = props.padding.top or 0,
+        right = props.padding.right or 0,
+        bottom = props.padding.bottom or 0,
+        left = props.padding.left or 0,
+      }
+    or {
+      top = 0,
+      right = 0,
+      bottom = 0,
+      left = 0,
+    }
+  self.margin = props.margin
+      and {
+        top = props.margin.top or 0,
+        right = props.margin.right or 0,
+        bottom = props.margin.bottom or 0,
+        left = props.margin.left or 0,
+      }
+    or {
+      top = 0,
+      right = 0,
+      bottom = 0,
+      left = 0,
+    }
   self.text = props.text
 
   self.textColor = props.textColor
@@ -430,6 +499,12 @@ function Element.new(props)
     else
       self.positioning = Positioning.ABSOLUTE
     end
+  end
+
+  self.parent = props.parent
+  self.children = {}
+  if props.parent then
+    props.parent:addChild(self)
   end
 
   if self.positioning == Positioning.FLEX then
@@ -473,6 +548,12 @@ end
 function Element:addChild(child)
   child.parent = self
   table.insert(self.children, child)
+  if self.autosizing.height then
+    self.height = self:calculateAutoHeight()
+  end
+  if self.autosizing.width then
+    self.width = self:calculateAutoWidth()
+  end
   self:layoutChildren()
 end
 
@@ -480,8 +561,6 @@ function Element:layoutChildren()
   if self.positioning == Positioning.ABSOLUTE then
     return
   end
-  self:calculateAutoWidth()
-  self:calculateAutoHeight()
 
   local totalSize = 0
   local childCount = #self.children
@@ -796,35 +875,6 @@ function Element:resize(newGameWidth, newGameHeight)
   self.prevGameSize.height = newGameHeight
 end
 
---- Calculate auto width based on children content size
-function Element:calculateAutoWidth()
-  if self.autosizing == false then
-    return
-  end
-  if not self.children or #self.children == 0 then
-    self.width = 0
-  end
-
-  local maxWidth = 0
-  for _, child in ipairs(self.children) do
-    -- Calculate content width based on child's actual content, not existing dimensions
-
-    local childX = child.x or 0
-    local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
-    local totalWidth = childX + child.width + paddingAdjustment
-
-    if totalWidth > maxWidth then
-      maxWidth = totalWidth
-    end
-  end
-
-  self.width = maxWidth
-    + (self.padding.left or 0)
-    + (self.padding.right or 0)
-    + (self.margin.left or 0)
-    + (self.margin.right or 0)
-end
-
 --- Calculate text width for button
 ---@return number
 function Element:calculateTextWidth()
@@ -857,69 +907,41 @@ function Element:calculateTextHeight()
   return height
 end
 
+--- Calculate auto width based on children content size
+function Element:calculateAutoWidth()
+  local width = self:calculateTextWidth()
+  if not self.children or #self.children == 0 then
+    return width
+  end
+
+  local totalWidth = width
+  for _, child in ipairs(self.children) do
+    local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
+    local childWidth = child.width or child:calculateAutoWidth()
+    local childOffset = childWidth + paddingAdjustment
+
+    totalWidth = totalWidth + childOffset
+  end
+
+  return totalWidth + (self.gap * #self.children)
+end
+
 --- Calculate auto height based on children
 function Element:calculateAutoHeight()
-  if self.autosizing == false then
-    return
-  end
+  local height = self:calculateTextHeight()
   if not self.children or #self.children == 0 then
-    self.height = 0
+    return height
   end
 
-  local maxHeight = 0
+  local totalHeight = height
   for _, child in ipairs(self.children) do
-    -- Calculate content height based on child's actual content, not existing dimensions
-    local contentHeight = 0
-    if child.text then
-      contentHeight = child:calculateTextHeight()
-    elseif child.height and not child.autosizing then
-      contentHeight = child.height
-    else
-      contentHeight = 0
-    end
-
-    local childY = child.y or 0
     local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
-    local totalHeight = childY + contentHeight + paddingAdjustment
+    local childOffset = child.height + paddingAdjustment
 
-    if totalHeight > maxHeight then
-      maxHeight = totalHeight
-    end
+    totalHeight = totalHeight + childOffset
   end
 
-  -- Add element's own padding and margin to the final height
-  self.height = maxHeight
-    + (self.padding.top or 0)
-    + (self.padding.bottom or 0)
-    + (self.margin.top or 0)
-    + (self.margin.bottom or 0)
-end
-
---- Update element size to fit children automatically
-function Element:updateAutoSize()
-  -- Store current dimensions for comparison
-  local oldWidth, oldHeight = self.width, self.height
-  if self.width == 0 then
-    self.width = self:calculateAutoWidth() or 0
-  end
-  if self.height == 0 then
-    self.height = self:calculateAutoHeight() or 0
-  end
-  -- Only re-layout children if dimensions changed
-  if oldWidth ~= self.width or oldHeight ~= self.height then
-    self:layoutChildren()
-  end
-end
-
---- Set the visibility of this element and its children
----@param visible boolean -- Whether to show or hide the element
-function Element:setVisible(visible)
-  self.visible = visible
-  for _, child in ipairs(self.children) do
-    if child.setVisible then
-      child:setVisible(visible)
-    end
-  end
+  return totalHeight + (self.gap * #self.children)
 end
 
 --- Get the absolute position of this element relative to screen
@@ -947,88 +969,16 @@ function Element:getAbsoluteBounds()
   }
 end
 
---- Set the size of this element and all its children proportionally
----@param width number -- New width
----@param height number -- New height
-function Element:setSize(width, height)
-  local oldWidth = self.width
-  local oldHeight = self.height
-  if oldWidth > 0 and oldHeight > 0 then
-    local ratioW = width / oldWidth
-    local ratioH = height / oldHeight
-    self.width = width
-    self.height = height
-    -- Resize children proportionally
-    for _, child in ipairs(self.children) do
-      if child.resize then
-        child:resize(ratioW, ratioH)
-      end
-    end
-  else
-    self.width = width
-    self.height = height
+---@param newText string
+---@param autoresize boolean? --default: false
+function Element:updateText(newText, autoresize)
+  self.text = newText or self.text
+  if autoresize then
+    Logger:error("need to implement resize in updateText")
   end
 end
 
---- Center this element within its parent or screen
----@param parent Element? -- Parent element to center within (optional)
-function Element:center(parent)
-  local parentWidth, parentHeight = love.window.getMode()
-  if parent then
-    parentWidth = parent.width
-    parentHeight = parent.height
-  end
-
-  self.x = (parentWidth - self.width) / 2
-  self.y = (parentHeight - self.height) / 2
-end
-
---- Top level GUI manager
----@class Gui
----@field topElements table<integer, Element>
----@field resize fun(): nil
----@field draw fun(): nil
----@field update fun(dt:number): nil
----@field destroy fun(): nil
-local Gui = { topElements = {} }
-
----@param props ElementProps
-function Gui.new(props)
-  return Element.new(props)
-end
-
-function Gui.resize()
-  local newWidth, newHeight = love.window.getMode()
-  for _, win in ipairs(Gui.topElements) do
-    win:resize(newWidth, newHeight)
-  end
-end
-
-function Gui.draw()
-  -- Sort elements by z-index before drawing
-  table.sort(Gui.topElements, function(a, b)
-    return a.z < b.z
-  end)
-
-  for _, win in ipairs(Gui.topElements) do
-    win:draw()
-  end
-end
-
-function Gui.update(dt)
-  for _, win in ipairs(Gui.topElements) do
-    win:update(dt)
-  end
-end
-
---- Destroy all elements and their children
-function Gui.destroy()
-  for _, win in ipairs(Gui.topElements) do
-    win:destroy()
-  end
-  Gui.topElements = {}
-end
-
+Gui.new = Element.new
 Gui.Element = Element
 Gui.Animation = Animation
 return { GUI = Gui, Color = Color, enums = enums }

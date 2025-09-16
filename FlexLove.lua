@@ -144,49 +144,8 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.AlignSelf,
   enums.JustifySelf
 
---- Top level GUI manager
----@class Gui
----@field topWindows table<integer, Window>
----@field resize fun(): nil
----@field draw fun(): nil
----@field update fun(dt:number): nil
----@field destroy fun(): nil
-local Gui = { topWindows = {} }
-
-function Gui.resize()
-  local newWidth, newHeight = love.window.getMode()
-  for _, win in ipairs(Gui.topWindows) do
-    win:resize(newWidth, newHeight)
-  end
-end
-
-function Gui.draw()
-  -- Sort windows by z-index before drawing
-  table.sort(Gui.topWindows, function(a, b)
-    return a.z < b.z
-  end)
-
-  for _, win in ipairs(Gui.topWindows) do
-    win:draw()
-  end
-end
-
-function Gui.update(dt)
-  for _, win in ipairs(Gui.topWindows) do
-    win:update(dt)
-  end
-end
-
---- Destroy all windows and their children
-function Gui.destroy()
-  for _, win in ipairs(Gui.topWindows) do
-    win:destroy()
-  end
-  Gui.topWindows = {}
-end
-
 -- Simple GUI library for LOVE2D
--- Provides window and button creation, drawing, and click handling.
+-- Provides element and button creation, drawing, and click handling.
 
 ---@class Animation
 ---@field duration number
@@ -270,7 +229,7 @@ function Animation:interpolate()
 end
 
 --- Apply animation to a GUI element
----@param element Window|Button
+---@param element Element
 function Animation:apply(element)
   if element.animation then
     -- If there's an existing animation, we should probably stop it or replace it
@@ -340,22 +299,22 @@ end
 ---@field left boolean?
 
 -- ====================
--- Window Object
+-- Element Object
 -- ====================
----@class Window
----@field autosizing boolean -- Whether the window should automatically size to fit its children
----@field x number -- X coordinate of the window
----@field y number -- Y coordinate of the window
+---@class Element
+---@field autosizing boolean -- Whether the element should automatically size to fit its children
+---@field x number -- X coordinate of the element
+---@field y number -- Y coordinate of the element
 ---@field z number -- Z-index for layering (default: 0)
----@field width number -- Width of the window
----@field height number -- Height of the window
----@field children table<integer, Button|Window> -- Children of this window
----@field parent Window? -- Parent window (nil if top-level)
----@field border Border -- Border configuration for the window
+---@field width number -- Width of the element
+---@field height number -- Height of the element
+---@field children table<integer, Element> -- Children of this element
+---@field parent Element? -- Parent element (nil if top-level)
+---@field border Border -- Border configuration for the element
 ---@field borderColor Color -- Color of the border
----@field background Color -- Background color of the window
+---@field background Color -- Background color of the element
 ---@field prevGameSize {width:number, height:number} -- Previous game size for resize calculations
----@field text string? -- Text content to display in the window
+---@field text string? -- Text content to display in the element
 ---@field textColor Color -- Color of the text content
 ---@field textAlign TextAlign -- Alignment of the text content
 ---@field gap number -- Space between children elements (default: 10)
@@ -372,17 +331,17 @@ end
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field callback function? -- Callback function for click events
-local Window = {}
-Window.__index = Window
+local Element = {}
+Element.__index = Element
 
----@class WindowProps
----@field parent Window? -- Parent window for hierarchical structure
----@field x number? -- X coordinate of the window (default: 0)
----@field y number? -- Y coordinate of the window (default: 0)
+---@class ElementProps
+---@field parent Element? -- Parent element for hierarchical structure
+---@field x number? -- X coordinate of the element (default: 0)
+---@field y number? -- Y coordinate of the element (default: 0)
 ---@field z number? -- Z-index for layering (default: 0)
----@field w number? -- Width of the window (default: calculated automatically)
----@field h number? -- Height of the window (default: calculated automatically)
----@field border Border? -- Border configuration for the window
+---@field w number? -- Width of the element (default: calculated automatically)
+---@field h number? -- Height of the element (default: calculated automatically)
+---@field border Border? -- Border configuration for the element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field background Color? -- Background color (default: transparent)
 ---@field gap number? -- Space between children elements (default: 10)
@@ -403,12 +362,12 @@ Window.__index = Window
 ---@field callback function? -- Callback function for click events
 ---@field transform table? -- Transform properties for animations and styling
 ---@field transition table? -- Transition settings for animations
-local WindowProps = {}
+local ElementProps = {}
 
----@param props WindowProps
----@return Window
-function Window.new(props)
-  local self = setmetatable({}, Window)
+---@param props ElementProps
+---@return Element
+function Element.new(props)
+  local self = setmetatable({}, Element)
   self.x = props.x or 0
   self.y = props.y or 0
   if props.w == nil or props.h == nil then
@@ -493,31 +452,31 @@ function Window.new(props)
 
   -- Initialize opacity for animations to work properly
   self.opacity = self.background.a
-  
+
   -- Store callback function for click events
   self.callback = props.callback or nil
 
   if not props.parent then
-    table.insert(Gui.topWindows, self)
+    table.insert(Gui.topElements, self)
   end
   return self
 end
 
---- Get window bounds
+--- Get element bounds
 ---@return { x:number, y:number, width:number, height:number }
-function Window:getBounds()
+function Element:getBounds()
   return { x = self.x, y = self.y, width = self.width, height = self.height }
 end
 
---- Add child to window
----@param child Button|Window
-function Window:addChild(child)
+--- Add child to element
+---@param child Element
+function Element:addChild(child)
   child.parent = self
   table.insert(self.children, child)
   self:layoutChildren()
 end
 
-function Window:layoutChildren()
+function Element:layoutChildren()
   if self.positioning == Positioning.ABSOLUTE then
     return
   end
@@ -629,12 +588,12 @@ function Window:layoutChildren()
   end
 end
 
---- Destroy window and its children
-function Window:destroy()
-  -- Remove from global windows list
-  for i, win in ipairs(Gui.topWindows) do
+--- Destroy element and its children
+function Element:destroy()
+  -- Remove from global elements list
+  for i, win in ipairs(Gui.topElements) do
     if win == self then
-      table.remove(Gui.topWindows, i)
+      table.remove(Gui.topElements, i)
       break
     end
   end
@@ -666,8 +625,8 @@ function Window:destroy()
   self.animation = nil
 end
 
---- Draw window and its children
-function Window:draw()
+--- Draw element and its children
+function Element:draw()
   -- Handle opacity during animation
   local drawBackground = self.background
   if self.animation then
@@ -714,7 +673,7 @@ function Window:draw()
     )
   end
 
-  -- Draw window text if present
+  -- Draw element text if present
   if self.text then
     love.graphics.setColor(self.textColor:toRGBA())
 
@@ -748,7 +707,7 @@ function Window:draw()
     end
   end
 
-  -- Draw visual feedback when window is pressed (if it has a callback)
+  -- Draw visual feedback when element is pressed (if it has a callback)
   if self.callback and self._pressed then
     love.graphics.setColor(0.5, 0.5, 0.5, 0.3) -- Semi-transparent gray for pressed state
     love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
@@ -759,9 +718,9 @@ function Window:draw()
   end
 end
 
---- Update window (propagate to children)
+--- Update element (propagate to children)
 ---@param dt number
-function Window:update(dt)
+function Element:update(dt)
   for _, child in ipairs(self.children) do
     child:update(dt)
   end
@@ -784,7 +743,7 @@ function Window:update(dt)
     end
   end
 
-  -- Handle click detection for window
+  -- Handle click detection for element
   if self.callback then
     local mx, my = love.mouse.getPosition()
     local bx = self.x
@@ -814,15 +773,15 @@ function Window:update(dt)
   end
 end
 
---- Resize window and its children based on game window size change
+--- Resize element and its children based on game window size change
 ---@param newGameWidth number
 ---@param newGameHeight number
-function Window:resize(newGameWidth, newGameHeight)
+function Element:resize(newGameWidth, newGameHeight)
   local prevW = self.prevGameSize.width
   local prevH = self.prevGameSize.height
   local ratioW = newGameWidth / prevW
   local ratioH = newGameHeight / prevH
-  -- Update window size
+  -- Update element size
   self.width = self.width * ratioW
   self.height = self.height * ratioH
   self.x = self.x * ratioW
@@ -838,37 +797,27 @@ function Window:resize(newGameWidth, newGameHeight)
 end
 
 --- Calculate auto width based on children content size
-function Window:calculateAutoWidth()
+function Element:calculateAutoWidth()
   if self.autosizing == false then
     return
   end
   if not self.children or #self.children == 0 then
     self.width = 0
   end
-  Logger:debug("children count: " .. #self.children)
 
   local maxWidth = 0
   for _, child in ipairs(self.children) do
     -- Calculate content width based on child's actual content, not existing dimensions
-    local contentWidth = 0
-    if child.text then
-      contentWidth = child:calculateTextWidth()
-    elseif child.width and not child.autosizing then
-      contentWidth = child.width
-    else
-      contentWidth = 0
-    end
-    
+
     local childX = child.x or 0
     local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
-    local totalWidth = childX + contentWidth + paddingAdjustment
+    local totalWidth = childX + child.width + paddingAdjustment
 
     if totalWidth > maxWidth then
       maxWidth = totalWidth
     end
   end
 
-  -- Add window's own padding and margin to the final width
   self.width = maxWidth
     + (self.padding.left or 0)
     + (self.padding.right or 0)
@@ -876,8 +825,40 @@ function Window:calculateAutoWidth()
     + (self.margin.right or 0)
 end
 
+--- Calculate text width for button
+---@return number
+function Element:calculateTextWidth()
+  if self.text == nil then
+    return 0
+  end
+  -- If textSize is specified, use that font size instead of default
+  if self.textSize then
+    local tempFont = FONT_CACHE.get(self.textSize)
+    local width = tempFont:getWidth(self.text)
+    return width
+  end
+
+  local font = love.graphics.getFont()
+  local width = font:getWidth(self.text)
+  return width
+end
+
+---@return number
+function Element:calculateTextHeight()
+  -- If textSize is specified, use that font size instead of default
+  if self.textSize then
+    local tempFont = FONT_CACHE.get(self.textSize)
+    local height = tempFont:getHeight()
+    return height
+  end
+
+  local font = love.graphics.getFont()
+  local height = font:getHeight()
+  return height
+end
+
 --- Calculate auto height based on children
-function Window:calculateAutoHeight()
+function Element:calculateAutoHeight()
   if self.autosizing == false then
     return
   end
@@ -896,7 +877,7 @@ function Window:calculateAutoHeight()
     else
       contentHeight = 0
     end
-    
+
     local childY = child.y or 0
     local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
     local totalHeight = childY + contentHeight + paddingAdjustment
@@ -906,7 +887,7 @@ function Window:calculateAutoHeight()
     end
   end
 
-  -- Add window's own padding and margin to the final height
+  -- Add element's own padding and margin to the final height
   self.height = maxHeight
     + (self.padding.top or 0)
     + (self.padding.bottom or 0)
@@ -914,8 +895,8 @@ function Window:calculateAutoHeight()
     + (self.margin.bottom or 0)
 end
 
---- Update window size to fit children automatically
-function Window:updateAutoSize()
+--- Update element size to fit children automatically
+function Element:updateAutoSize()
   -- Store current dimensions for comparison
   local oldWidth, oldHeight = self.width, self.height
   if self.width == 0 then
@@ -930,34 +911,9 @@ function Window:updateAutoSize()
   end
 end
 
---- Find a child element by name or id (if applicable)
----@param name string -- Name or id to search for
----@return Button|Window|nil
-function Window:findChild(name)
-  for _, child in ipairs(self.children) do
-    if child.name == name or child.id == name then
-      return child
-    end
-  end
-  return nil
-end
-
---- Get all children of a specific type
----@param type string -- "Button" or "Window"
----@return table<integer, Button|Window>
-function Window:getChildrenOfType(type)
-  local result = {}
-  for _, child in ipairs(self.children) do
-    if getmetatable(child).__name == type then
-      table.insert(result, child)
-    end
-  end
-  return result
-end
-
---- Set the visibility of this window and its children
----@param visible boolean -- Whether to show or hide the window
-function Window:setVisible(visible)
+--- Set the visibility of this element and its children
+---@param visible boolean -- Whether to show or hide the element
+function Element:setVisible(visible)
   self.visible = visible
   for _, child in ipairs(self.children) do
     if child.setVisible then
@@ -966,9 +922,9 @@ function Window:setVisible(visible)
   end
 end
 
---- Get the absolute position of this window relative to screen
+--- Get the absolute position of this element relative to screen
 ---@return number x, number y
-function Window:getAbsolutePosition()
+function Element:getAbsolutePosition()
   local x, y = self.x, self.y
   local parent = self.parent
   while parent do
@@ -979,9 +935,9 @@ function Window:getAbsolutePosition()
   return x, y
 end
 
---- Get the absolute bounds of this window
+--- Get the absolute bounds of this element
 ---@return {x:number, y:number, width:number, height:number}
-function Window:getAbsoluteBounds()
+function Element:getAbsoluteBounds()
   local x, y = self:getAbsolutePosition()
   return {
     x = x,
@@ -991,10 +947,10 @@ function Window:getAbsoluteBounds()
   }
 end
 
---- Set the size of this window and all its children proportionally
+--- Set the size of this element and all its children proportionally
 ---@param width number -- New width
 ---@param height number -- New height
-function Window:setSize(width, height)
+function Element:setSize(width, height)
   local oldWidth = self.width
   local oldHeight = self.height
   if oldWidth > 0 and oldHeight > 0 then
@@ -1014,9 +970,9 @@ function Window:setSize(width, height)
   end
 end
 
---- Center this window within its parent or screen
----@param parent Window? -- Parent window to center within (optional)
-function Window:center(parent)
+--- Center this element within its parent or screen
+---@param parent Element? -- Parent element to center within (optional)
+function Element:center(parent)
   local parentWidth, parentHeight = love.window.getMode()
   if parent then
     parentWidth = parent.width
@@ -1027,7 +983,52 @@ function Window:center(parent)
   self.y = (parentHeight - self.height) / 2
 end
 
+--- Top level GUI manager
+---@class Gui
+---@field topElements table<integer, Element>
+---@field resize fun(): nil
+---@field draw fun(): nil
+---@field update fun(dt:number): nil
+---@field destroy fun(): nil
+local Gui = { topElements = {} }
 
-Gui.Window = Window
+---@param props ElementProps
+function Gui.new(props)
+  return Element.new(props)
+end
+
+function Gui.resize()
+  local newWidth, newHeight = love.window.getMode()
+  for _, win in ipairs(Gui.topElements) do
+    win:resize(newWidth, newHeight)
+  end
+end
+
+function Gui.draw()
+  -- Sort elements by z-index before drawing
+  table.sort(Gui.topElements, function(a, b)
+    return a.z < b.z
+  end)
+
+  for _, win in ipairs(Gui.topElements) do
+    win:draw()
+  end
+end
+
+function Gui.update(dt)
+  for _, win in ipairs(Gui.topElements) do
+    win:update(dt)
+  end
+end
+
+--- Destroy all elements and their children
+function Gui.destroy()
+  for _, win in ipairs(Gui.topElements) do
+    win:destroy()
+  end
+  Gui.topElements = {}
+end
+
+Gui.Element = Element
 Gui.Animation = Animation
 return { GUI = Gui, Color = Color, enums = enums }

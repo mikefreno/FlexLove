@@ -361,6 +361,7 @@ end
 ---@field gap number -- Space between children elements (default: 10)
 ---@field px number -- Horizontal padding around children (default: 0)
 ---@field py number -- Vertical padding around children (default: 0)
+-- Padding is used for both automatic sizing calculations and border drawing
 ---@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection -- Direction of flex layout (default: HORIZONTAL)
 ---@field justifyContent JustifyContent -- Alignment of items along main axis (default: FLEX_START)
@@ -409,7 +410,7 @@ function Window.new(props)
   local self = setmetatable({}, Window)
   self.x = props.x or 0
   self.y = props.y or 0
-  if props.w == nil and props.h == nil then
+  if props.w == nil or props.h == nil then
     self.autosizing = true
   else
     self.autosizing = false
@@ -677,16 +678,26 @@ function Window:draw()
   -- Draw borders based on border property
   love.graphics.setColor(self.borderColor:toRGBA())
   if self.border.top then
-    love.graphics.line(self.x, self.y, self.x + self.width, self.y)
+    love.graphics.line(self.x + self.px, self.y + self.py, self.x + self.width - self.px, self.y + self.py)
   end
   if self.border.bottom then
-    love.graphics.line(self.x, self.y + self.height, self.x + self.width, self.y + self.height)
+    love.graphics.line(
+      self.x + self.px,
+      self.y + self.height - self.py,
+      self.x + self.width - self.px,
+      self.y + self.height - self.py
+    )
   end
   if self.border.left then
-    love.graphics.line(self.x, self.y, self.x, self.y + self.height)
+    love.graphics.line(self.x + self.px, self.y + self.py, self.x + self.px, self.y + self.height - self.py)
   end
   if self.border.right then
-    love.graphics.line(self.x + self.width, self.y, self.x + self.width, self.y + self.height)
+    love.graphics.line(
+      self.x + self.width - self.px,
+      self.y + self.py,
+      self.x + self.width - self.px,
+      self.y + self.height - self.py
+    )
   end
 
   -- Draw window text if present
@@ -799,7 +810,7 @@ function Window:calculateAutoWidth()
     end
   end
 
-  self.width = maxWidth
+  self.width = maxWidth + (self.px * 2)
 end
 
 --- Calculate auto height based on children
@@ -823,7 +834,8 @@ function Window:calculateAutoHeight()
     end
   end
 
-  self.height = maxHeight
+  -- Add window's own py padding to the final height
+  self.height = maxHeight + (self.py * 2)
 end
 
 --- Update window size to fit children automatically
@@ -945,8 +957,9 @@ end
 ---@field z number -- default: 0
 ---@field width number
 ---@field height number
----@field px number
----@field py number
+---@field px number -- Horizontal padding (default: 0)
+---@field py number -- Vertical padding (default: 0)
+-- Padding is used for border drawing and automatic sizing calculations
 ---@field text string?
 ---@field border Border
 ---@field borderColor Color?
@@ -998,6 +1011,14 @@ function Button.new(props)
   self.y = props.y or 0
   self.px = props.px or 0
   self.py = props.py or 0
+
+  -- Add autosizing logic similar to Window class
+  if props.w == nil or props.h == nil then
+    self.autosizing = true
+  else
+    self.autosizing = false
+  end
+
   self.width = props.w or self:calculateTextWidth()
   self.height = props.h or self:calculateTextHeight()
   self.border = props.border
@@ -1034,6 +1055,11 @@ function Button.new(props)
   -- Initialize opacity for animations to work properly
   self.opacity = self.background.a
 
+  -- If autosizing is enabled, calculate the size based on text
+  if self.autosizing then
+    self:autosize()
+  end
+
   props.parent:addChild(self)
   return self
 end
@@ -1052,6 +1078,11 @@ function Button:resize(ratioW, ratioH)
   local textHeight = self:calculateTextHeight()
   self.width = math.max(self.width * (ratioW or 1), textWidth)
   self.height = math.max(self.height * (ratioH or 1), textHeight)
+
+  -- If autosizing is enabled, recalculate size after resize
+  if self.autosizing then
+    self:autosize()
+  end
 end
 
 ---@param newText string
@@ -1061,6 +1092,11 @@ function Button:updateText(newText, autoresize)
   if autoresize then
     self.width = self:calculateTextWidth() + self.px
     self.height = self:calculateTextHeight() + self.py
+  end
+
+  -- If autosizing is enabled, recalculate size after text update
+  if self.autosizing then
+    self:autosize()
   end
 end
 
@@ -1147,6 +1183,14 @@ function Button:calculateTextHeight()
   local font = love.graphics.getFont()
   local height = font:getHeight()
   return height
+end
+
+--- Set button dimensions based on text size plus padding (auto-sizing)
+function Button:autosize()
+  local textWidth = self:calculateTextWidth()
+  local textHeight = self:calculateTextHeight()
+  self.width = textWidth + (self.px * 2)
+  self.height = textHeight + (self.py * 2)
 end
 
 --- Update button (propagate to children)

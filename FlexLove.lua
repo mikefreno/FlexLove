@@ -361,7 +361,8 @@ end
 ---@field gap number -- Space between children elements (default: 10)
 ---@field px number -- Horizontal padding around children (default: 0)
 ---@field py number -- Vertical padding around children (default: 0)
--- Padding is used for both automatic sizing calculations and border drawing
+---@field mx number -- Horizontal margin around children (default: 0)
+---@field my number -- Vertical margin around children (default: 0)
 ---@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection -- Direction of flex layout (default: HORIZONTAL)
 ---@field justifyContent JustifyContent -- Alignment of items along main axis (default: FLEX_START)
@@ -388,6 +389,8 @@ Window.__index = Window
 ---@field gap number? -- Space between children elements (default: 10)
 ---@field px number? -- Horizontal padding around children (default: 0)
 ---@field py number? -- Vertical padding around children (default: 0)
+---@field mx number? -- Horizontal margin around children (default: 0)
+---@field my number? -- Vertical margin around children (default: 0)
 ---@field text string? -- Text content to display (default: nil)
 ---@field titleColor Color? -- Color of the text content (default: black)
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
@@ -450,6 +453,8 @@ function Window.new(props)
   self.gap = props.gap or 10
   self.px = props.px or 0
   self.py = props.py or 0
+  self.mx = props.mx or 0
+  self.my = props.my or 0
   self.text = props.text
 
   self.textColor = props.textColor
@@ -959,7 +964,8 @@ end
 ---@field height number
 ---@field px number -- Horizontal padding (default: 0)
 ---@field py number -- Vertical padding (default: 0)
--- Padding is used for border drawing and automatic sizing calculations
+---@field mx number
+---@field my number
 ---@field text string?
 ---@field border Border
 ---@field borderColor Color?
@@ -974,6 +980,7 @@ end
 ---@field alignSelf AlignSelf -- default: auto
 ---@field transform TransformProps
 ---@field transition TransitionProps
+---@field autosizing boolean
 local Button = {}
 Button.__index = Button
 
@@ -986,6 +993,8 @@ Button.__index = Button
 ---@field h number?
 ---@field px number?
 ---@field py number?
+---@field mx number?
+---@field my number?
 ---@field text string?
 ---@field callback function?
 ---@field background Color?
@@ -1011,6 +1020,8 @@ function Button.new(props)
   self.y = props.y or 0
   self.px = props.px or 0
   self.py = props.py or 0
+  self.mx = props.mx or 0
+  self.my = props.my or 0
 
   -- Add autosizing logic similar to Window class
   if props.w == nil or props.h == nil then

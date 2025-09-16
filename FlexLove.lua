@@ -386,8 +386,8 @@ Element.__index = Element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field background Color? -- Background color (default: transparent)
 ---@field gap number? -- Space between children elements (default: 10)
----@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
----@field margin {top?:number, right?:number, bottom?:number, left?:number}? -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
+---@field padding {top:number?, right:number?, bottom:number?, left:number?, horizontal: number?, vertical:number?}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
+---@field margin {top:number?, right:number?, bottom:number?, left:number?, horizontal: number?, vertical:number?}? -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field text string? -- Text content to display (default: nil)
 ---@field titleColor Color? -- Color of the text content (default: black)
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
@@ -411,21 +411,6 @@ function Element.new(props)
   local self = setmetatable({}, Element)
   self.x = props.x or 0
   self.y = props.y or 0
-  self.autosizing = { width = false, height = false }
-
-  if props.w then
-    self.width = props.w
-  else
-    self.autosizing.width = true
-    self.width = self:calculateAutoWidth()
-  end
-
-  if props.h then
-    self.height = props.h
-  else
-    self.autosizing.height = true
-    self.height = self:calculateAutoHeight()
-  end
 
   self.border = props.border
       and {
@@ -455,10 +440,10 @@ function Element.new(props)
   self.gap = props.gap or 10
   self.padding = props.padding
       and {
-        top = props.padding.top or 0,
-        right = props.padding.right or 0,
-        bottom = props.padding.bottom or 0,
-        left = props.padding.left or 0,
+        top = props.padding.top or props.padding.vertical or 0,
+        right = props.padding.right or props.padding.horizontal or 0,
+        bottom = props.padding.bottom or props.padding.vertical or 0,
+        left = props.padding.left or props.padding.horizontal or 0,
       }
     or {
       top = 0,
@@ -468,10 +453,10 @@ function Element.new(props)
     }
   self.margin = props.margin
       and {
-        top = props.margin.top or 0,
-        right = props.margin.right or 0,
-        bottom = props.margin.bottom or 0,
-        left = props.margin.left or 0,
+        top = props.margin.top or props.margin.vertical or 0,
+        right = props.margin.right or props.margin.horizontal or 0,
+        bottom = props.margin.bottom or props.margin.vertical or 0,
+        left = props.margin.left or props.margin.horizontal or 0,
       }
     or {
       top = 0,
@@ -479,6 +464,7 @@ function Element.new(props)
       bottom = 0,
       left = 0,
     }
+
   self.text = props.text
 
   self.textColor = props.textColor
@@ -493,18 +479,12 @@ function Element.new(props)
   self.textSize = props.textSize
 
   self.positioning = props.positioning
-  if self.positioning == nil then
+  if props.positioning == nil then
     if props.parent then
       self.positioning = props.parent.positioning
     else
       self.positioning = Positioning.ABSOLUTE
     end
-  end
-
-  self.parent = props.parent
-  self.children = {}
-  if props.parent then
-    props.parent:addChild(self)
   end
 
   if self.positioning == Positioning.FLEX then
@@ -516,7 +496,33 @@ function Element.new(props)
     self.alignSelf = props.alignSelf or AlignSelf.AUTO
   end
 
+  self.autosizing = { width = false, height = false }
+
+  if props.w then
+    self.width = props.w
+  else
+    self.autosizing.width = true
+    self.width = self:calculateAutoWidth()
+  end
+
+  if props.h then
+    self.height = props.h
+  else
+    self.autosizing.height = true
+    self.height = self:calculateAutoHeight()
+  end
+
+  self.parent = props.parent
+  if self.parent then
+    self.x = self.x + self.parent.x
+    self.y = self.y + self.parent.y
+  end
+  self.children = {}
+  if props.parent then
+    props.parent:addChild(self)
+  end
   local gw, gh = love.window.getMode()
+
   self.prevGameSize = { width = gw, height = gh }
 
   self.z = props.z or 0
@@ -716,39 +722,40 @@ function Element:draw()
   end
 
   love.graphics.setColor(drawBackground:toRGBA())
-  love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
+  love.graphics.rectangle(
+    "fill",
+    self.x - self.padding.left,
+    self.y - self.padding.top,
+    self.width + self.padding.left + self.padding.right,
+    self.height + self.padding.top + self.padding.bottom
+  )
   -- Draw borders based on border property
   love.graphics.setColor(self.borderColor:toRGBA())
   if self.border.top then
-    love.graphics.line(
-      self.x + (self.padding.left or 0),
-      self.y + (self.padding.top or 0),
-      self.x + self.width - (self.padding.right or 0),
-      self.y + (self.padding.top or 0)
-    )
+    love.graphics.line(self.x - self.padding.left, self.y, self.x + self.width + (self.padding.right or 0), self.y)
   end
   if self.border.bottom then
     love.graphics.line(
-      self.x + (self.padding.left or 0),
-      self.y + self.height - (self.padding.bottom or 0),
-      self.x + self.width - (self.padding.right or 0),
-      self.y + self.height - (self.padding.bottom or 0)
+      self.x - self.padding.left,
+      self.y + self.height + self.padding.bottom,
+      self.x + self.width + self.padding.right,
+      self.y + self.height + self.padding.bottom
     )
   end
   if self.border.left then
     love.graphics.line(
-      self.x + (self.padding.left or 0),
-      self.y + (self.padding.top or 0),
-      self.x + (self.padding.left or 0),
-      self.y + self.height - (self.padding.bottom or 0)
+      self.x - self.padding.left,
+      self.y - self.padding.top,
+      self.x - self.padding.left,
+      self.y + self.height + self.padding.bottom
     )
   end
   if self.border.right then
     love.graphics.line(
-      self.x + self.width - (self.padding.right or 0),
-      self.y + (self.padding.top or 0),
-      self.x + self.width - (self.padding.right or 0),
-      self.y + self.height - (self.padding.bottom or 0)
+      self.x + self.width + self.padding.right,
+      self.y - self.padding.top,
+      self.x + self.width + self.padding.right,
+      self.y + self.height + self.padding.bottom
     )
   end
 
@@ -789,7 +796,13 @@ function Element:draw()
   -- Draw visual feedback when element is pressed (if it has a callback)
   if self.callback and self._pressed then
     love.graphics.setColor(0.5, 0.5, 0.5, 0.3) -- Semi-transparent gray for pressed state
-    love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
+    love.graphics.rectangle(
+      "fill",
+      self.x - self.padding.left,
+      self.y - self.padding.top,
+      self.width + self.padding.left + self.padding.right,
+      self.height + self.padding.top + self.padding.bottom
+    )
   end
 
   for _, child in ipairs(self.children) do
@@ -881,7 +894,7 @@ function Element:calculateTextWidth()
   if self.text == nil then
     return 0
   end
-  -- If textSize is specified, use that font size instead of default
+
   if self.textSize then
     local tempFont = FONT_CACHE.get(self.textSize)
     local width = tempFont:getWidth(self.text)
@@ -895,7 +908,6 @@ end
 
 ---@return number
 function Element:calculateTextHeight()
-  -- If textSize is specified, use that font size instead of default
   if self.textSize then
     local tempFont = FONT_CACHE.get(self.textSize)
     local height = tempFont:getHeight()
@@ -907,7 +919,6 @@ function Element:calculateTextHeight()
   return height
 end
 
---- Calculate auto width based on children content size
 function Element:calculateAutoWidth()
   local width = self:calculateTextWidth()
   if not self.children or #self.children == 0 then
@@ -942,31 +953,6 @@ function Element:calculateAutoHeight()
   end
 
   return totalHeight + (self.gap * #self.children)
-end
-
---- Get the absolute position of this element relative to screen
----@return number x, number y
-function Element:getAbsolutePosition()
-  local x, y = self.x, self.y
-  local parent = self.parent
-  while parent do
-    x = x + parent.x
-    y = y + parent.y
-    parent = parent.parent
-  end
-  return x, y
-end
-
---- Get the absolute bounds of this element
----@return {x:number, y:number, width:number, height:number}
-function Element:getAbsoluteBounds()
-  local x, y = self:getAbsolutePosition()
-  return {
-    x = x,
-    y = y,
-    width = self.width,
-    height = self.height,
-  }
 end
 
 ---@param newText string

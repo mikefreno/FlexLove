@@ -28,32 +28,18 @@ end
 function Color.fromHex(hexWithTag)
   local hex = hexWithTag:gsub("#", "")
   if #hex == 6 then
-    local r = tonumber("0x" .. hex:sub(1, 2))
-    local g = tonumber("0x" .. hex:sub(3, 4))
-    local b = tonumber("0x" .. hex:sub(5, 6))
+    local r = tonumber("0x" .. hex:sub(1, 2)) or 0
+    local g = tonumber("0x" .. hex:sub(3, 4)) or 0
+    local b = tonumber("0x" .. hex:sub(5, 6)) or 0
     return Color.new(r, g, b, 1)
   elseif #hex == 8 then
-    local r = tonumber("0x" .. hex:sub(1, 2))
-    local g = tonumber("0x" .. hex:sub(3, 4))
-    local b = tonumber("0x" .. hex:sub(5, 6))
+    local r = tonumber("0x" .. hex:sub(1, 2)) or 0
+    local g = tonumber("0x" .. hex:sub(3, 4)) or 0
+    local b = tonumber("0x" .. hex:sub(5, 6)) or 0
     local a = tonumber("0x" .. hex:sub(7, 8)) / 255
     return Color.new(r, g, b, a)
   else
     error("Invalid hex string")
-  end
-end
-
---- Convert color to hex string
----@return string
-function Color:toHex()
-  local r = math.floor(self.r * 255)
-  local g = math.floor(self.g * 255)
-  local b = math.floor(self.b * 255)
-  local a = math.floor(self.a * 255)
-  if self.a ~= 1 then
-    return string.format("#%02X%02X%02X%02X", r, g, b, a)
-  else
-    return string.format("#%02X%02X%02X", r, g, b)
   end
 end
 
@@ -487,14 +473,14 @@ function Element.new(props)
     end
   end
 
-if self.positioning == Positioning.FLEX then
-     self.flexDirection = props.flexDirection or FlexDirection.HORIZONTAL
-     self.justifyContent = props.justifyContent or JustifyContent.FLEX_START
-     self.alignItems = props.alignItems or AlignItems.STRETCH
-     self.alignContent = props.alignContent or AlignContent.STRETCH
-     self.justifySelf = props.justifySelf or AlignSelf.AUTO
-     self.alignSelf = props.alignSelf or AlignSelf.AUTO
-   end
+  if self.positioning == Positioning.FLEX then
+    self.flexDirection = props.flexDirection or FlexDirection.HORIZONTAL
+    self.justifyContent = props.justifyContent or JustifyContent.FLEX_START
+    self.alignItems = props.alignItems or AlignItems.STRETCH
+    self.alignContent = props.alignContent or AlignContent.STRETCH
+    self.justifySelf = props.justifySelf or AlignSelf.AUTO
+    self.alignSelf = props.alignSelf or AlignSelf.AUTO
+  end
 
   self.autosizing = { width = false, height = false }
 
@@ -514,8 +500,11 @@ if self.positioning == Positioning.FLEX then
 
   self.parent = props.parent
   if self.parent then
-    self.x = self.x + self.parent.x
-    self.y = self.y + self.parent.y
+    -- Only add parent position to child coordinates if parent is not absolutely positioned
+    if self.parent.positioning ~= Positioning.ABSOLUTE then
+      self.x = self.x + self.parent.x
+      self.y = self.y + self.parent.y
+    end
   end
   self.children = {}
   if props.parent then
@@ -565,6 +554,7 @@ end
 
 function Element:layoutChildren()
   if self.positioning == Positioning.ABSOLUTE then
+    -- Absolute positioned containers don't layout their children according to flex rules
     return
   end
 
@@ -614,6 +604,7 @@ function Element:layoutChildren()
   local currentPos = spacing
   for _, child in ipairs(self.children) do
     if child.positioning == Positioning.ABSOLUTE then
+      -- Skip positioning for absolute children as they should maintain their own coordinates
       goto continue
     end
     if self.flexDirection == FlexDirection.VERTICAL then
@@ -636,9 +627,11 @@ function Element:layoutChildren()
       if child.alignSelf == AlignSelf.AUTO then
         effectiveAlignSelf = self.alignItems
       end
-      
+
       if effectiveAlignSelf == AlignSelf.FLEX_START then
-        --nothing, currentPos is all
+        -- nothing, currentPos is all - position should be at the beginning of cross axis
+        -- For VERTICAL flex, this means X = 0
+        child.x = 0
       elseif effectiveAlignSelf == AlignSelf.CENTER then
         if self.flexDirection == FlexDirection.VERTICAL then
           child.x = (self.width - (child.width or 0)) / 2
@@ -663,7 +656,7 @@ function Element:layoutChildren()
     else
       child.x = currentPos + (self.margin.left or 0)
       child.y = self.margin.top or 0
-      
+
       -- Apply alignment to horizontal axis (alignItems)
       if self.alignItems == AlignItems.FLEX_START then
         --nothing, currentPos is all
@@ -677,7 +670,9 @@ function Element:layoutChildren()
 
       -- Apply self alignment to horizontal axis (alignSelf)
       if child.alignSelf == AlignSelf.FLEX_START then
-        --nothing, currentPos is all
+        -- nothing, currentPos is all - position should be at the beginning of cross axis
+        -- For HORIZONTAL flex, this means Y = 0
+        child.y = 0
       elseif child.alignSelf == AlignSelf.CENTER then
         child.y = (self.height - (child.height or 0)) / 2
       elseif child.alignSelf == AlignSelf.FLEX_END then
@@ -898,16 +893,20 @@ function Element:resize(newGameWidth, newGameHeight)
   local ratioW = newGameWidth / prevW
   local ratioH = newGameHeight / prevH
   -- Update element size
-  self.width = self.width * ratioW
-  self.height = self.height * ratioH
-  self.x = self.x * ratioW
-  self.y = self.y * ratioH
+  if self.positioning ~= Positioning.ABSOLUTE then
+    self.width = self.width * ratioW
+    self.height = self.height * ratioH
+    self.x = self.x * ratioW
+    self.y = self.y * ratioH
+  end
   -- Update children positions and sizes
   for _, child in ipairs(self.children) do
     child:resize(ratioW, ratioH)
   end
-  -- Re-layout children after resizing
-  self:layoutChildren()
+  -- Re-layout children after resizing (only for non-absolute containers)
+  if self.positioning ~= Positioning.ABSOLUTE then
+    self:layoutChildren()
+  end
   self.prevGameSize.width = newGameWidth
   self.prevGameSize.height = newGameHeight
 end
@@ -984,7 +983,8 @@ end
 function Element:updateText(newText, autoresize)
   self.text = newText or self.text
   if autoresize then
-    Logger:error("need to implement resize in updateText")
+    self.width = self:calculateTextWidth()
+    self.height = self:calculateTextHeight()
   end
 end
 

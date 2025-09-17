@@ -3,10 +3,10 @@ local Gui = FlexLove.GUI
 local Color = FlexLove.Color
 
 ---@class AnimDemo
----@field window Window
----@field button Button
----@field fadeButton Button
----@field scaleButton Button
+---@field window Element
+---@field button Element
+---@field fadeButton Element
+---@field scaleButton Element
 local OnClickAnimDemo = {}
 OnClickAnimDemo.__index = OnClickAnimDemo
 
@@ -14,7 +14,7 @@ function OnClickAnimDemo.init()
   local self = setmetatable({}, OnClickAnimDemo)
 
   -- Create a demo window
-  self.window = Gui.Window.new({
+  self.window = Gui.new({
     x = 100,
     y = 100,
     z = 10,
@@ -26,7 +26,7 @@ function OnClickAnimDemo.init()
   })
 
   -- Create a fade button
-  self.fadeButton = Gui.Button.new({
+  self.fadeButton = Gui.new({
     parent = self.window,
     x = 20,
     y = 80,
@@ -44,7 +44,7 @@ function OnClickAnimDemo.init()
   })
 
   -- Create a scale button
-  self.scaleButton = Gui.Button.new({
+  self.scaleButton = Gui.new({
     parent = self.window,
     x = 20,
     y = 140,

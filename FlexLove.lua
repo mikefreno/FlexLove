@@ -338,6 +338,7 @@ end
 ---@field children table<integer, Element> -- Children of this element
 ---@field parent Element? -- Parent element (nil if top-level)
 ---@field border Border -- Border configuration for the element
+---@field opacity number
 ---@field borderColor Color -- Color of the border
 ---@field background Color -- Background color of the element
 ---@field prevGameSize {width:number, height:number} -- Previous game size for resize calculations
@@ -370,6 +371,7 @@ Element.__index = Element
 ---@field h number? -- Height of the element (default: calculated automatically)
 ---@field border Border? -- Border configuration for the element
 ---@field borderColor Color? -- Color of the border (default: black)
+---@field opacity number?
 ---@field background Color? -- Background color (default: transparent)
 ---@field gap number? -- Space between children elements (default: 10)
 ---@field padding {top:number?, right:number?, bottom:number?, left:number?, horizontal: number?, vertical:number?}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
@@ -395,9 +397,11 @@ local ElementProps = {}
 ---@return Element
 function Element.new(props)
   local self = setmetatable({}, Element)
-  self.x = props.x or 0
-  self.y = props.y or 0
+  self.children = {}
+  self.callback = props.callback
 
+  ------ add non-hereditary ------
+  --- self drawing---
   self.border = props.border
       and {
         top = props.border.top or false,
@@ -411,19 +415,15 @@ function Element.new(props)
       bottom = false,
       left = false,
     }
-
-  self.background = props.background or Color.new(0, 0, 0, 0)
   self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
+  self.background = props.background or Color.new(0, 0, 0, 0)
+  self.opacity = props.opacity or 1
 
-  if props.textColor then
-    self.textColor = props.textColor
-  elseif props.parent then
-    self.textColor = props.parent.textColor
-  else
-    self.textColor = Color.new(0, 0, 0, 1)
-  end
+  self.text = props.text
+  self.textSize = props.textSize
+  self.textAlign = props.textAlign or TextAlign.START
 
-  self.gap = props.gap or 10
+  --- self positioning ---
   self.padding = props.padding
       and {
         top = props.padding.top or props.padding.vertical or 0,
@@ -437,6 +437,7 @@ function Element.new(props)
       bottom = 0,
       left = 0,
     }
+
   self.margin = props.margin
       and {
         top = props.margin.top or props.margin.vertical or 0,
@@ -451,26 +452,48 @@ function Element.new(props)
       left = 0,
     }
 
-  self.text = props.text
+  ---- Sizing ----
+  local gw, gh = love.window.getMode()
+  self.prevGameSize = { width = gw, height = gh }
+  self.autosizing = { width = false, height = false }
 
-  self.textColor = props.textColor
-  if self.textColor == nil then
-    if props.parent then
-      self.textColor = props.parent.textColor
-    else
-      self.textColor = Color.new(0, 0, 0, 1)
-    end
+  if props.w then
+    self.width = props.w
+  else
+    self.autosizing.width = true
+    self.width = self:calculateAutoWidth()
   end
-  self.textAlign = props.textAlign or TextAlign.START
-  self.textSize = props.textSize
+  if props.h then
+    self.height = props.h
+  else
+    self.autosizing.height = true
+    self.height = self:calculateAutoHeight()
+  end
 
-  self.positioning = props.positioning
-  if props.positioning == nil then
-    if props.parent then
-      self.positioning = props.parent.positioning
-    else
-      self.positioning = Positioning.ABSOLUTE
-    end
+  --- child positioning ---
+  self.gap = props.gap or 10
+
+  ------ add hereditary ------
+  if props.parent == nil then
+    table.insert(Gui.topElements, self)
+
+    self.x = props.x or 0
+    self.y = props.y or 0
+    self.z = props.z or 0
+
+    self.textColor = props.textColor or Color.new(0, 0, 0, 1)
+
+    self.positioning = props.positioning or Positioning.ABSOLUTE
+  else
+    self.parent = props.parent
+    self.x = self.parent.x + (props.x or 0)
+    self.y = self.parent.y + (props.y or 0)
+    self.z = props.z or self.parent.z or 0
+
+    self.textColor = props.textColor or self.parent.textColor
+    self.positioning = props.positioning or self.parent.positioning
+
+    props.parent:addChild(self)
   end
 
   if self.positioning == Positioning.FLEX then
@@ -482,53 +505,10 @@ function Element.new(props)
     self.alignSelf = props.alignSelf or AlignSelf.AUTO
   end
 
-  self.autosizing = { width = false, height = false }
-
-  if props.w then
-    self.width = props.w
-  else
-    self.autosizing.width = true
-    self.width = self:calculateAutoWidth()
-  end
-
-  if props.h then
-    self.height = props.h
-  else
-    self.autosizing.height = true
-    self.height = self:calculateAutoHeight()
-  end
-
-  self.parent = props.parent
-  if self.parent then
-    -- Only add parent position to child coordinates if parent is not absolutely positioned
-    if self.parent.positioning ~= Positioning.ABSOLUTE then
-      self.x = self.x + self.parent.x
-      self.y = self.y + self.parent.y
-    end
-  end
-  self.children = {}
-  if props.parent then
-    props.parent:addChild(self)
-  end
-  local gw, gh = love.window.getMode()
-
-  self.prevGameSize = { width = gw, height = gh }
-
-  self.z = props.z or 0
-
-  -- Add transform and transition properties
+  ---animation
   self.transform = props.transform or {}
   self.transition = props.transition or {}
 
-  -- Initialize opacity for animations to work properly
-  self.opacity = self.background.a
-
-  -- Store callback function for click events
-  self.callback = props.callback or nil
-
-  if not props.parent then
-    table.insert(Gui.topElements, self)
-  end
   return self
 end
 
@@ -543,12 +523,14 @@ end
 function Element:addChild(child)
   child.parent = self
   table.insert(self.children, child)
+
   if self.autosizing.height then
     self.height = self:calculateAutoHeight()
   end
   if self.autosizing.width then
     self.width = self:calculateAutoWidth()
   end
+
   self:layoutChildren()
 end
 
@@ -607,17 +589,19 @@ function Element:layoutChildren()
       -- Skip positioning for absolute children as they should maintain their own coordinates
       goto continue
     end
+
     if self.flexDirection == FlexDirection.VERTICAL then
-      child.x = self.margin.left or 0
-      child.y = currentPos + (self.margin.top or 0)
+      -- Position relative to parent origin
+      child.x = self.x + (self.margin.left or 0)
+      child.y = self.y + currentPos
 
       -- Apply alignment to vertical axis (alignItems)
       if self.alignItems == AlignItems.FLEX_START then
-        --nothing, currentPos is all
+        -- nothing
       elseif self.alignItems == AlignItems.CENTER then
-        child.x = (self.width - (child.width or 0)) / 2
+        child.x = self.x + (self.width - (child.width or 0)) / 2
       elseif self.alignItems == AlignItems.FLEX_END then
-        child.x = self.width - (child.width or 0)
+        child.x = self.x + self.width - (child.width or 0)
       elseif self.alignItems == AlignItems.STRETCH then
         child.width = self.width
       end
@@ -629,20 +613,19 @@ function Element:layoutChildren()
       end
 
       if effectiveAlignSelf == AlignSelf.FLEX_START then
-        -- nothing, currentPos is all - position should be at the beginning of cross axis
-        -- For VERTICAL flex, this means X = 0
-        child.x = 0
+        -- Position at the start of cross axis relative to parent
+        child.x = self.x + (self.margin.left or 0)
       elseif effectiveAlignSelf == AlignSelf.CENTER then
         if self.flexDirection == FlexDirection.VERTICAL then
-          child.x = (self.width - (child.width or 0)) / 2
+          child.x = self.x + (self.width - (child.width or 0)) / 2
         else
-          child.y = self.y + (self.height - (child.height or 0)) / 2 + self.y
+          child.y = self.y + (self.height - (child.height or 0)) / 2
         end
       elseif effectiveAlignSelf == AlignSelf.FLEX_END then
         if self.flexDirection == FlexDirection.VERTICAL then
-          child.x = self.width - (child.width or 0)
+          child.x = self.x + self.width - (child.width or 0)
         else
-          child.y = self.height - (child.height or 0)
+          child.y = self.y + self.height - (child.height or 0)
         end
       elseif effectiveAlignSelf == AlignSelf.STRETCH then
         if self.flexDirection == FlexDirection.VERTICAL then
@@ -660,29 +643,29 @@ function Element:layoutChildren()
 
       currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
     else
-      child.x = currentPos + (self.margin.left or 0)
-       -- Start with margin
-       child.y = self.margin.top or 0
+      -- Horizontal layout: position relative to parent origin
+      child.x = self.x + currentPos + (self.margin.left or 0)
+      child.y = self.y + (self.margin.top or 0)
 
-       -- Determine effective alignment - alignSelf takes precedence over alignItems
-       local effectiveAlign = child.alignSelf
-       if effectiveAlign == AlignSelf.AUTO then
-         effectiveAlign = self.alignItems
-       end
+      -- Determine effective alignment - alignSelf takes precedence over alignItems
+      local effectiveAlign = child.alignSelf
+      if effectiveAlign == AlignSelf.AUTO then
+        effectiveAlign = self.alignItems
+      end
 
-       -- Apply alignment
-       if effectiveAlign == AlignItems.FLEX_START then
-         -- Keep the margin.top position
-       elseif effectiveAlign == AlignItems.CENTER then
-         child.y = (self.height - (child.height or 0)) / 2
-       elseif effectiveAlign == AlignItems.FLEX_END then
-         child.y = self.height - (child.height or 0)
-       elseif effectiveAlign == AlignItems.STRETCH then
-         -- Only set height if not already stretched
-         if child.height ~= self.height then
-           child.height = self.height
-         end
-       end
+      -- Apply alignment
+      if effectiveAlign == AlignItems.FLEX_START then
+        -- Keep the margin.top position (already applied)
+      elseif effectiveAlign == AlignItems.CENTER then
+        child.y = self.y + (self.height - (child.height or 0)) / 2
+      elseif effectiveAlign == AlignItems.FLEX_END then
+        child.y = self.y + self.height - (child.height or 0)
+      elseif effectiveAlign == AlignItems.STRETCH then
+        -- Only set height if not already stretched
+        if child.height ~= self.height then
+          child.height = self.height
+        end
+      end
 
       currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)
     end
@@ -984,6 +967,14 @@ function Element:updateText(newText, autoresize)
   if autoresize then
     self.width = self:calculateTextWidth()
     self.height = self:calculateTextHeight()
+  end
+end
+
+---@param newOpacity number
+function Element:updateOpacity(newOpacity)
+  self.opacity = newOpacity
+  for _, child in ipairs(self.children) do
+    child:updateOpacity(newOpacity)
   end
 end
 

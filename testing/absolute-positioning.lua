@@ -40,8 +40,8 @@ function TestAbsolutePositioning:testWindowWithAbsolutePositioning()
   })
 
   -- Verify child properties
-  luaunit.assertEquals(child.x, 20)
-  luaunit.assertEquals(child.y, 30)
+  luaunit.assertEquals(child.x, 120)
+  luaunit.assertEquals(child.y, 130)
   luaunit.assertEquals(child.width, 50)
   luaunit.assertEquals(child.height, 30)
   luaunit.assertEquals(child.positioning, enums.Positioning.ABSOLUTE)
@@ -185,9 +185,8 @@ function TestAbsolutePositioning:testAbsolutePositioningWithPaddingAndMargin()
     text = "Test Button",
   })
 
-  -- Verify absolute child position is independent of padding/margin
-  luaunit.assertEquals(child.x, 20)
-  luaunit.assertEquals(child.y, 30)
+  luaunit.assertEquals(child.x, 30)
+  luaunit.assertEquals(child.y, 40)
 end
 
 -- Run the tests

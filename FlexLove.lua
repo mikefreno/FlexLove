@@ -893,20 +893,16 @@ function Element:resize(newGameWidth, newGameHeight)
   local ratioW = newGameWidth / prevW
   local ratioH = newGameHeight / prevH
   -- Update element size
-  if self.positioning ~= Positioning.ABSOLUTE then
-    self.width = self.width * ratioW
-    self.height = self.height * ratioH
-    self.x = self.x * ratioW
-    self.y = self.y * ratioH
-  end
+  self.width = self.width * ratioW
+  self.height = self.height * ratioH
+  self.x = self.x * ratioW
+  self.y = self.y * ratioH
   -- Update children positions and sizes
   for _, child in ipairs(self.children) do
     child:resize(ratioW, ratioH)
   end
-  -- Re-layout children after resizing (only for non-absolute containers)
-  if self.positioning ~= Positioning.ABSOLUTE then
-    self:layoutChildren()
-  end
+
+  self:layoutChildren()
   self.prevGameSize.width = newGameWidth
   self.prevGameSize.height = newGameHeight
 end

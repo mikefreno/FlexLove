@@ -636,7 +636,7 @@ function Element:layoutChildren()
         if self.flexDirection == FlexDirection.VERTICAL then
           child.x = (self.width - (child.width or 0)) / 2
         else
-          child.y = (self.height - (child.height or 0)) / 2
+          child.y = self.y + (self.height - (child.height or 0)) / 2 + self.y
         end
       elseif effectiveAlignSelf == AlignSelf.FLEX_END then
         if self.flexDirection == FlexDirection.VERTICAL then
@@ -646,40 +646,43 @@ function Element:layoutChildren()
         end
       elseif effectiveAlignSelf == AlignSelf.STRETCH then
         if self.flexDirection == FlexDirection.VERTICAL then
-          child.width = self.width
+          -- Only set width if not already stretched by alignItems
+          if child.width ~= self.width then
+            child.width = self.width
+          end
         else
-          child.height = self.height
+          -- Only set height if not already stretched by alignItems
+          if child.height ~= self.height then
+            child.height = self.height
+          end
         end
       end
 
       currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
     else
       child.x = currentPos + (self.margin.left or 0)
-      child.y = self.margin.top or 0
+       -- Start with margin
+       child.y = self.margin.top or 0
 
-      -- Apply alignment to horizontal axis (alignItems)
-      if self.alignItems == AlignItems.FLEX_START then
-        --nothing, currentPos is all
-      elseif self.alignItems == AlignItems.CENTER then
-        child.y = (self.height - (child.height or 0)) / 2
-      elseif self.alignItems == AlignItems.FLEX_END then
-        child.y = self.height - (child.height or 0)
-      elseif self.alignItems == AlignItems.STRETCH then
-        child.height = self.height
-      end
+       -- Determine effective alignment - alignSelf takes precedence over alignItems
+       local effectiveAlign = child.alignSelf
+       if effectiveAlign == AlignSelf.AUTO then
+         effectiveAlign = self.alignItems
+       end
 
-      -- Apply self alignment to horizontal axis (alignSelf)
-      if child.alignSelf == AlignSelf.FLEX_START then
-        -- nothing, currentPos is all - position should be at the beginning of cross axis
-        -- For HORIZONTAL flex, this means Y = 0
-        child.y = 0
-      elseif child.alignSelf == AlignSelf.CENTER then
-        child.y = (self.height - (child.height or 0)) / 2
-      elseif child.alignSelf == AlignSelf.FLEX_END then
-        child.y = self.height - (child.height or 0)
-      elseif child.alignSelf == AlignSelf.STRETCH then
-        child.height = self.height
-      end
+       -- Apply alignment
+       if effectiveAlign == AlignItems.FLEX_START then
+         -- Keep the margin.top position
+       elseif effectiveAlign == AlignItems.CENTER then
+         child.y = (self.height - (child.height or 0)) / 2
+       elseif effectiveAlign == AlignItems.FLEX_END then
+         child.y = self.height - (child.height or 0)
+       elseif effectiveAlign == AlignItems.STRETCH then
+         -- Only set height if not already stretched
+         if child.height ~= self.height then
+           child.height = self.height
+         end
+       end
 
       currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)
     end

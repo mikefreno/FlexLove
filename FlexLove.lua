@@ -732,7 +732,12 @@ function Element:draw()
   -- Draw borders based on border property
   love.graphics.setColor(self.borderColor:toRGBA())
   if self.border.top then
-    love.graphics.line(self.x - self.padding.left, self.y, self.x + self.width + (self.padding.right or 0), self.y)
+    love.graphics.line(
+      self.x - self.padding.left,
+      self.y - self.padding.top,
+      self.x + self.width + (self.padding.right or 0),
+      self.y - self.padding.top
+    )
   end
   if self.border.bottom then
     love.graphics.line(

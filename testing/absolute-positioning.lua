@@ -153,18 +153,13 @@ function TestAbsolutePositioning:testAbsolutePositioningResizing()
     text = "Test Button",
   })
 
-  -- Resize the window (from 200x150 to 400x300)
+  -- Resize the window from  800x600 (set in stub) to 400x300
   local newWidth, newHeight = 400, 300
   window:resize(newWidth, newHeight)
 
-  -- The key test is that absolute positioning should work regardless of how we resize
-  -- The child's coordinates should be maintained as they are, and the parent should resize properly
-  luaunit.assertEquals(window.width, 400)
-  luaunit.assertEquals(window.height, 300)
-  luaunit.assertEquals(child.positioning, enums.Positioning.ABSOLUTE) -- Child should still be absolute
-
-  -- We can't easily test exact coordinate values because the resize behavior is complex,
-  -- but we can verify that the child still exists and maintains its properties
+  luaunit.assertEquals(window.width, 100)
+  luaunit.assertEquals(window.height, 75)
+  luaunit.assertEquals(child.positioning, enums.Positioning.ABSOLUTE)
 end
 
 function TestAbsolutePositioning:testAbsolutePositioningWithPaddingAndMargin()

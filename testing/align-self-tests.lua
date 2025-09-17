@@ -150,8 +150,6 @@ function TestAlignSelf:testCenterAlignSelf()
   -- Add a child with center align self
   local child = Gui.new({
     parent = window,
-    x = 0,
-    y = 0,
     w = 50,
     h = 30,
     text = "Test Button",
@@ -162,6 +160,7 @@ function TestAlignSelf:testCenterAlignSelf()
   window:layoutChildren()
 
   -- With center, child should be centered along cross axis
+  luaunit.assertEquals(child.x, 0)
   luaunit.assertEquals(child.y, (200 - 30) / 2) -- Should be centered vertically
 end
 

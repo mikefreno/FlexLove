@@ -721,7 +721,9 @@ function Element:draw()
     end
   end
 
-  love.graphics.setColor(drawBackground:toRGBA())
+  -- Apply opacity to all drawing operations
+  local backgroundWithOpacity = Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
+  love.graphics.setColor(backgroundWithOpacity:toRGBA())
   love.graphics.rectangle(
     "fill",
     self.x - self.padding.left,
@@ -730,7 +732,8 @@ function Element:draw()
     self.height + self.padding.top + self.padding.bottom
   )
   -- Draw borders based on border property
-  love.graphics.setColor(self.borderColor:toRGBA())
+  local borderColorWithOpacity = Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  love.graphics.setColor(borderColorWithOpacity:toRGBA())
   if self.border.top then
     love.graphics.line(
       self.x - self.padding.left,
@@ -766,7 +769,8 @@ function Element:draw()
 
   -- Draw element text if present
   if self.text then
-    love.graphics.setColor(self.textColor:toRGBA())
+    local textColorWithOpacity = Color.new(self.textColor.r, self.textColor.g, self.textColor.b, self.textColor.a * self.opacity)
+    love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()
     local tempFont
@@ -800,7 +804,7 @@ function Element:draw()
 
   -- Draw visual feedback when element is pressed (if it has a callback)
   if self.callback and self._pressed then
-    love.graphics.setColor(0.5, 0.5, 0.5, 0.3) -- Semi-transparent gray for pressed state
+    love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
     love.graphics.rectangle(
       "fill",
       self.x - self.padding.left,

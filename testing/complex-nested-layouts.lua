@@ -397,4 +397,5 @@ function TestComplexNestedLayouts:testComplexAlignmentInNesting()
 end
 
 -- Run the tests
-os.exit(luaunit.LuaUnit.run())
+luaunit.LuaUnit.run()
+

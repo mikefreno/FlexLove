@@ -22,23 +22,26 @@ To use FlexLove, simply copy the `FlexLove.lua` file into your project's `libs` 
 
 ```lua
 local FlexLove = require("libs.FlexLove")
+local Gui = Flexlove.GUI
 ```
 
 ## Basic Usage
 
 ```lua
+local FlexLove = require("libs.FlexLove")
+local Gui, Color = Flexlove.GUI, Flexlove.Color
 -- Create a main window
-local mainWindow = FlexLove.GUI.Window.new({
+local mainWindow = Gui.new({
     x = 100,
     y = 100,
     w = 400,
     h = 300,
-    background = FlexLove.Color.new(0.2, 0.2, 0.2, 1),
+    background = Color.new(0.2, 0.2, 0.2, 1),
     text = "Main Window",
 })
 
 -- Create a button inside the window
-local button = FlexLove.GUI.Button.new({
+local button = Gui.new({
     parent = mainWindow,
     x = 50,
     y = 50,
@@ -52,12 +55,12 @@ local button = FlexLove.GUI.Button.new({
 
 -- In your love.update function
 function love.update(dt)
-    FlexLove.GUI.update(dt)
+    Gui.update(dt)
 end
 
 -- In your love.draw function
 function love.draw()
-    FlexLove.GUI.draw()
+    Gui.draw()
 end
 ```
 

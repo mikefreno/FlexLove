@@ -132,8 +132,8 @@ function TestJustifyContent:testFlexEndJustifyContent()
 
   -- With flex-end, children should be positioned at the end of the container
   -- CSS behavior: children positioned at the end (rightmost for horizontal, bottommost for vertical)
-  local totalWidth = child1.w + child2.w + window.gap -- child1.width + child2.width + gap
-  local containerWidth = window.w
+  local totalWidth = child1.width + child2.width + window.gap -- child1.width + child2.width + gap
+  local containerWidth = window.width
   local expectedPosition = containerWidth - totalWidth
 
   luaunit.assertAlmostEquals(child1.x, expectedPosition)

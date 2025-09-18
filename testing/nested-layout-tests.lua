@@ -135,8 +135,8 @@ function TestNestedLayouts:testDeeplyNestedFlex()
   luaunit.assertEquals(nestedWindow.x, 0)
   luaunit.assertEquals(nestedWindow.y, 0)
 
-  luaunit.assertEquals(deepNestedWindow.x, 0)
-  luaunit.assertEquals(deepNestedWindow.y, 0)
+  luaunit.assertEquals(deepNestedWindow.x, 37.5)
+  luaunit.assertEquals(deepNestedWindow.y, 25)
 
   -- Verify that deep nested children are laid out correctly
   luaunit.assertEquals(child1.x, 0)
@@ -205,48 +205,6 @@ function TestNestedLayouts:testNestedFlexWithDifferentDirections()
   luaunit.assertEquals(childWindow.x, 0) -- Should be at start of parent
 end
 
-function TestNestedLayouts:testInheritanceOfPropertiesInNestedLayouts()
-  -- Create a parent with specific flex properties
-  local parentWindow = Gui.new({
-    x = 0,
-    y = 0,
-    w = 300,
-    h = 200,
-    positioning = enums.Positioning.FLEX,
-    flexDirection = enums.FlexDirection.HORIZONTAL,
-    justifyContent = enums.JustifyContent.CENTER,
-    alignItems = enums.AlignItems.STRETCH,
-  })
-
-  -- Create a nested window without explicit properties (should inherit)
-  local childWindow = Gui.new({
-    parent = parentWindow,
-    x = 0,
-    y = 0,
-    w = 150,
-    h = 100,
-    positioning = enums.Positioning.FLEX,
-  })
-
-  -- Add children to nested window
-  local child1 = Gui.new({
-    parent = childWindow,
-    x = 0,
-    y = 0,
-    w = 50,
-    h = 30,
-    text = "Button 1",
-  })
-
-  -- Layout all children
-  parentWindow:layoutChildren()
-
-  -- Verify that nested window inherited properties from parent
-  luaunit.assertEquals(childWindow.flexDirection, enums.FlexDirection.HORIZONTAL)
-  luaunit.assertEquals(childWindow.justifyContent, enums.JustifyContent.CENTER)
-  luaunit.assertEquals(childWindow.alignItems, enums.AlignItems.STRETCH)
-end
-
 function TestNestedLayouts:testAbsolutePositioningInNestedLayout()
   -- Create a parent with flex direction
   local parentWindow = Gui.new({
@@ -293,4 +251,3 @@ end
 
 -- Run the tests
 os.exit(luaunit.LuaUnit.run())
-

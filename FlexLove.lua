@@ -486,9 +486,15 @@ function Element.new(props)
     self.positioning = props.positioning or Positioning.ABSOLUTE
   else
     self.parent = props.parent
-    self.x = self.parent.x + (props.x or 0)
-    self.y = self.parent.y + (props.y or 0)
-    self.z = props.z or self.parent.z or 0
+    if props.positioning == Positioning.ABSOLUTE then
+      self.x = props.x
+      self.y = props.y
+      self.z = props.z
+    else
+      self.x = self.parent.x + (props.x or 0)
+      self.y = self.parent.y + (props.y or 0)
+      self.z = props.z or self.parent.z or 0
+    end
 
     self.textColor = props.textColor or self.parent.textColor
     self.positioning = props.positioning or self.parent.positioning
@@ -582,183 +588,183 @@ function Element:layoutChildren()
     end
   end
 
--- Position children
-   local currentPos = spacing
-   for _, child in ipairs(self.children) do
-     if child.positioning == Positioning.ABSOLUTE then
-       -- Skip positioning for absolute children as they should maintain their own coordinates
-       goto continue
-     end
+  -- Position children
+  local currentPos = spacing
+  for _, child in ipairs(self.children) do
+    if child.positioning == Positioning.ABSOLUTE then
+      -- Skip positioning for absolute children as they should maintain their own coordinates
+      goto continue
+    end
 
-     if self.flexDirection == FlexDirection.VERTICAL then
-       -- Position relative to parent origin
-       child.x = self.x + (self.margin.left or 0)
-       child.y = self.y + currentPos
+    if self.flexDirection == FlexDirection.VERTICAL then
+      -- Position relative to parent origin
+      child.x = self.x + (self.margin.left or 0)
+      child.y = self.y + currentPos
 
-       -- Apply alignment to vertical axis (alignItems)
-       if self.alignItems == AlignItems.FLEX_START then
-         -- nothing
-       elseif self.alignItems == AlignItems.CENTER then
-         child.x = self.x + (self.width - (child.width or 0)) / 2
-       elseif self.alignItems == AlignItems.FLEX_END then
-         child.x = self.x + self.width - (child.width or 0)
-       elseif self.alignItems == AlignItems.STRETCH then
-         child.width = self.width
-       end
+      -- Apply alignment to vertical axis (alignItems)
+      if self.alignItems == AlignItems.FLEX_START then
+        -- nothing
+      elseif self.alignItems == AlignItems.CENTER then
+        child.x = self.x + (self.width - (child.width or 0)) / 2
+      elseif self.alignItems == AlignItems.FLEX_END then
+        child.x = self.x + self.width - (child.width or 0)
+      elseif self.alignItems == AlignItems.STRETCH then
+        child.width = self.width
+      end
 
-       -- Apply self alignment to cross axis (alignSelf)
-       local effectiveAlignSelf = child.alignSelf
-       if child.alignSelf == AlignSelf.AUTO then
-         effectiveAlignSelf = self.alignItems
-       end
+      -- Apply self alignment to cross axis (alignSelf)
+      local effectiveAlignSelf = child.alignSelf
+      if child.alignSelf == AlignSelf.AUTO then
+        effectiveAlignSelf = self.alignItems
+      end
 
-       if effectiveAlignSelf == AlignSelf.FLEX_START then
-         -- Position at the start of cross axis relative to parent
-         child.x = self.x + (self.margin.left or 0)
-       elseif effectiveAlignSelf == AlignSelf.CENTER then
-         if self.flexDirection == FlexDirection.VERTICAL then
-           child.x = self.x + (self.width - (child.width or 0)) / 2
-         else
-           child.y = self.y + (self.height - (child.height or 0)) / 2
-         end
-       elseif effectiveAlignSelf == AlignSelf.FLEX_END then
-         if self.flexDirection == FlexDirection.VERTICAL then
-           child.x = self.x + self.width - (child.width or 0)
-         else
-           child.y = self.y + self.height - (child.height or 0)
-         end
-       elseif effectiveAlignSelf == AlignSelf.STRETCH then
-         if self.flexDirection == FlexDirection.VERTICAL then
-           -- Only set width if not already stretched by alignItems
-           if child.width ~= self.width then
-             child.width = self.width
-           end
-         else
-           -- Only set height if not already stretched by alignItems
-           if child.height ~= self.height then
-             child.height = self.height
-           end
-         end
-       end
+      if effectiveAlignSelf == AlignSelf.FLEX_START then
+        -- Position at the start of cross axis relative to parent
+        child.x = self.x + (self.margin.left or 0)
+      elseif effectiveAlignSelf == AlignSelf.CENTER then
+        if self.flexDirection == FlexDirection.VERTICAL then
+          child.x = self.x + (self.width - (child.width or 0)) / 2
+        else
+          child.y = self.y + (self.height - (child.height or 0)) / 2
+        end
+      elseif effectiveAlignSelf == AlignSelf.FLEX_END then
+        if self.flexDirection == FlexDirection.VERTICAL then
+          child.x = self.x + self.width - (child.width or 0)
+        else
+          child.y = self.y + self.height - (child.height or 0)
+        end
+      elseif effectiveAlignSelf == AlignSelf.STRETCH then
+        if self.flexDirection == FlexDirection.VERTICAL then
+          -- Only set width if not already stretched by alignItems
+          if child.width ~= self.width then
+            child.width = self.width
+          end
+        else
+          -- Only set height if not already stretched by alignItems
+          if child.height ~= self.height then
+            child.height = self.height
+          end
+        end
+      end
 
-       -- Apply justifySelf alignment to main axis (for vertical flexDirection, this is y-axis)
-       local effectiveJustifySelf = child.justifySelf
-       if child.justifySelf == JustifySelf.AUTO then
-         effectiveJustifySelf = self.justifyContent
-       end
+      -- Apply justifySelf alignment to main axis (for vertical flexDirection, this is y-axis)
+      local effectiveJustifySelf = child.justifySelf
+      if child.justifySelf == JustifySelf.AUTO then
+        effectiveJustifySelf = self.justifyContent
+      end
 
-       if effectiveJustifySelf == JustifySelf.FLEX_START then
-         -- Keep the current Y position (already set by spacing logic)
-       elseif effectiveJustifySelf == JustifySelf.CENTER then
-         -- Center along the main axis (y-axis for vertical flex direction)
-         local childHeight = child.height or 0
-         local availableSpace = self.height - (self.margin.top or 0) - (self.margin.bottom or 0)
-         local totalChildHeight = 0
-         for _, c in ipairs(self.children) do
-           if c.positioning ~= Positioning.ABSOLUTE then
-             totalChildHeight = totalChildHeight + (c.height or 0)
-           end
-         end
-         local freeSpace = availableSpace - totalChildHeight - (self.gap * (#self.children - 1))
-         if freeSpace > 0 then
-           child.y = self.y + (self.margin.top or 0) + freeSpace / 2
-         end
-       elseif effectiveJustifySelf == JustifySelf.FLEX_END then
-         -- Position at the end of main axis (y-axis for vertical flex direction)
-         local childHeight = child.height or 0
-         local availableSpace = self.height - (self.margin.top or 0) - (self.margin.bottom or 0)
-         local totalChildHeight = 0
-         for _, c in ipairs(self.children) do
-           if c.positioning ~= Positioning.ABSOLUTE then
-             totalChildHeight = totalChildHeight + (c.height or 0)
-           end
-         end
-         local freeSpace = availableSpace - totalChildHeight - (self.gap * (#self.children - 1))
-         if freeSpace > 0 then
-           child.y = self.y + (self.margin.top or 0) + freeSpace
-         end
-       elseif effectiveJustifySelf == JustifySelf.SPACE_AROUND then
-         -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-       elseif effectiveJustifySelf == JustifySelf.SPACE_EVENLY then
-         -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-       elseif effectiveJustifySelf == JustifySelf.SPACE_BETWEEN then
-         -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-       end
+      if effectiveJustifySelf == JustifySelf.FLEX_START then
+        -- Keep the current Y position (already set by spacing logic)
+      elseif effectiveJustifySelf == JustifySelf.CENTER then
+        -- Center along the main axis (y-axis for vertical flex direction)
+        local childHeight = child.height or 0
+        local availableSpace = self.height - (self.margin.top or 0) - (self.margin.bottom or 0)
+        local totalChildHeight = 0
+        for _, c in ipairs(self.children) do
+          if c.positioning ~= Positioning.ABSOLUTE then
+            totalChildHeight = totalChildHeight + (c.height or 0)
+          end
+        end
+        local freeSpace = availableSpace - totalChildHeight - (self.gap * (#self.children - 1))
+        if freeSpace > 0 then
+          child.y = self.y + (self.margin.top or 0) + freeSpace / 2
+        end
+      elseif effectiveJustifySelf == JustifySelf.FLEX_END then
+        -- Position at the end of main axis (y-axis for vertical flex direction)
+        local childHeight = child.height or 0
+        local availableSpace = self.height - (self.margin.top or 0) - (self.margin.bottom or 0)
+        local totalChildHeight = 0
+        for _, c in ipairs(self.children) do
+          if c.positioning ~= Positioning.ABSOLUTE then
+            totalChildHeight = totalChildHeight + (c.height or 0)
+          end
+        end
+        local freeSpace = availableSpace - totalChildHeight - (self.gap * (#self.children - 1))
+        if freeSpace > 0 then
+          child.y = self.y + (self.margin.top or 0) + freeSpace
+        end
+      elseif effectiveJustifySelf == JustifySelf.SPACE_AROUND then
+        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
+      elseif effectiveJustifySelf == JustifySelf.SPACE_EVENLY then
+        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
+      elseif effectiveJustifySelf == JustifySelf.SPACE_BETWEEN then
+        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
+      end
 
-       currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
-     else
-       -- Horizontal layout: position relative to parent origin
-       child.x = self.x + currentPos + (self.margin.left or 0)
-       child.y = self.y + (self.margin.top or 0)
+      currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
+    else
+      -- Horizontal layout: position relative to parent origin
+      child.x = self.x + currentPos + (self.margin.left or 0)
+      child.y = self.y + (self.margin.top or 0)
 
-       -- Determine effective alignment - alignSelf takes precedence over alignItems
-       local effectiveAlign = child.alignSelf
-       if effectiveAlign == AlignSelf.AUTO then
-         effectiveAlign = self.alignItems
-       end
+      -- Determine effective alignment - alignSelf takes precedence over alignItems
+      local effectiveAlign = child.alignSelf
+      if effectiveAlign == AlignSelf.AUTO then
+        effectiveAlign = self.alignItems
+      end
 
-       -- Apply alignment
-       if effectiveAlign == AlignItems.FLEX_START then
-         -- Keep the margin.top position (already applied)
-       elseif effectiveAlign == AlignItems.CENTER then
-         child.y = self.y + (self.height - (child.height or 0)) / 2
-       elseif effectiveAlign == AlignItems.FLEX_END then
-         child.y = self.y + self.height - (child.height or 0)
-       elseif effectiveAlign == AlignItems.STRETCH then
-         -- Only set height if not already stretched
-         if child.height ~= self.height then
-           child.height = self.height
-         end
-       end
+      -- Apply alignment
+      if effectiveAlign == AlignItems.FLEX_START then
+        -- Keep the margin.top position (already applied)
+      elseif effectiveAlign == AlignItems.CENTER then
+        child.y = self.y + (self.height - (child.height or 0)) / 2
+      elseif effectiveAlign == AlignItems.FLEX_END then
+        child.y = self.y + self.height - (child.height or 0)
+      elseif effectiveAlign == AlignItems.STRETCH then
+        -- Only set height if not already stretched
+        if child.height ~= self.height then
+          child.height = self.height
+        end
+      end
 
-       -- Apply justifySelf alignment to main axis (for horizontal flexDirection, this is x-axis)
-       local effectiveJustifySelf = child.justifySelf
-       if child.justifySelf == JustifySelf.AUTO then
-         effectiveJustifySelf = self.justifyContent
-       end
+      -- Apply justifySelf alignment to main axis (for horizontal flexDirection, this is x-axis)
+      local effectiveJustifySelf = child.justifySelf
+      if child.justifySelf == JustifySelf.AUTO then
+        effectiveJustifySelf = self.justifyContent
+      end
 
-       if effectiveJustifySelf == JustifySelf.FLEX_START then
-         -- Keep the current X position (already set by spacing logic)
-       elseif effectiveJustifySelf == JustifySelf.CENTER then
-         -- Center along the main axis (x-axis for horizontal flex direction)
-         local childWidth = child.width or 0
-         local availableSpace = self.width - (self.margin.left or 0) - (self.margin.right or 0)
-         local totalChildWidth = 0
-         for _, c in ipairs(self.children) do
-           if c.positioning ~= Positioning.ABSOLUTE then
-             totalChildWidth = totalChildWidth + (c.width or 0)
-           end
-         end
-         local freeSpace = availableSpace - totalChildWidth - (self.gap * (#self.children - 1))
-         if freeSpace > 0 then
-           child.x = self.x + (self.margin.left or 0) + freeSpace / 2
-         end
-       elseif effectiveJustifySelf == JustifySelf.FLEX_END then
-         -- Position at the end of main axis (x-axis for horizontal flex direction)
-         local childWidth = child.width or 0
-         local availableSpace = self.width - (self.margin.left or 0) - (self.margin.right or 0)
-         local totalChildWidth = 0
-         for _, c in ipairs(self.children) do
-           if c.positioning ~= Positioning.ABSOLUTE then
-             totalChildWidth = totalChildWidth + (c.width or 0)
-           end
-         end
-         local freeSpace = availableSpace - totalChildWidth - (self.gap * (#self.children - 1))
-         if freeSpace > 0 then
-           child.x = self.x + (self.margin.left or 0) + freeSpace
-         end
-       elseif effectiveJustifySelf == JustifySelf.SPACE_AROUND then
-         -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-       elseif effectiveJustifySelf == JustifySelf.SPACE_EVENLY then
-         -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-       elseif effectiveJustifySelf == JustifySelf.SPACE_BETWEEN then
-         -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-       end
+      if effectiveJustifySelf == JustifySelf.FLEX_START then
+        -- Keep the current X position (already set by spacing logic)
+      elseif effectiveJustifySelf == JustifySelf.CENTER then
+        -- Center along the main axis (x-axis for horizontal flex direction)
+        local childWidth = child.width or 0
+        local availableSpace = self.width - (self.margin.left or 0) - (self.margin.right or 0)
+        local totalChildWidth = 0
+        for _, c in ipairs(self.children) do
+          if c.positioning ~= Positioning.ABSOLUTE then
+            totalChildWidth = totalChildWidth + (c.width or 0)
+          end
+        end
+        local freeSpace = availableSpace - totalChildWidth - (self.gap * (#self.children - 1))
+        if freeSpace > 0 then
+          child.x = self.x + (self.margin.left or 0) + freeSpace / 2
+        end
+      elseif effectiveJustifySelf == JustifySelf.FLEX_END then
+        -- Position at the end of main axis (x-axis for horizontal flex direction)
+        local childWidth = child.width or 0
+        local availableSpace = self.width - (self.margin.left or 0) - (self.margin.right or 0)
+        local totalChildWidth = 0
+        for _, c in ipairs(self.children) do
+          if c.positioning ~= Positioning.ABSOLUTE then
+            totalChildWidth = totalChildWidth + (c.width or 0)
+          end
+        end
+        local freeSpace = availableSpace - totalChildWidth - (self.gap * (#self.children - 1))
+        if freeSpace > 0 then
+          child.x = self.x + (self.margin.left or 0) + freeSpace
+        end
+      elseif effectiveJustifySelf == JustifySelf.SPACE_AROUND then
+        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
+      elseif effectiveJustifySelf == JustifySelf.SPACE_EVENLY then
+        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
+      elseif effectiveJustifySelf == JustifySelf.SPACE_BETWEEN then
+        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
+      end
 
-       currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)
-     end
-     ::continue::
-   end
+      currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)
+    end
+    ::continue::
+  end
 end
 
 --- Destroy element and its children
@@ -810,7 +816,8 @@ function Element:draw()
   end
 
   -- Apply opacity to all drawing operations
-  local backgroundWithOpacity = Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
+  local backgroundWithOpacity =
+    Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
   love.graphics.rectangle(
     "fill",
@@ -820,7 +827,8 @@ function Element:draw()
     self.height + self.padding.top + self.padding.bottom
   )
   -- Draw borders based on border property
-  local borderColorWithOpacity = Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  local borderColorWithOpacity =
+    Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
   if self.border.top then
     love.graphics.line(
@@ -857,7 +865,8 @@ function Element:draw()
 
   -- Draw element text if present
   if self.text then
-    local textColorWithOpacity = Color.new(self.textColor.r, self.textColor.g, self.textColor.b, self.textColor.a * self.opacity)
+    local textColorWithOpacity =
+      Color.new(self.textColor.r, self.textColor.g, self.textColor.b, self.textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()

@@ -596,21 +596,21 @@ function Element:layoutChildren()
       goto continue
     end
 
-    if self.flexDirection == FlexDirection.VERTICAL then
-      -- Position relative to parent origin
-      child.x = self.x + (self.margin.left or 0)
-      child.y = self.y + currentPos
+      if self.flexDirection == FlexDirection.VERTICAL then
+        -- Position relative to parent origin
+        child.x = self.x + (self.padding.left or 0)
+        child.y = self.y + currentPos + (self.padding.top or 0)
 
-      -- Apply alignment to vertical axis (alignItems)
-      if self.alignItems == AlignItems.FLEX_START then
-        -- nothing
-      elseif self.alignItems == AlignItems.CENTER then
-        child.x = self.x + (self.width - (child.width or 0)) / 2
-      elseif self.alignItems == AlignItems.FLEX_END then
-        child.x = self.x + self.width - (child.width or 0)
-      elseif self.alignItems == AlignItems.STRETCH then
-        child.width = self.width
-      end
+        -- Apply alignment to vertical axis (alignItems)
+        if self.alignItems == AlignItems.FLEX_START then
+          -- nothing
+        elseif self.alignItems == AlignItems.CENTER then
+          child.x = self.x + ((self.width - (child.width or 0)) / 2)
+        elseif self.alignItems == AlignItems.FLEX_END then
+          child.x = self.x + self.width - (child.width or 0)
+        elseif self.alignItems == AlignItems.STRETCH then
+          child.width = self.width
+        end
 
       -- Apply self alignment to cross axis (alignSelf)
       local effectiveAlignSelf = child.alignSelf
@@ -650,8 +650,8 @@ function Element:layoutChildren()
       currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
     else
       -- Horizontal layout: position relative to parent origin
-      child.x = self.x + currentPos + (self.margin.left or 0)
-      child.y = self.y + (self.margin.top or 0)
+      child.x = self.x + self.padding.left + currentPos
+      child.y = self.y + self.padding.top
 
       -- Determine effective alignment - alignSelf takes precedence over alignItems
       local effectiveAlign = child.alignSelf
@@ -663,7 +663,8 @@ function Element:layoutChildren()
       if effectiveAlign == AlignItems.FLEX_START then
         -- Keep the margin.top position (already applied)
       elseif effectiveAlign == AlignItems.CENTER then
-        child.y = self.y + (self.height - (child.height or 0)) / 2
+        -- Account for parent's margin when centering vertically
+        child.y = self.y + ((self.height - (child.height or 0)) / 2)
       elseif effectiveAlign == AlignItems.FLEX_END then
         child.y = self.y + self.height - (child.height or 0)
       elseif effectiveAlign == AlignItems.STRETCH then

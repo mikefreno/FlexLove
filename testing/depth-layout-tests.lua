@@ -98,26 +98,24 @@ function TestDepthLayouts:testMaximumNestingDepth()
   parentWindow:layoutChildren()
 
   -- Verify that each level is positioned correctly
-  -- CSS behavior: nested containers should maintain their relative positions within parents
-  luaunit.assertAlmostEquals(level1.x, 0)
-  luaunit.assertAlmostEquals(level1.y, 0)
+  luaunit.assertEquals(level1.x, 0)
+  luaunit.assertEquals(level1.y, 0)
 
-  luaunit.assertAlmostEquals(level2.x, 0)
-  luaunit.assertAlmostEquals(level2.y, 0)
+  luaunit.assertEquals(level2.x, 0)
+  luaunit.assertEquals(level2.y, 0)
 
-  luaunit.assertAlmostEquals(level3.x, 0)
-  luaunit.assertAlmostEquals(level3.y, 0)
+  luaunit.assertEquals(level3.x, 0)
+  luaunit.assertEquals(level3.y, 0)
 
-  luaunit.assertAlmostEquals(level4.x, 0)
-  luaunit.assertAlmostEquals(level4.y, 0)
+  luaunit.assertEquals(level4.x, 0)
+  luaunit.assertEquals(level4.y, 0)
 
-  luaunit.assertAlmostEquals(level5.x, 0)
-  luaunit.assertAlmostEquals(level5.y, 0)
+  luaunit.assertEquals(level5.x, 0)
+  luaunit.assertEquals(level5.y, 0)
 
   -- Verify that the deepest child is positioned correctly
-  -- CSS behavior: deepest child should be positioned according to its container's justify content and alignment properties
-  luaunit.assertAlmostEquals(deepChild.x, 0)
-  luaunit.assertAlmostEquals(deepChild.y, level5.h - deepChild.h) -- Should be at bottom position
+  luaunit.assertEquals(deepChild.x, 0)
+  luaunit.assertEquals(deepChild.y, 40 - 15) -- Should be at bottom position
 end
 
 function TestDepthLayouts:testPropertyInheritanceThroughNesting()
@@ -182,20 +180,20 @@ function TestDepthLayouts:testPropertyInheritanceThroughNesting()
   parentWindow:layoutChildren()
 
   -- Verify that properties are inherited appropriately
-  -- CSS behavior: nested containers should inherit flex properties from their parent, unless explicitly overridden
-  luaunit.assertAlmostEquals(level1.x, 0)
-  luaunit.assertAlmostEquals(level1.y, (parentWindow.h - level1.h) / 2) -- Centered vertically
+  -- The parent's flexWrap should be preserved through nesting
+  -- The level1's flexDirection should be VERTICAL, and level2's should be HORIZONTAL
+  luaunit.assertEquals(level1.x, 0)
+  luaunit.assertEquals(level1.y, (200 - 150) / 2) -- Centered vertically
 
-  luaunit.assertAlmostEquals(level2.x, 0)
-  luaunit.assertAlmostEquals(level2.y, 0)
+  luaunit.assertEquals(level2.x, 0)
+  luaunit.assertEquals(level2.y, 0)
 
   -- Verify that children are positioned correctly based on their container's properties
-  -- CSS behavior: child positioning should respect the flex direction and justify content of its container
-  luaunit.assertAlmostEquals(child1.x, 0)
-  luaunit.assertAlmostEquals(child1.y, (level1.h - child1.h) / 2) -- Centered vertically within level1
+  luaunit.assertEquals(child1.x, 0)
+  luaunit.assertEquals(child1.y, (150 - 30) / 2) -- Centered vertically within level1
 
-  luaunit.assertAlmostEquals(child2.x, (level2.w - child2.w) / 2) -- Centered horizontally within level2
-  luaunit.assertAlmostEquals(child2.y, (level2.h - child2.h) / 2) -- Centered vertically within level2
+  luaunit.assertEquals(child2.x, (200 - 60) / 2) -- Centered horizontally within level2
+  luaunit.assertEquals(child2.y, (100 - 40) / 2) -- Centered vertically within level2
 end
 
 function TestDepthLayouts:testSizeCalculationAccuracyAtDepth()
@@ -271,23 +269,21 @@ function TestDepthLayouts:testSizeCalculationAccuracyAtDepth()
   parentWindow:layoutChildren()
 
   -- Verify that dimensions are preserved through nesting
-  -- CSS behavior: nested containers should maintain their specified dimensions
-  luaunit.assertAlmostEquals(level1.w, 300)
-  luaunit.assertAlmostEquals(level1.h, 200)
+  luaunit.assertEquals(level1.w, 300)
+  luaunit.assertEquals(level1.h, 200)
 
-  luaunit.assertAlmostEquals(level2.w, 250)
-  luaunit.assertAlmostEquals(level2.h, 150)
+  luaunit.assertEquals(level2.w, 250)
+  luaunit.assertEquals(level2.h, 150)
 
-  luaunit.assertAlmostEquals(level3.w, 200)
-  luaunit.assertAlmostEquals(level3.h, 100)
+  luaunit.assertEquals(level3.w, 200)
+  luaunit.assertEquals(level3.h, 100)
 
   -- Verify that children are positioned correctly within their containers
-  -- CSS behavior: child positioning should be calculated based on container dimensions and justify content
-  luaunit.assertAlmostEquals(child1.x, (level3.w - child1.w) / 2) -- Centered horizontally within level3
-  luaunit.assertAlmostEquals(child1.y, (level3.h - child1.h) / 2) -- Centered vertically within level3
+  luaunit.assertEquals(child1.x, (200 - 50) / 2) -- Centered horizontally within level3
+  luaunit.assertEquals(child1.y, (100 - 30) / 2) -- Centered vertically within level3
 
-  luaunit.assertAlmostEquals(child2.x, (level3.w - child2.w) / 2 + child1.w + parentWindow.gap) -- Positioned after first child + gap
-  luaunit.assertAlmostEquals(child2.y, (level3.h - child2.h) / 2) -- Centered vertically within level3
+  luaunit.assertEquals(child2.x, (200 - 60) / 2 + 50 + 10) -- Positioned after first child + gap
+  luaunit.assertEquals(child2.y, (100 - 40) / 2) -- Centered vertically within level3
 end
 
 function TestDepthLayouts:testEdgeCasesInDeepLayouts()
@@ -371,29 +367,27 @@ function TestDepthLayouts:testEdgeCasesInDeepLayouts()
   parentWindow:layoutChildren()
 
   -- Verify that edge cases are handled correctly
-  -- CSS behavior: nested layouts should handle various combinations of flex properties and child sizes gracefully
-  luaunit.assertAlmostEquals(level1.x, 0)
-  luaunit.assertAlmostEquals(level1.y, 0)
+  luaunit.assertEquals(level1.x, 0)
+  luaunit.assertEquals(level1.y, 0)
 
-  luaunit.assertAlmostEquals(level2.x, 0)
-  luaunit.assertAlmostEquals(level2.y, 0)
+  luaunit.assertEquals(level2.x, 0)
+  luaunit.assertEquals(level2.y, 0)
 
   -- Verify children in level2 are positioned correctly (centered)
-  -- CSS behavior: child positioning should respect justify content properties
-  luaunit.assertAlmostEquals(child1.x, (level2.w - child1.w) / 2) -- Centered horizontally
-  luaunit.assertAlmostEquals(child1.y, (level2.h - child1.h) / 2) -- Centered vertically
+  luaunit.assertEquals(child1.x, (300 - 80) / 2) -- Centered horizontally
+  luaunit.assertEquals(child1.y, (200 - 40) / 2) -- Centered vertically
 
-  luaunit.assertAlmostEquals(child2.x, (level2.w - child2.w) / 2 + child1.w + parentWindow.gap) -- Positioned after first child + gap
-  luaunit.assertAlmostEquals(child2.y, (level2.h - child2.h) / 2) -- Centered vertically
+  luaunit.assertEquals(child2.x, (300 - 100) / 2 + 80 + 10) -- Positioned after first child + gap
+  luaunit.assertEquals(child2.y, (200 - 50) / 2) -- Centered vertically
 
   -- Verify children in level1 are positioned correctly
-  -- CSS behavior: child positioning should respect the flex direction and justify content of its container
-  luaunit.assertAlmostEquals(deepChild1.x, 0)
-  luaunit.assertAlmostEquals(deepChild1.y, 0)
+  luaunit.assertEquals(deepChild1.x, 0)
+  luaunit.assertEquals(deepChild1.y, 0)
 
-  luaunit.assertAlmostEquals(deepChild2.x, 0)
-  luaunit.assertAlmostEquals(deepChild2.y, deepChild1.h + parentWindow.gap) -- Positioned after first child + gap
+  luaunit.assertEquals(deepChild2.x, 0)
+  luaunit.assertEquals(deepChild2.y, 20 + 10) -- Positioned after first child + gap
 end
 
 -- Run the tests
 luaunit.LuaUnit.run()
+

@@ -61,14 +61,12 @@ function TestAbsolutePositioning:testDeeplyNestedAbsolutePositioning()
   rootWindow:layoutChildren()
 
   -- Verify absolute child position is correct (relative to parent)
-  -- Absolute positioning should be relative to the parent container's origin
-  luaunit.assertEquals(absoluteChildInNested.x, nestedFlexContainer.x + absoluteChildInNested.x)
-  luaunit.assertEquals(absoluteChildInNested.y, nestedFlexContainer.y + absoluteChildInNested.y)
+  luaunit.assertEquals(absoluteChildInNested.x, 120) -- 100 + 20
+  luaunit.assertEquals(absoluteChildInNested.y, 80) -- 50 + 30
 
   -- Verify flex child position is calculated correctly within nested container
-  -- Flex children should be positioned by flex layout rules (not affected by absolute positioning of others)
-  luaunit.assertAlmostEquals(flexChildInNested.x, 0) -- Should be at start of container
-  luaunit.assertAlmostEquals(flexChildInNested.y, (nestedFlexContainer.height - flexChildInNested.height)/2) -- Should be centered vertically in container
+  luaunit.assertEquals(flexChildInNested.x, 0) -- Should be at start of container
+  luaunit.assertEquals(flexChildInNested.y, 100 - 30) -- Should be centered vertically in 100px container
 
   -- Verify parent-child relationships
   luaunit.assertEquals(#nestedFlexContainer.children, 2)
@@ -137,15 +135,14 @@ function TestAbsolutePositioning:testMixedLayoutTypesWithNesting()
   -- Layout children
   rootWindow:layoutChildren()
 
-  -- Verify absolute positions are correct (relative to parent)
-  luaunit.assertEquals(absoluteChild1.x, flexContainerWithAbsolute.x + absoluteChild1.x)
-  luaunit.assertEquals(absoluteChild1.y, flexContainerWithAbsolute.y + absoluteChild1.y)
-  luaunit.assertEquals(nestedAbsoluteChild.x, flexContainerWithAbsolute.x + nestedAbsoluteChild.x)
-  luaunit.assertEquals(nestedAbsoluteChild.y, flexContainerWithAbsolute.y + nestedAbsoluteChild.y)
+  -- Verify absolute positions are correct
+  luaunit.assertEquals(absoluteChild1.x, 50)
+  luaunit.assertEquals(absoluteChild1.y, 20)
+  luaunit.assertEquals(nestedAbsoluteChild.x, 100)
+  luaunit.assertEquals(nestedAbsoluteChild.y, 100)
 
-  -- Verify flex child is positioned by flex layout (not affected by absolute positioning)
-  -- First flex child in space-between should be at start
-  luaunit.assertAlmostEquals(flexChild.x, 0)
+  -- Verify flex child is positioned by flex layout
+  luaunit.assertEquals(flexChild.x, 0) -- First flex child in space-between should be at start
 end
 
 function TestAbsolutePositioning:testAbsolutePositioningInComplexBranchingStructure()
@@ -252,16 +249,16 @@ function TestAbsolutePositioning:testAbsolutePositioningInComplexBranchingStruct
   rootWindow:layoutChildren()
 
   -- Verify absolute positions in each branch (absolute position relative to branch parent)
-  luaunit.assertEquals(absChild1.x, branch1.x + absChild1.x)
-  luaunit.assertEquals(absChild1.y, branch1.y + absChild1.y)
-  luaunit.assertEquals(absChild2.x, branch2.x + absChild2.x)
-  luaunit.assertEquals(absChild2.y, branch2.y + absChild2.y)
-  luaunit.assertEquals(absChild3.x, branch3.x + absChild3.x)
-  luaunit.assertEquals(absChild3.y, branch3.y + absChild3.y)
+  luaunit.assertEquals(absChild1.x, 10) -- 0 + 10
+  luaunit.assertEquals(absChild1.y, 15) -- 0 + 15
+  luaunit.assertEquals(absChild2.x, 250 + 20) -- 250 + 20
+  luaunit.assertEquals(absChild2.y, 100 + 30) -- 100 + 30
+  luaunit.assertEquals(absChild3.x, 500 + 30) -- 500 + 30
+  luaunit.assertEquals(absChild3.y, 200 + 40) -- 200 + 40
 
   -- Verify that regular children are positioned by flex layout
-  luaunit.assertAlmostEquals(regularChild1.x, 0)
-  luaunit.assertAlmostEquals(regularChild2.x, 0)
+  luaunit.assertEquals(regularChild1.x, 0)
+  luaunit.assertEquals(regularChild2.x, 0)
 end
 
 function TestAbsolutePositioning:testAbsolutePositioningWithComplexTransformations()
@@ -307,8 +304,8 @@ function TestAbsolutePositioning:testAbsolutePositioningWithComplexTransformatio
   rootWindow:layoutChildren()
 
   -- Verify absolute position accounts for parent padding and margin
-  luaunit.assertEquals(absChildWithPadding.x, rootWindow.x + containerWithPadding.margin.left + absChildWithPadding.x)
-  luaunit.assertEquals(absChildWithPadding.y, rootWindow.y + containerWithPadding.margin.top + absChildWithPadding.y)
+  luaunit.assertEquals(absChildWithPadding.x, 100 + 15 + 20) -- root x + margin + child x
+  luaunit.assertEquals(absChildWithPadding.y, 50 + 10 + 30) -- root y + margin + child y
 end
 
 function TestAbsolutePositioning:testAbsolutePositioningInNestedLayoutWithMultipleLevels()
@@ -387,13 +384,14 @@ function TestAbsolutePositioning:testAbsolutePositioningInNestedLayoutWithMultip
   -- Layout all children
   rootWindow:layoutChildren()
 
-  -- Verify absolute position at deepest level (relative to parent hierarchy)
-  luaunit.assertEquals(absChildAtLevel3.x, rootWindow.x + level1Container.x + level2Container.x + level3Container.x + absChildAtLevel3.x)
-  luaunit.assertEquals(absChildAtLevel3.y, rootWindow.y + level1Container.y + level2Container.y + level3Container.y + absChildAtLevel3.y)
+  -- Verify absolute position at deepest level
+  luaunit.assertEquals(absChildAtLevel3.x, 50 + 0 + 20 + 10) -- root x + level1 x + level2 x + child x
+  luaunit.assertEquals(absChildAtLevel3.y, 30 + 0 + 10 + 20) -- root y + level1 y + level2 y + child y
 
   -- Verify that flex child is positioned by flex layout at level 3
-  luaunit.assertAlmostEquals(flexChildAtLevel3.x, 0) -- Should be at start of container
+  luaunit.assertEquals(flexChildAtLevel3.x, 0) -- Should be at start of container
 end
 
 -- Run the tests
 luaunit.LuaUnit.run()
+

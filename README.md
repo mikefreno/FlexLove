@@ -21,14 +21,13 @@ FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a f
 To use FlexLove, simply copy the `FlexLove.lua` file into your project's `libs` directory and require it in your main application:
 
 ```lua
-local FlexLove = require("libs.FlexLove")
-local Gui = Flexlove.GUI
+local FlexLove = require("FlexLove")
 ```
 
 ## Basic Usage
 
 ```lua
-local FlexLove = require("libs.FlexLove")
+local FlexLove = require("FlexLove")
 local Gui, Color = Flexlove.GUI, Flexlove.Color
 -- Create a main window
 local mainWindow = Gui.new({

@@ -487,9 +487,9 @@ function Element.new(props)
   else
     self.parent = props.parent
     if props.positioning == Positioning.ABSOLUTE then
-      self.x = props.x
-      self.y = props.y
-      self.z = props.z
+      self.x = props.x or 0
+      self.y = props.y or 0
+      self.z = props.z or 0
     else
       self.x = self.parent.x + (props.x or 0)
       self.y = self.parent.y + (props.y or 0)
@@ -507,7 +507,7 @@ function Element.new(props)
     self.justifyContent = props.justifyContent or JustifyContent.FLEX_START
     self.alignItems = props.alignItems or AlignItems.STRETCH
     self.alignContent = props.alignContent or AlignContent.STRETCH
-    self.justifySelf = props.justifySelf or AlignSelf.AUTO
+    self.justifySelf = props.justifySelf or JustifySelf.AUTO
     self.alignSelf = props.alignSelf or AlignSelf.AUTO
   end
 
@@ -647,50 +647,6 @@ function Element:layoutChildren()
         end
       end
 
-      -- Apply justifySelf alignment to main axis (for vertical flexDirection, this is y-axis)
-      local effectiveJustifySelf = child.justifySelf
-      if child.justifySelf == JustifySelf.AUTO then
-        effectiveJustifySelf = self.justifyContent
-      end
-
-      if effectiveJustifySelf == JustifySelf.FLEX_START then
-        -- Keep the current Y position (already set by spacing logic)
-      elseif effectiveJustifySelf == JustifySelf.CENTER then
-        -- Center along the main axis (y-axis for vertical flex direction)
-        local childHeight = child.height or 0
-        local availableSpace = self.height - (self.margin.top or 0) - (self.margin.bottom or 0)
-        local totalChildHeight = 0
-        for _, c in ipairs(self.children) do
-          if c.positioning ~= Positioning.ABSOLUTE then
-            totalChildHeight = totalChildHeight + (c.height or 0)
-          end
-        end
-        local freeSpace = availableSpace - totalChildHeight - (self.gap * (#self.children - 1))
-        if freeSpace > 0 then
-          child.y = self.y + (self.margin.top or 0) + freeSpace / 2
-        end
-      elseif effectiveJustifySelf == JustifySelf.FLEX_END then
-        -- Position at the end of main axis (y-axis for vertical flex direction)
-        local childHeight = child.height or 0
-        local availableSpace = self.height - (self.margin.top or 0) - (self.margin.bottom or 0)
-        local totalChildHeight = 0
-        for _, c in ipairs(self.children) do
-          if c.positioning ~= Positioning.ABSOLUTE then
-            totalChildHeight = totalChildHeight + (c.height or 0)
-          end
-        end
-        local freeSpace = availableSpace - totalChildHeight - (self.gap * (#self.children - 1))
-        if freeSpace > 0 then
-          child.y = self.y + (self.margin.top or 0) + freeSpace
-        end
-      elseif effectiveJustifySelf == JustifySelf.SPACE_AROUND then
-        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-      elseif effectiveJustifySelf == JustifySelf.SPACE_EVENLY then
-        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-      elseif effectiveJustifySelf == JustifySelf.SPACE_BETWEEN then
-        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-      end
-
       currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
     else
       -- Horizontal layout: position relative to parent origin
@@ -715,50 +671,6 @@ function Element:layoutChildren()
         if child.height ~= self.height then
           child.height = self.height
         end
-      end
-
-      -- Apply justifySelf alignment to main axis (for horizontal flexDirection, this is x-axis)
-      local effectiveJustifySelf = child.justifySelf
-      if child.justifySelf == JustifySelf.AUTO then
-        effectiveJustifySelf = self.justifyContent
-      end
-
-      if effectiveJustifySelf == JustifySelf.FLEX_START then
-        -- Keep the current X position (already set by spacing logic)
-      elseif effectiveJustifySelf == JustifySelf.CENTER then
-        -- Center along the main axis (x-axis for horizontal flex direction)
-        local childWidth = child.width or 0
-        local availableSpace = self.width - (self.margin.left or 0) - (self.margin.right or 0)
-        local totalChildWidth = 0
-        for _, c in ipairs(self.children) do
-          if c.positioning ~= Positioning.ABSOLUTE then
-            totalChildWidth = totalChildWidth + (c.width or 0)
-          end
-        end
-        local freeSpace = availableSpace - totalChildWidth - (self.gap * (#self.children - 1))
-        if freeSpace > 0 then
-          child.x = self.x + (self.margin.left or 0) + freeSpace / 2
-        end
-      elseif effectiveJustifySelf == JustifySelf.FLEX_END then
-        -- Position at the end of main axis (x-axis for horizontal flex direction)
-        local childWidth = child.width or 0
-        local availableSpace = self.width - (self.margin.left or 0) - (self.margin.right or 0)
-        local totalChildWidth = 0
-        for _, c in ipairs(self.children) do
-          if c.positioning ~= Positioning.ABSOLUTE then
-            totalChildWidth = totalChildWidth + (c.width or 0)
-          end
-        end
-        local freeSpace = availableSpace - totalChildWidth - (self.gap * (#self.children - 1))
-        if freeSpace > 0 then
-          child.x = self.x + (self.margin.left or 0) + freeSpace
-        end
-      elseif effectiveJustifySelf == JustifySelf.SPACE_AROUND then
-        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-      elseif effectiveJustifySelf == JustifySelf.SPACE_EVENLY then
-        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
-      elseif effectiveJustifySelf == JustifySelf.SPACE_BETWEEN then
-        -- This would be handled by the justifyContent logic already, so we'll keep existing behavior
       end
 
       currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)

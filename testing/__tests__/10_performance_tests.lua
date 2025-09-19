@@ -942,8 +942,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
       for i, element in ipairs(animation_elements) do
         if (frame + i) % 10 == 0 then
           -- Animate size changes
-          element.w = element.w + math.sin(frame * 0.1 + i) * 2
-          element.h = element.h + math.cos(frame * 0.1 + i) * 1
+          element.w = element.width + math.sin(frame * 0.1 + i) * 2
+          element.h = element.height + math.cos(frame * 0.1 + i) * 1
         end
 
         if (frame + i) % 15 == 0 then

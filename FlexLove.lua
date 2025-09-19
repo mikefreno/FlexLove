@@ -337,6 +337,7 @@ end
 -- Element Object
 -- ====================
 ---@class Element
+---@field id string?
 ---@field autosizing {width:boolean, height:boolean} -- Whether the element should automatically size to fit its children
 ---@field x number -- X coordinate of the element
 ---@field y number -- Y coordinate of the element
@@ -373,6 +374,7 @@ Element.__index = Element
 
 ---@class ElementProps
 ---@field parent Element? -- Parent element for hierarchical structure
+---@field id string?
 ---@field x number? -- X coordinate of the element (default: 0)
 ---@field y number? -- Y coordinate of the element (default: 0)
 ---@field z number? -- Z-index for layering (default: 0)
@@ -408,6 +410,7 @@ local ElementProps = {}
 function Element.new(props)
   local self = setmetatable({}, Element)
   self.children = {}
+  self.id = props.id or ""
   self.callback = props.callback
 
   ------ add non-hereditary ------

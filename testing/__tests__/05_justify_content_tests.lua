@@ -1665,10 +1665,4 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
   luaunit.assertEquals(footerRightFirstButton.x, expectedFooterRightStartX)
 end
 
--- Run the tests
-if arg and arg[0]:match("05_justify_content_tests%.lua$") then
-  os.exit(luaunit.LuaUnit.run())
-end
-
-return TestJustifyContent
-
+luaunit.LuaUnit.run()

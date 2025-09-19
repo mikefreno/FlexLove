@@ -1118,15 +1118,20 @@ function Element:calculateAutoWidth()
   end
 
   local totalWidth = width
+  local participatingChildren = 0
   for _, child in ipairs(self.children) do
-    local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
-    local childWidth = child.width or child:calculateAutoWidth()
-    local childOffset = childWidth + paddingAdjustment
+    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
+    if not child._explicitlyAbsolute then
+      local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
+      local childWidth = child.width or child:calculateAutoWidth()
+      local childOffset = childWidth + paddingAdjustment
 
-    totalWidth = totalWidth + childOffset
+      totalWidth = totalWidth + childOffset
+      participatingChildren = participatingChildren + 1
+    end
   end
 
-  return totalWidth + (self.gap * #self.children)
+  return totalWidth + (self.gap * participatingChildren)
 end
 
 --- Calculate auto height based on children
@@ -1137,14 +1142,19 @@ function Element:calculateAutoHeight()
   end
 
   local totalHeight = height
+  local participatingChildren = 0
   for _, child in ipairs(self.children) do
-    local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
-    local childOffset = child.height + paddingAdjustment
+    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
+    if not child._explicitlyAbsolute then
+      local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
+      local childOffset = child.height + paddingAdjustment
 
-    totalHeight = totalHeight + childOffset
+      totalHeight = totalHeight + childOffset
+      participatingChildren = participatingChildren + 1
+    end
   end
 
-  return totalHeight + (self.gap * #self.children)
+  return totalHeight + (self.gap * participatingChildren)
 end
 
 ---@param newText string

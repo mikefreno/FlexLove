@@ -851,6 +851,14 @@ function Element:layoutChildren()
       end
     end
 
+    -- After positioning all children in this line, recursively layout their children
+    for _, child in ipairs(line) do
+      -- Only layout children of flex containers to update positions relative to new parent position
+      if child.positioning == Positioning.FLEX and #child.children > 0 then
+        child:layoutChildren()
+      end
+    end
+
     -- Move to next line position
     currentCrossPos = currentCrossPos + lineHeight + lineSpacing
   end

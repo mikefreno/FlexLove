@@ -27,16 +27,16 @@ function TestAbsolutePositioningBasic:testCreateElementWithAbsolutePositioning()
     y = 200,
     w = 300,
     h = 150,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Verify element was created with correct properties
   luaunit.assertEquals(elem.x, 100)
   luaunit.assertEquals(elem.y, 200)
   luaunit.assertEquals(elem.width, 300)
   luaunit.assertEquals(elem.height, 150)
   luaunit.assertEquals(elem.positioning, Positioning.ABSOLUTE)
-  
+
   -- Verify element was added to topElements
   luaunit.assertEquals(#Gui.topElements, 1)
   luaunit.assertEquals(Gui.topElements[1], elem)
@@ -48,9 +48,9 @@ function TestAbsolutePositioningBasic:testDefaultAbsolutePositioning()
     x = 50,
     y = 75,
     w = 200,
-    h = 100
+    h = 100,
   })
-  
+
   -- Default should be absolute positioning
   luaunit.assertEquals(elem.positioning, Positioning.ABSOLUTE)
   luaunit.assertEquals(elem.x, 50)
@@ -65,31 +65,31 @@ function TestAbsolutePositioningBasic:testZIndexHandling()
     w = 100,
     h = 100,
     z = 1,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local elem2 = Gui.new({
     x = 50,
     y = 50,
     w = 100,
     h = 100,
     z = 5,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local elem3 = Gui.new({
     x = 25,
     y = 25,
     w = 100,
     h = 100,
     z = 3,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   luaunit.assertEquals(elem1.z, 1)
   luaunit.assertEquals(elem2.z, 5)
   luaunit.assertEquals(elem3.z, 3)
-  
+
   -- All should be in topElements
   luaunit.assertEquals(#Gui.topElements, 3)
 end
@@ -101,9 +101,9 @@ function TestAbsolutePositioningBasic:testDefaultZIndex()
     y = 20,
     w = 50,
     h = 50,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   luaunit.assertEquals(elem.z, 0)
 end
 
@@ -114,23 +114,23 @@ function TestAbsolutePositioningBasic:testCoordinateIndependence()
     y = 100,
     w = 50,
     h = 50,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local elem2 = Gui.new({
     x = 200,
     y = 200,
     w = 50,
     h = 50,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Elements should maintain their own coordinates
   luaunit.assertEquals(elem1.x, 100)
   luaunit.assertEquals(elem1.y, 100)
   luaunit.assertEquals(elem2.x, 200)
   luaunit.assertEquals(elem2.y, 200)
-  
+
   -- Modifying one shouldn't affect the other
   elem1.x = 150
   luaunit.assertEquals(elem1.x, 150)
@@ -144,23 +144,23 @@ function TestAbsolutePositioningBasic:testAbsoluteWithParentIndependentCoordinat
     y = 50,
     w = 200,
     h = 200,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local child = Gui.new({
     parent = parent,
     x = 25,
     y = 25,
     w = 50,
     h = 50,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Child should maintain its absolute coordinates (CSS absolute behavior)
   luaunit.assertEquals(child.x, 25)
   luaunit.assertEquals(child.y, 25)
   luaunit.assertEquals(child.positioning, Positioning.ABSOLUTE)
-  
+
   -- Parent should have the child
   luaunit.assertEquals(#parent.children, 1)
   luaunit.assertEquals(parent.children[1], child)
@@ -169,7 +169,7 @@ end
 -- Test 7: Multiple absolute elements should not interfere
 function TestAbsolutePositioningBasic:testMultipleAbsoluteElementsNonInterference()
   local elements = {}
-  
+
   for i = 1, 5 do
     elements[i] = Gui.new({
       x = i * 10,
@@ -177,10 +177,10 @@ function TestAbsolutePositioningBasic:testMultipleAbsoluteElementsNonInterferenc
       w = 30,
       h = 40,
       z = i,
-      positioning = Positioning.ABSOLUTE
+      positioning = Positioning.ABSOLUTE,
     })
   end
-  
+
   -- Verify all elements maintain their properties
   for i = 1, 5 do
     luaunit.assertEquals(elements[i].x, i * 10)
@@ -189,7 +189,7 @@ function TestAbsolutePositioningBasic:testMultipleAbsoluteElementsNonInterferenc
     luaunit.assertEquals(elements[i].height, 40)
     luaunit.assertEquals(elements[i].z, i)
   end
-  
+
   luaunit.assertEquals(#Gui.topElements, 5)
 end
 
@@ -200,9 +200,9 @@ function TestAbsolutePositioningBasic:testNegativeCoordinates()
     y = -100,
     w = 200,
     h = 150,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   luaunit.assertEquals(elem.x, -50)
   luaunit.assertEquals(elem.y, -100)
 end
@@ -214,9 +214,9 @@ function TestAbsolutePositioningBasic:testZeroCoordinates()
     y = 0,
     w = 100,
     h = 100,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   luaunit.assertEquals(elem.x, 0)
   luaunit.assertEquals(elem.y, 0)
 end
@@ -226,9 +226,9 @@ function TestAbsolutePositioningBasic:testDefaultCoordinates()
   local elem = Gui.new({
     w = 100,
     h = 100,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Default coordinates should be 0,0
   luaunit.assertEquals(elem.x, 0)
   luaunit.assertEquals(elem.y, 0)
@@ -241,9 +241,9 @@ function TestAbsolutePositioningBasic:testElementBounds()
     y = 200,
     w = 300,
     h = 400,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local bounds = elem:getBounds()
   luaunit.assertEquals(bounds.x, 100)
   luaunit.assertEquals(bounds.y, 200)
@@ -258,23 +258,23 @@ function TestAbsolutePositioningBasic:testParentChildRelationshipAbsolute()
     y = 100,
     w = 300,
     h = 300,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local child = Gui.new({
     parent = parent,
     x = 50,
     y = 75,
     w = 100,
     h = 150,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Verify parent-child relationship
   luaunit.assertEquals(child.parent, parent)
   luaunit.assertEquals(#parent.children, 1)
   luaunit.assertEquals(parent.children[1], child)
-  
+
   -- Child should maintain absolute coordinates
   luaunit.assertEquals(child.x, 50)
   luaunit.assertEquals(child.y, 75)
@@ -285,22 +285,21 @@ function TestAbsolutePositioningBasic:testAbsoluteChildNoParentAutoSizeAffect()
   local parent = Gui.new({
     x = 0,
     y = 0,
-    positioning = Positioning.ABSOLUTE
-    -- No w/h specified, should auto-size
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   local originalParentWidth = parent.width
   local originalParentHeight = parent.height
-  
+
   local child = Gui.new({
     parent = parent,
     x = 1000, -- Far outside parent
     y = 1000,
     w = 500,
     h = 500,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Parent size should not be affected by absolute positioned child
   -- (In CSS, absolute children don't affect parent size)
   luaunit.assertEquals(parent.width, originalParentWidth)
@@ -315,30 +314,30 @@ function TestAbsolutePositioningBasic:testAbsoluteNoFlexParticipation()
     w = 400,
     h = 200,
     positioning = Positioning.FLEX,
-    flexDirection = enums.FlexDirection.HORIZONTAL
+    flexDirection = enums.FlexDirection.HORIZONTAL,
   })
-  
+
   local flexChild = Gui.new({
     parent = flexParent,
     w = 100,
     h = 50,
-    positioning = Positioning.FLEX
+    positioning = Positioning.FLEX,
   })
-  
+
   local absoluteChild = Gui.new({
     parent = flexParent,
     x = 300,
     y = 150,
     w = 80,
     h = 40,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   -- Absolute child should maintain its coordinates
   luaunit.assertEquals(absoluteChild.x, 300)
   luaunit.assertEquals(absoluteChild.y, 150)
   luaunit.assertEquals(absoluteChild.positioning, Positioning.ABSOLUTE)
-  
+
   -- Both children should be in parent
   luaunit.assertEquals(#flexParent.children, 2)
 end
@@ -351,9 +350,9 @@ function TestAbsolutePositioningBasic:testLargeCoordinateValues()
     w = 100,
     h = 100,
     z = 1000,
-    positioning = Positioning.ABSOLUTE
+    positioning = Positioning.ABSOLUTE,
   })
-  
+
   luaunit.assertEquals(elem.x, 9999)
   luaunit.assertEquals(elem.y, 8888)
   luaunit.assertEquals(elem.z, 1000)

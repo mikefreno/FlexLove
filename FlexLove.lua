@@ -804,42 +804,13 @@ function Element:layoutChildren()
     for _, child in ipairs(line) do
       -- Determine effective cross-axis alignment
       local effectiveAlign = child.alignSelf
-      if effectiveAlign == AlignSelf.AUTO then
+      if effectiveAlign == nil or effectiveAlign == AlignSelf.AUTO then
         effectiveAlign = self.alignItems
-      end
-
-      -- DEBUG: Print alignment info for last child
-      -- DEBUG: Output alignment information for troubleshooting
-      if child.debugId or (_ == #line) then
-        local debugPrefix = child.debugId and string.format("[%s]", child.debugId) or "[LAST_CHILD]"
-        print(
-          string.format(
-            "DEBUG %s: effectiveAlign='%s', alignSelf='%s', parent.alignItems='%s'",
-            debugPrefix,
-            tostring(effectiveAlign),
-            tostring(child.alignSelf),
-            tostring(self.alignItems)
-          )
-        )
       end
 
       if self.flexDirection == FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         child.x = self.x + self.padding.left + currentMainPos
-
-        -- Apply cross-axis (vertical) alignment within the line
-        -- Additional DEBUG: Log detailed positioning for elements with debugId
-        if child.debugId then
-          print(
-            string.format(
-              "DEBUG [%s]: HORIZONTAL layout - lineHeight=%.2f, childHeight=%.2f, currentCrossPos=%.2f",
-              child.debugId,
-              lineHeight,
-              child.height or 0,
-              currentCrossPos
-            )
-          )
-        end
 
         if effectiveAlign == AlignItems.FLEX_START then
           child.y = self.y + self.padding.top + currentCrossPos
@@ -849,15 +820,6 @@ function Element:layoutChildren()
           child.y = self.y + self.padding.top + currentCrossPos + lineHeight - (child.height or 0)
         elseif effectiveAlign == AlignItems.STRETCH then
           child.height = lineHeight
-          child.y = self.y + self.padding.top + currentCrossPos
-        else
-          -- Default fallback: treat as FLEX_START
-          print(
-            string.format(
-              "WARNING: Unknown effectiveAlign value '%s', defaulting to FLEX_START",
-              tostring(effectiveAlign)
-            )
-          )
           child.y = self.y + self.padding.top + currentCrossPos
         end
 
@@ -871,44 +833,15 @@ function Element:layoutChildren()
         -- Vertical layout: main axis is Y, cross axis is X
         child.y = self.y + self.padding.top + currentMainPos
 
-        -- Apply cross-axis (horizontal) alignment within the line
-        -- Additional DEBUG: Log detailed positioning for elements with debugId
-        if child.debugId then
-          print(
-            string.format(
-              "DEBUG [%s]: VERTICAL layout - lineHeight=%.2f, childWidth=%.2f, currentCrossPos=%.2f",
-              child.debugId,
-              lineHeight,
-              child.width or 0,
-              currentCrossPos
-            )
-          )
-        end
-
         if effectiveAlign == AlignItems.FLEX_START then
           child.x = self.x + self.padding.left + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
-          Logger:debug(lineHeight)
           child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - (child.width or 0)) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.x = self.x + self.padding.left + currentCrossPos + lineHeight - (child.width or 0)
         elseif effectiveAlign == AlignItems.STRETCH then
           child.width = lineHeight
           child.x = self.x + self.padding.left + currentCrossPos
-        else
-          -- Default fallback: treat as FLEX_START
-          print(
-            string.format(
-              "WARNING: Unknown effectiveAlign value '%s', defaulting to FLEX_START",
-              tostring(effectiveAlign)
-            )
-          )
-          child.x = self.x + self.padding.left + currentCrossPos
-        end
-
-        -- Final position DEBUG for elements with debugId
-        if child.debugId then
-          print(string.format("DEBUG [%s]: Final X position: %.2f", child.debugId, child.x))
         end
 
         currentMainPos = currentMainPos + (child.height or 0) + itemSpacing

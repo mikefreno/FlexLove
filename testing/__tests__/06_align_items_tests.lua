@@ -13,6 +13,7 @@ local Gui, enums = FlexLove.GUI, FlexLove.enums
 local Positioning = enums.Positioning
 local FlexDirection = enums.FlexDirection
 local AlignItems = enums.AlignItems
+local JustifyContent = enums.JustifyContent
 
 -- Test class for align items functionality
 TestAlignItems = {}

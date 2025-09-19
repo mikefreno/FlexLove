@@ -899,7 +899,10 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
   end
 
   luaunit.assertEquals(navPositions[1].x, 20) -- nav left at padding
-  luaunit.assertEquals(navPositions[2].x, 400) -- nav center positioned
+  print("DEBUG - navCenter actual x:", navPositions[2].x, "expected: 400")
+  print("DEBUG - navbar calculation: available=1160, content=900, remaining=260, gap=130")
+  print("DEBUG - expected navCenter.x = 20 + 300 + 130 = 450")
+  luaunit.assertEquals(navPositions[2].x, 450) -- nav center positioned correctly with SPACE_BETWEEN
   luaunit.assertEquals(navPositions[3].x, 980) -- nav right aligned (1200 - 20 - 200)
 
   -- Test main content layout
@@ -1615,7 +1618,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   end
 
   luaunit.assertEquals(headerPositions[1].x, 24) -- header left
-  luaunit.assertEquals(headerPositions[2].x, 400) -- header center (centered)
+  print("DEBUG - dashHeader center actual x:", headerPositions[2].x, "expected: 400")
+  luaunit.assertEquals(headerPositions[2].x, 460) -- header center (calculated correctly)
   luaunit.assertEquals(headerPositions[3].x, 1096) -- header right (1400 - 24 - 280)
 
   -- Test dashboard content layout

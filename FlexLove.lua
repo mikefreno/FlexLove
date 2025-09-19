@@ -120,7 +120,14 @@ enums.AlignContent = {
   SPACE_AROUND = "space-around",
 }
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf =
+--- @enum FlexWrap
+enums.FlexWrap = {
+  NOWRAP = "nowrap",
+  WRAP = "wrap",
+  WRAP_REVERSE = "wrap-reverse",
+}
+
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
   enums.Positioning,
   enums.FlexDirection,
   enums.JustifyContent,
@@ -128,7 +135,8 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.AlignItems,
   enums.TextAlign,
   enums.AlignSelf,
-  enums.JustifySelf
+  enums.JustifySelf,
+  enums.FlexWrap
 
 --- Top level GUI manager
 ---@class Gui
@@ -353,6 +361,7 @@ end
 ---@field justifyContent JustifyContent -- Alignment of items along main axis (default: FLEX_START)
 ---@field alignItems AlignItems -- Alignment of items along cross axis (default: STRETCH)
 ---@field alignContent AlignContent -- Alignment of lines in multi-line flex containers (default: STRETCH)
+---@field flexWrap FlexWrap -- Whether children wrap to multiple lines (default: NOWRAP)
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field textSize number? -- Font size for text content
@@ -386,6 +395,7 @@ Element.__index = Element
 ---@field justifyContent JustifyContent? -- Alignment of items along main axis (default: FLEX_START)
 ---@field alignItems AlignItems? -- Alignment of items along cross axis (default: STRETCH)
 ---@field alignContent AlignContent? -- Alignment of lines in multi-line flex containers (default: STRETCH)
+---@field flexWrap FlexWrap? -- Whether children wrap to multiple lines (default: NOWRAP)
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field callback function? -- Callback function for click events
@@ -483,33 +493,66 @@ function Element.new(props)
 
     self.textColor = props.textColor or Color.new(0, 0, 0, 1)
 
-    self.positioning = props.positioning or Positioning.ABSOLUTE
+    -- Track if positioning was explicitly set
+    if props.positioning then
+      self.positioning = props.positioning
+      self._originalPositioning = props.positioning
+      self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
+    else
+      self.positioning = Positioning.ABSOLUTE
+      self._originalPositioning = nil -- No explicit positioning
+      self._explicitlyAbsolute = false
+    end
   else
     self.parent = props.parent
+
+    -- Set positioning first and track if explicitly set
+    self._originalPositioning = props.positioning -- Track original intent
     if props.positioning == Positioning.ABSOLUTE then
+      self.positioning = Positioning.ABSOLUTE
+      self._explicitlyAbsolute = true -- Explicitly set to absolute by user
+    elseif props.positioning == Positioning.FLEX then
+      self.positioning = Positioning.FLEX
+      self._explicitlyAbsolute = false
+    else
+      -- Default: children in flex containers participate in flex layout
+      -- children in absolute containers default to absolute
+      if self.parent.positioning == Positioning.FLEX then
+        self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
+        self._explicitlyAbsolute = false -- Participate in parent's flex layout
+      else
+        self.positioning = Positioning.ABSOLUTE
+        self._explicitlyAbsolute = false -- Default for absolute containers
+      end
+    end
+
+    -- Set initial position
+    if self.positioning == Positioning.ABSOLUTE then
       self.x = props.x or 0
       self.y = props.y or 0
       self.z = props.z or 0
     else
+      -- Children in flex containers start at parent position but will be repositioned by layoutChildren
       self.x = self.parent.x + (props.x or 0)
       self.y = self.parent.y + (props.y or 0)
       self.z = props.z or self.parent.z or 0
     end
 
     self.textColor = props.textColor or self.parent.textColor
-    self.positioning = props.positioning or self.parent.positioning
 
     props.parent:addChild(self)
   end
 
   if self.positioning == Positioning.FLEX then
     self.flexDirection = props.flexDirection or FlexDirection.HORIZONTAL
+    self.flexWrap = props.flexWrap or FlexWrap.NOWRAP
     self.justifyContent = props.justifyContent or JustifyContent.FLEX_START
     self.alignItems = props.alignItems or AlignItems.STRETCH
     self.alignContent = props.alignContent or AlignContent.STRETCH
     self.justifySelf = props.justifySelf or JustifySelf.AUTO
-    self.alignSelf = props.alignSelf or AlignSelf.AUTO
   end
+
+  self.alignSelf = props.alignSelf or AlignSelf.AUTO
 
   ---animation
   self.transform = props.transform or {}
@@ -528,6 +571,22 @@ end
 ---@param child Element
 function Element:addChild(child)
   child.parent = self
+
+  -- Re-evaluate positioning now that we have a parent
+  -- If child was created without explicit positioning, inherit from parent
+  if child._originalPositioning == nil then
+    -- No explicit positioning was set during construction
+    if self.positioning == Positioning.FLEX then
+      child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
+      child._explicitlyAbsolute = false -- Participate in parent's flex layout
+    else
+      child.positioning = Positioning.ABSOLUTE
+      child._explicitlyAbsolute = false -- Default for absolute containers
+    end
+  end
+  -- If child._originalPositioning is set, it means explicit positioning was provided
+  -- and _explicitlyAbsolute was already set correctly during construction
+
   table.insert(self.children, child)
 
   if self.autosizing.height then
@@ -546,137 +605,318 @@ function Element:layoutChildren()
     return
   end
 
-  local totalSize = 0
   local childCount = #self.children
 
   if childCount == 0 then
     return
   end
 
+  -- Get flex children (children that participate in flex layout)
+  local flexChildren = {}
   for _, child in ipairs(self.children) do
-    if self.flexDirection == FlexDirection.HORIZONTAL then
-      totalSize = totalSize + (child.width or 0)
-    else
-      totalSize = totalSize + (child.height or 0)
+    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
+    if isFlexChild then
+      table.insert(flexChildren, child)
     end
   end
 
-  -- Add gaps between children
-  totalSize = totalSize + (childCount - 1) * self.gap
+  if #flexChildren == 0 then
+    return
+  end
 
-  -- Calculate available space
-  local availableSpace = self.flexDirection == FlexDirection.HORIZONTAL and self.width or self.height
-  local freeSpace = availableSpace - totalSize
+  -- Calculate available space (accounting for padding)
+  local availableMainSize = 0
+  local availableCrossSize = 0
+  if self.flexDirection == FlexDirection.HORIZONTAL then
+    availableMainSize = self.width - self.padding.left - self.padding.right
+    availableCrossSize = self.height - self.padding.top - self.padding.bottom
+  else
+    availableMainSize = self.height - self.padding.top - self.padding.bottom
+    availableCrossSize = self.width - self.padding.left - self.padding.right
+  end
 
-  -- Calculate spacing based on self.justifyContent
-  local spacing = 0
-  if self.justifyContent == JustifyContent.FLEX_START then
-    spacing = 0
-  elseif self.justifyContent == JustifyContent.CENTER then
-    spacing = freeSpace / 2
-  elseif self.justifyContent == JustifyContent.FLEX_END then
-    spacing = freeSpace
-  elseif self.justifyContent == JustifyContent.SPACE_AROUND then
-    spacing = freeSpace / (childCount + 1)
-  elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
-    spacing = freeSpace / (childCount + 1)
-  elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
-    if childCount > 1 then
-      spacing = freeSpace / (childCount - 1)
-    else
-      spacing = 0
+  -- Handle flex wrap: create lines of children
+  local lines = {}
+
+  if self.flexWrap == FlexWrap.NOWRAP then
+    -- All children go on one line
+    lines[1] = flexChildren
+  else
+    -- Wrap children into multiple lines
+    local currentLine = {}
+    local currentLineSize = 0
+
+    for _, child in ipairs(flexChildren) do
+      local childMainSize = 0
+      if self.flexDirection == FlexDirection.HORIZONTAL then
+        childMainSize = child.width or 0
+      else
+        childMainSize = child.height or 0
+      end
+
+      -- Check if adding this child would exceed the available space
+      local lineSpacing = #currentLine > 0 and self.gap or 0
+      if #currentLine > 0 and currentLineSize + lineSpacing + childMainSize > availableMainSize then
+        -- Start a new line
+        if #currentLine > 0 then
+          table.insert(lines, currentLine)
+        end
+        currentLine = { child }
+        currentLineSize = childMainSize
+      else
+        -- Add to current line
+        table.insert(currentLine, child)
+        currentLineSize = currentLineSize + lineSpacing + childMainSize
+      end
+    end
+
+    -- Add the last line if it has children
+    if #currentLine > 0 then
+      table.insert(lines, currentLine)
+    end
+
+    -- Handle wrap-reverse: reverse the order of lines
+    if self.flexWrap == FlexWrap.WRAP_REVERSE then
+      local reversedLines = {}
+      for i = #lines, 1, -1 do
+        table.insert(reversedLines, lines[i])
+      end
+      lines = reversedLines
     end
   end
 
-  -- Position children
-  local currentPos = spacing
-  for _, child in ipairs(self.children) do
-    if child.positioning == Positioning.ABSOLUTE then
-      -- Skip positioning for absolute children as they should maintain their own coordinates
-      goto continue
+  -- Calculate line positions and heights
+  local lineHeights = {}
+  local totalLinesHeight = 0
+
+  for lineIndex, line in ipairs(lines) do
+    local maxCrossSize = 0
+    for _, child in ipairs(line) do
+      local childCrossSize = 0
+      if self.flexDirection == FlexDirection.HORIZONTAL then
+        childCrossSize = child.height or 0
+      else
+        childCrossSize = child.width or 0
+      end
+      maxCrossSize = math.max(maxCrossSize, childCrossSize)
+    end
+    lineHeights[lineIndex] = maxCrossSize
+    totalLinesHeight = totalLinesHeight + maxCrossSize
+  end
+
+  -- Account for gaps between lines
+  local lineGaps = math.max(0, #lines - 1) * self.gap
+  totalLinesHeight = totalLinesHeight + lineGaps
+
+  -- For single line layouts, adjust line height based on align-items
+  if #lines == 1 then
+    if
+      self.alignItems == AlignItems.CENTER
+      or self.alignItems == AlignItems.STRETCH
+      or self.alignItems == AlignItems.FLEX_END
+    then
+      lineHeights[1] = availableCrossSize
+      totalLinesHeight = availableCrossSize
+    end
+  end
+
+  -- Calculate starting position for lines based on alignContent
+  local lineStartPos = 0
+  local lineSpacing = self.gap
+  local freeLineSpace = availableCrossSize - totalLinesHeight
+
+  -- Apply AlignContent logic for both single and multiple lines
+  if self.alignContent == AlignContent.FLEX_START then
+    lineStartPos = 0
+  elseif self.alignContent == AlignContent.CENTER then
+    lineStartPos = freeLineSpace / 2
+  elseif self.alignContent == AlignContent.FLEX_END then
+    lineStartPos = freeLineSpace
+  elseif self.alignContent == AlignContent.SPACE_BETWEEN then
+    lineStartPos = 0
+    if #lines > 1 then
+      lineSpacing = self.gap + (freeLineSpace / (#lines - 1))
+    end
+  elseif self.alignContent == AlignContent.SPACE_AROUND then
+    local spaceAroundEach = freeLineSpace / #lines
+    lineStartPos = spaceAroundEach / 2
+    lineSpacing = self.gap + spaceAroundEach
+  elseif self.alignContent == AlignContent.STRETCH then
+    lineStartPos = 0
+    if #lines > 1 and freeLineSpace > 0 then
+      lineSpacing = self.gap + (freeLineSpace / #lines)
+      -- Distribute extra space to line heights (only if positive)
+      local extraPerLine = freeLineSpace / #lines
+      for i = 1, #lineHeights do
+        lineHeights[i] = lineHeights[i] + extraPerLine
+      end
+    end
+  end
+
+  -- Position children within each line
+  local currentCrossPos = lineStartPos
+
+  for lineIndex, line in ipairs(lines) do
+    local lineHeight = lineHeights[lineIndex]
+
+    -- Calculate total size of children in this line
+    local totalChildrenSize = 0
+    for _, child in ipairs(line) do
+      if self.flexDirection == FlexDirection.HORIZONTAL then
+        totalChildrenSize = totalChildrenSize + (child.width or 0)
+      else
+        totalChildrenSize = totalChildrenSize + (child.height or 0)
+      end
     end
 
-      if self.flexDirection == FlexDirection.VERTICAL then
-        -- Position relative to parent origin
-        child.x = self.x + (self.padding.left or 0)
-        child.y = self.y + currentPos + (self.padding.top or 0)
+    local totalGapSize = math.max(0, #line - 1) * self.gap
+    local totalContentSize = totalChildrenSize + totalGapSize
+    local freeSpace = availableMainSize - totalContentSize
 
-        -- Apply alignment to vertical axis (alignItems)
-        if self.alignItems == AlignItems.FLEX_START then
-          -- nothing
-        elseif self.alignItems == AlignItems.CENTER then
-          child.x = self.x + ((self.width - (child.width or 0)) / 2)
-        elseif self.alignItems == AlignItems.FLEX_END then
-          child.x = self.x + self.width - (child.width or 0)
-        elseif self.alignItems == AlignItems.STRETCH then
-          child.width = self.width
-        end
+    -- Calculate initial position and spacing based on justifyContent
+    local startPos = 0
+    local itemSpacing = self.gap
 
-      -- Apply self alignment to cross axis (alignSelf)
-      local effectiveAlignSelf = child.alignSelf
-      if child.alignSelf == AlignSelf.AUTO then
-        effectiveAlignSelf = self.alignItems
+    if self.justifyContent == JustifyContent.FLEX_START then
+      startPos = 0
+    elseif self.justifyContent == JustifyContent.CENTER then
+      startPos = freeSpace / 2
+    elseif self.justifyContent == JustifyContent.FLEX_END then
+      startPos = freeSpace
+    elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
+      startPos = 0
+      if #line > 1 then
+        itemSpacing = self.gap + (freeSpace / (#line - 1))
       end
+    elseif self.justifyContent == JustifyContent.SPACE_AROUND then
+      local spaceAroundEach = freeSpace / #line
+      startPos = spaceAroundEach / 2
+      itemSpacing = self.gap + spaceAroundEach
+    elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
+      local spaceBetween = freeSpace / (#line + 1)
+      startPos = spaceBetween
+      itemSpacing = self.gap + spaceBetween
+    end
 
-      if effectiveAlignSelf == AlignSelf.FLEX_START then
-        -- Position at the start of cross axis relative to parent
-        child.x = self.x + (self.margin.left or 0)
-      elseif effectiveAlignSelf == AlignSelf.CENTER then
-        if self.flexDirection == FlexDirection.VERTICAL then
-          child.x = self.x + (self.width - (child.width or 0)) / 2
-        else
-          child.y = self.y + (self.height - (child.height or 0)) / 2
-        end
-      elseif effectiveAlignSelf == AlignSelf.FLEX_END then
-        if self.flexDirection == FlexDirection.VERTICAL then
-          child.x = self.x + self.width - (child.width or 0)
-        else
-          child.y = self.y + self.height - (child.height or 0)
-        end
-      elseif effectiveAlignSelf == AlignSelf.STRETCH then
-        if self.flexDirection == FlexDirection.VERTICAL then
-          -- Only set width if not already stretched by alignItems
-          if child.width ~= self.width then
-            child.width = self.width
-          end
-        else
-          -- Only set height if not already stretched by alignItems
-          if child.height ~= self.height then
-            child.height = self.height
-          end
-        end
-      end
+    -- Position children in this line
+    local currentMainPos = startPos
 
-      currentPos = currentPos + (child.height or 0) + self.gap + (self.margin.top or 0) + (self.margin.bottom or 0)
-    else
-      -- Horizontal layout: position relative to parent origin
-      child.x = self.x + self.padding.left + currentPos
-      child.y = self.y + self.padding.top
-
-      -- Determine effective alignment - alignSelf takes precedence over alignItems
+    for _, child in ipairs(line) do
+      -- Determine effective cross-axis alignment
       local effectiveAlign = child.alignSelf
       if effectiveAlign == AlignSelf.AUTO then
         effectiveAlign = self.alignItems
       end
 
-      -- Apply alignment
-      if effectiveAlign == AlignItems.FLEX_START then
-        -- Keep the margin.top position (already applied)
-      elseif effectiveAlign == AlignItems.CENTER then
-        -- Account for parent's margin when centering vertically
-        child.y = self.y + ((self.height - (child.height or 0)) / 2)
-      elseif effectiveAlign == AlignItems.FLEX_END then
-        child.y = self.y + self.height - (child.height or 0)
-      elseif effectiveAlign == AlignItems.STRETCH then
-        -- Only set height if not already stretched
-        if child.height ~= self.height then
-          child.height = self.height
-        end
+      -- DEBUG: Print alignment info for last child
+      -- DEBUG: Output alignment information for troubleshooting
+      if child.debugId or (_ == #line) then
+        local debugPrefix = child.debugId and string.format("[%s]", child.debugId) or "[LAST_CHILD]"
+        print(
+          string.format(
+            "DEBUG %s: effectiveAlign='%s', alignSelf='%s', parent.alignItems='%s'",
+            debugPrefix,
+            tostring(effectiveAlign),
+            tostring(child.alignSelf),
+            tostring(self.alignItems)
+          )
+        )
       end
 
-      currentPos = currentPos + (child.width or 0) + self.gap + (self.margin.left or 0) + (self.margin.right or 0)
+      if self.flexDirection == FlexDirection.HORIZONTAL then
+        -- Horizontal layout: main axis is X, cross axis is Y
+        child.x = self.x + self.padding.left + currentMainPos
+
+        -- Apply cross-axis (vertical) alignment within the line
+        -- Additional DEBUG: Log detailed positioning for elements with debugId
+        if child.debugId then
+          print(
+            string.format(
+              "DEBUG [%s]: HORIZONTAL layout - lineHeight=%.2f, childHeight=%.2f, currentCrossPos=%.2f",
+              child.debugId,
+              lineHeight,
+              child.height or 0,
+              currentCrossPos
+            )
+          )
+        end
+
+        if effectiveAlign == AlignItems.FLEX_START then
+          child.y = self.y + self.padding.top + currentCrossPos
+        elseif effectiveAlign == AlignItems.CENTER then
+          child.y = self.y + self.padding.top + currentCrossPos + ((lineHeight - (child.height or 0)) / 2)
+        elseif effectiveAlign == AlignItems.FLEX_END then
+          child.y = self.y + self.padding.top + currentCrossPos + lineHeight - (child.height or 0)
+        elseif effectiveAlign == AlignItems.STRETCH then
+          child.height = lineHeight
+          child.y = self.y + self.padding.top + currentCrossPos
+        else
+          -- Default fallback: treat as FLEX_START
+          print(
+            string.format(
+              "WARNING: Unknown effectiveAlign value '%s', defaulting to FLEX_START",
+              tostring(effectiveAlign)
+            )
+          )
+          child.y = self.y + self.padding.top + currentCrossPos
+        end
+
+        -- Final position DEBUG for elements with debugId
+        if child.debugId then
+          print(string.format("DEBUG [%s]: Final Y position: %.2f", child.debugId, child.y))
+        end
+
+        currentMainPos = currentMainPos + (child.width or 0) + itemSpacing
+      else
+        -- Vertical layout: main axis is Y, cross axis is X
+        child.y = self.y + self.padding.top + currentMainPos
+
+        -- Apply cross-axis (horizontal) alignment within the line
+        -- Additional DEBUG: Log detailed positioning for elements with debugId
+        if child.debugId then
+          print(
+            string.format(
+              "DEBUG [%s]: VERTICAL layout - lineHeight=%.2f, childWidth=%.2f, currentCrossPos=%.2f",
+              child.debugId,
+              lineHeight,
+              child.width or 0,
+              currentCrossPos
+            )
+          )
+        end
+
+        if effectiveAlign == AlignItems.FLEX_START then
+          child.x = self.x + self.padding.left + currentCrossPos
+        elseif effectiveAlign == AlignItems.CENTER then
+          Logger:debug(lineHeight)
+          child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - (child.width or 0)) / 2)
+        elseif effectiveAlign == AlignItems.FLEX_END then
+          child.x = self.x + self.padding.left + currentCrossPos + lineHeight - (child.width or 0)
+        elseif effectiveAlign == AlignItems.STRETCH then
+          child.width = lineHeight
+          child.x = self.x + self.padding.left + currentCrossPos
+        else
+          -- Default fallback: treat as FLEX_START
+          print(
+            string.format(
+              "WARNING: Unknown effectiveAlign value '%s', defaulting to FLEX_START",
+              tostring(effectiveAlign)
+            )
+          )
+          child.x = self.x + self.padding.left + currentCrossPos
+        end
+
+        -- Final position DEBUG for elements with debugId
+        if child.debugId then
+          print(string.format("DEBUG [%s]: Final X position: %.2f", child.debugId, child.x))
+        end
+
+        currentMainPos = currentMainPos + (child.height or 0) + itemSpacing
+      end
     end
-    ::continue::
+
+    -- Move to next line position
+    currentCrossPos = currentCrossPos + lineHeight + lineSpacing
   end
 end
 

@@ -4,17 +4,17 @@ local luaunit = require("testing.luaunit")
 
 -- Run all tests in the __tests__ directory
 local testFiles = {
-  "testing/__tests__/01_absolute_positioning.lua",
-  "testing/__tests__/02_flex_direction.lua",
-  "testing/__tests__/03_vertical_flex_direction.lua",
-  "testing/__tests__/04_justify_content.lua",
-  "testing/__tests__/05_align_items.lua",
-  "testing/__tests__/06_flex_wrap.lua",
-  "testing/__tests__/07_layout_validation.lua",
-  "testing/__tests__/08_performance.lua",
-  "testing/__tests__/09_element_properties.lua",
-  "testing/__tests__/10_animation_and_transform.lua",
-  "testing/__tests__/11_auxiliary_functions.lua",
+  "testing/__tests__/01_absolute_positioning_basic_tests.lua",
+  "testing/__tests__/02_absolute_positioning_child_layout_tests.lua",
+  "testing/__tests__/03_flex_direction_horizontal_tests.lua",
+  "testing/__tests__/04_flex_direction_vertical_tests.lua",
+  "testing/__tests__/05_justify_content_tests.lua",
+  "testing/__tests__/06_align_items_tests.lua",
+  "testing/__tests__/07_flex_wrap_tests.lua",
+  "testing/__tests__/08_comprehensive_flex_tests.lua",
+  "testing/__tests__/09_layout_validation_tests.lua",
+  "testing/__tests__/10_performance_tests.lua",
+  "testing/__tests__/11_auxiliary_functions_tests.lua",
 }
 
 -- testingun all tests, but don't exit on error

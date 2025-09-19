@@ -14,8 +14,15 @@ love_helper.graphics = {}
 function love_helper.graphics.newFont(size)
   -- Return a mock font object with basic methods
   return {
-    getWidth = function(text)
-      return #text * size / 2
+    getWidth = function(self, text)
+      -- Handle both colon and dot syntax
+      if type(self) == "string" then
+        -- Called with dot syntax: font.getWidth(text)
+        return #self * size / 2
+      else
+        -- Called with colon syntax: font:getWidth(text)
+        return #text * size / 2
+      end
     end,
     getHeight = function()
       return size
@@ -26,8 +33,15 @@ end
 function love_helper.graphics.getFont()
   -- Return a mock default font
   return {
-    getWidth = function(text)
-      return #text * 12 / 2
+    getWidth = function(self, text)
+      -- Handle both colon and dot syntax
+      if type(self) == "string" then
+        -- Called with dot syntax: font.getWidth(text)
+        return #self * 12 / 2
+      else
+        -- Called with colon syntax: font:getWidth(text)
+        return #text * 12 / 2
+      end
     end,
     getHeight = function()
       return 12

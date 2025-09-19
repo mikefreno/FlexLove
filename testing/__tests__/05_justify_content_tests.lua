@@ -1045,11 +1045,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     gap = 8,
   })
 
-  local emailCheckbox = Gui.new({ id = "emailCheckbox", w = 20, h = 20 })
-  local emailLabel = Gui.new({ id = "emailLabel", w = 60, h = 18 })
-
-  emailOption:addChild(emailCheckbox)
-  emailOption:addChild(emailLabel)
+  Gui.new({ parent = emailOption, id = "emailCheckbox", w = 20, h = 20 })
+  Gui.new({ parent = emailOption, id = "emailLabel", w = 60, h = 18 })
 
   local phoneOption = Gui.new({
     id = "phoneOption",

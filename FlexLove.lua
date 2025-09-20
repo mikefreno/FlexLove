@@ -1048,6 +1048,7 @@ function Element:update(dt)
         -- set pressed flag
         self._pressed = true
       elseif not love.mouse.isDown(1) and self._pressed then
+        Logger:debug("calling callback")
         self.callback(self)
         self._pressed = false
       end
@@ -1083,7 +1084,7 @@ function Element:resize(newGameWidth, newGameHeight)
   self.y = self.y * ratioH
   -- Update children positions and sizes
   for _, child in ipairs(self.children) do
-    child:resize(ratioW, ratioH)
+    child:resize(newGameWidth, newGameHeight)
   end
 
   self:layoutChildren()

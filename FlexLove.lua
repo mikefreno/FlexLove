@@ -499,33 +499,33 @@ function Element.new(props)
     -- Track if positioning was explicitly set
     if props.positioning then
       self.positioning = props.positioning
-      self._originalPositioning = props.positioning
-      self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
+      self.hadExplicitPositioning = true
+      self.explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
     else
       self.positioning = Positioning.ABSOLUTE
-      self._originalPositioning = nil -- No explicit positioning
-      self._explicitlyAbsolute = false
+      self.hadExplicitPositioning = false
+      self.explicitlyAbsolute = false
     end
   else
     self.parent = props.parent
 
     -- Set positioning first and track if explicitly set
-    self._originalPositioning = props.positioning -- Track original intent
+    self.hadExplicitPositioning = (props.positioning ~= nil)
     if props.positioning == Positioning.ABSOLUTE then
       self.positioning = Positioning.ABSOLUTE
-      self._explicitlyAbsolute = true -- Explicitly set to absolute by user
+      self.explicitlyAbsolute = true
     elseif props.positioning == Positioning.FLEX then
       self.positioning = Positioning.FLEX
-      self._explicitlyAbsolute = false
+      self.explicitlyAbsolute = false
     else
       -- Default: children in flex containers participate in flex layout
       -- children in absolute containers default to absolute
       if self.parent.positioning == Positioning.FLEX then
         self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
-        self._explicitlyAbsolute = false -- Participate in parent's flex layout
+        self.explicitlyAbsolute = false
       else
         self.positioning = Positioning.ABSOLUTE
-        self._explicitlyAbsolute = false -- Default for absolute containers
+        self.explicitlyAbsolute = false
       end
     end
 
@@ -561,6 +561,10 @@ function Element.new(props)
   self.transform = props.transform or {}
   self.transition = props.transition or {}
 
+  -- Interactive state for callbacks
+  self.pressed = false
+  self.touchPressed = {}
+
   return self
 end
 
@@ -577,18 +581,18 @@ function Element:addChild(child)
 
   -- Re-evaluate positioning now that we have a parent
   -- If child was created without explicit positioning, inherit from parent
-  if child._originalPositioning == nil then
+  if not child.hadExplicitPositioning then
     -- No explicit positioning was set during construction
     if self.positioning == Positioning.FLEX then
       child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
-      child._explicitlyAbsolute = false -- Participate in parent's flex layout
+      child.explicitlyAbsolute = false
     else
       child.positioning = Positioning.ABSOLUTE
-      child._explicitlyAbsolute = false -- Default for absolute containers
+      child.explicitlyAbsolute = false
     end
   end
-  -- If child._originalPositioning is set, it means explicit positioning was provided
-  -- and _explicitlyAbsolute was already set correctly during construction
+  -- If child.hadExplicitPositioning is true, it means explicit positioning was provided
+  -- and explicitlyAbsolute was already set correctly during construction
 
   table.insert(self.children, child)
 
@@ -617,7 +621,7 @@ function Element:layoutChildren()
   -- Get flex children (children that participate in flex layout)
   local flexChildren = {}
   for _, child in ipairs(self.children) do
-    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
+    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child.explicitlyAbsolute)
     if isFlexChild then
       table.insert(flexChildren, child)
     end
@@ -997,7 +1001,7 @@ function Element:draw()
   end
 
   -- Draw visual feedback when element is pressed (if it has a callback)
-  if self.callback and self._pressed then
+  if self.callback and self.pressed then
     love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
     love.graphics.rectangle(
       "fill",
@@ -1046,24 +1050,24 @@ function Element:update(dt)
     if mx >= bx and mx <= bx + self.width and my >= by and my <= by + self.height then
       if love.mouse.isDown(1) then
         -- set pressed flag
-        self._pressed = true
-      elseif not love.mouse.isDown(1) and self._pressed then
+        self.pressed = true
+      elseif not love.mouse.isDown(1) and self.pressed then
         Logger:debug("calling callback")
         self.callback(self)
-        self._pressed = false
+        self.pressed = false
       end
     else
-      self._pressed = false
+      self.pressed = false
     end
 
     local touches = love.touch.getTouches()
     for _, id in ipairs(touches) do
       local tx, ty = love.touch.getPosition(id)
       if tx >= bx and tx <= bx + self.width and ty >= by and ty <= by + self.height then
-        self._touchPressed[id] = true
-      elseif self._touchPressed[id] then
+        self.touchPressed[id] = true
+      elseif self.touchPressed[id] then
         self.callback(self)
-        self._touchPressed[id] = false
+        self.touchPressed[id] = false
       end
     end
   end
@@ -1133,7 +1137,7 @@ function Element:calculateAutoWidth()
   local participatingChildren = 0
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    if not child._explicitlyAbsolute then
+    if not child.explicitlyAbsolute then
       local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
       local childWidth = child.width or child:calculateAutoWidth()
       local childOffset = childWidth + paddingAdjustment
@@ -1157,7 +1161,7 @@ function Element:calculateAutoHeight()
   local participatingChildren = 0
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    if not child._explicitlyAbsolute then
+    if not child.explicitlyAbsolute then
       local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
       local childOffset = child.height + paddingAdjustment
 

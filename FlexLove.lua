@@ -1504,10 +1504,8 @@ function Element:update(dt)
     local by = self.y
     if mx >= bx and mx <= bx + self.width and my >= by and my <= by + self.height then
       if love.mouse.isDown(1) then
-        -- set pressed flag
         self.pressed = true
-      elseif not love.mouse.isDown(1) and self.pressed then
-        Logger:debug("calling callback")
+      elseif not love.mouse.isDown(1) and self._pressed then
         self.callback(self)
         self.pressed = false
       end
@@ -1606,7 +1604,7 @@ function Element:resize(newGameWidth, newGameHeight)
 
   -- Recursively resize children
   for _, child in ipairs(self.children) do
-    child:resize(newGameWidth, newGameHeight)
+    child:resize(ratioW, ratioH)
   end
 
   -- Re-layout children after resizing

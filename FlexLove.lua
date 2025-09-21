@@ -1116,7 +1116,11 @@ function Element:layoutChildren()
 
   -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
   if #lines == 1 then
-    if self.alignItems == AlignItems.STRETCH or self.alignItems == AlignItems.CENTER or self.alignItems == AlignItems.FLEX_END then
+    if
+      self.alignItems == AlignItems.STRETCH
+      or self.alignItems == AlignItems.CENTER
+      or self.alignItems == AlignItems.FLEX_END
+    then
       -- STRETCH, CENTER, and FLEX_END should use full available cross size
       lineHeights[1] = availableCrossSize
       totalLinesHeight = availableCrossSize
@@ -1506,6 +1510,12 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     local offsetX =
       Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
     self.x = baseX + offsetX
+  else
+    -- For pixel units, update position relative to parent's new position
+    if self.parent then
+      local baseX = self.parent.x
+      self.x = baseX + self.units.x.value
+    end
   end
 
   if self.units.y.unit ~= "px" then
@@ -1514,6 +1524,12 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     local offsetY =
       Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
     self.y = baseY + offsetY
+  else
+    -- For pixel units, update position relative to parent's new position
+    if self.parent then
+      local baseY = self.parent.y
+      self.y = baseY + self.units.y.value
+    end
   end
 
   -- Recalculate textSize if using viewport units

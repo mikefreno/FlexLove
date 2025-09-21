@@ -456,11 +456,15 @@ end
 ---@class Element
 ---@field id string
 ---@field autosizing {width:boolean, height:boolean} -- Whether the element should automatically size to fit its children
----@field x number -- X coordinate of the element
----@field y number -- Y coordinate of the element
+---@field x number|string -- X coordinate of the element
+---@field y number|string -- Y coordinate of the element
 ---@field z number -- Z-index for layering (default: 0)
----@field width number -- Width of the element
----@field height number -- Height of the element
+---@field width number|string -- Width of the element
+---@field height number|string -- Height of the element
+---@field top number? -- Offset from top edge (CSS-style positioning)
+---@field right number? -- Offset from right edge (CSS-style positioning)
+---@field bottom number? -- Offset from bottom edge (CSS-style positioning)
+---@field left number? -- Offset from left edge (CSS-style positioning)
 ---@field children table<integer, Element> -- Children of this element
 ---@field parent Element? -- Parent element (nil if top-level)
 ---@field border Border -- Border configuration for the element
@@ -471,7 +475,7 @@ end
 ---@field text string? -- Text content to display in the element
 ---@field textColor Color -- Color of the text content
 ---@field textAlign TextAlign -- Alignment of the text content
----@field gap number -- Space between children elements (default: 10)
+---@field gap number|string -- Space between children elements (default: 10)
 ---@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field margin {top?:number, right?:number, bottom?:number, left?:number} -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
@@ -498,6 +502,10 @@ Element.__index = Element
 ---@field z number? -- Z-index for layering (default: 0)
 ---@field w number|string? -- Width of the element (default: calculated automatically)
 ---@field h number|string? -- Height of the element (default: calculated automatically)
+---@field top number|string? -- Offset from top edge (CSS-style positioning)
+---@field right number|string? -- Offset from right edge (CSS-style positioning)
+---@field bottom number|string? -- Offset from bottom edge (CSS-style positioning)
+---@field left number|string? -- Offset from left edge (CSS-style positioning)
 ---@field border Border? -- Border configuration for the element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field opacity number?
@@ -530,7 +538,7 @@ function Element.new(props)
   self.children = {}
   self.callback = props.callback
   self.id = props.id or ""
-  
+
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
 
@@ -587,15 +595,17 @@ function Element.new(props)
     },
   }
 
-  if props.w then
-    if type(props.w) == "string" then
-      local value, unit = Units.parse(props.w)
+  -- Handle width (both w and width properties, prefer w if both exist)
+  local widthProp = props.w or props.width
+  if widthProp then
+    if type(widthProp) == "string" then
+      local value, unit = Units.parse(widthProp)
       self.units.width = { value = value, unit = unit }
       local parentWidth = self.parent and self.parent.width or viewportWidth
       self.width = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
     else
-      self.width = props.w
-      self.units.width = { value = props.w, unit = "px" }
+      self.width = widthProp
+      self.units.width = { value = widthProp, unit = "px" }
     end
   else
     self.autosizing.width = true
@@ -603,15 +613,17 @@ function Element.new(props)
     self.units.width = { value = nil, unit = "auto" } -- Mark as auto-sized
   end
 
-  if props.h then
-    if type(props.h) == "string" then
-      local value, unit = Units.parse(props.h)
+  -- Handle height (both h and height properties, prefer h if both exist)
+  local heightProp = props.h or props.height
+  if heightProp then
+    if type(heightProp) == "string" then
+      local value, unit = Units.parse(heightProp)
       self.units.height = { value = value, unit = unit }
       local parentHeight = self.parent and self.parent.height or viewportHeight
       self.height = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
     else
-      self.height = props.h
-      self.units.height = { value = props.h, unit = "px" }
+      self.height = heightProp
+      self.units.height = { value = heightProp, unit = "px" }
     end
   else
     self.autosizing.height = true
@@ -627,9 +639,7 @@ function Element.new(props)
       -- Gap percentages should be relative to the element's own size, not parent
       -- For horizontal flex, gap is based on width; for vertical flex, based on height
       local flexDir = props.flexDirection or FlexDirection.HORIZONTAL
-      local containerSize = (flexDir == FlexDirection.HORIZONTAL)
-          and self.width
-        or self.height
+      local containerSize = (flexDir == FlexDirection.HORIZONTAL) and self.width or self.height
       self.gap = Units.resolve(value, unit, viewportWidth, viewportHeight, containerSize)
     else
       self.gap = props.gap
@@ -838,6 +848,67 @@ function Element.new(props)
     props.parent:addChild(self)
   end
 
+  -- Handle positioning properties for ALL elements (with or without parent)
+  -- Handle top positioning with units
+  if props.top then
+    if type(props.top) == "string" then
+      local value, unit = Units.parse(props.top)
+      self.units.top = { value = value, unit = unit }
+      self.top = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+    else
+      self.top = props.top
+      self.units.top = { value = props.top, unit = "px" }
+    end
+  else
+    self.top = nil
+    self.units.top = nil
+  end
+
+  -- Handle right positioning with units
+  if props.right then
+    if type(props.right) == "string" then
+      local value, unit = Units.parse(props.right)
+      self.units.right = { value = value, unit = unit }
+      self.right = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+    else
+      self.right = props.right
+      self.units.right = { value = props.right, unit = "px" }
+    end
+  else
+    self.right = nil
+    self.units.right = nil
+  end
+
+  -- Handle bottom positioning with units
+  if props.bottom then
+    if type(props.bottom) == "string" then
+      local value, unit = Units.parse(props.bottom)
+      self.units.bottom = { value = value, unit = unit }
+      self.bottom = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+    else
+      self.bottom = props.bottom
+      self.units.bottom = { value = props.bottom, unit = "px" }
+    end
+  else
+    self.bottom = nil
+    self.units.bottom = nil
+  end
+
+  -- Handle left positioning with units
+  if props.left then
+    if type(props.left) == "string" then
+      local value, unit = Units.parse(props.left)
+      self.units.left = { value = value, unit = unit }
+      self.left = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+    else
+      self.left = props.left
+      self.units.left = { value = props.left, unit = "px" }
+    end
+  else
+    self.left = nil
+    self.units.left = nil
+  end
+
   if self.positioning == Positioning.FLEX then
     self.flexDirection = props.flexDirection or FlexDirection.HORIZONTAL
     self.flexWrap = props.flexWrap or FlexWrap.NOWRAP
@@ -894,9 +965,49 @@ function Element:addChild(child)
   self:layoutChildren()
 end
 
+--- Apply positioning offsets (top, right, bottom, left) to an element
+-- @param element The element to apply offsets to
+function Element:applyPositioningOffsets(element)
+  if not element then
+    return
+  end
+
+  -- For CSS-style positioning, we need the parent's bounds
+  local parent = element.parent
+  if not parent then
+    return
+  end
+
+  -- Apply top offset (distance from parent's top edge)
+  if element.top then
+    element.y = parent.y + parent.padding.top + element.top
+  end
+
+  -- Apply bottom offset (distance from parent's bottom edge)
+  if element.bottom then
+    element.y = parent.y + parent.height - parent.padding.bottom - element.height - element.bottom
+  end
+
+  -- Apply left offset (distance from parent's left edge)
+  if element.left then
+    element.x = parent.x + parent.padding.left + element.left
+  end
+
+  -- Apply right offset (distance from parent's right edge)
+  if element.right then
+    element.x = parent.x + parent.width - parent.padding.right - element.width - element.right
+  end
+end
+
 function Element:layoutChildren()
   if self.positioning == Positioning.ABSOLUTE then
-    -- Absolute positioned containers don't layout their children according to flex rules
+    -- Absolute positioned containers don't layout their children according to flex rules,
+    -- but they should still apply CSS positioning offsets to their children
+    for _, child in ipairs(self.children) do
+      if child.top or child.right or child.bottom or child.left then
+        self:applyPositioningOffsets(child)
+      end
+    end
     return
   end
 
@@ -1003,16 +1114,15 @@ function Element:layoutChildren()
   local lineGaps = math.max(0, #lines - 1) * self.gap
   totalLinesHeight = totalLinesHeight + lineGaps
 
-  -- For single line layouts, adjust line height based on align-items
+  -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
   if #lines == 1 then
-    if
-      self.alignItems == AlignItems.CENTER
-      or self.alignItems == AlignItems.STRETCH
-      or self.alignItems == AlignItems.FLEX_END
-    then
+    if self.alignItems == AlignItems.STRETCH or self.alignItems == AlignItems.CENTER or self.alignItems == AlignItems.FLEX_END then
+      -- STRETCH, CENTER, and FLEX_END should use full available cross size
       lineHeights[1] = availableCrossSize
       totalLinesHeight = availableCrossSize
     end
+    -- CENTER and FLEX_END should preserve natural child dimensions
+    -- and only affect positioning within the available space
   end
 
   -- Calculate starting position for lines based on alignContent
@@ -1114,9 +1224,13 @@ function Element:layoutChildren()
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.y = self.y + self.padding.top + currentCrossPos + lineHeight - (child.height or 0)
         elseif effectiveAlign == AlignItems.STRETCH then
+          -- STRETCH always stretches children in cross-axis direction
           child.height = lineHeight
           child.y = self.y + self.padding.top + currentCrossPos
         end
+
+        -- Apply positioning offsets (top, right, bottom, left)
+        self:applyPositioningOffsets(child)
 
         -- Final position DEBUG for elements with debugId
         if child.debugId then
@@ -1141,9 +1255,13 @@ function Element:layoutChildren()
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.x = self.x + self.padding.left + currentCrossPos + lineHeight - (child.width or 0)
         elseif effectiveAlign == AlignItems.STRETCH then
+          -- STRETCH always stretches children in cross-axis direction
           child.width = lineHeight
           child.x = self.x + self.padding.left + currentCrossPos
         end
+
+        -- Apply positioning offsets (top, right, bottom, left)
+        self:applyPositioningOffsets(child)
 
         -- If child has children, re-layout them after position change
         if #child.children > 0 then
@@ -1370,33 +1488,38 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Recalculate width if using viewport or percentage units (skip auto-sized)
   if self.units.width.unit ~= "px" and self.units.width.unit ~= "auto" then
     local parentWidth = self.parent and self.parent.width or newViewportWidth
-    self.width = Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
+    self.width =
+      Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
   end
 
   -- Recalculate height if using viewport or percentage units (skip auto-sized)
   if self.units.height.unit ~= "px" and self.units.height.unit ~= "auto" then
     local parentHeight = self.parent and self.parent.height or newViewportHeight
-    self.height = Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
+    self.height =
+      Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
   end
 
   -- Recalculate position if using viewport or percentage units
   if self.units.x.unit ~= "px" then
     local parentWidth = self.parent and self.parent.width or newViewportWidth
     local baseX = self.parent and self.parent.x or 0
-    local offsetX = Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
+    local offsetX =
+      Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
     self.x = baseX + offsetX
   end
 
   if self.units.y.unit ~= "px" then
     local parentHeight = self.parent and self.parent.height or newViewportHeight
     local baseY = self.parent and self.parent.y or 0
-    local offsetY = Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
+    local offsetY =
+      Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
     self.y = baseY + offsetY
   end
 
   -- Recalculate textSize if using viewport units
   if self.units.textSize.unit ~= "px" then
-    self.textSize = Units.resolve(self.units.textSize.value, self.units.textSize.unit, newViewportWidth, newViewportHeight, nil)
+    self.textSize =
+      Units.resolve(self.units.textSize.value, self.units.textSize.unit, newViewportWidth, newViewportHeight, nil)
   end
 
   -- Recalculate gap if using viewport or percentage units
@@ -1404,7 +1527,8 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     local containerSize = (self.flexDirection == FlexDirection.HORIZONTAL)
         and (self.parent and self.parent.width or newViewportWidth)
       or (self.parent and self.parent.height or newViewportHeight)
-    self.gap = Units.resolve(self.units.gap.value, self.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
+    self.gap =
+      Units.resolve(self.units.gap.value, self.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
   end
 
   -- Recalculate spacing (padding/margin) if using viewport or percentage units

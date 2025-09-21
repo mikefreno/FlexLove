@@ -337,7 +337,6 @@ end
 -- Element Object
 -- ====================
 ---@class Element
----@field id string?
 ---@field autosizing {width:boolean, height:boolean} -- Whether the element should automatically size to fit its children
 ---@field x number -- X coordinate of the element
 ---@field y number -- Y coordinate of the element
@@ -369,229 +368,11 @@ end
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field callback function? -- Callback function for click events
-
--- Unit parsing and viewport calculations
-local Units = {}
-
---- Parse a unit value (string or number) into value and unit type
----@param value string|number
----@return number, string -- Returns numeric value and unit type ("px", "%", "vw", "vh", "vmin", "vmax")
-function Units.parse(value)
-  if type(value) == "number" then
-    return value, "px"
-  end
-
-  if type(value) ~= "string" then
-    error("Unit value must be a string or number, got " .. type(value))
-  end
-
-  -- Match number followed by optional unit
-  local numStr, unit = value:match("^([%-]?[%d%.]+)(.*)$")
-  if not numStr then
-    error("Invalid unit format: " .. value)
-  end
-
-  local num = tonumber(numStr)
-  if not num then
-    error("Invalid numeric value: " .. numStr)
-  end
-
-  -- Default to pixels if no unit specified
-  if unit == "" then
-    unit = "px"
-  end
-
-  -- Validate unit type
-  local validUnits = { px = true, ["%"] = true, vw = true, vh = true, vmin = true, vmax = true }
-  if not validUnits[unit] then
-    error("Unsupported unit type: " .. unit)
-  end
-
-  return num, unit
-end
-
---- Convert relative units to pixels based on viewport and parent dimensions
----@param value number
----@param unit string
----@param viewportWidth number
----@param viewportHeight number
----@param parentSize number? -- Required for percentage units
----@return number -- Pixel value
-function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
-  if unit == "px" then
-    return value
-  elseif unit == "%" then
-    if not parentSize then
-      error("Percentage units require parent dimension")
-    end
-    return (value / 100) * parentSize
-  elseif unit == "vw" then
-    return (value / 100) * viewportWidth
-  elseif unit == "vh" then
-    return (value / 100) * viewportHeight
-  elseif unit == "vmin" then
-    return (value / 100) * math.min(viewportWidth, viewportHeight)
-  elseif unit == "vmax" then
-    return (value / 100) * math.max(viewportWidth, viewportHeight)
-  else
-    error("Unknown unit type: " .. unit)
-  end
-end
-
---- Cache viewport dimensions for performance
-local ViewportCache = {
-  width = 0,
-  height = 0,
-  lastUpdate = 0,
-}
-
--- Performance optimization: Resize state management
-local ResizeState = {
-  isResizing = false,
-  batchedElements = {},
-  resizeDebounceTime = 0.016, -- 16ms for 60fps
-  lastResizeTime = 0,
-  resizeTimer = nil,
-}
-
---- Get current viewport dimensions (cached for performance)
----@return number, number -- width, height
-function Units.getViewport()
-  -- Update cache every frame to detect window resize
-  local currentTime = love.timer.getTime()
-  if currentTime ~= ViewportCache.lastUpdate then
-    ViewportCache.width, ViewportCache.height = love.window.getMode()
-    ViewportCache.lastUpdate = currentTime
-  end
-  return ViewportCache.width, ViewportCache.height
-end
-
---- Performance: Start batch resize operation
----@param newGameWidth number
----@param newGameHeight number
-function Units.startBatchResize(newGameWidth, newGameHeight)
-  ResizeState.isResizing = true
-  ResizeState.batchedElements = {}
-  ResizeState.lastResizeTime = love.timer.getTime()
-
-  -- Update viewport cache once for the entire batch
-  ViewportCache.width = newGameWidth
-  ViewportCache.height = newGameHeight
-  ViewportCache.lastUpdate = ResizeState.lastResizeTime
-end
-
---- Performance: Add element to batch resize
----@param element table
-function Units.addToBatchResize(element)
-  if ResizeState.isResizing then
-    table.insert(ResizeState.batchedElements, element)
-    element.isDirty = true
-  end
-end
-
---- Performance: Complete batch resize operation
-function Units.completeBatchResize()
-  if not ResizeState.isResizing then
-    return
-  end
-
-  -- Process all batched elements in a single pass
-  for _, element in ipairs(ResizeState.batchedElements) do
-    if element.isDirty then
-      element:recalculateUnits()
-      element.needsLayout = true
-      element.isDirty = false
-    end
-  end
-
-  -- Perform layout updates in a second pass to avoid redundant calculations
-  for _, element in ipairs(ResizeState.batchedElements) do
-    if element.needsLayout then
-      element:layoutChildren()
-      element.needsLayout = false
-    end
-  end
-
-  -- Reset batch state
-  ResizeState.isResizing = false
-  ResizeState.batchedElements = {}
-end
-
---- Performance: Check if resize should be debounced
----@return boolean
-function Units.shouldDebounceResize()
-  local currentTime = love.timer.getTime()
-  return (currentTime - ResizeState.lastResizeTime) < ResizeState.resizeDebounceTime
-end
-
---- Resolve units for spacing properties (padding, margin) that can have top, right, bottom, left, vertical, horizontal
----@param spacingProps table?
----@param parentWidth number
----@param parentHeight number
----@return table -- Resolved spacing with top, right, bottom, left in pixels
-function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
-  if not spacingProps then
-    return { top = 0, right = 0, bottom = 0, left = 0 }
-  end
-
-  local viewportWidth, viewportHeight = Units.getViewport()
-  local result = {}
-
-  -- Handle shorthand properties first
-  local vertical = spacingProps.vertical
-  local horizontal = spacingProps.horizontal
-
-  if vertical then
-    if type(vertical) == "string" then
-      local value, unit = Units.parse(vertical)
-      vertical = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
-    else
-      -- Numeric value, use as-is
-      vertical = vertical
-    end
-  end
-
-  if horizontal then
-    if type(horizontal) == "string" then
-      local value, unit = Units.parse(horizontal)
-      horizontal = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
-    else
-      -- Numeric value, use as-is
-      horizontal = horizontal
-    end
-  end
-
-  -- Handle individual sides
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    local value = spacingProps[side]
-    if value then
-      if type(value) == "string" then
-        local numValue, unit = Units.parse(value)
-        local parentSize = (side == "top" or side == "bottom") and parentHeight or parentWidth
-        result[side] = Units.resolve(numValue, unit, viewportWidth, viewportHeight, parentSize)
-      else
-        -- Numeric value, use as-is
-        result[side] = value
-      end
-    else
-      -- Use fallbacks
-      if side == "top" or side == "bottom" then
-        result[side] = vertical or 0
-      else
-        result[side] = horizontal or 0
-      end
-    end
-  end
-
-  return result
-end
-
 local Element = {}
 Element.__index = Element
 
 ---@class ElementProps
 ---@field parent Element? -- Parent element for hierarchical structure
----@field id string?
 ---@field x number? -- X coordinate of the element (default: 0)
 ---@field y number? -- Y coordinate of the element (default: 0)
 ---@field z number? -- Z-index for layering (default: 0)
@@ -627,7 +408,6 @@ local ElementProps = {}
 function Element.new(props)
   local self = setmetatable({}, Element)
   self.children = {}
-  self.id = props.id or ""
   self.callback = props.callback
 
   ------ add non-hereditary ------
@@ -650,294 +430,111 @@ function Element.new(props)
   self.opacity = props.opacity or 1
 
   self.text = props.text
-  self.textSize = props.textSize or 12
+  self.textSize = props.textSize
   self.textAlign = props.textAlign or TextAlign.START
 
   --- self positioning ---
-  local viewportWidth, viewportHeight = Units.getViewport()
-  local containerWidth = self.parent and self.parent.width or viewportWidth
-  local containerHeight = self.parent and self.parent.height or viewportHeight
+  self.padding = props.padding
+      and {
+        top = props.padding.top or props.padding.vertical or 0,
+        right = props.padding.right or props.padding.horizontal or 0,
+        bottom = props.padding.bottom or props.padding.vertical or 0,
+        left = props.padding.left or props.padding.horizontal or 0,
+      }
+    or {
+      top = 0,
+      right = 0,
+      bottom = 0,
+      left = 0,
+    }
 
-  self.padding = Units.resolveSpacing(props.padding, containerWidth, containerHeight)
-  self.margin = Units.resolveSpacing(props.margin, containerWidth, containerHeight)
+  self.margin = props.margin
+      and {
+        top = props.margin.top or props.margin.vertical or 0,
+        right = props.margin.right or props.margin.horizontal or 0,
+        bottom = props.margin.bottom or props.margin.vertical or 0,
+        left = props.margin.left or props.margin.horizontal or 0,
+      }
+    or {
+      top = 0,
+      right = 0,
+      bottom = 0,
+      left = 0,
+    }
 
   ---- Sizing ----
   local gw, gh = love.window.getMode()
   self.prevGameSize = { width = gw, height = gh }
   self.autosizing = { width = false, height = false }
 
-  -- Store unit specifications for responsive behavior
-  self.units = {
-    width = { value = nil, unit = "px" },
-    height = { value = nil, unit = "px" },
-    x = { value = nil, unit = "px" },
-    y = { value = nil, unit = "px" },
-    textSize = { value = nil, unit = "px" },
-    padding = {
-      top = { value = nil, unit = "px" },
-      right = { value = nil, unit = "px" },
-      bottom = { value = nil, unit = "px" },
-      left = { value = nil, unit = "px" },
-    },
-    margin = {
-      top = { value = nil, unit = "px" },
-      right = { value = nil, unit = "px" },
-      bottom = { value = nil, unit = "px" },
-      left = { value = nil, unit = "px" },
-    },
-  }
-
-  -- Performance optimization: dirty flag for resize operations
-  self.isDirty = false
-  self.needsLayout = false
-
   if props.w then
-    if type(props.w) == "string" then
-      -- Handle units for string values
-      local value, unit = Units.parse(props.w)
-      self.units.width = { value = value, unit = unit }
-
-      -- Resolve to pixels immediately
-      local viewportWidth, viewportHeight = Units.getViewport()
-      local parentWidth = self.parent and self.parent.width or viewportWidth
-      self.width = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
-    else
-      -- Handle numeric values (backward compatibility)
-      self.width = props.w
-      self.units.width = { value = props.w, unit = "px" }
-    end
+    self.width = props.w
   else
     self.autosizing.width = true
     self.width = self:calculateAutoWidth()
   end
-
   if props.h then
-    if type(props.h) == "string" then
-      -- Handle units for string values
-      local value, unit = Units.parse(props.h)
-      self.units.height = { value = value, unit = unit }
-
-      -- Resolve to pixels immediately
-      local viewportWidth, viewportHeight = Units.getViewport()
-      local parentHeight = self.parent and self.parent.height or viewportHeight
-      self.height = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
-    else
-      -- Handle numeric values (backward compatibility)
-      self.height = props.h
-      self.units.height = { value = props.h, unit = "px" }
-    end
+    self.height = props.h
   else
     self.autosizing.height = true
     self.height = self:calculateAutoHeight()
   end
 
   --- child positioning ---
-  if props.gap then
-    if type(props.gap) == "string" then
-      -- Handle units for string values
-      local value, unit = Units.parse(props.gap)
-      self.units.gap = { value = value, unit = unit }
-      local viewportWidth, viewportHeight = Units.getViewport()
-      local containerSize = (self.flexDirection == FlexDirection.HORIZONTAL)
-          and (self.parent and self.parent.width or viewportWidth)
-        or (self.parent and self.parent.height or viewportHeight)
-      self.gap = Units.resolve(value, unit, viewportWidth, viewportHeight, containerSize)
-    else
-      -- Handle numeric values (backward compatibility)
-      self.gap = props.gap
-      self.units.gap = { value = props.gap, unit = "px" }
-    end
-  else
-    self.gap = 10
-    self.units.gap = { value = 10, unit = "px" }
-  end
-
-  -- Store original values for responsive scaling
-  if props.textSize then
-    if type(props.textSize) == "string" then
-      local value, unit = Units.parse(props.textSize)
-      self.units.textSize = { value = value, unit = unit }
-    else
-      self.units.textSize = { value = props.textSize, unit = "px" }
-    end
-  end
-
-  -- Store original spacing values for scaling
-  if props.padding then
-    for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-      if props.padding[side] then
-        if type(props.padding[side]) == "string" then
-          local value, unit = Units.parse(props.padding[side])
-          self.units.padding[side] = { value = value, unit = unit }
-        else
-          self.units.padding[side] = { value = props.padding[side], unit = "px" }
-        end
-      end
-    end
-  end
-
-  if props.margin then
-    for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-      if props.margin[side] then
-        if type(props.margin[side]) == "string" then
-          local value, unit = Units.parse(props.margin[side])
-          self.units.margin[side] = { value = value, unit = unit }
-        else
-          self.units.margin[side] = { value = props.margin[side], unit = "px" }
-        end
-      end
-    end
-  end
+  self.gap = props.gap or 10
 
   ------ add hereditary ------
   if props.parent == nil then
     table.insert(Gui.topElements, self)
 
-    -- Handle x position with units
-    if props.x then
-      if type(props.x) == "string" then
-        -- Handle units for string values
-        local value, unit = Units.parse(props.x)
-        self.units.x = { value = value, unit = unit }
-        local viewportWidth, viewportHeight = Units.getViewport()
-        self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
-      else
-        -- Handle numeric values (backward compatibility)
-        self.x = props.x
-        self.units.x = { value = props.x, unit = "px" }
-      end
-    else
-      self.x = 0
-    end
-
-    -- Handle y position with units
-    if props.y then
-      if type(props.y) == "string" then
-        -- Handle units for string values
-        local value, unit = Units.parse(props.y)
-        self.units.y = { value = value, unit = unit }
-        local viewportWidth, viewportHeight = Units.getViewport()
-        self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
-      else
-        -- Handle numeric values (backward compatibility)
-        self.y = props.y
-        self.units.y = { value = props.y, unit = "px" }
-      end
-    else
-      self.y = 0
-    end
-
+    self.x = props.x or 0
+    self.y = props.y or 0
     self.z = props.z or 0
 
     self.textColor = props.textColor or Color.new(0, 0, 0, 1)
 
-    -- Set positioning - top level elements are always absolute
-    self.positioning = props.positioning or Positioning.ABSOLUTE
-    -- Set explicitlyAbsolute flag for top-level elements
-    if props.positioning == Positioning.ABSOLUTE then
-      self.explicitlyAbsolute = true -- User explicitly requested absolute positioning
-    elseif props.positioning == Positioning.FLEX then
-      self.explicitlyAbsolute = false -- User explicitly requested flex container
+    -- Track if positioning was explicitly set
+    if props.positioning then
+      self.positioning = props.positioning
+      self._originalPositioning = props.positioning
+      self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
     else
-      self.explicitlyAbsolute = false -- Default positioning, not explicitly requested
+      self.positioning = Positioning.ABSOLUTE
+      self._originalPositioning = nil -- No explicit positioning
+      self._explicitlyAbsolute = false
     end
   else
     self.parent = props.parent
 
-    -- Set positioning based on user's explicit choice or default
+    -- Set positioning first and track if explicitly set
+    self._originalPositioning = props.positioning -- Track original intent
     if props.positioning == Positioning.ABSOLUTE then
       self.positioning = Positioning.ABSOLUTE
-      self.explicitlyAbsolute = true -- User explicitly requested absolute positioning
+      self._explicitlyAbsolute = true -- Explicitly set to absolute by user
     elseif props.positioning == Positioning.FLEX then
       self.positioning = Positioning.FLEX
-      self.explicitlyAbsolute = false -- User explicitly requested flex container
+      self._explicitlyAbsolute = false
     else
-      -- Default: absolute positioning (most common case)
-      self.positioning = Positioning.ABSOLUTE
-      self.explicitlyAbsolute = false -- Default positioning, not explicitly requested
+      -- Default: children in flex containers participate in flex layout
+      -- children in absolute containers default to absolute
+      if self.parent.positioning == Positioning.FLEX then
+        self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
+        self._explicitlyAbsolute = false -- Participate in parent's flex layout
+      else
+        self.positioning = Positioning.ABSOLUTE
+        self._explicitlyAbsolute = false -- Default for absolute containers
+      end
     end
 
     -- Set initial position
     if self.positioning == Positioning.ABSOLUTE then
-      -- Handle x position with units
-      if props.x then
-        if type(props.x) == "string" then
-          -- Handle units for string values
-          local value, unit = Units.parse(props.x)
-          self.units.x = { value = value, unit = unit }
-          local viewportWidth, viewportHeight = Units.getViewport()
-          local parentWidth = self.parent.width
-          self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
-        else
-          -- Handle numeric values (backward compatibility)
-          self.x = props.x
-          self.units.x = { value = props.x, unit = "px" }
-        end
-      else
-        self.x = 0
-      end
-
-      -- Handle y position with units
-      if props.y then
-        if type(props.y) == "string" then
-          -- Handle units for string values
-          local value, unit = Units.parse(props.y)
-          self.units.y = { value = value, unit = unit }
-          local viewportWidth, viewportHeight = Units.getViewport()
-          local parentHeight = self.parent.height
-          self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
-        else
-          -- Handle numeric values (backward compatibility)
-          self.y = props.y
-          self.units.y = { value = props.y, unit = "px" }
-        end
-      else
-        self.y = 0
-      end
-
+      self.x = props.x or 0
+      self.y = props.y or 0
       self.z = props.z or 0
     else
       -- Children in flex containers start at parent position but will be repositioned by layoutChildren
-      -- For flex children, relative units are resolved relative to parent
-      local baseX = self.parent.x
-      local baseY = self.parent.y
-
-      if props.x then
-        if type(props.x) == "string" then
-          -- Handle units for string values
-          local value, unit = Units.parse(props.x)
-          self.units.x = { value = value, unit = unit }
-          local viewportWidth, viewportHeight = Units.getViewport()
-          local parentWidth = self.parent.width
-          local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
-          self.x = baseX + offsetX
-        else
-          -- Handle numeric values (backward compatibility)
-          self.x = baseX + props.x
-          self.units.x = { value = props.x, unit = "px" }
-        end
-      else
-        self.x = baseX
-      end
-
-      if props.y then
-        if type(props.y) == "string" then
-          -- Handle units for string values
-          local value, unit = Units.parse(props.y)
-          self.units.y = { value = value, unit = unit }
-          local viewportWidth, viewportHeight = Units.getViewport()
-          local parentHeight = self.parent.height
-          local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
-          self.y = baseY + offsetY
-        else
-          -- Handle numeric values (backward compatibility)
-          self.y = baseY + props.y
-          self.units.y = { value = props.y, unit = "px" }
-        end
-      else
-        self.y = baseY
-      end
-
+      self.x = self.parent.x + (props.x or 0)
+      self.y = self.parent.y + (props.y or 0)
       self.z = props.z or self.parent.z or 0
     end
 
@@ -961,70 +558,7 @@ function Element.new(props)
   self.transform = props.transform or {}
   self.transition = props.transition or {}
 
-  -- Interactive state for callbacks
-  self.pressed = false
-  self.touchPressed = {}
-
   return self
-end
-
---- Recalculate all unit-based dimensions and positions
---- Should be called when viewport changes or parent dimensions change
-function Element:recalculateUnits()
-  -- Use cached viewport if available and current, otherwise get fresh values
-  local viewportWidth, viewportHeight
-  if ViewportCache.lastUpdate == love.timer.getTime() then
-    viewportWidth, viewportHeight = ViewportCache.width, ViewportCache.height
-  else
-    viewportWidth, viewportHeight = Units.getViewport()
-  end
-
-  -- Recalculate width if it uses units
-  if not self.autosizing.width and self.units.width.value then
-    local parentWidth = self.parent and self.parent.width or viewportWidth
-    self.width =
-      Units.resolve(self.units.width.value, self.units.width.unit, viewportWidth, viewportHeight, parentWidth)
-  end
-
-  -- Recalculate height if it uses units
-  if not self.autosizing.height and self.units.height.value then
-    local parentHeight = self.parent and self.parent.height or viewportHeight
-    self.height =
-      Units.resolve(self.units.height.value, self.units.height.unit, viewportWidth, viewportHeight, parentHeight)
-  end
-
-  -- Recalculate position if it uses units
-  if self.units.x.value then
-    local parentWidth = self.parent and self.parent.width or viewportWidth
-    local baseX = (self.parent and self.positioning ~= Positioning.ABSOLUTE) and self.parent.x or 0
-    local offsetX = Units.resolve(self.units.x.value, self.units.x.unit, viewportWidth, viewportHeight, parentWidth)
-    self.x = baseX + offsetX
-  end
-
-  if self.units.y.value then
-    local parentHeight = self.parent and self.parent.height or viewportHeight
-    local baseY = (self.parent and self.positioning ~= Positioning.ABSOLUTE) and self.parent.y or 0
-    local offsetY = Units.resolve(self.units.y.value, self.units.y.unit, viewportWidth, viewportHeight, parentHeight)
-    self.y = baseY + offsetY
-  end
-
-  -- Recalculate gap if it uses units
-  if self.units.gap and self.units.gap.value then
-    local containerSize = (self.flexDirection == FlexDirection.HORIZONTAL)
-        and (self.parent and self.parent.width or viewportWidth)
-      or (self.parent and self.parent.height or viewportHeight)
-    self.gap = Units.resolve(self.units.gap.value, self.units.gap.unit, viewportWidth, viewportHeight, containerSize)
-  end
-
-  -- Recalculate textSize if it uses units
-  if self.units.textSize and self.units.textSize.value then
-    -- For textSize, we don't need a parent size context - use viewport directly
-    self.textSize =
-      Units.resolve(self.units.textSize.value, self.units.textSize.unit, viewportWidth, viewportHeight, nil)
-  end
-
-  -- NOTE: Children recalculation is now handled by the batch resize system
-  -- This avoids recursive calls during resize operations for better performance
 end
 
 --- Get element bounds
@@ -1038,11 +572,22 @@ end
 function Element:addChild(child)
   child.parent = self
 
-  table.insert(self.children, child)
+  -- Re-evaluate positioning now that we have a parent
+  -- If child was created without explicit positioning, inherit from parent
+  if child._originalPositioning == nil then
+    -- No explicit positioning was set during construction
+    if self.positioning == Positioning.FLEX then
+      child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
+      child._explicitlyAbsolute = false -- Participate in parent's flex layout
+    else
+      child.positioning = Positioning.ABSOLUTE
+      child._explicitlyAbsolute = false -- Default for absolute containers
+    end
+  end
+  -- If child._originalPositioning is set, it means explicit positioning was provided
+  -- and _explicitlyAbsolute was already set correctly during construction
 
-  -- Recalculate child dimensions now that parent relationship is established
-  -- This is important for percentage-based units that depend on parent dimensions
-  child:recalculateUnits()
+  table.insert(self.children, child)
 
   if self.autosizing.height then
     self.height = self:calculateAutoHeight()
@@ -1069,11 +614,8 @@ function Element:layoutChildren()
   -- Get flex children (children that participate in flex layout)
   local flexChildren = {}
   for _, child in ipairs(self.children) do
-    -- Children participate in flex layout if:
-    -- 1. Parent is a flex container AND
-    -- 2. Child is NOT explicitly positioned absolute
-    local shouldParticipateInFlex = (self.positioning == Positioning.FLEX) and not child.explicitlyAbsolute
-    if shouldParticipateInFlex then
+    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
+    if isFlexChild then
       table.insert(flexChildren, child)
     end
   end
@@ -1277,8 +819,6 @@ function Element:layoutChildren()
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.y = self.y + self.padding.top + currentCrossPos + lineHeight - (child.height or 0)
         elseif effectiveAlign == AlignItems.STRETCH then
-          -- In horizontal layout, cross-axis is height
-          -- CSS flexbox stretch behavior: always stretch unless explicitly marked as non-stretchable
           child.height = lineHeight
           child.y = self.y + self.padding.top + currentCrossPos
         end
@@ -1300,21 +840,11 @@ function Element:layoutChildren()
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.x = self.x + self.padding.left + currentCrossPos + lineHeight - (child.width or 0)
         elseif effectiveAlign == AlignItems.STRETCH then
-          -- In vertical layout, cross-axis is width
-          -- CSS flexbox stretch behavior: always stretch unless explicitly marked as non-stretchable
           child.width = lineHeight
           child.x = self.x + self.padding.left + currentCrossPos
         end
 
         currentMainPos = currentMainPos + (child.height or 0) + itemSpacing
-      end
-    end
-
-    -- After positioning all children in this line, recursively layout their children
-    for _, child in ipairs(line) do
-      -- Only layout children of flex containers to update positions relative to new parent position
-      if child.positioning == Positioning.FLEX and #child.children > 0 then
-        child:layoutChildren()
       end
     end
 
@@ -1456,7 +986,7 @@ function Element:draw()
   end
 
   -- Draw visual feedback when element is pressed (if it has a callback)
-  if self.callback and self.pressed then
+  if self.callback and self._pressed then
     love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
     love.graphics.rectangle(
       "fill",
@@ -1504,122 +1034,50 @@ function Element:update(dt)
     local by = self.y
     if mx >= bx and mx <= bx + self.width and my >= by and my <= by + self.height then
       if love.mouse.isDown(1) then
-        self.pressed = true
+        -- set pressed flag
+        self._pressed = true
       elseif not love.mouse.isDown(1) and self._pressed then
         self.callback(self)
-        self.pressed = false
+        self._pressed = false
       end
     else
-      self.pressed = false
+      self._pressed = false
     end
 
     local touches = love.touch.getTouches()
     for _, id in ipairs(touches) do
       local tx, ty = love.touch.getPosition(id)
       if tx >= bx and tx <= bx + self.width and ty >= by and ty <= by + self.height then
-        self.touchPressed[id] = true
-      elseif self.touchPressed[id] then
+        self._touchPressed[id] = true
+      elseif self._touchPressed[id] then
         self.callback(self)
-        self.touchPressed[id] = false
+        self._touchPressed[id] = false
       end
     end
   end
 end
 
---- Resize element and its children based on game window size change (Performance Optimized)
+--- Resize element and its children based on game window size change
 ---@param newGameWidth number
 ---@param newGameHeight number
 function Element:resize(newGameWidth, newGameHeight)
-  -- Early return if dimensions haven't changed
-  if self.prevGameSize.width == newGameWidth and self.prevGameSize.height == newGameHeight then
-    return
-  end
-
-  -- Performance: batch operations at root level
-  local isRootResize = not self.parent
-  if isRootResize then
-    -- Update viewport cache once for entire operation
-    ViewportCache.width = newGameWidth
-    ViewportCache.height = newGameHeight
-    ViewportCache.lastUpdate = love.timer.getTime()
-  end
-
-  -- Calculate scale factors for proportional scaling
-  local scaleX = newGameWidth / self.prevGameSize.width
-  local scaleY = newGameHeight / self.prevGameSize.height
-
-  -- Apply proportional scaling to pixel-based properties
-  if self.units.width.unit == "px" and not self.autosizing.width then
-    self.width = self.width * scaleX
-    self.units.width.value = self.width
-  end
-
-  if self.units.height.unit == "px" and not self.autosizing.height then
-    self.height = self.height * scaleY
-    self.units.height.value = self.height
-  end
-
-  if self.units.x.unit == "px" then
-    self.x = self.x * scaleX
-    self.units.x.value = self.x
-  end
-
-  if self.units.y.unit == "px" then
-    self.y = self.y * scaleY
-    self.units.y.value = self.y
-  end
-
-  if self.units.gap and self.units.gap.unit == "px" then
-    self.gap = self.gap * ((scaleX + scaleY) / 2)
-    self.units.gap.value = self.gap
-  end
-
-  if self.units.textSize and self.units.textSize.unit == "px" and self.textSize then
-    local avgScale = (scaleX + scaleY) / 2
-    self.textSize = self.textSize * avgScale
-    self.units.textSize.value = self.textSize
-  end
-
-  -- Scale padding and margin
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    if self.units.padding[side] and self.units.padding[side].unit == "px" and self.padding[side] then
-      local scale = (side == "top" or side == "bottom") and scaleY or scaleX
-      self.padding[side] = self.padding[side] * scale
-      self.units.padding[side].value = self.padding[side]
-    end
-
-    if self.units.margin[side] and self.units.margin[side].unit == "px" and self.margin[side] then
-      local scale = (side == "top" or side == "bottom") and scaleY or scaleX
-      self.margin[side] = self.margin[side] * scale
-      self.units.margin[side].value = self.margin[side]
-    end
-  end
-
-  -- Update stored game size
-  self.prevGameSize.width = newGameWidth
-  self.prevGameSize.height = newGameHeight
-
-  -- Recalculate units for viewport/percentage units
-  self:recalculateUnits()
-
-  -- Recursively resize children
+  local prevW = self.prevGameSize.width
+  local prevH = self.prevGameSize.height
+  local ratioW = newGameWidth / prevW
+  local ratioH = newGameHeight / prevH
+  -- Update element size
+  self.width = self.width * ratioW
+  self.height = self.height * ratioH
+  self.x = self.x * ratioW
+  self.y = self.y * ratioH
+  -- Update children positions and sizes
   for _, child in ipairs(self.children) do
     child:resize(ratioW, ratioH)
   end
 
-  -- Re-layout children after resizing
   self:layoutChildren()
-end
-
---- Check if element uses viewport units (performance helper)
----@return boolean
-function Element:hasViewportUnits()
-  return (self.units.width.unit == "vw" or self.units.width.unit == "vh")
-    or (self.units.height.unit == "vw" or self.units.height.unit == "vh")
-    or (self.units.x.unit == "vw" or self.units.x.unit == "vh")
-    or (self.units.y.unit == "vw" or self.units.y.unit == "vh")
-    or (self.units.gap and (self.units.gap.unit == "vw" or self.units.gap.unit == "vh"))
-    or (self.units.textSize and (self.units.textSize.unit == "vw" or self.units.textSize.unit == "vh"))
+  self.prevGameSize.width = newGameWidth
+  self.prevGameSize.height = newGameHeight
 end
 
 --- Calculate text width for button
@@ -1663,8 +1121,7 @@ function Element:calculateAutoWidth()
   local participatingChildren = 0
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    local participatesInLayout = (self.positioning == Positioning.FLEX) and not child.explicitlyAbsolute
-    if participatesInLayout then
+    if not child._explicitlyAbsolute then
       local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
       local childWidth = child.width or child:calculateAutoWidth()
       local childOffset = childWidth + paddingAdjustment
@@ -1688,8 +1145,7 @@ function Element:calculateAutoHeight()
   local participatingChildren = 0
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    local participatesInLayout = (self.positioning == Positioning.FLEX) and not child.explicitlyAbsolute
-    if participatesInLayout then
+    if not child._explicitlyAbsolute then
       local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
       local childOffset = child.height + paddingAdjustment
 

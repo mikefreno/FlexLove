@@ -11,6 +11,11 @@ end
 
 -- Mock graphics functions
 love_helper.graphics = {}
+
+function love_helper.graphics.getDimensions()
+  return 800, 600 -- Default resolution - same as window.getMode
+end
+
 function love_helper.graphics.newFont(size)
   -- Return a mock font object with basic methods
   return {

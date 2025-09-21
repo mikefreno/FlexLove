@@ -1130,6 +1130,7 @@ function TestVerticalFlexDirection:testCalendarTimelineLayout()
         eventItem:addChild(eventTitle)
         eventItem:addChild(eventDetails)
         eventItem.height = 40 -- Adjust height for detailed events
+        eventItem.units.height = { value = 40, unit = "px" } -- Keep units in sync
       else
         eventItem:addChild(eventTime)
         eventItem:addChild(eventTitle)

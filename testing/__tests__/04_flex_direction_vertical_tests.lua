@@ -34,8 +34,8 @@ function TestVerticalFlexDirection:testCreateElementWithVerticalFlexDirection()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   -- Verify element was created with correct properties
@@ -53,14 +53,14 @@ function TestVerticalFlexDirection:testSingleChildVerticalLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child = Gui.new({
     id = "single_child",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   parent:addChild(child)
@@ -78,27 +78,27 @@ function TestVerticalFlexDirection:testMultipleChildrenVerticalLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     gap = 10,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
   })
 
   parent:addChild(child1)
@@ -124,8 +124,8 @@ function TestVerticalFlexDirection:testEmptyParentVerticalLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   -- Should not cause any errors and should have no children
@@ -141,21 +141,21 @@ function TestVerticalFlexDirection:testVerticalLayoutFlexStart()
     justifyContent = JustifyContent.FLEX_START,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     gap = 10,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -175,21 +175,21 @@ function TestVerticalFlexDirection:testVerticalLayoutCenter()
     justifyContent = JustifyContent.CENTER,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     gap = 10,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -213,21 +213,21 @@ function TestVerticalFlexDirection:testVerticalLayoutFlexEnd()
     justifyContent = JustifyContent.FLEX_END,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     gap = 10,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -251,14 +251,14 @@ function TestVerticalFlexDirection:testSingleChildVerticalLayoutCentered()
     justifyContent = JustifyContent.CENTER,
     x = 20,
     y = 10,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child = Gui.new({
     id = "single_child",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   parent:addChild(child)
@@ -278,20 +278,20 @@ function TestVerticalFlexDirection:testVerticalLayoutMaintainsChildWidths()
     alignItems = AlignItems.FLEX_START, -- Explicitly set to maintain child widths
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40, -- Different width
+    width = 60,
+    height = 40, -- Different width
   })
 
   parent:addChild(child1)
@@ -311,20 +311,20 @@ function TestVerticalFlexDirection:testVerticalLayoutAlignItemsCenter()
     alignItems = AlignItems.CENTER,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -347,20 +347,20 @@ function TestVerticalFlexDirection:testVerticalLayoutAlignItemsFlexEnd()
     alignItems = AlignItems.FLEX_END,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -383,20 +383,20 @@ function TestVerticalFlexDirection:testVerticalLayoutAlignItemsStretch()
     alignItems = AlignItems.STRETCH,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -416,27 +416,27 @@ function TestVerticalFlexDirection:testVerticalLayoutSpaceBetween()
     justifyContent = JustifyContent.SPACE_BETWEEN,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     gap = 0, -- Space-between controls spacing, not gap
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
   })
 
   parent:addChild(child1)
@@ -463,21 +463,21 @@ function TestVerticalFlexDirection:testVerticalLayoutCustomGap()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     gap = 20, -- Custom gap
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -497,14 +497,14 @@ function TestVerticalFlexDirection:testVerticalLayoutWithPositioningOffset()
     justifyContent = JustifyContent.CENTER,
     x = 50,
     y = 100,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
   })
 
   local child = Gui.new({
     id = "single_child",
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   parent:addChild(child)
@@ -523,8 +523,8 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 300,
-    h = 800,
+    width = 300,
+    height = 800,
     gap = 20,
   })
 
@@ -533,13 +533,13 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
     id = "header",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 280,
-    h = 120,
+    width = 280,
+    height = 120,
     gap = 10,
   })
 
-  local logo = Gui.new({ id = "logo", w = 100, h = 40 })
-  local userInfo = Gui.new({ id = "userInfo", w = 250, h = 60 })
+  local logo = Gui.new({ id = "logo", width = 100, height = 40 })
+  local userInfo = Gui.new({ id = "userInfo", width = 250, height = 60 })
 
   header:addChild(logo)
   header:addChild(userInfo)
@@ -549,8 +549,8 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
     id = "navigation",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 280,
-    h = 400,
+    width = 280,
+    height = 400,
     gap = 5,
   })
 
@@ -558,8 +558,8 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
     id = "mainMenu",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 280,
-    h = 200,
+    width = 280,
+    height = 200,
     gap = 2,
   })
 
@@ -567,8 +567,8 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
   for i = 1, 5 do
     local menuItem = Gui.new({
       id = "menuItem" .. i,
-      w = 270,
-      h = 35,
+      width = 270,
+      height = 35,
     })
     mainMenu:addChild(menuItem)
   end
@@ -577,8 +577,8 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
     id = "subMenu",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 260,
-    h = 180,
+    width = 260,
+    height = 180,
     gap = 3,
   })
 
@@ -586,8 +586,8 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
   for i = 1, 4 do
     local subMenuItem = Gui.new({
       id = "subMenuItem" .. i,
-      w = 240,
-      h = 30,
+      width = 240,
+      height = 30,
     })
     subMenu:addChild(subMenuItem)
   end
@@ -601,14 +601,14 @@ function TestVerticalFlexDirection:testComplexVerticalSidebarLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_END,
-    w = 280,
-    h = 200,
+    width = 280,
+    height = 200,
     gap = 10,
   })
 
-  local settings = Gui.new({ id = "settings", w = 200, h = 50 })
-  local help = Gui.new({ id = "help", w = 180, h = 40 })
-  local logout = Gui.new({ id = "logout", w = 120, h = 35 })
+  local settings = Gui.new({ id = "settings", width = 200, height = 50 })
+  local help = Gui.new({ id = "help", width = 180, height = 40 })
+  local logout = Gui.new({ id = "logout", width = 120, height = 35 })
 
   footer:addChild(settings)
   footer:addChild(help)
@@ -639,8 +639,8 @@ function TestVerticalFlexDirection:testMultiLevelAccordionLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 400,
-    h = 600,
+    width = 400,
+    height = 600,
     gap = 5,
   })
 
@@ -650,23 +650,23 @@ function TestVerticalFlexDirection:testMultiLevelAccordionLayout()
       id = "section" .. sectionIndex,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 380,
-      h = 180,
+      width = 380,
+      height = 180,
       gap = 2,
     })
 
     local sectionHeader = Gui.new({
       id = "sectionHeader" .. sectionIndex,
-      w = 380,
-      h = 40,
+      width = 380,
+      height = 40,
     })
 
     local sectionContent = Gui.new({
       id = "sectionContent" .. sectionIndex,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 360,
-      h = 130,
+      width = 360,
+      height = 130,
       gap = 3,
     })
 
@@ -676,21 +676,21 @@ function TestVerticalFlexDirection:testMultiLevelAccordionLayout()
         id = "subsection" .. sectionIndex .. "_" .. subIndex,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
-        w = 340,
-        h = 40,
+        width = 340,
+        height = 40,
         gap = 1,
       })
 
       local subHeader = Gui.new({
         id = "subHeader" .. sectionIndex .. "_" .. subIndex,
-        w = 340,
-        h = 20,
+        width = 340,
+        height = 20,
       })
 
       local subContent = Gui.new({
         id = "subContent" .. sectionIndex .. "_" .. subIndex,
-        w = 320,
-        h = 18,
+        width = 320,
+        height = 18,
       })
 
       subsection:addChild(subHeader)
@@ -730,8 +730,8 @@ function TestVerticalFlexDirection:testVerticalChatMessageLayout()
     justifyContent = JustifyContent.FLEX_END,
     x = 0,
     y = 0,
-    w = 350,
-    h = 500,
+    width = 350,
+    height = 500,
     gap = 8,
   })
 
@@ -748,8 +748,8 @@ function TestVerticalFlexDirection:testVerticalChatMessageLayout()
       id = "messageGroup" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 330,
-      h = msgType.hasReactions and 80 or 60,
+      width = 330,
+      height = msgType.hasReactions and 80 or 60,
       gap = 4,
     })
 
@@ -757,16 +757,16 @@ function TestVerticalFlexDirection:testVerticalChatMessageLayout()
       id = "messageRow" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
-      w = 330,
-      h = 40,
+      width = 330,
+      height = 40,
       gap = 8,
     })
 
     if msgType.hasAvatar then
       local avatar = Gui.new({
         id = "avatar" .. i,
-        w = 32,
-        h = 32,
+        width = 32,
+        height = 32,
       })
       messageRow:addChild(avatar)
     end
@@ -775,21 +775,21 @@ function TestVerticalFlexDirection:testVerticalChatMessageLayout()
       id = "messageContent" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = msgType.hasAvatar and 290 or 330,
-      h = 35,
+      width = msgType.hasAvatar and 290 or 330,
+      height = 35,
       gap = 2,
     })
 
     local messageText = Gui.new({
       id = "messageText" .. i,
-      w = msgType.hasAvatar and 280 or 320,
-      h = 20,
+      width = msgType.hasAvatar and 280 or 320,
+      height = 20,
     })
 
     local timestamp = Gui.new({
       id = "timestamp" .. i,
-      w = 60,
-      h = 12,
+      width = 60,
+      height = 12,
     })
 
     messageContent:addChild(messageText)
@@ -802,8 +802,8 @@ function TestVerticalFlexDirection:testVerticalChatMessageLayout()
         id = "reactions" .. i,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
-        w = 150,
-        h = 20,
+        width = 150,
+        height = 20,
         gap = 3,
       })
 
@@ -811,8 +811,8 @@ function TestVerticalFlexDirection:testVerticalChatMessageLayout()
       for j = 1, 3 do
         local reaction = Gui.new({
           id = "reaction" .. i .. "_" .. j,
-          w = 25,
-          h = 18,
+          width = 25,
+          height = 18,
         })
         reactions:addChild(reaction)
       end
@@ -840,8 +840,8 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 500,
-    h = 700,
+    width = 500,
+    height = 700,
     gap = 20,
   })
 
@@ -850,13 +850,13 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "formHeader",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 480,
-    h = 80,
+    width = 480,
+    height = 80,
     gap = 10,
   })
 
-  local title = Gui.new({ id = "title", w = 300, h = 30 })
-  local description = Gui.new({ id = "description", w = 450, h = 40 })
+  local title = Gui.new({ id = "title", width = 300, height = 30 })
+  local description = Gui.new({ id = "description", width = 450, height = 40 })
 
   formHeader:addChild(title)
   formHeader:addChild(description)
@@ -866,12 +866,12 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "personalSection",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 480,
-    h = 200,
+    width = 480,
+    height = 200,
     gap = 15,
   })
 
-  local personalTitle = Gui.new({ id = "personalTitle", w = 200, h = 25 })
+  local personalTitle = Gui.new({ id = "personalTitle", width = 200, height = 25 })
   personalSection:addChild(personalTitle)
 
   -- Field groups within personal section
@@ -879,14 +879,14 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "nameGroup",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 460,
-    h = 80,
+    width = 460,
+    height = 80,
     gap = 8,
   })
 
-  local nameLabel = Gui.new({ id = "nameLabel", w = 100, h = 20 })
-  local nameInput = Gui.new({ id = "nameInput", w = 400, h = 35 })
-  local nameError = Gui.new({ id = "nameError", w = 350, h = 15 })
+  local nameLabel = Gui.new({ id = "nameLabel", width = 100, height = 20 })
+  local nameInput = Gui.new({ id = "nameInput", width = 400, height = 35 })
+  local nameError = Gui.new({ id = "nameError", width = 350, height = 15 })
 
   nameGroup:addChild(nameLabel)
   nameGroup:addChild(nameInput)
@@ -896,14 +896,14 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "emailGroup",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 460,
-    h = 80,
+    width = 460,
+    height = 80,
     gap = 8,
   })
 
-  local emailLabel = Gui.new({ id = "emailLabel", w = 100, h = 20 })
-  local emailInput = Gui.new({ id = "emailInput", w = 400, h = 35 })
-  local emailError = Gui.new({ id = "emailError", w = 350, h = 15 })
+  local emailLabel = Gui.new({ id = "emailLabel", width = 100, height = 20 })
+  local emailInput = Gui.new({ id = "emailInput", width = 400, height = 35 })
+  local emailError = Gui.new({ id = "emailError", width = 350, height = 15 })
 
   emailGroup:addChild(emailLabel)
   emailGroup:addChild(emailInput)
@@ -917,12 +917,12 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "addressSection",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 480,
-    h = 300,
+    width = 480,
+    height = 300,
     gap = 15,
   })
 
-  local addressTitle = Gui.new({ id = "addressTitle", w = 200, h = 25 })
+  local addressTitle = Gui.new({ id = "addressTitle", width = 200, height = 25 })
   addressSection:addChild(addressTitle)
 
   -- Street address group
@@ -930,14 +930,14 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "streetGroup",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 460,
-    h = 80,
+    width = 460,
+    height = 80,
     gap = 8,
   })
 
-  local streetLabel = Gui.new({ id = "streetLabel", w = 120, h = 20 })
-  local streetInput = Gui.new({ id = "streetInput", w = 400, h = 35 })
-  local streetError = Gui.new({ id = "streetError", w = 350, h = 15 })
+  local streetLabel = Gui.new({ id = "streetLabel", width = 120, height = 20 })
+  local streetInput = Gui.new({ id = "streetInput", width = 400, height = 35 })
+  local streetError = Gui.new({ id = "streetError", width = 350, height = 15 })
 
   streetGroup:addChild(streetLabel)
   streetGroup:addChild(streetInput)
@@ -948,25 +948,25 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "locationGroup",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 460,
-    h = 120,
+    width = 460,
+    height = 120,
     gap = 8,
   })
 
-  local locationLabel = Gui.new({ id = "locationLabel", w = 150, h = 20 })
+  local locationLabel = Gui.new({ id = "locationLabel", width = 150, height = 20 })
 
   local locationInputs = Gui.new({
     id = "locationInputs",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 450,
-    h = 35,
+    width = 450,
+    height = 35,
     gap = 10,
   })
 
-  local cityInput = Gui.new({ id = "cityInput", w = 200, h = 35 })
-  local stateInput = Gui.new({ id = "stateInput", w = 100, h = 35 })
-  local zipInput = Gui.new({ id = "zipInput", w = 120, h = 35 })
+  local cityInput = Gui.new({ id = "cityInput", width = 200, height = 35 })
+  local stateInput = Gui.new({ id = "stateInput", width = 100, height = 35 })
+  local zipInput = Gui.new({ id = "zipInput", width = 120, height = 35 })
 
   locationInputs:addChild(cityInput)
   locationInputs:addChild(stateInput)
@@ -976,14 +976,14 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     id = "locationErrors",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 450,
-    h = 45,
+    width = 450,
+    height = 45,
     gap = 3,
   })
 
-  local cityError = Gui.new({ id = "cityError", w = 200, h = 12 })
-  local stateError = Gui.new({ id = "stateError", w = 150, h = 12 })
-  local zipError = Gui.new({ id = "zipError", w = 180, h = 12 })
+  local cityError = Gui.new({ id = "cityError", width = 200, height = 12 })
+  local stateError = Gui.new({ id = "stateError", width = 150, height = 12 })
+  local zipError = Gui.new({ id = "zipError", width = 180, height = 12 })
 
   locationErrors:addChild(cityError)
   locationErrors:addChild(stateError)
@@ -1002,13 +1002,13 @@ function TestVerticalFlexDirection:testNestedFormLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
-    w = 480,
-    h = 50,
+    width = 480,
+    height = 50,
     gap = 15,
   })
 
-  local cancelButton = Gui.new({ id = "cancelButton", w = 80, h = 40 })
-  local submitButton = Gui.new({ id = "submitButton", w = 100, h = 40 })
+  local cancelButton = Gui.new({ id = "cancelButton", width = 80, height = 40 })
+  local submitButton = Gui.new({ id = "submitButton", width = 100, height = 40 })
 
   formActions:addChild(cancelButton)
   formActions:addChild(submitButton)
@@ -1042,8 +1042,8 @@ function TestVerticalFlexDirection:testCalendarTimelineLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 600,
-    h = 800,
+    width = 600,
+    height = 800,
     gap = 10,
   })
 
@@ -1055,23 +1055,23 @@ function TestVerticalFlexDirection:testCalendarTimelineLayout()
       id = "day" .. dayIndex,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 580,
-      h = 140,
+      width = 580,
+      height = 140,
       gap = 8,
     })
 
     local dayHeader = Gui.new({
       id = "dayHeader" .. dayIndex,
-      w = 580,
-      h = 30,
+      width = 580,
+      height = 30,
     })
 
     local eventsContainer = Gui.new({
       id = "eventsContainer" .. dayIndex,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 560,
-      h = 100,
+      width = 560,
+      height = 100,
       gap = 5,
     })
 
@@ -1083,21 +1083,21 @@ function TestVerticalFlexDirection:testCalendarTimelineLayout()
         id = "event" .. dayIndex .. "_" .. eventIndex,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
-        w = 540,
-        h = 20,
+        width = 540,
+        height = 20,
         gap = 2,
       })
 
       local eventTime = Gui.new({
         id = "eventTime" .. dayIndex .. "_" .. eventIndex,
-        w = 80,
-        h = 12,
+        width = 80,
+        height = 12,
       })
 
       local eventTitle = Gui.new({
         id = "eventTitle" .. dayIndex .. "_" .. eventIndex,
-        w = 400,
-        h = 15,
+        width = 400,
+        height = 15,
       })
 
       -- Some events have additional details
@@ -1106,21 +1106,21 @@ function TestVerticalFlexDirection:testCalendarTimelineLayout()
           id = "eventDetails" .. dayIndex .. "_" .. eventIndex,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.VERTICAL,
-          w = 380,
-          h = 25,
+          width = 380,
+          height = 25,
           gap = 2,
         })
 
         local eventLocation = Gui.new({
           id = "eventLocation" .. dayIndex .. "_" .. eventIndex,
-          w = 200,
-          h = 10,
+          width = 200,
+          height = 10,
         })
 
         local eventAttendees = Gui.new({
           id = "eventAttendees" .. dayIndex .. "_" .. eventIndex,
-          w = 300,
-          h = 10,
+          width = 300,
+          height = 10,
         })
 
         eventDetails:addChild(eventLocation)
@@ -1170,8 +1170,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 800,
-    h = 1000,
+    width = 800,
+    height = 1000,
     gap = 25,
   })
 
@@ -1180,8 +1180,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     id = "dashboardHeader",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 780,
-    h = 100,
+    width = 780,
+    height = 100,
     gap = 12,
   })
 
@@ -1189,33 +1189,33 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     id = "breadcrumbs",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 400,
-    h = 20,
+    width = 400,
+    height = 20,
     gap = 8,
   })
 
   for i = 1, 4 do
     local crumb = Gui.new({
       id = "crumb" .. i,
-      w = 80,
-      h = 18,
+      width = 80,
+      height = 18,
     })
     breadcrumbs:addChild(crumb)
   end
 
-  local pageTitle = Gui.new({ id = "pageTitle", w = 300, h = 40 })
+  local pageTitle = Gui.new({ id = "pageTitle", width = 300, height = 40 })
   local pageActions = Gui.new({
     id = "pageActions",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 250,
-    h = 30,
+    width = 250,
+    height = 30,
     gap = 10,
   })
 
-  local refreshButton = Gui.new({ id = "refreshButton", w = 70, h = 28 })
-  local exportButton = Gui.new({ id = "exportButton", w = 80, h = 28 })
-  local settingsButton = Gui.new({ id = "settingsButton", w = 75, h = 28 })
+  local refreshButton = Gui.new({ id = "refreshButton", width = 70, height = 28 })
+  local exportButton = Gui.new({ id = "exportButton", width = 80, height = 28 })
+  local settingsButton = Gui.new({ id = "settingsButton", width = 75, height = 28 })
 
   pageActions:addChild(refreshButton)
   pageActions:addChild(exportButton)
@@ -1230,8 +1230,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     id = "topWidgetRow",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 780,
-    h = 250,
+    width = 780,
+    height = 250,
     gap = 20,
   })
 
@@ -1241,8 +1241,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
       id = "metricWidget" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 240,
-      h = 240,
+      width = 240,
+      height = 240,
       gap = 10,
     })
 
@@ -1251,13 +1251,13 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
-      w = 220,
-      h = 30,
+      width = 220,
+      height = 30,
       gap = 5,
     })
 
-    local widgetTitle = Gui.new({ id = "widgetTitle" .. i, w = 150, h = 25 })
-    local widgetMenu = Gui.new({ id = "widgetMenu" .. i, w = 20, h = 20 })
+    local widgetTitle = Gui.new({ id = "widgetTitle" .. i, width = 150, height = 25 })
+    local widgetMenu = Gui.new({ id = "widgetMenu" .. i, width = 20, height = 20 })
 
     widgetHeader:addChild(widgetTitle)
     widgetHeader:addChild(widgetMenu)
@@ -1268,14 +1268,14 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = 220,
-      h = 150,
+      width = 220,
+      height = 150,
       gap = 8,
     })
 
-    local metricValue = Gui.new({ id = "metricValue" .. i, w = 120, h = 50 })
-    local metricLabel = Gui.new({ id = "metricLabel" .. i, w = 100, h = 20 })
-    local metricTrend = Gui.new({ id = "metricTrend" .. i, w = 80, h = 15 })
+    local metricValue = Gui.new({ id = "metricValue" .. i, width = 120, height = 50 })
+    local metricLabel = Gui.new({ id = "metricLabel" .. i, width = 100, height = 20 })
+    local metricTrend = Gui.new({ id = "metricTrend" .. i, width = 80, height = 15 })
 
     widgetContent:addChild(metricValue)
     widgetContent:addChild(metricLabel)
@@ -1283,8 +1283,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
 
     local widgetFooter = Gui.new({
       id = "widgetFooter" .. i,
-      w = 220,
-      h = 25,
+      width = 220,
+      height = 25,
     })
 
     metricWidget:addChild(widgetHeader)
@@ -1299,8 +1299,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     id = "chartSection",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 780,
-    h = 400,
+    width = 780,
+    height = 400,
     gap = 15,
   })
 
@@ -1309,24 +1309,24 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 760,
-    h = 40,
+    width = 760,
+    height = 40,
     gap = 10,
   })
 
-  local chartTitle = Gui.new({ id = "chartTitle", w = 200, h = 35 })
+  local chartTitle = Gui.new({ id = "chartTitle", width = 200, height = 35 })
   local chartControls = Gui.new({
     id = "chartControls",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 300,
-    h = 35,
+    width = 300,
+    height = 35,
     gap = 8,
   })
 
-  local timeRangeSelect = Gui.new({ id = "timeRangeSelect", w = 120, h = 30 })
-  local chartTypeSelect = Gui.new({ id = "chartTypeSelect", w = 100, h = 30 })
-  local fullscreenButton = Gui.new({ id = "fullscreenButton", w = 60, h = 30 })
+  local timeRangeSelect = Gui.new({ id = "timeRangeSelect", width = 120, height = 30 })
+  local chartTypeSelect = Gui.new({ id = "chartTypeSelect", width = 100, height = 30 })
+  local fullscreenButton = Gui.new({ id = "fullscreenButton", width = 60, height = 30 })
 
   chartControls:addChild(timeRangeSelect)
   chartControls:addChild(chartTypeSelect)
@@ -1335,14 +1335,14 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
   chartHeader:addChild(chartTitle)
   chartHeader:addChild(chartControls)
 
-  local chartArea = Gui.new({ id = "chartArea", w = 760, h = 300 })
+  local chartArea = Gui.new({ id = "chartArea", width = 760, height = 300 })
 
   local chartLegend = Gui.new({
     id = "chartLegend",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 600,
-    h = 30,
+    width = 600,
+    height = 30,
     gap = 15,
   })
 
@@ -1351,13 +1351,13 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
       id = "legendItem" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
-      w = 120,
-      h = 25,
+      width = 120,
+      height = 25,
       gap = 5,
     })
 
-    local legendColor = Gui.new({ id = "legendColor" .. i, w = 15, h = 15 })
-    local legendLabel = Gui.new({ id = "legendLabel" .. i, w = 95, h = 20 })
+    local legendColor = Gui.new({ id = "legendColor" .. i, width = 15, height = 15 })
+    local legendLabel = Gui.new({ id = "legendLabel" .. i, width = 95, height = 20 })
 
     legendItem:addChild(legendColor)
     legendItem:addChild(legendLabel)
@@ -1373,8 +1373,8 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     id = "tableSection",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 780,
-    h = 300,
+    width = 780,
+    height = 300,
     gap = 10,
   })
 
@@ -1383,12 +1383,12 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 760,
-    h = 35,
+    width = 760,
+    height = 35,
   })
 
-  local tableTitle = Gui.new({ id = "tableTitle", w = 200, h = 30 })
-  local tableSearch = Gui.new({ id = "tableSearch", w = 250, h = 30 })
+  local tableTitle = Gui.new({ id = "tableTitle", width = 200, height = 30 })
+  local tableSearch = Gui.new({ id = "tableSearch", width = 250, height = 30 })
 
   tableHeader:addChild(tableTitle)
   tableHeader:addChild(tableSearch)
@@ -1397,20 +1397,20 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     id = "tableContent",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 760,
-    h = 200,
+    width = 760,
+    height = 200,
     gap = 2,
   })
 
-  local tableHeaderRow = Gui.new({ id = "tableHeaderRow", w = 760, h = 35 })
+  local tableHeaderRow = Gui.new({ id = "tableHeaderRow", width = 760, height = 35 })
   tableContent:addChild(tableHeaderRow)
 
   -- Table rows
   for i = 1, 6 do
     local tableRow = Gui.new({
       id = "tableRow" .. i,
-      w = 760,
-      h = 25,
+      width = 760,
+      height = 25,
     })
     tableContent:addChild(tableRow)
   end
@@ -1420,16 +1420,16 @@ function TestVerticalFlexDirection:testComplexDashboardWidgetLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
-    w = 300,
-    h = 40,
+    width = 300,
+    height = 40,
     gap = 5,
   })
 
   for i = 1, 5 do
     local pageButton = Gui.new({
       id = "pageButton" .. i,
-      w = 30,
-      h = 30,
+      width = 30,
+      height = 30,
     })
     tablePagination:addChild(pageButton)
   end
@@ -1476,16 +1476,16 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 375, -- iPhone-style width
-    h = 812, -- iPhone-style height
+    width = 375, -- iPhone-style width
+    height = 812, -- iPhone-style height
     gap = 0,
   })
 
   -- Status bar
   local statusBar = Gui.new({
     id = "statusBar",
-    w = 375,
-    h = 44,
+    width = 375,
+    height = 44,
   })
 
   -- Header with pull-to-refresh area
@@ -1493,15 +1493,15 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
     id = "header",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 375,
-    h = 100,
+    width = 375,
+    height = 100,
     gap = 5,
   })
 
   local pullToRefresh = Gui.new({
     id = "pullToRefresh",
-    w = 375,
-    h = 30,
+    width = 375,
+    height = 30,
   })
 
   local navigationBar = Gui.new({
@@ -1510,14 +1510,14 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
     alignItems = AlignItems.CENTER,
-    w = 375,
-    h = 60,
+    width = 375,
+    height = 60,
     gap = 10,
   })
 
-  local backButton = Gui.new({ id = "backButton", w = 40, h = 40 })
-  local headerTitle = Gui.new({ id = "headerTitle", w = 200, h = 35 })
-  local moreButton = Gui.new({ id = "moreButton", w = 40, h = 40 })
+  local backButton = Gui.new({ id = "backButton", width = 40, height = 40 })
+  local headerTitle = Gui.new({ id = "headerTitle", width = 200, height = 35 })
+  local moreButton = Gui.new({ id = "moreButton", width = 40, height = 40 })
 
   navigationBar:addChild(backButton)
   navigationBar:addChild(headerTitle)
@@ -1531,8 +1531,8 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
     id = "contentArea",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 375,
-    h = 600,
+    width = 375,
+    height = 600,
     gap = 1,
   })
 
@@ -1542,8 +1542,8 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
       id = "feedItem" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 365,
-      h = i % 3 == 0 and 200 or 120, -- Some items are taller
+      width = 365,
+      height = i % 3 == 0 and 200 or 120, -- Some items are taller
       gap = 8,
     })
 
@@ -1552,29 +1552,29 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       alignItems = AlignItems.CENTER,
-      w = 355,
-      h = 50,
+      width = 355,
+      height = 50,
       gap = 12,
     })
 
-    local avatar = Gui.new({ id = "avatar" .. i, w = 40, h = 40 })
+    local avatar = Gui.new({ id = "avatar" .. i, width = 40, height = 40 })
 
     local userInfo = Gui.new({
       id = "userInfo" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 200,
-      h = 40,
+      width = 200,
+      height = 40,
       gap = 3,
     })
 
-    local username = Gui.new({ id = "username" .. i, w = 150, h = 18 })
-    local timestamp = Gui.new({ id = "timestamp" .. i, w = 100, h = 14 })
+    local username = Gui.new({ id = "username" .. i, width = 150, height = 18 })
+    local timestamp = Gui.new({ id = "timestamp" .. i, width = 100, height = 14 })
 
     userInfo:addChild(username)
     userInfo:addChild(timestamp)
 
-    local itemMenu = Gui.new({ id = "itemMenu" .. i, w = 30, h = 30 })
+    local itemMenu = Gui.new({ id = "itemMenu" .. i, width = 30, height = 30 })
 
     itemHeader:addChild(avatar)
     itemHeader:addChild(userInfo)
@@ -1584,15 +1584,15 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
       id = "itemContent" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 355,
-      h = feedItem.height - 50 - 8, -- Remaining height after header
+      width = 355,
+      height = feedItem.height - 50 - 8, -- Remaining height after header
       gap = 5,
     })
 
     local textContent = Gui.new({
       id = "textContent" .. i,
-      w = 345,
-      h = 25,
+      width = 345,
+      height = 25,
     })
 
     itemContent:addChild(textContent)
@@ -1603,13 +1603,13 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
         id = "mediaContainer" .. i,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
-        w = 345,
-        h = 100,
+        width = 345,
+        height = 100,
         gap = 3,
       })
 
-      local media = Gui.new({ id = "media" .. i, w = 345, h = 80 })
-      local mediaCaption = Gui.new({ id = "mediaCaption" .. i, w = 300, h = 15 })
+      local media = Gui.new({ id = "media" .. i, width = 345, height = 80 })
+      local mediaCaption = Gui.new({ id = "mediaCaption" .. i, width = 300, height = 15 })
 
       mediaContainer:addChild(media)
       mediaContainer:addChild(mediaCaption)
@@ -1623,8 +1623,8 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
       alignItems = AlignItems.CENTER,
-      w = 345,
-      h = 40,
+      width = 345,
+      height = 40,
       gap = 15,
     })
 
@@ -1632,20 +1632,20 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
       id = "leftActions" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
-      w = 150,
-      h = 35,
+      width = 150,
+      height = 35,
       gap = 20,
     })
 
-    local likeButton = Gui.new({ id = "likeButton" .. i, w = 35, h = 30 })
-    local commentButton = Gui.new({ id = "commentButton" .. i, w = 35, h = 30 })
-    local shareButton = Gui.new({ id = "shareButton" .. i, w = 35, h = 30 })
+    local likeButton = Gui.new({ id = "likeButton" .. i, width = 35, height = 30 })
+    local commentButton = Gui.new({ id = "commentButton" .. i, width = 35, height = 30 })
+    local shareButton = Gui.new({ id = "shareButton" .. i, width = 35, height = 30 })
 
     leftActions:addChild(likeButton)
     leftActions:addChild(commentButton)
     leftActions:addChild(shareButton)
 
-    local saveButton = Gui.new({ id = "saveButton" .. i, w = 35, h = 30 })
+    local saveButton = Gui.new({ id = "saveButton" .. i, width = 35, height = 30 })
 
     interactionBar:addChild(leftActions)
     interactionBar:addChild(saveButton)
@@ -1664,8 +1664,8 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_AROUND,
     alignItems = AlignItems.CENTER,
-    w = 375,
-    h = 83, -- Includes safe area
+    width = 375,
+    height = 83, -- Includes safe area
     gap = 0,
   })
 
@@ -1676,13 +1676,13 @@ function TestVerticalFlexDirection:testMobileVerticalStackLayout()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       alignItems = AlignItems.CENTER,
-      w = 60,
-      h = 60,
+      width = 60,
+      height = 60,
       gap = 3,
     })
 
-    local tabIcon = Gui.new({ id = "tabIcon" .. tabName, w = 24, h = 24 })
-    local tabLabel = Gui.new({ id = "tabLabel" .. tabName, w = 50, h = 12 })
+    local tabIcon = Gui.new({ id = "tabIcon" .. tabName, width = 24, height = 24 })
+    local tabLabel = Gui.new({ id = "tabLabel" .. tabName, width = 50, height = 12 })
 
     tab:addChild(tabIcon)
     tab:addChild(tabLabel)

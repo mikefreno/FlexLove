@@ -52,8 +52,8 @@ function TestFlexWrap01_NoWrapHorizontal()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.NOWRAP,
@@ -63,9 +63,9 @@ function TestFlexWrap01_NoWrapHorizontal()
   })
 
   -- Create children that would overflow if wrapped
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 })
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 })
 
   local positions = layoutAndGetPositions(container)
 
@@ -85,8 +85,8 @@ function TestFlexWrap02_WrapHorizontal()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -97,9 +97,9 @@ function TestFlexWrap02_WrapHorizontal()
   })
 
   -- Create children that will wrap
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 }) -- This should wrap
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 }) -- This should wrap
 
   local positions = layoutAndGetPositions(container)
 
@@ -120,8 +120,8 @@ function TestFlexWrap03_WrapReverseHorizontal()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP_REVERSE,
@@ -132,9 +132,9 @@ function TestFlexWrap03_WrapReverseHorizontal()
   })
 
   -- Create children that will wrap
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 }) -- This would wrap but lines are reversed
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 }) -- This would wrap but lines are reversed
 
   local positions = layoutAndGetPositions(container)
 
@@ -154,8 +154,8 @@ function TestFlexWrap04_WrapVertical()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     flexWrap = FlexWrap.WRAP,
@@ -166,9 +166,9 @@ function TestFlexWrap04_WrapVertical()
   })
 
   -- Create children that will wrap vertically
-  local child1 = createChild(container, { w = 30, h = 40 })
-  local child2 = createChild(container, { w = 30, h = 40 })
-  local child3 = createChild(container, { w = 30, h = 40 }) -- This should wrap to new column
+  local child1 = createChild(container, { width = 30, height = 40 })
+  local child2 = createChild(container, { width = 30, height = 40 })
+  local child3 = createChild(container, { width = 30, height = 40 }) -- This should wrap to new column
 
   local positions = layoutAndGetPositions(container)
 
@@ -189,8 +189,8 @@ function TestFlexWrap05_WrapWithCenterJustify()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -201,9 +201,9 @@ function TestFlexWrap05_WrapWithCenterJustify()
   })
 
   -- Create children that will wrap
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 60, h = 30 }) -- Different width, should wrap
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 60, height = 30 }) -- Different width, should wrap
 
   local positions = layoutAndGetPositions(container)
 
@@ -228,8 +228,8 @@ function TestFlexWrap06_WrapWithSpaceBetweenAlignContent()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 120,
+    width = 200,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -240,9 +240,9 @@ function TestFlexWrap06_WrapWithSpaceBetweenAlignContent()
   })
 
   -- Create children that will wrap into two lines
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 }) -- This should wrap
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 }) -- This should wrap
 
   local positions = layoutAndGetPositions(container)
 
@@ -262,8 +262,8 @@ function TestFlexWrap07_WrapWithStretchAlignItems()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -274,9 +274,9 @@ function TestFlexWrap07_WrapWithStretchAlignItems()
   })
 
   -- Create children with different heights
-  local child1 = createChild(container, { w = 80, h = 20 })
-  local child2 = createChild(container, { w = 80, h = 35 }) -- Tallest in first line
-  local child3 = createChild(container, { w = 80, h = 25 }) -- Wraps to second line
+  local child1 = createChild(container, { width = 80, height = 20 })
+  local child2 = createChild(container, { width = 80, height = 35 }) -- Tallest in first line
+  local child3 = createChild(container, { width = 80, height = 25 }) -- Wraps to second line
 
   local positions = layoutAndGetPositions(container)
 
@@ -298,8 +298,8 @@ function TestFlexWrap08_WrapWithCoordinateInheritance()
   local container = createContainer({
     x = 50,
     y = 30,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -310,9 +310,9 @@ function TestFlexWrap08_WrapWithCoordinateInheritance()
   })
 
   -- Create children that will wrap
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 }) -- This should wrap
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 }) -- This should wrap
 
   local positions = layoutAndGetPositions(container)
 
@@ -332,8 +332,8 @@ function TestFlexWrap09_WrapWithPadding()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     padding = { top = 15, right = 15, bottom = 15, left = 15 },
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
@@ -345,9 +345,9 @@ function TestFlexWrap09_WrapWithPadding()
   })
 
   -- Create children that will wrap (considering reduced available space)
-  local child1 = createChild(container, { w = 70, h = 25 })
-  local child2 = createChild(container, { w = 70, h = 25 })
-  local child3 = createChild(container, { w = 70, h = 25 }) -- Should wrap due to padding
+  local child1 = createChild(container, { width = 70, height = 25 })
+  local child2 = createChild(container, { width = 70, height = 25 })
+  local child3 = createChild(container, { width = 70, height = 25 }) -- Should wrap due to padding
 
   local positions = layoutAndGetPositions(container)
 
@@ -369,8 +369,8 @@ function TestFlexWrap10_WrapWithSpaceAroundAlignContent()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -381,9 +381,9 @@ function TestFlexWrap10_WrapWithSpaceAroundAlignContent()
   })
 
   -- Create children that will wrap into two lines
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 }) -- This should wrap
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 }) -- This should wrap
 
   local positions = layoutAndGetPositions(container)
 
@@ -402,8 +402,8 @@ function TestFlexWrap11_SingleChildWrap()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -412,7 +412,7 @@ function TestFlexWrap11_SingleChildWrap()
     gap = 10,
   })
 
-  local child1 = createChild(container, { w = 50, h = 30 })
+  local child1 = createChild(container, { width = 50, height = 30 })
 
   local positions = layoutAndGetPositions(container)
 
@@ -426,8 +426,8 @@ function TestFlexWrap12_MultipleWrappingLines()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -438,11 +438,11 @@ function TestFlexWrap12_MultipleWrappingLines()
   })
 
   -- Create children that will wrap into three lines
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 })
-  local child4 = createChild(container, { w = 80, h = 30 })
-  local child5 = createChild(container, { w = 80, h = 30 })
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 })
+  local child4 = createChild(container, { width = 80, height = 30 })
+  local child5 = createChild(container, { width = 80, height = 30 })
 
   local positions = layoutAndGetPositions(container)
 
@@ -463,8 +463,8 @@ function TestFlexWrap13_WrapReverseMultipleLines()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP_REVERSE,
@@ -475,11 +475,11 @@ function TestFlexWrap13_WrapReverseMultipleLines()
   })
 
   -- Create children that will wrap into three lines
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
-  local child3 = createChild(container, { w = 80, h = 30 })
-  local child4 = createChild(container, { w = 80, h = 30 })
-  local child5 = createChild(container, { w = 80, h = 30 })
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
+  local child3 = createChild(container, { width = 80, height = 30 })
+  local child4 = createChild(container, { width = 80, height = 30 })
+  local child5 = createChild(container, { width = 80, height = 30 })
 
   local positions = layoutAndGetPositions(container)
 
@@ -498,8 +498,8 @@ function TestFlexWrap14_ContainerTooSmall()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -509,8 +509,8 @@ function TestFlexWrap14_ContainerTooSmall()
   })
 
   -- Create children larger than container
-  local child1 = createChild(container, { w = 80, h = 30 })
-  local child2 = createChild(container, { w = 80, h = 30 })
+  local child1 = createChild(container, { width = 80, height = 30 })
+  local child2 = createChild(container, { width = 80, height = 30 })
 
   local positions = layoutAndGetPositions(container)
 
@@ -527,8 +527,8 @@ function TestFlexWrap15_WrapWithMixedPositioning()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -539,10 +539,11 @@ function TestFlexWrap15_WrapWithMixedPositioning()
   })
 
   -- Create flex children and one absolute child
-  local child1 = createChild(container, { w = 80, h = 30 }) -- flex child
-  local child2 = createChild(container, { w = 80, h = 30, positioning = Positioning.ABSOLUTE, x = 150, y = 50 }) -- absolute child
-  local child3 = createChild(container, { w = 80, h = 30 }) -- flex child
-  local child4 = createChild(container, { w = 80, h = 30 }) -- flex child - should wrap
+  local child1 = createChild(container, { width = 80, height = 30 }) -- flex child
+  local child2 =
+    createChild(container, { width = 80, height = 30, positioning = Positioning.ABSOLUTE, x = 150, y = 50 }) -- absolute child
+  local child3 = createChild(container, { width = 80, height = 30 }) -- flex child
+  local child4 = createChild(container, { width = 80, height = 30 }) -- flex child - should wrap
 
   local positions = layoutAndGetPositions(container)
 
@@ -564,8 +565,8 @@ function TestFlexWrap16_ComplexCardGridLayout()
   local gridContainer = createContainer({
     x = 0,
     y = 0,
-    w = 600,
-    h = 400,
+    width = 600,
+    height = 400,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -579,8 +580,8 @@ function TestFlexWrap16_ComplexCardGridLayout()
   -- Create multiple cards that will wrap
   for i = 1, 6 do
     local card = createChild(gridContainer, {
-      w = 160,
-      h = 120,
+      width = 160,
+      height = 120,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -591,7 +592,7 @@ function TestFlexWrap16_ComplexCardGridLayout()
 
     -- Card header
     local header = createChild(card, {
-      h = 24,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -600,12 +601,12 @@ function TestFlexWrap16_ComplexCardGridLayout()
     })
 
     -- Header title and icon
-    createChild(header, { w = 80, h = 16 }) -- title
-    createChild(header, { w = 16, h = 16 }) -- icon
+    createChild(header, { width = 80, height = 16 }) -- title
+    createChild(header, { width = 16, height = 16 }) -- icon
 
     -- Card content area
     local content = createChild(card, {
-      h = 60,
+      height = 60,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
@@ -614,12 +615,12 @@ function TestFlexWrap16_ComplexCardGridLayout()
     })
 
     -- Content elements
-    createChild(content, { w = 40, h = 20 }) -- main content
-    createChild(content, { w = 60, h = 12 }) -- description
+    createChild(content, { width = 40, height = 20 }) -- main content
+    createChild(content, { width = 60, height = 12 }) -- description
 
     -- Card footer with action buttons
     local footer = createChild(card, {
-      h = 20,
+      height = 20,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_END,
@@ -627,8 +628,8 @@ function TestFlexWrap16_ComplexCardGridLayout()
       gap = 6,
     })
 
-    createChild(footer, { w = 24, h = 16 }) -- button 1
-    createChild(footer, { w = 24, h = 16 }) -- button 2
+    createChild(footer, { width = 24, height = 16 }) -- button 1
+    createChild(footer, { width = 24, height = 16 }) -- button 2
   end
 
   local positions = layoutAndGetPositions(gridContainer)
@@ -671,8 +672,8 @@ function TestFlexWrap17_ComplexImageGalleryLayout()
   local gallery = createContainer({
     x = 0,
     y = 0,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -686,8 +687,8 @@ function TestFlexWrap17_ComplexImageGalleryLayout()
   -- Create gallery items with different layouts
   for i = 1, 8 do
     local item = createChild(gallery, {
-      w = 180,
-      h = 200,
+      width = 180,
+      height = 200,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -697,11 +698,11 @@ function TestFlexWrap17_ComplexImageGalleryLayout()
     })
 
     -- Image area
-    createChild(item, { h = 140 }) -- image placeholder
+    createChild(item, { height = 140 }) -- image placeholder
 
     -- Caption area
     local caption = createChild(item, {
-      h = 40,
+      height = 40,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -709,12 +710,12 @@ function TestFlexWrap17_ComplexImageGalleryLayout()
       gap = 4,
     })
 
-    createChild(caption, { w = 120, h = 16 }) -- title
-    createChild(caption, { w = 80, h = 12 }) -- metadata
+    createChild(caption, { width = 120, height = 16 }) -- title
+    createChild(caption, { width = 80, height = 12 }) -- metadata
 
     -- Action bar
     local actions = createChild(item, {
-      h = 18,
+      height = 18,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -724,8 +725,8 @@ function TestFlexWrap17_ComplexImageGalleryLayout()
 
     -- Left actions
     local leftActions = createChild(actions, {
-      w = 60,
-      h = 18,
+      width = 60,
+      height = 18,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -733,11 +734,11 @@ function TestFlexWrap17_ComplexImageGalleryLayout()
       gap = 4,
     })
 
-    createChild(leftActions, { w = 16, h = 16 }) -- like button
-    createChild(leftActions, { w = 16, h = 16 }) -- share button
+    createChild(leftActions, { width = 16, height = 16 }) -- like button
+    createChild(leftActions, { width = 16, height = 16 }) -- share button
 
     -- Right actions
-    createChild(actions, { w = 16, h = 16 }) -- options menu
+    createChild(actions, { width = 16, height = 16 }) -- options menu
   end
 
   local positions = layoutAndGetPositions(gallery)
@@ -777,8 +778,8 @@ function TestFlexWrap18_ComplexDashboardLayout()
   local dashboard = createContainer({
     x = 0,
     y = 0,
-    w = 1000,
-    h = 700,
+    width = 1000,
+    height = 700,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -789,7 +790,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   -- Top metrics row (horizontal wrapping)
   local metricsRow = createChild(dashboard, {
-    h = 120,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -802,8 +803,8 @@ function TestFlexWrap18_ComplexDashboardLayout()
   -- Create metric cards
   for i = 1, 5 do
     local metric = createChild(metricsRow, {
-      w = 180,
-      h = 100,
+      width = 180,
+      height = 100,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -814,7 +815,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
     -- Metric header
     local header = createChild(metric, {
-      h = 20,
+      height = 20,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -822,15 +823,15 @@ function TestFlexWrap18_ComplexDashboardLayout()
       gap = 8,
     })
 
-    createChild(header, { w = 100, h = 14 }) -- title
-    createChild(header, { w = 16, h = 16 }) -- icon
+    createChild(header, { width = 100, height = 14 }) -- title
+    createChild(header, { width = 16, height = 16 }) -- icon
 
     -- Metric value
-    createChild(metric, { w = 80, h = 24 }) -- value
+    createChild(metric, { width = 80, height = 24 }) -- value
 
     -- Metric trend
     local trend = createChild(metric, {
-      h = 16,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -838,13 +839,13 @@ function TestFlexWrap18_ComplexDashboardLayout()
       gap = 4,
     })
 
-    createChild(trend, { w = 12, h = 12 }) -- trend icon
-    createChild(trend, { w = 40, h = 12 }) -- trend text
+    createChild(trend, { width = 12, height = 12 }) -- trend icon
+    createChild(trend, { width = 40, height = 12 }) -- trend text
   end
 
   -- Content area with wrapping widgets
   local contentArea = createChild(dashboard, {
-    h = 500,
+    height = 500,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -856,8 +857,8 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   -- Large chart widget
   local chartWidget = createChild(contentArea, {
-    w = 600,
-    h = 300,
+    width = 600,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -868,7 +869,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   -- Chart header
   local chartHeader = createChild(chartWidget, {
-    h = 32,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -876,15 +877,15 @@ function TestFlexWrap18_ComplexDashboardLayout()
     gap = 12,
   })
 
-  createChild(chartHeader, { w = 150, h = 20 }) -- chart title
-  createChild(chartHeader, { w = 80, h = 24 }) -- chart controls
+  createChild(chartHeader, { width = 150, height = 20 }) -- chart title
+  createChild(chartHeader, { width = 80, height = 24 }) -- chart controls
 
   -- Chart area
-  createChild(chartWidget, { h = 200 }) -- chart content
+  createChild(chartWidget, { height = 200 }) -- chart content
 
   -- Chart legend
   local legend = createChild(chartWidget, {
-    h = 24,
+    height = 24,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -896,8 +897,8 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   for i = 1, 4 do
     local legendItem = createChild(legend, {
-      w = 80,
-      h = 16,
+      width = 80,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -905,14 +906,14 @@ function TestFlexWrap18_ComplexDashboardLayout()
       gap = 6,
     })
 
-    createChild(legendItem, { w = 12, h = 12 }) -- color indicator
-    createChild(legendItem, { w = 50, h = 12 }) -- legend text
+    createChild(legendItem, { width = 12, height = 12 }) -- color indicator
+    createChild(legendItem, { width = 50, height = 12 }) -- legend text
   end
 
   -- Side panel with stacked widgets
   local sidePanel = createChild(contentArea, {
-    w = 320,
-    h = 500,
+    width = 320,
+    height = 500,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -922,7 +923,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   -- Recent activity widget
   local activityWidget = createChild(sidePanel, {
-    h = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -931,11 +932,11 @@ function TestFlexWrap18_ComplexDashboardLayout()
     padding = { top = 16, right = 16, bottom = 16, left = 16 },
   })
 
-  createChild(activityWidget, { h = 20 }) -- activity header
+  createChild(activityWidget, { height = 20 }) -- activity header
 
   -- Activity list
   local activityList = createChild(activityWidget, {
-    h = 150,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -945,7 +946,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   for i = 1, 5 do
     local activityItem = createChild(activityList, {
-      h = 24,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -953,13 +954,13 @@ function TestFlexWrap18_ComplexDashboardLayout()
       gap = 8,
     })
 
-    createChild(activityItem, { w = 200, h = 16 }) -- activity text
-    createChild(activityItem, { w = 60, h = 12 }) -- timestamp
+    createChild(activityItem, { width = 200, height = 16 }) -- activity text
+    createChild(activityItem, { width = 60, height = 12 }) -- timestamp
   end
 
   -- Quick actions widget
   local actionsWidget = createChild(sidePanel, {
-    h = 150,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -968,11 +969,11 @@ function TestFlexWrap18_ComplexDashboardLayout()
     padding = { top = 16, right = 16, bottom = 16, left = 16 },
   })
 
-  createChild(actionsWidget, { h = 20 }) -- actions header
+  createChild(actionsWidget, { height = 20 }) -- actions header
 
   -- Action buttons grid
   local actionsGrid = createChild(actionsWidget, {
-    h = 100,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -983,7 +984,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
   })
 
   for i = 1, 6 do
-    createChild(actionsGrid, { w = 80, h = 40 }) -- action button
+    createChild(actionsGrid, { width = 80, height = 40 }) -- action button
   end
 
   local positions = layoutAndGetPositions(dashboard)
@@ -1021,7 +1022,7 @@ function TestFlexWrap18_ComplexDashboardLayout()
 
   -- Legend should fit all 4 items in one row (80*4 + 16*3 = 368 < 560 available)
   luaunit.assertTrue(legend.children[1].y == legend.children[2].y) -- all items same row
-  luaunit.assertTrue(legend.children[3].y == legend.children[4].y) -- all items same row  
+  luaunit.assertTrue(legend.children[3].y == legend.children[4].y) -- all items same row
   luaunit.assertTrue(legend.children[1].y == legend.children[3].y) -- all items same row
 
   -- Verify side panel actions grid wrapping
@@ -1045,8 +1046,8 @@ function TestFlexWrap19_ComplexFormLayout()
   local form = createContainer({
     x = 0,
     y = 0,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1057,7 +1058,7 @@ function TestFlexWrap19_ComplexFormLayout()
 
   -- Form header
   local header = createChild(form, {
-    h = 60,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.CENTER,
@@ -1065,12 +1066,12 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 8,
   })
 
-  createChild(header, { w = 200, h = 28 }) -- form title
-  createChild(header, { w = 300, h = 16 }) -- form description
+  createChild(header, { width = 200, height = 28 }) -- form title
+  createChild(header, { width = 300, height = 16 }) -- form description
 
   -- Personal info section with wrapping fields
   local personalSection = createChild(form, {
-    h = 150,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1078,10 +1079,10 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 16,
   })
 
-  createChild(personalSection, { w = 150, h = 20 }) -- section title
+  createChild(personalSection, { width = 150, height = 20 }) -- section title
 
   local personalFields = createChild(personalSection, {
-    h = 110,
+    height = 110,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1094,8 +1095,8 @@ function TestFlexWrap19_ComplexFormLayout()
   -- Create field groups that will wrap
   for i = 1, 6 do
     local fieldGroup = createChild(personalFields, {
-      w = 220,
-      h = 70,
+      width = 220,
+      height = 70,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1103,14 +1104,14 @@ function TestFlexWrap19_ComplexFormLayout()
       gap = 8,
     })
 
-    createChild(fieldGroup, { h = 16 }) -- field label
-    createChild(fieldGroup, { h = 36 }) -- input field
-    createChild(fieldGroup, { h = 12 }) -- help text
+    createChild(fieldGroup, { height = 16 }) -- field label
+    createChild(fieldGroup, { height = 36 }) -- input field
+    createChild(fieldGroup, { height = 12 }) -- help text
   end
 
   -- Address section with complex nested wrapping
   local addressSection = createChild(form, {
-    h = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1118,10 +1119,10 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 16,
   })
 
-  createChild(addressSection, { w = 120, h = 20 }) -- section title
+  createChild(addressSection, { width = 120, height = 20 }) -- section title
 
   local addressContainer = createChild(addressSection, {
-    h = 160,
+    height = 160,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1131,7 +1132,7 @@ function TestFlexWrap19_ComplexFormLayout()
 
   -- Primary address row
   local primaryAddress = createChild(addressContainer, {
-    h = 70,
+    height = 70,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1143,8 +1144,8 @@ function TestFlexWrap19_ComplexFormLayout()
 
   -- Street address (full width)
   local streetField = createChild(primaryAddress, {
-    w = 704,
-    h = 70, -- full width minus gaps
+    width = 704,
+    height = 70, -- full width minus gaps
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1152,13 +1153,13 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 8,
   })
 
-  createChild(streetField, { h = 16 }) -- street label
-  createChild(streetField, { h = 36 }) -- street input
-  createChild(streetField, { h = 12 }) -- street help
+  createChild(streetField, { height = 16 }) -- street label
+  createChild(streetField, { height = 36 }) -- street input
+  createChild(streetField, { height = 12 }) -- street help
 
   -- Secondary address row with multiple fields
   local secondaryAddress = createChild(addressContainer, {
-    h = 70,
+    height = 70,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1170,8 +1171,8 @@ function TestFlexWrap19_ComplexFormLayout()
 
   -- City field
   local cityField = createChild(secondaryAddress, {
-    w = 280,
-    h = 70,
+    width = 280,
+    height = 70,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1179,14 +1180,14 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 8,
   })
 
-  createChild(cityField, { h = 16 }) -- city label
-  createChild(cityField, { h = 36 }) -- city input
-  createChild(cityField, { h = 12 }) -- city help
+  createChild(cityField, { height = 16 }) -- city label
+  createChild(cityField, { height = 36 }) -- city input
+  createChild(cityField, { height = 12 }) -- city help
 
   -- State field
   local stateField = createChild(secondaryAddress, {
-    w = 200,
-    h = 70,
+    width = 200,
+    height = 70,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1194,14 +1195,14 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 8,
   })
 
-  createChild(stateField, { h = 16 }) -- state label
-  createChild(stateField, { h = 36 }) -- state input
-  createChild(stateField, { h = 12 }) -- state help
+  createChild(stateField, { height = 16 }) -- state label
+  createChild(stateField, { height = 36 }) -- state input
+  createChild(stateField, { height = 12 }) -- state help
 
   -- ZIP field
   local zipField = createChild(secondaryAddress, {
-    w = 180,
-    h = 70,
+    width = 180,
+    height = 70,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1209,13 +1210,13 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 8,
   })
 
-  createChild(zipField, { h = 16 }) -- zip label
-  createChild(zipField, { h = 36 }) -- zip input
-  createChild(zipField, { h = 12 }) -- zip help
+  createChild(zipField, { height = 16 }) -- zip label
+  createChild(zipField, { height = 36 }) -- zip input
+  createChild(zipField, { height = 12 }) -- zip help
 
   -- Preferences section with wrapping checkboxes
   local preferencesSection = createChild(form, {
-    h = 120,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1223,10 +1224,10 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 16,
   })
 
-  createChild(preferencesSection, { w = 140, h = 20 }) -- section title
+  createChild(preferencesSection, { width = 140, height = 20 }) -- section title
 
   local preferencesGrid = createChild(preferencesSection, {
-    h = 80,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1239,8 +1240,8 @@ function TestFlexWrap19_ComplexFormLayout()
   -- Create preference checkboxes that wrap
   for i = 1, 8 do
     local preference = createChild(preferencesGrid, {
-      w = 160,
-      h = 24,
+      width = 160,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1248,13 +1249,13 @@ function TestFlexWrap19_ComplexFormLayout()
       gap = 8,
     })
 
-    createChild(preference, { w = 16, h = 16 }) -- checkbox
-    createChild(preference, { w = 120, h = 16 }) -- checkbox label
+    createChild(preference, { width = 16, height = 16 }) -- checkbox
+    createChild(preference, { width = 120, height = 16 }) -- checkbox label
   end
 
   -- Form actions
   local actions = createChild(form, {
-    h = 48,
+    height = 48,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -1262,8 +1263,8 @@ function TestFlexWrap19_ComplexFormLayout()
     gap = 16,
   })
 
-  createChild(actions, { w = 80, h = 36 }) -- cancel button
-  createChild(actions, { w = 100, h = 36 }) -- submit button
+  createChild(actions, { width = 80, height = 36 }) -- cancel button
+  createChild(actions, { width = 100, height = 36 }) -- submit button
 
   local positions = layoutAndGetPositions(form)
 
@@ -1331,8 +1332,8 @@ function TestFlexWrap20_ComplexProductCatalog()
   local catalog = createContainer({
     x = 0,
     y = 0,
-    w = 1200,
-    h = 800,
+    width = 1200,
+    height = 800,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1342,7 +1343,7 @@ function TestFlexWrap20_ComplexProductCatalog()
 
   -- Catalog header with filters
   local header = createChild(catalog, {
-    h = 80,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1353,8 +1354,8 @@ function TestFlexWrap20_ComplexProductCatalog()
 
   -- Left header: title and breadcrumbs
   local leftHeader = createChild(header, {
-    w = 400,
-    h = 40,
+    width = 400,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1362,10 +1363,10 @@ function TestFlexWrap20_ComplexProductCatalog()
     gap = 8,
   })
 
-  createChild(leftHeader, { w = 200, h = 24 }) -- page title
+  createChild(leftHeader, { width = 200, height = 24 }) -- page title
 
   local breadcrumbs = createChild(leftHeader, {
-    h = 16,
+    height = 16,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1376,16 +1377,16 @@ function TestFlexWrap20_ComplexProductCatalog()
   })
 
   for i = 1, 5 do
-    createChild(breadcrumbs, { w = 60, h = 14 }) -- breadcrumb item
+    createChild(breadcrumbs, { width = 60, height = 14 }) -- breadcrumb item
     if i < 5 then
-      createChild(breadcrumbs, { w = 8, h = 8 }) -- separator
+      createChild(breadcrumbs, { width = 8, height = 8 }) -- separator
     end
   end
 
   -- Right header: filters and controls
   local rightHeader = createChild(header, {
-    w = 700,
-    h = 40,
+    width = 700,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1398,8 +1399,8 @@ function TestFlexWrap20_ComplexProductCatalog()
   -- Filter chips
   for i = 1, 6 do
     local filterChip = createChild(rightHeader, {
-      w = 80,
-      h = 28,
+      width = 80,
+      height = 28,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1408,17 +1409,17 @@ function TestFlexWrap20_ComplexProductCatalog()
       padding = { top = 4, right = 8, bottom = 4, left = 8 },
     })
 
-    createChild(filterChip, { w = 50, h = 12 }) -- filter text
-    createChild(filterChip, { w = 12, h = 12 }) -- close button
+    createChild(filterChip, { width = 50, height = 12 }) -- filter text
+    createChild(filterChip, { width = 12, height = 12 }) -- close button
   end
 
   -- Sort dropdown
-  createChild(rightHeader, { w = 120, h = 32 }) -- sort control
+  createChild(rightHeader, { width = 120, height = 32 }) -- sort control
 
   -- View toggle
   local viewToggle = createChild(rightHeader, {
-    w = 80,
-    h = 32,
+    width = 80,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
@@ -1426,13 +1427,13 @@ function TestFlexWrap20_ComplexProductCatalog()
     gap = 4,
   })
 
-  createChild(viewToggle, { w = 24, h = 24 }) -- grid view button
-  createChild(viewToggle, { w = 24, h = 24 }) -- list view button
+  createChild(viewToggle, { width = 24, height = 24 }) -- grid view button
+  createChild(viewToggle, { width = 24, height = 24 }) -- list view button
 
   -- Product grid with sophisticated wrapping
   local productGrid = createChild(catalog, {
-    w = 1200,
-    h = 680,
+    width = 1200,
+    height = 680,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1446,8 +1447,8 @@ function TestFlexWrap20_ComplexProductCatalog()
   -- Create product cards with varying layouts
   for i = 1, 15 do
     local product = createChild(productGrid, {
-      w = 220,
-      h = 300,
+      width = 220,
+      height = 300,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1458,18 +1459,18 @@ function TestFlexWrap20_ComplexProductCatalog()
 
     -- Product image with overlay
     local imageContainer = createChild(product, {
-      h = 160,
+      height = 160,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.COLUMN,
       justifyContent = JustifyContent.SPACE_BETWEEN,
       alignItems = AlignItems.STRETCH,
     })
 
-    createChild(imageContainer, { h = 140 }) -- product image
+    createChild(imageContainer, { height = 140 }) -- product image
 
     -- Image overlay with quick actions
     local overlay = createChild(imageContainer, {
-      h = 20,
+      height = 20,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_END,
@@ -1477,12 +1478,12 @@ function TestFlexWrap20_ComplexProductCatalog()
       gap = 4,
     })
 
-    createChild(overlay, { w = 16, h = 16 }) -- favorite button
-    createChild(overlay, { w = 16, h = 16 }) -- quick view button
+    createChild(overlay, { width = 16, height = 16 }) -- favorite button
+    createChild(overlay, { width = 16, height = 16 }) -- quick view button
 
     -- Product info
     local info = createChild(product, {
-      h = 80,
+      height = 80,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1490,12 +1491,12 @@ function TestFlexWrap20_ComplexProductCatalog()
       gap = 6,
     })
 
-    createChild(info, { w = 160, h = 16 }) -- product title
-    createChild(info, { w = 120, h = 12 }) -- product brand
+    createChild(info, { width = 160, height = 16 }) -- product title
+    createChild(info, { width = 120, height = 12 }) -- product brand
 
     -- Rating and reviews
     local rating = createChild(info, {
-      h = 16,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1505,8 +1506,8 @@ function TestFlexWrap20_ComplexProductCatalog()
 
     -- Star rating
     local stars = createChild(rating, {
-      w = 80,
-      h = 14,
+      width = 80,
+      height = 14,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1515,14 +1516,14 @@ function TestFlexWrap20_ComplexProductCatalog()
     })
 
     for j = 1, 5 do
-      createChild(stars, { w = 12, h = 12 }) -- star icon
+      createChild(stars, { width = 12, height = 12 }) -- star icon
     end
 
-    createChild(rating, { w = 40, h = 12 }) -- review count
+    createChild(rating, { width = 40, height = 12 }) -- review count
 
     -- Price and variants
     local pricing = createChild(info, {
-      h = 20,
+      height = 20,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1530,11 +1531,11 @@ function TestFlexWrap20_ComplexProductCatalog()
       gap = 8,
     })
 
-    createChild(pricing, { w = 60, h = 18 }) -- price
+    createChild(pricing, { width = 60, height = 18 }) -- price
 
     local variants = createChild(pricing, {
-      w = 80,
-      h = 16,
+      width = 80,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       flexWrap = FlexWrap.WRAP,
@@ -1545,12 +1546,12 @@ function TestFlexWrap20_ComplexProductCatalog()
     })
 
     for j = 1, 4 do
-      createChild(variants, { w = 16, h = 16 }) -- color variant
+      createChild(variants, { width = 16, height = 16 }) -- color variant
     end
 
     -- Product actions
     local actions = createChild(product, {
-      h = 32,
+      height = 32,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1558,8 +1559,8 @@ function TestFlexWrap20_ComplexProductCatalog()
       gap = 8,
     })
 
-    createChild(actions, { w = 100, h = 28 }) -- add to cart button
-    createChild(actions, { w = 28, h = 28 }) -- wishlist button
+    createChild(actions, { width = 100, height = 28 }) -- add to cart button
+    createChild(actions, { width = 28, height = 28 }) -- wishlist button
   end
 
   local positions = layoutAndGetPositions(catalog)

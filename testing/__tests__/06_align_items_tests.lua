@@ -34,8 +34,8 @@ function TestAlignItems:testHorizontalFlexAlignItemsFlexStart()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_START,
@@ -43,22 +43,22 @@ function TestAlignItems:testHorizontalFlexAlignItemsFlexStart()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 70,
-    h = 20,
+    width = 70,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
@@ -83,8 +83,8 @@ function TestAlignItems:testHorizontalFlexAlignItemsCenter()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -92,15 +92,15 @@ function TestAlignItems:testHorizontalFlexAlignItemsCenter()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -124,8 +124,8 @@ function TestAlignItems:testHorizontalFlexAlignItemsFlexEnd()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_END,
@@ -133,15 +133,15 @@ function TestAlignItems:testHorizontalFlexAlignItemsFlexEnd()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -165,8 +165,8 @@ function TestAlignItems:testHorizontalFlexAlignItemsStretch()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.STRETCH,
@@ -174,15 +174,15 @@ function TestAlignItems:testHorizontalFlexAlignItemsStretch()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -202,8 +202,8 @@ function TestAlignItems:testVerticalFlexAlignItemsFlexStart()
     id = "container",
     x = 0,
     y = 0,
-    w = 200,
-    h = 300,
+    width = 200,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -211,22 +211,22 @@ function TestAlignItems:testVerticalFlexAlignItemsFlexStart()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 60,
-    h = 35,
+    width = 60,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
@@ -251,8 +251,8 @@ function TestAlignItems:testVerticalFlexAlignItemsCenter()
     id = "container",
     x = 0,
     y = 0,
-    w = 200,
-    h = 300,
+    width = 200,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -260,15 +260,15 @@ function TestAlignItems:testVerticalFlexAlignItemsCenter()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -292,8 +292,8 @@ function TestAlignItems:testVerticalFlexAlignItemsFlexEnd()
     id = "container",
     x = 0,
     y = 0,
-    w = 200,
-    h = 300,
+    width = 200,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_END,
@@ -301,15 +301,15 @@ function TestAlignItems:testVerticalFlexAlignItemsFlexEnd()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -333,8 +333,8 @@ function TestAlignItems:testVerticalFlexAlignItemsStretch()
     id = "container",
     x = 0,
     y = 0,
-    w = 200,
-    h = 300,
+    width = 200,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -342,15 +342,15 @@ function TestAlignItems:testVerticalFlexAlignItemsStretch()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -370,8 +370,8 @@ function TestAlignItems:testDefaultAlignItems()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     -- No alignItems specified, should default to STRETCH
@@ -379,8 +379,8 @@ function TestAlignItems:testDefaultAlignItems()
 
   local child = Gui.new({
     id = "child",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
@@ -397,8 +397,8 @@ function TestAlignItems:testAlignItemsWithMixedChildSizes()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 120,
+    width = 300,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -406,22 +406,22 @@ function TestAlignItems:testAlignItemsWithMixedChildSizes()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 40,
-    h = 20,
+    width = 40,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 50,
-    h = 80,
+    width = 50,
+    height = 80,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
@@ -444,8 +444,8 @@ function TestAlignItems:testAlignItemsWithSingleChild()
     id = "container",
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_END,
@@ -453,8 +453,8 @@ function TestAlignItems:testAlignItemsWithSingleChild()
 
   local child = Gui.new({
     id = "child",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
@@ -470,8 +470,8 @@ function TestAlignItems:testAlignItemsWithContainerCoordinates()
     id = "container",
     x = 50,
     y = 20,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -479,8 +479,8 @@ function TestAlignItems:testAlignItemsWithContainerCoordinates()
 
   local child = Gui.new({
     id = "child",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -498,8 +498,8 @@ function TestAlignItems:testAlignItemsBaseline()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.BASELINE,
@@ -507,15 +507,15 @@ function TestAlignItems:testAlignItemsBaseline()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -533,8 +533,8 @@ function TestAlignItems:testAlignItemsWithGap()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -543,15 +543,15 @@ function TestAlignItems:testAlignItemsWithGap()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -574,8 +574,8 @@ function TestAlignItems:testAlignItemsCrossAxisConsistency()
     id = "hContainer",
     x = 0,
     y = 0,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -583,8 +583,8 @@ function TestAlignItems:testAlignItemsCrossAxisConsistency()
 
   local hChild = Gui.new({
     id = "hChild",
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -595,8 +595,8 @@ function TestAlignItems:testAlignItemsCrossAxisConsistency()
     id = "vContainer",
     x = 0,
     y = 0,
-    w = 100,
-    h = 200,
+    width = 100,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -604,8 +604,8 @@ function TestAlignItems:testAlignItemsCrossAxisConsistency()
 
   local vChild = Gui.new({
     id = "vChild",
-    w = 40,
-    h = 50,
+    width = 40,
+    height = 50,
     positioning = Positioning.FLEX,
   })
 
@@ -623,8 +623,8 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
     id = "card",
     x = 10,
     y = 10,
-    w = 300,
-    h = 200,
+    width = 300,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -633,8 +633,8 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
   -- Card header with icon and title (horizontal layout, center-aligned)
   local header = Gui.new({
     id = "header",
-    w = 300,
-    h = 50,
+    width = 300,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -642,22 +642,22 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
 
   local icon = Gui.new({
     id = "icon",
-    w = 24,
-    h = 24,
+    width = 24,
+    height = 24,
     positioning = Positioning.FLEX,
   })
 
   local title = Gui.new({
     id = "title",
-    w = 200,
-    h = 24,
+    width = 200,
+    height = 24,
     positioning = Positioning.FLEX,
   })
 
   local actions = Gui.new({
     id = "actions",
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_START,
@@ -665,23 +665,23 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
 
   local btn1 = Gui.new({
     id = "btn1",
-    w = 28,
-    h = 28,
+    width = 28,
+    height = 28,
     positioning = Positioning.FLEX,
   })
 
   local btn2 = Gui.new({
     id = "btn2",
-    w = 28,
-    h = 20,
+    width = 28,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   -- Card content with flex-end alignment
   local content = Gui.new({
     id = "content",
-    w = 300,
-    h = 120,
+    width = 300,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_END,
@@ -689,23 +689,23 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
 
   local contentText = Gui.new({
     id = "contentText",
-    w = 250,
-    h = 80,
+    width = 250,
+    height = 80,
     positioning = Positioning.FLEX,
   })
 
   local metadata = Gui.new({
     id = "metadata",
-    w = 180,
-    h = 30,
+    width = 180,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   -- Card footer with space-between and center alignment
   local footer = Gui.new({
     id = "footer",
-    w = 300,
-    h = 30,
+    width = 300,
+    height = 30,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -714,15 +714,15 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
 
   local timestamp = Gui.new({
     id = "timestamp",
-    w = 80,
-    h = 16,
+    width = 80,
+    height = 16,
     positioning = Positioning.FLEX,
   })
 
   local status = Gui.new({
     id = "status",
-    w = 60,
-    h = 20,
+    width = 60,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
@@ -767,8 +767,8 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
     id = "mediaContainer",
     x = 0,
     y = 0,
-    w = 400,
-    h = 150,
+    width = 400,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_START,
@@ -777,8 +777,8 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
   -- Media (image/avatar) section
   local mediaSection = Gui.new({
     id = "mediaSection",
-    w = 80,
-    h = 150,
+    width = 80,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -786,23 +786,23 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
 
   local avatar = Gui.new({
     id = "avatar",
-    w = 60,
-    h = 60,
+    width = 60,
+    height = 60,
     positioning = Positioning.FLEX,
   })
 
   local badge = Gui.new({
     id = "badge",
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   -- Content section with multiple alignment variations
   local contentSection = Gui.new({
     id = "contentSection",
-    w = 280,
-    h = 150,
+    width = 280,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -811,8 +811,8 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
   -- Header with user info (flex-end alignment)
   local userHeader = Gui.new({
     id = "userHeader",
-    w = 280,
-    h = 40,
+    width = 280,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_END,
@@ -820,30 +820,30 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
 
   local username = Gui.new({
     id = "username",
-    w = 120,
-    h = 24,
+    width = 120,
+    height = 24,
     positioning = Positioning.FLEX,
   })
 
   local timestamp = Gui.new({
     id = "timestamp",
-    w = 80,
-    h = 16,
+    width = 80,
+    height = 16,
     positioning = Positioning.FLEX,
   })
 
   local menu = Gui.new({
     id = "menu",
-    w = 30,
-    h = 30,
+    width = 30,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   -- Main content with center alignment
   local mainContent = Gui.new({
     id = "mainContent",
-    w = 280,
-    h = 80,
+    width = 280,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -851,15 +851,15 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
 
   local text = Gui.new({
     id = "text",
-    w = 260,
-    h = 60,
+    width = 260,
+    height = 60,
     positioning = Positioning.FLEX,
   })
 
   local attachments = Gui.new({
     id = "attachments",
-    w = 200,
-    h = 15,
+    width = 200,
+    height = 15,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -867,23 +867,23 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
 
   local attach1 = Gui.new({
     id = "attach1",
-    w = 12,
-    h = 12,
+    width = 12,
+    height = 12,
     positioning = Positioning.FLEX,
   })
 
   local attach2 = Gui.new({
     id = "attach2",
-    w = 12,
-    h = 8,
+    width = 12,
+    height = 8,
     positioning = Positioning.FLEX,
   })
 
   -- Footer actions with space-between
   local actionsFooter = Gui.new({
     id = "actionsFooter",
-    w = 280,
-    h = 30,
+    width = 280,
+    height = 30,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -892,8 +892,8 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
 
   local reactions = Gui.new({
     id = "reactions",
-    w = 100,
-    h = 20,
+    width = 100,
+    height = 20,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -901,22 +901,22 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
 
   local like = Gui.new({
     id = "like",
-    w = 16,
-    h = 16,
+    width = 16,
+    height = 16,
     positioning = Positioning.FLEX,
   })
 
   local share = Gui.new({
     id = "share",
-    w = 16,
-    h = 14,
+    width = 16,
+    height = 14,
     positioning = Positioning.FLEX,
   })
 
   local moreActions = Gui.new({
     id = "moreActions",
-    w = 60,
-    h = 24,
+    width = 60,
+    height = 24,
     positioning = Positioning.FLEX,
   })
 
@@ -974,8 +974,8 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
     id = "toolbar",
     x = 0,
     y = 0,
-    w = 600,
-    h = 60,
+    width = 600,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -985,8 +985,8 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
   -- Left section with logo and nav (flex-start alignment)
   local leftSection = Gui.new({
     id = "leftSection",
-    w = 200,
-    h = 60,
+    width = 200,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_START,
@@ -994,15 +994,15 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local logo = Gui.new({
     id = "logo",
-    w = 40,
-    h = 40,
+    width = 40,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local navigation = Gui.new({
     id = "navigation",
-    w = 150,
-    h = 50,
+    width = 150,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1010,23 +1010,23 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local navItem1 = Gui.new({
     id = "navItem1",
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local navItem2 = Gui.new({
     id = "navItem2",
-    w = 70,
-    h = 35,
+    width = 70,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   -- Center section with search (stretch alignment)
   local centerSection = Gui.new({
     id = "centerSection",
-    w = 250,
-    h = 60,
+    width = 250,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1034,8 +1034,8 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local searchContainer = Gui.new({
     id = "searchContainer",
-    w = 250,
-    h = 40,
+    width = 250,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1043,30 +1043,30 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local searchInput = Gui.new({
     id = "searchInput",
-    w = 200,
-    h = 32,
+    width = 200,
+    height = 32,
     positioning = Positioning.FLEX,
   })
 
   local searchButton = Gui.new({
     id = "searchButton",
-    w = 36,
-    h = 36,
+    width = 36,
+    height = 36,
     positioning = Positioning.FLEX,
   })
 
   local searchHint = Gui.new({
     id = "searchHint",
-    w = 250,
-    h = 16,
+    width = 250,
+    height = 16,
     positioning = Positioning.FLEX,
   })
 
   -- Right section with user controls (flex-end alignment)
   local rightSection = Gui.new({
     id = "rightSection",
-    w = 150,
-    h = 60,
+    width = 150,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_END,
@@ -1074,8 +1074,8 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local notifications = Gui.new({
     id = "notifications",
-    w = 30,
-    h = 35,
+    width = 30,
+    height = 35,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -1083,22 +1083,22 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local notifIcon = Gui.new({
     id = "notifIcon",
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local notifBadge = Gui.new({
     id = "notifBadge",
-    w = 12,
-    h = 12,
+    width = 12,
+    height = 12,
     positioning = Positioning.FLEX,
   })
 
   local userMenu = Gui.new({
     id = "userMenu",
-    w = 80,
-    h = 45,
+    width = 80,
+    height = 45,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1106,15 +1106,15 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   local userAvatar = Gui.new({
     id = "userAvatar",
-    w = 32,
-    h = 32,
+    width = 32,
+    height = 32,
     positioning = Positioning.FLEX,
   })
 
   local dropdown = Gui.new({
     id = "dropdown",
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
     positioning = Positioning.FLEX,
   })
 
@@ -1170,8 +1170,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
     id = "dashboard",
     x = 0,
     y = 0,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1180,8 +1180,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
   -- Header with title and controls
   local header = Gui.new({
     id = "header",
-    w = 800,
-    h = 80,
+    width = 800,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1190,8 +1190,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local titleSection = Gui.new({
     id = "titleSection",
-    w = 300,
-    h = 80,
+    width = 300,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -1199,22 +1199,22 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local title = Gui.new({
     id = "title",
-    w = 250,
-    h = 40,
+    width = 250,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local subtitle = Gui.new({
     id = "subtitle",
-    w = 200,
-    h = 24,
+    width = 200,
+    height = 24,
     positioning = Positioning.FLEX,
   })
 
   local controlsSection = Gui.new({
     id = "controlsSection",
-    w = 200,
-    h = 80,
+    width = 200,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_END,
@@ -1222,30 +1222,30 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local filterBtn = Gui.new({
     id = "filterBtn",
-    w = 60,
-    h = 35,
+    width = 60,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local exportBtn = Gui.new({
     id = "exportBtn",
-    w = 70,
-    h = 35,
+    width = 70,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local settingsBtn = Gui.new({
     id = "settingsBtn",
-    w = 40,
-    h = 40,
+    width = 40,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   -- Main content area with widgets
   local mainContent = Gui.new({
     id = "mainContent",
-    w = 800,
-    h = 480,
+    width = 800,
+    height = 480,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.STRETCH,
@@ -1254,8 +1254,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
   -- Left panel with statistics (center alignment)
   local leftPanel = Gui.new({
     id = "leftPanel",
-    w = 250,
-    h = 480,
+    width = 250,
+    height = 480,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -1263,8 +1263,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local statCard1 = Gui.new({
     id = "statCard1",
-    w = 220,
-    h = 120,
+    width = 220,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -1272,29 +1272,29 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local stat1Value = Gui.new({
     id = "stat1Value",
-    w = 100,
-    h = 40,
+    width = 100,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local stat1Label = Gui.new({
     id = "stat1Label",
-    w = 150,
-    h = 20,
+    width = 150,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local stat1Chart = Gui.new({
     id = "stat1Chart",
-    w = 180,
-    h = 50,
+    width = 180,
+    height = 50,
     positioning = Positioning.FLEX,
   })
 
   local statCard2 = Gui.new({
     id = "statCard2",
-    w = 220,
-    h = 120,
+    width = 220,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_END,
@@ -1302,23 +1302,23 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local stat2Value = Gui.new({
     id = "stat2Value",
-    w = 120,
-    h = 35,
+    width = 120,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local stat2Trend = Gui.new({
     id = "stat2Trend",
-    w = 80,
-    h = 20,
+    width = 80,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   -- Center panel with main chart (stretch alignment)
   local centerPanel = Gui.new({
     id = "centerPanel",
-    w = 400,
-    h = 480,
+    width = 400,
+    height = 480,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1326,8 +1326,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local chartHeader = Gui.new({
     id = "chartHeader",
-    w = 400,
-    h = 60,
+    width = 400,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1336,15 +1336,15 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local chartTitle = Gui.new({
     id = "chartTitle",
-    w = 200,
-    h = 30,
+    width = 200,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local chartControls = Gui.new({
     id = "chartControls",
-    w = 120,
-    h = 40,
+    width = 120,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1352,30 +1352,30 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local timeRange = Gui.new({
     id = "timeRange",
-    w = 80,
-    h = 25,
+    width = 80,
+    height = 25,
     positioning = Positioning.FLEX,
   })
 
   local refreshBtn = Gui.new({
     id = "refreshBtn",
-    w = 30,
-    h = 30,
+    width = 30,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local mainChart = Gui.new({
     id = "mainChart",
-    w = 400,
-    h = 380,
+    width = 400,
+    height = 380,
     positioning = Positioning.FLEX,
   })
 
   -- Right panel with lists (flex-start alignment)
   local rightPanel = Gui.new({
     id = "rightPanel",
-    w = 150,
-    h = 480,
+    width = 150,
+    height = 480,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -1383,8 +1383,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local alertsList = Gui.new({
     id = "alertsList",
-    w = 140,
-    h = 200,
+    width = 140,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1392,22 +1392,22 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local alert1 = Gui.new({
     id = "alert1",
-    w = 140,
-    h = 40,
+    width = 140,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local alert2 = Gui.new({
     id = "alert2",
-    w = 140,
-    h = 35,
+    width = 140,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local tasksList = Gui.new({
     id = "tasksList",
-    w = 130,
-    h = 240,
+    width = 130,
+    height = 240,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_END,
@@ -1415,23 +1415,23 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local task1 = Gui.new({
     id = "task1",
-    w = 120,
-    h = 30,
+    width = 120,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local task2 = Gui.new({
     id = "task2",
-    w = 110,
-    h = 25,
+    width = 110,
+    height = 25,
     positioning = Positioning.FLEX,
   })
 
   -- Footer with status info
   local footer = Gui.new({
     id = "footer",
-    w = 800,
-    h = 40,
+    width = 800,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1440,15 +1440,15 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
 
   local status = Gui.new({
     id = "status",
-    w = 200,
-    h = 20,
+    width = 200,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local timestamp = Gui.new({
     id = "timestamp",
-    w = 150,
-    h = 16,
+    width = 150,
+    height = 16,
     positioning = Positioning.FLEX,
   })
 
@@ -1537,8 +1537,8 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
     id = "form",
     x = 50,
     y = 50,
-    w = 500,
-    h = 600,
+    width = 500,
+    height = 600,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1547,8 +1547,8 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
   -- Form header with center alignment
   local formHeader = Gui.new({
     id = "formHeader",
-    w = 500,
-    h = 80,
+    width = 500,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -1556,23 +1556,23 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local formTitle = Gui.new({
     id = "formTitle",
-    w = 300,
-    h = 40,
+    width = 300,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local formDescription = Gui.new({
     id = "formDescription",
-    w = 400,
-    h = 30,
+    width = 400,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   -- Personal info section with flex-start alignment
   local personalSection = Gui.new({
     id = "personalSection",
-    w = 500,
-    h = 200,
+    width = 500,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -1580,15 +1580,15 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local sectionTitle1 = Gui.new({
     id = "sectionTitle1",
-    w = 200,
-    h = 30,
+    width = 200,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local nameRow = Gui.new({
     id = "nameRow",
-    w = 480,
-    h = 50,
+    width = 480,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1596,8 +1596,8 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local firstNameField = Gui.new({
     id = "firstNameField",
-    w = 220,
-    h = 40,
+    width = 220,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -1605,22 +1605,22 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local firstNameLabel = Gui.new({
     id = "firstNameLabel",
-    w = 100,
-    h = 20,
+    width = 100,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local firstNameInput = Gui.new({
     id = "firstNameInput",
-    w = 200,
-    h = 35,
+    width = 200,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local lastNameField = Gui.new({
     id = "lastNameField",
-    w = 220,
-    h = 40,
+    width = 220,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_END,
@@ -1628,22 +1628,22 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local lastNameLabel = Gui.new({
     id = "lastNameLabel",
-    w = 120,
-    h = 20,
+    width = 120,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local lastNameInput = Gui.new({
     id = "lastNameInput",
-    w = 200,
-    h = 35,
+    width = 200,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local emailRow = Gui.new({
     id = "emailRow",
-    w = 480,
-    h = 60,
+    width = 480,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1651,23 +1651,23 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local emailLabel = Gui.new({
     id = "emailLabel",
-    w = 100,
-    h = 20,
+    width = 100,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local emailInput = Gui.new({
     id = "emailInput",
-    w = 480,
-    h = 35,
+    width = 480,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   -- Preferences section with center alignment
   local preferencesSection = Gui.new({
     id = "preferencesSection",
-    w = 500,
-    h = 180,
+    width = 500,
+    height = 180,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -1675,15 +1675,15 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local sectionTitle2 = Gui.new({
     id = "sectionTitle2",
-    w = 250,
-    h = 30,
+    width = 250,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local optionsContainer = Gui.new({
     id = "optionsContainer",
-    w = 400,
-    h = 120,
+    width = 400,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_START,
@@ -1691,8 +1691,8 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local leftOptions = Gui.new({
     id = "leftOptions",
-    w = 180,
-    h = 120,
+    width = 180,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -1700,8 +1700,8 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local option1 = Gui.new({
     id = "option1",
-    w = 150,
-    h = 25,
+    width = 150,
+    height = 25,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1709,22 +1709,22 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local checkbox1 = Gui.new({
     id = "checkbox1",
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local label1 = Gui.new({
     id = "label1",
-    w = 120,
-    h = 18,
+    width = 120,
+    height = 18,
     positioning = Positioning.FLEX,
   })
 
   local option2 = Gui.new({
     id = "option2",
-    w = 160,
-    h = 25,
+    width = 160,
+    height = 25,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1732,22 +1732,22 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local checkbox2 = Gui.new({
     id = "checkbox2",
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local label2 = Gui.new({
     id = "label2",
-    w = 130,
-    h = 18,
+    width = 130,
+    height = 18,
     positioning = Positioning.FLEX,
   })
 
   local rightOptions = Gui.new({
     id = "rightOptions",
-    w = 180,
-    h = 120,
+    width = 180,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_END,
@@ -1755,23 +1755,23 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local dropdown = Gui.new({
     id = "dropdown",
-    w = 150,
-    h = 35,
+    width = 150,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local slider = Gui.new({
     id = "slider",
-    w = 140,
-    h = 20,
+    width = 140,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   -- Form actions with space-between alignment
   local actionsSection = Gui.new({
     id = "actionsSection",
-    w = 500,
-    h = 60,
+    width = 500,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1780,15 +1780,15 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local cancelBtn = Gui.new({
     id = "cancelBtn",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local submitGroup = Gui.new({
     id = "submitGroup",
-    w = 200,
-    h = 50,
+    width = 200,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1796,15 +1796,15 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   local saveBtn = Gui.new({
     id = "saveBtn",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local submitBtn = Gui.new({
     id = "submitBtn",
-    w = 100,
-    h = 45,
+    width = 100,
+    height = 45,
     positioning = Positioning.FLEX,
   })
 
@@ -1889,8 +1889,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
     id = "backdrop",
     x = 0,
     y = 0,
-    w = 1024,
-    h = 768,
+    width = 1024,
+    height = 768,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1900,8 +1900,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
   -- Modal dialog
   local modal = Gui.new({
     id = "modal",
-    w = 600,
-    h = 500,
+    width = 600,
+    height = 500,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1910,8 +1910,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
   -- Modal header with space-between alignment
   local modalHeader = Gui.new({
     id = "modalHeader",
-    w = 600,
-    h = 60,
+    width = 600,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1920,8 +1920,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local headerLeft = Gui.new({
     id = "headerLeft",
-    w = 300,
-    h = 60,
+    width = 300,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1929,22 +1929,22 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local modalIcon = Gui.new({
     id = "modalIcon",
-    w = 32,
-    h = 32,
+    width = 32,
+    height = 32,
     positioning = Positioning.FLEX,
   })
 
   local modalTitle = Gui.new({
     id = "modalTitle",
-    w = 250,
-    h = 30,
+    width = 250,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local headerRight = Gui.new({
     id = "headerRight",
-    w = 100,
-    h = 60,
+    width = 100,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1953,23 +1953,23 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local helpBtn = Gui.new({
     id = "helpBtn",
-    w = 30,
-    h = 30,
+    width = 30,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local closeBtn = Gui.new({
     id = "closeBtn",
-    w = 32,
-    h = 32,
+    width = 32,
+    height = 32,
     positioning = Positioning.FLEX,
   })
 
   -- Modal content with mixed alignments
   local modalContent = Gui.new({
     id = "modalContent",
-    w = 600,
-    h = 380,
+    width = 600,
+    height = 380,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.STRETCH,
@@ -1978,8 +1978,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
   -- Left sidebar with navigation
   local sidebar = Gui.new({
     id = "sidebar",
-    w = 150,
-    h = 380,
+    width = 150,
+    height = 380,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.STRETCH,
@@ -1987,8 +1987,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local navItem1 = Gui.new({
     id = "navItem1",
-    w = 150,
-    h = 40,
+    width = 150,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -1996,22 +1996,22 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local navIcon1 = Gui.new({
     id = "navIcon1",
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local navLabel1 = Gui.new({
     id = "navLabel1",
-    w = 100,
-    h = 18,
+    width = 100,
+    height = 18,
     positioning = Positioning.FLEX,
   })
 
   local navItem2 = Gui.new({
     id = "navItem2",
-    w = 150,
-    h = 40,
+    width = 150,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -2019,23 +2019,23 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local navIcon2 = Gui.new({
     id = "navIcon2",
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = Positioning.FLEX,
   })
 
   local navLabel2 = Gui.new({
     id = "navLabel2",
-    w = 110,
-    h = 18,
+    width = 110,
+    height = 18,
     positioning = Positioning.FLEX,
   })
 
   -- Main content area
   local contentArea = Gui.new({
     id = "contentArea",
-    w = 450,
-    h = 380,
+    width = 450,
+    height = 380,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.FLEX_START,
@@ -2044,8 +2044,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
   -- Content header with flex-end alignment
   local contentHeader = Gui.new({
     id = "contentHeader",
-    w = 450,
-    h = 50,
+    width = 450,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.FLEX_END,
@@ -2053,15 +2053,15 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local contentTitle = Gui.new({
     id = "contentTitle",
-    w = 200,
-    h = 35,
+    width = 200,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
   local contentActions = Gui.new({
     id = "contentActions",
-    w = 180,
-    h = 40,
+    width = 180,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -2069,30 +2069,30 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local editBtn = Gui.new({
     id = "editBtn",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local deleteBtn = Gui.new({
     id = "deleteBtn",
-    w = 55,
-    h = 30,
+    width = 55,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local moreBtn = Gui.new({
     id = "moreBtn",
-    w = 30,
-    h = 30,
+    width = 30,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   -- Content body with center alignment
   local contentBody = Gui.new({
     id = "contentBody",
-    w = 450,
-    h = 280,
+    width = 450,
+    height = 280,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     alignItems = AlignItems.CENTER,
@@ -2100,23 +2100,23 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local contentText = Gui.new({
     id = "contentText",
-    w = 400,
-    h = 150,
+    width = 400,
+    height = 150,
     positioning = Positioning.FLEX,
   })
 
   local contentImage = Gui.new({
     id = "contentImage",
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.FLEX,
   })
 
   -- Content meta with flex-end alignment
   local contentMeta = Gui.new({
     id = "contentMeta",
-    w = 350,
-    h = 30,
+    width = 350,
+    height = 30,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -2125,23 +2125,23 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local lastModified = Gui.new({
     id = "lastModified",
-    w = 120,
-    h = 16,
+    width = 120,
+    height = 16,
     positioning = Positioning.FLEX,
   })
 
   local author = Gui.new({
     id = "author",
-    w = 100,
-    h = 18,
+    width = 100,
+    height = 18,
     positioning = Positioning.FLEX,
   })
 
   -- Modal footer with center alignment
   local modalFooter = Gui.new({
     id = "modalFooter",
-    w = 600,
-    h = 60,
+    width = 600,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -2150,8 +2150,8 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local footerActions = Gui.new({
     id = "footerActions",
-    w = 300,
-    h = 50,
+    width = 300,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
@@ -2160,22 +2160,22 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   local cancelModalBtn = Gui.new({
     id = "cancelModalBtn",
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local applyBtn = Gui.new({
     id = "applyBtn",
-    w = 70,
-    h = 40,
+    width = 70,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local okBtn = Gui.new({
     id = "okBtn",
-    w = 60,
-    h = 45,
+    width = 60,
+    height = 45,
     positioning = Positioning.FLEX,
   })
 
@@ -2257,4 +2257,3 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 end
 
 luaunit.LuaUnit.run()
-

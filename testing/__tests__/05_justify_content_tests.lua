@@ -34,8 +34,8 @@ function TestJustifyContent:testHorizontalFlexJustifyContentFlexStart()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -44,22 +44,22 @@ function TestJustifyContent:testHorizontalFlexJustifyContentFlexStart()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 70,
-    h = 35,
+    width = 70,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
@@ -84,8 +84,8 @@ function TestJustifyContent:testHorizontalFlexJustifyContentCenter()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
@@ -94,15 +94,15 @@ function TestJustifyContent:testHorizontalFlexJustifyContentCenter()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -122,8 +122,8 @@ function TestJustifyContent:testHorizontalFlexJustifyContentFlexEnd()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -132,15 +132,15 @@ function TestJustifyContent:testHorizontalFlexJustifyContentFlexEnd()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -160,8 +160,8 @@ function TestJustifyContent:testHorizontalFlexJustifyContentSpaceBetween()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -170,22 +170,22 @@ function TestJustifyContent:testHorizontalFlexJustifyContentSpaceBetween()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 40,
-    h = 35,
+    width = 40,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
@@ -207,8 +207,8 @@ function TestJustifyContent:testHorizontalFlexJustifyContentSpaceAround()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_AROUND,
@@ -217,15 +217,15 @@ function TestJustifyContent:testHorizontalFlexJustifyContentSpaceAround()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -247,8 +247,8 @@ function TestJustifyContent:testHorizontalFlexJustifyContentSpaceEvenly()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
@@ -257,15 +257,15 @@ function TestJustifyContent:testHorizontalFlexJustifyContentSpaceEvenly()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -286,8 +286,8 @@ function TestJustifyContent:testVerticalFlexJustifyContentFlexStart()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -296,22 +296,22 @@ function TestJustifyContent:testVerticalFlexJustifyContentFlexStart()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 70,
-    h = 35,
+    width = 70,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
@@ -336,8 +336,8 @@ function TestJustifyContent:testVerticalFlexJustifyContentCenter()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.CENTER,
@@ -346,15 +346,15 @@ function TestJustifyContent:testVerticalFlexJustifyContentCenter()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -374,8 +374,8 @@ function TestJustifyContent:testVerticalFlexJustifyContentFlexEnd()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -384,15 +384,15 @@ function TestJustifyContent:testVerticalFlexJustifyContentFlexEnd()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -412,8 +412,8 @@ function TestJustifyContent:testVerticalFlexJustifyContentSpaceBetween()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -422,22 +422,22 @@ function TestJustifyContent:testVerticalFlexJustifyContentSpaceBetween()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 40,
-    h = 35,
+    width = 40,
+    height = 35,
     positioning = Positioning.FLEX,
   })
 
@@ -459,8 +459,8 @@ function TestJustifyContent:testVerticalFlexJustifyContentSpaceAround()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_AROUND,
@@ -469,15 +469,15 @@ function TestJustifyContent:testVerticalFlexJustifyContentSpaceAround()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -499,8 +499,8 @@ function TestJustifyContent:testVerticalFlexJustifyContentSpaceEvenly()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 300,
+    width = 100,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
@@ -509,15 +509,15 @@ function TestJustifyContent:testVerticalFlexJustifyContentSpaceEvenly()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -538,8 +538,8 @@ function TestJustifyContent:testJustifyContentWithSingleChild()
     id = "container",
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
@@ -548,8 +548,8 @@ function TestJustifyContent:testJustifyContentWithSingleChild()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
@@ -567,8 +567,8 @@ function TestJustifyContent:testJustifyContentWithNoAvailableSpace()
     id = "container",
     x = 0,
     y = 0,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -577,15 +577,15 @@ function TestJustifyContent:testJustifyContentWithNoAvailableSpace()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -604,8 +604,8 @@ function TestJustifyContent:testJustifyContentWithParentCoordinates()
     id = "parent",
     x = 50,
     y = 30,
-    w = 400,
-    h = 200,
+    width = 400,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -613,8 +613,8 @@ function TestJustifyContent:testJustifyContentWithParentCoordinates()
     id = "container",
     x = 20,
     y = 10,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
@@ -623,15 +623,15 @@ function TestJustifyContent:testJustifyContentWithParentCoordinates()
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
     positioning = Positioning.FLEX,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
     positioning = Positioning.FLEX,
   })
 
@@ -661,8 +661,8 @@ function TestJustifyContent:testComplexNavigationBarLayout()
     justifyContent = JustifyContent.SPACE_BETWEEN,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 80,
+    width = 1200,
+    height = 80,
     gap = 0,
   })
 
@@ -672,14 +672,14 @@ function TestJustifyContent:testComplexNavigationBarLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
-    w = 250,
-    h = 70,
+    width = 250,
+    height = 70,
     gap = 15,
   })
 
-  local logo = Gui.new({ id = "logo", w = 60, h = 50 })
-  local brandName = Gui.new({ id = "brandName", w = 120, h = 30 })
-  local beta = Gui.new({ id = "beta", w = 40, h = 20 })
+  local logo = Gui.new({ id = "logo", width = 60, height = 50 })
+  local brandName = Gui.new({ id = "brandName", width = 120, height = 30 })
+  local beta = Gui.new({ id = "beta", width = 40, height = 20 })
 
   logoSection:addChild(logo)
   logoSection:addChild(brandName)
@@ -691,8 +691,8 @@ function TestJustifyContent:testComplexNavigationBarLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
-    w = 500,
-    h = 70,
+    width = 500,
+    height = 70,
     gap = 30,
   })
 
@@ -704,13 +704,13 @@ function TestJustifyContent:testComplexNavigationBarLayout()
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = 80,
-      h = 60,
+      width = 80,
+      height = 60,
       gap = 5,
     })
 
-    local itemText = Gui.new({ id = "itemText" .. itemName, w = 70, h = 20 })
-    local itemDot = Gui.new({ id = "itemDot" .. itemName, w = 6, h = 6 })
+    local itemText = Gui.new({ id = "itemText" .. itemName, width = 70, height = 20 })
+    local itemDot = Gui.new({ id = "itemDot" .. itemName, width = 6, height = 6 })
 
     menuItem:addChild(itemText)
     menuItem:addChild(itemDot)
@@ -724,15 +724,15 @@ function TestJustifyContent:testComplexNavigationBarLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
     alignItems = AlignItems.CENTER,
-    w = 300,
-    h = 70,
+    width = 300,
+    height = 70,
     gap = 12,
   })
 
-  local searchButton = Gui.new({ id = "searchButton", w = 40, h = 40 })
-  local loginButton = Gui.new({ id = "loginButton", w = 80, h = 35 })
-  local signupButton = Gui.new({ id = "signupButton", w = 100, h = 40 })
-  local mobileMenu = Gui.new({ id = "mobileMenu", w = 35, h = 35 })
+  local searchButton = Gui.new({ id = "searchButton", width = 40, height = 40 })
+  local loginButton = Gui.new({ id = "loginButton", width = 80, height = 35 })
+  local signupButton = Gui.new({ id = "signupButton", width = 100, height = 40 })
+  local mobileMenu = Gui.new({ id = "mobileMenu", width = 35, height = 35 })
 
   actionsSection:addChild(searchButton)
   actionsSection:addChild(loginButton)
@@ -774,8 +774,8 @@ function TestJustifyContent:testDashboardMetricsSpaceAround()
     justifyContent = JustifyContent.SPACE_AROUND,
     x = 0,
     y = 0,
-    w = 1000,
-    h = 200,
+    width = 1000,
+    height = 200,
     gap = 0,
   })
 
@@ -793,8 +793,8 @@ function TestJustifyContent:testDashboardMetricsSpaceAround()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
-      w = 220,
-      h = 180,
+      width = 220,
+      height = 180,
       gap = 10,
     })
 
@@ -805,13 +805,13 @@ function TestJustifyContent:testDashboardMetricsSpaceAround()
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
       alignItems = AlignItems.CENTER,
-      w = 200,
-      h = 30,
+      width = 200,
+      height = 30,
       gap = 5,
     })
 
-    local metricTitle = Gui.new({ id = "metricTitle" .. i, w = 100, h = 25 })
-    local metricIcon = Gui.new({ id = "metricIcon" .. i, w = 24, h = 24 })
+    local metricTitle = Gui.new({ id = "metricTitle" .. i, width = 100, height = 25 })
+    local metricIcon = Gui.new({ id = "metricIcon" .. i, width = 24, height = 24 })
 
     cardHeader:addChild(metricTitle)
     cardHeader:addChild(metricIcon)
@@ -823,19 +823,19 @@ function TestJustifyContent:testDashboardMetricsSpaceAround()
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = 200,
-      h = 80,
+      width = 200,
+      height = 80,
       gap = 8,
     })
 
-    local mainValue = Gui.new({ id = "mainValue" .. i, w = 120, h = 40 })
-    local valueLabel = Gui.new({ id = "valueLabel" .. i, w = 80, h = 16 })
+    local mainValue = Gui.new({ id = "mainValue" .. i, width = 120, height = 40 })
+    local valueLabel = Gui.new({ id = "valueLabel" .. i, width = 80, height = 16 })
 
     valueSection:addChild(mainValue)
     valueSection:addChild(valueLabel)
 
     if metric.hasTrend then
-      local trendIndicator = Gui.new({ id = "trendIndicator" .. i, w = 60, h = 20 })
+      local trendIndicator = Gui.new({ id = "trendIndicator" .. i, width = 60, height = 20 })
       valueSection:addChild(trendIndicator)
       valueSection.height = 100
     end
@@ -847,19 +847,19 @@ function TestJustifyContent:testDashboardMetricsSpaceAround()
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = metric.hasChart and JustifyContent.CENTER or JustifyContent.SPACE_EVENLY,
       alignItems = AlignItems.CENTER,
-      w = 200,
-      h = 50,
+      width = 200,
+      height = 50,
       gap = 5,
     })
 
     if metric.hasChart then
-      local miniChart = Gui.new({ id = "miniChart" .. i, w = 150, h = 40 })
+      local miniChart = Gui.new({ id = "miniChart" .. i, width = 150, height = 40 })
       bottomSection:addChild(miniChart)
     else
       -- Add comparison indicators
-      local prevPeriod = Gui.new({ id = "prevPeriod" .. i, w = 60, h = 20 })
-      local comparison = Gui.new({ id = "comparison" .. i, w = 40, h = 20 })
-      local target = Gui.new({ id = "target" .. i, w = 60, h = 20 })
+      local prevPeriod = Gui.new({ id = "prevPeriod" .. i, width = 60, height = 20 })
+      local comparison = Gui.new({ id = "comparison" .. i, width = 40, height = 20 })
+      local target = Gui.new({ id = "target" .. i, width = 60, height = 20 })
 
       bottomSection:addChild(prevPeriod)
       bottomSection:addChild(comparison)
@@ -901,8 +901,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 600,
-    h = 800,
+    width = 600,
+    height = 800,
     gap = 25,
   })
 
@@ -913,8 +913,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
     alignItems = AlignItems.CENTER,
-    w = 580,
-    h = 60,
+    width = 580,
+    height = 60,
     gap = 0,
   })
 
@@ -922,13 +922,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     id = "headerLeft",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 200,
-    h = 50,
+    width = 200,
+    height = 50,
     gap = 5,
   })
 
-  local formTitle = Gui.new({ id = "formTitle", w = 180, h = 30 })
-  local formSubtitle = Gui.new({ id = "formSubtitle", w = 200, h = 15 })
+  local formTitle = Gui.new({ id = "formTitle", width = 180, height = 30 })
+  local formSubtitle = Gui.new({ id = "formSubtitle", width = 200, height = 15 })
 
   headerLeft:addChild(formTitle)
   headerLeft:addChild(formSubtitle)
@@ -939,13 +939,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
     alignItems = AlignItems.CENTER,
-    w = 150,
-    h = 50,
+    width = 150,
+    height = 50,
     gap = 10,
   })
 
-  local helpButton = Gui.new({ id = "helpButton", w = 30, h = 30 })
-  local closeButton = Gui.new({ id = "closeButton", w = 30, h = 30 })
+  local helpButton = Gui.new({ id = "helpButton", width = 30, height = 30 })
+  local closeButton = Gui.new({ id = "closeButton", width = 30, height = 30 })
 
   headerRight:addChild(helpButton)
   headerRight:addChild(closeButton)
@@ -958,8 +958,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     id = "personalSection",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 580,
-    h = 250,
+    width = 580,
+    height = 250,
     gap = 15,
   })
 
@@ -968,13 +968,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
-    w = 580,
-    h = 30,
+    width = 580,
+    height = 30,
     gap = 10,
   })
 
-  local titleText = Gui.new({ id = "titleText", w = 150, h = 25 })
-  local titleIcon = Gui.new({ id = "titleIcon", w = 20, h = 20 })
+  local titleText = Gui.new({ id = "titleText", width = 150, height = 25 })
+  local titleIcon = Gui.new({ id = "titleIcon", width = 20, height = 20 })
 
   sectionTitle:addChild(titleText)
   sectionTitle:addChild(titleIcon)
@@ -985,8 +985,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 580,
-    h = 60,
+    width = 580,
+    height = 60,
     gap = 15,
   })
 
@@ -994,13 +994,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     id = "firstNameGroup",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 275,
-    h = 55,
+    width = 275,
+    height = 55,
     gap = 5,
   })
 
-  local firstNameLabel = Gui.new({ id = "firstNameLabel", w = 80, h = 20 })
-  local firstNameInput = Gui.new({ id = "firstNameInput", w = 275, h = 30 })
+  local firstNameLabel = Gui.new({ id = "firstNameLabel", width = 80, height = 20 })
+  local firstNameInput = Gui.new({ id = "firstNameInput", width = 275, height = 30 })
 
   firstNameGroup:addChild(firstNameLabel)
   firstNameGroup:addChild(firstNameInput)
@@ -1009,13 +1009,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     id = "lastNameGroup",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 275,
-    h = 55,
+    width = 275,
+    height = 55,
     gap = 5,
   })
 
-  local lastNameLabel = Gui.new({ id = "lastNameLabel", w = 80, h = 20 })
-  local lastNameInput = Gui.new({ id = "lastNameInput", w = 275, h = 30 })
+  local lastNameLabel = Gui.new({ id = "lastNameLabel", width = 80, height = 20 })
+  local lastNameInput = Gui.new({ id = "lastNameInput", width = 275, height = 30 })
 
   lastNameGroup:addChild(lastNameLabel)
   lastNameGroup:addChild(lastNameInput)
@@ -1030,8 +1030,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
     alignItems = AlignItems.CENTER,
-    w = 580,
-    h = 50,
+    width = 580,
+    height = 50,
     gap = 0,
   })
 
@@ -1040,26 +1040,26 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
-    w = 120,
-    h = 40,
+    width = 120,
+    height = 40,
     gap = 8,
   })
 
-  Gui.new({ parent = emailOption, id = "emailCheckbox", w = 20, h = 20 })
-  Gui.new({ parent = emailOption, id = "emailLabel", w = 60, h = 18 })
+  Gui.new({ parent = emailOption, id = "emailCheckbox", width = 20, height = 20 })
+  Gui.new({ parent = emailOption, id = "emailLabel", width = 60, height = 18 })
 
   local phoneOption = Gui.new({
     id = "phoneOption",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
-    w = 120,
-    h = 40,
+    width = 120,
+    height = 40,
     gap = 8,
   })
 
-  local phoneCheckbox = Gui.new({ id = "phoneCheckbox", w = 20, h = 20 })
-  local phoneLabel = Gui.new({ id = "phoneLabel", w = 60, h = 18 })
+  local phoneCheckbox = Gui.new({ id = "phoneCheckbox", width = 20, height = 20 })
+  local phoneLabel = Gui.new({ id = "phoneLabel", width = 60, height = 18 })
 
   phoneOption:addChild(phoneCheckbox)
   phoneOption:addChild(phoneLabel)
@@ -1069,13 +1069,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
-    w = 100,
-    h = 40,
+    width = 100,
+    height = 40,
     gap = 8,
   })
 
-  local smsCheckbox = Gui.new({ id = "smsCheckbox", w = 20, h = 20 })
-  local smsLabel = Gui.new({ id = "smsLabel", w = 50, h = 18 })
+  local smsCheckbox = Gui.new({ id = "smsCheckbox", width = 20, height = 20 })
+  local smsLabel = Gui.new({ id = "smsLabel", width = 50, height = 18 })
 
   smsOption:addChild(smsCheckbox)
   smsOption:addChild(smsLabel)
@@ -1093,8 +1093,8 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     id = "actionsSection",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 580,
-    h = 120,
+    width = 580,
+    height = 120,
     gap = 20,
   })
 
@@ -1104,14 +1104,14 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
     alignItems = AlignItems.CENTER,
-    w = 580,
-    h = 45,
+    width = 580,
+    height = 45,
     gap = 15,
   })
 
-  local cancelButton = Gui.new({ id = "cancelButton", w = 80, h = 40 })
-  local saveButton = Gui.new({ id = "saveButton", w = 100, h = 40 })
-  local submitButton = Gui.new({ id = "submitButton", w = 120, h = 40 })
+  local cancelButton = Gui.new({ id = "cancelButton", width = 80, height = 40 })
+  local saveButton = Gui.new({ id = "saveButton", width = 100, height = 40 })
+  local submitButton = Gui.new({ id = "submitButton", width = 120, height = 40 })
 
   primaryActions:addChild(cancelButton)
   primaryActions:addChild(saveButton)
@@ -1123,13 +1123,13 @@ function TestJustifyContent:testComplexFormJustifyContentLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
     alignItems = AlignItems.CENTER,
-    w = 580,
-    h = 35,
+    width = 580,
+    height = 35,
     gap = 25,
   })
 
-  local resetButton = Gui.new({ id = "resetButton", w = 70, h = 30 })
-  local previewButton = Gui.new({ id = "previewButton", w = 80, h = 30 })
+  local resetButton = Gui.new({ id = "resetButton", width = 70, height = 30 })
+  local previewButton = Gui.new({ id = "previewButton", width = 80, height = 30 })
 
   secondaryActions:addChild(resetButton)
   secondaryActions:addChild(previewButton)
@@ -1178,8 +1178,8 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     gap = 20,
   })
 
@@ -1189,8 +1189,8 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 780,
-    h = 120,
+    width = 780,
+    height = 120,
     gap = 0,
   })
 
@@ -1201,13 +1201,13 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = 150,
-      h = 100,
+      width = 150,
+      height = 100,
       gap = 10,
     })
 
-    local cardIcon = Gui.new({ id = "row1Icon" .. i, w = 40, h = 40 })
-    local cardLabel = Gui.new({ id = "row1Label" .. i, w = 100, h = 20 })
+    local cardIcon = Gui.new({ id = "row1Icon" .. i, width = 40, height = 40 })
+    local cardLabel = Gui.new({ id = "row1Label" .. i, width = 100, height = 20 })
 
     card:addChild(cardIcon)
     card:addChild(cardLabel)
@@ -1220,8 +1220,8 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_AROUND,
-    w = 780,
-    h = 120,
+    width = 780,
+    height = 120,
     gap = 0,
   })
 
@@ -1231,8 +1231,8 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
-      w = 200,
-      h = 100,
+      width = 200,
+      height = 100,
       gap = 5,
     })
 
@@ -1241,19 +1241,19 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
-      w = 180,
-      h = 25,
+      width = 180,
+      height = 25,
       gap = 0,
     })
 
-    local headerTitle = Gui.new({ id = "row2HeaderTitle" .. i, w = 100, h = 20 })
-    local headerIcon = Gui.new({ id = "row2HeaderIcon" .. i, w = 20, h = 20 })
+    local headerTitle = Gui.new({ id = "row2HeaderTitle" .. i, width = 100, height = 20 })
+    local headerIcon = Gui.new({ id = "row2HeaderIcon" .. i, width = 20, height = 20 })
 
     cardHeader:addChild(headerTitle)
     cardHeader:addChild(headerIcon)
 
-    local cardContent = Gui.new({ id = "row2Content" .. i, w = 180, h = 40 })
-    local cardFooter = Gui.new({ id = "row2Footer" .. i, w = 180, h = 20 })
+    local cardContent = Gui.new({ id = "row2Content" .. i, width = 180, height = 40 })
+    local cardFooter = Gui.new({ id = "row2Footer" .. i, width = 180, height = 20 })
 
     card:addChild(cardHeader)
     card:addChild(cardContent)
@@ -1267,8 +1267,8 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
-    w = 780,
-    h = 120,
+    width = 780,
+    height = 120,
     gap = 0,
   })
 
@@ -1279,14 +1279,14 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_END,
       alignItems = AlignItems.CENTER,
-      w = 100,
-      h = 100,
+      width = 100,
+      height = 100,
       gap = 5,
     })
 
-    local itemValue = Gui.new({ id = "row3Value" .. i, w = 60, h = 30 })
-    local itemLabel = Gui.new({ id = "row3Label" .. i, w = 80, h = 15 })
-    local itemTrend = Gui.new({ id = "row3Trend" .. i, w = 40, h = 12 })
+    local itemValue = Gui.new({ id = "row3Value" .. i, width = 60, height = 30 })
+    local itemLabel = Gui.new({ id = "row3Label" .. i, width = 80, height = 15 })
+    local itemTrend = Gui.new({ id = "row3Trend" .. i, width = 40, height = 12 })
 
     item:addChild(itemValue)
     item:addChild(itemLabel)
@@ -1300,8 +1300,8 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
-    w = 780,
-    h = 120,
+    width = 780,
+    height = 120,
     gap = 10,
   })
 
@@ -1313,13 +1313,13 @@ function TestJustifyContent:testGridLayoutJustifyContentVariations()
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = 90,
-      h = 30,
+      width = 90,
+      height = 30,
       gap = 5,
     })
 
-    local chipIcon = Gui.new({ id = "row4ChipIcon" .. i, w = 16, h = 16 })
-    local chipText = Gui.new({ id = "row4ChipText" .. i, w = 60, h = 14 })
+    local chipIcon = Gui.new({ id = "row4ChipIcon" .. i, width = 16, height = 16 })
+    local chipText = Gui.new({ id = "row4ChipText" .. i, width = 60, height = 14 })
 
     chip:addChild(chipIcon)
     chip:addChild(chipText)
@@ -1383,8 +1383,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     alignItems = AlignItems.CENTER,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 800,
+    width = 1200,
+    height = 800,
     gap = 0,
   })
 
@@ -1393,8 +1393,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 600,
-    h = 500,
+    width = 600,
+    height = 500,
     gap = 0,
   })
 
@@ -1405,8 +1405,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
     alignItems = AlignItems.CENTER,
-    w = 580,
-    h = 60,
+    width = 580,
+    height = 60,
     gap = 0,
   })
 
@@ -1415,13 +1415,13 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     alignItems = AlignItems.CENTER,
-    w = 200,
-    h = 50,
+    width = 200,
+    height = 50,
     gap = 12,
   })
 
-  local modalIcon = Gui.new({ id = "modalIcon", w = 24, h = 24 })
-  local modalTitle = Gui.new({ id = "modalTitle", w = 150, h = 30 })
+  local modalIcon = Gui.new({ id = "modalIcon", width = 24, height = 24 })
+  local modalTitle = Gui.new({ id = "modalTitle", width = 150, height = 30 })
 
   headerLeft:addChild(modalIcon)
   headerLeft:addChild(modalTitle)
@@ -1432,13 +1432,13 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
     alignItems = AlignItems.CENTER,
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
     gap = 8,
   })
 
-  local minimizeButton = Gui.new({ id = "minimizeButton", w = 30, h = 30 })
-  local closeButton = Gui.new({ id = "closeButton", w = 30, h = 30 })
+  local minimizeButton = Gui.new({ id = "minimizeButton", width = 30, height = 30 })
+  local closeButton = Gui.new({ id = "closeButton", width = 30, height = 30 })
 
   headerRight:addChild(minimizeButton)
   headerRight:addChild(closeButton)
@@ -1451,8 +1451,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     id = "modalContent",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 580,
-    h = 380,
+    width = 580,
+    height = 380,
     gap = 20,
   })
 
@@ -1462,8 +1462,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
-    w = 580,
-    h = 50,
+    width = 580,
+    height = 50,
     gap = 0,
   })
 
@@ -1475,13 +1475,13 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = 120,
-      h = 45,
+      width = 120,
+      height = 45,
       gap = 5,
     })
 
-    local tabText = Gui.new({ id = "tabText" .. tabName, w = 80, h = 18 })
-    local tabIndicator = Gui.new({ id = "tabIndicator" .. tabName, w = 60, h = 3 })
+    local tabText = Gui.new({ id = "tabText" .. tabName, width = 80, height = 18 })
+    local tabIndicator = Gui.new({ id = "tabIndicator" .. tabName, width = 60, height = 3 })
 
     tab:addChild(tabText)
     tab:addChild(tabIndicator)
@@ -1493,8 +1493,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     id = "settingsArea",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 580,
-    h = 250,
+    width = 580,
+    height = 250,
     gap = 15,
   })
 
@@ -1506,8 +1506,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = i % 2 == 1 and JustifyContent.SPACE_BETWEEN or JustifyContent.FLEX_START,
       alignItems = AlignItems.CENTER,
-      w = 560,
-      h = 50,
+      width = 560,
+      height = 50,
       gap = 15,
     })
 
@@ -1516,13 +1516,13 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.CENTER,
-      w = 300,
-      h = 40,
+      width = 300,
+      height = 40,
       gap = 3,
     })
 
-    local settingLabel = Gui.new({ id = "settingLabel" .. i, w = 200, h = 20 })
-    local settingDescription = Gui.new({ id = "settingDescription" .. i, w = 280, h = 14 })
+    local settingLabel = Gui.new({ id = "settingLabel" .. i, width = 200, height = 20 })
+    local settingDescription = Gui.new({ id = "settingDescription" .. i, width = 280, height = 14 })
 
     settingInfo:addChild(settingLabel)
     settingInfo:addChild(settingDescription)
@@ -1533,19 +1533,19 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
       alignItems = AlignItems.CENTER,
-      w = i % 2 == 1 and 100 or 200,
-      h = 35,
+      width = i % 2 == 1 and 100 or 200,
+      height = 35,
       gap = 8,
     })
 
     if i % 2 == 1 then
       -- Toggle switch
-      local toggle = Gui.new({ id = "toggle" .. i, w = 60, h = 30 })
+      local toggle = Gui.new({ id = "toggle" .. i, width = 60, height = 30 })
       settingControl:addChild(toggle)
     else
       -- Dropdown or input
-      local input = Gui.new({ id = "input" .. i, w = 120, h = 30 })
-      local button = Gui.new({ id = "button" .. i, w = 60, h = 28 })
+      local input = Gui.new({ id = "input" .. i, width = 120, height = 30 })
+      local button = Gui.new({ id = "button" .. i, width = 60, height = 28 })
       settingControl:addChild(input)
       settingControl:addChild(button)
     end
@@ -1565,8 +1565,8 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
     alignItems = AlignItems.CENTER,
-    w = 580,
-    h = 60,
+    width = 580,
+    height = 60,
     gap = 0,
   })
 
@@ -1576,13 +1576,13 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
     alignItems = AlignItems.CENTER,
-    w = 200,
-    h = 50,
+    width = 200,
+    height = 50,
     gap = 10,
   })
 
-  local resetButton = Gui.new({ id = "resetButton", w = 80, h = 35 })
-  local helpLink = Gui.new({ id = "helpLink", w = 60, h = 20 })
+  local resetButton = Gui.new({ id = "resetButton", width = 80, height = 35 })
+  local helpLink = Gui.new({ id = "helpLink", width = 60, height = 20 })
 
   footerLeft:addChild(resetButton)
   footerLeft:addChild(helpLink)
@@ -1593,14 +1593,14 @@ function TestJustifyContent:testMultiLevelNestedModalJustifyContent()
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
     alignItems = AlignItems.CENTER,
-    w = 250,
-    h = 50,
+    width = 250,
+    height = 50,
     gap = 12,
   })
 
-  local cancelButton = Gui.new({ id = "cancelButton", w = 70, h = 35 })
-  local applyButton = Gui.new({ id = "applyButton", w = 70, h = 35 })
-  local saveButton = Gui.new({ id = "saveButton", w = 80, h = 35 })
+  local cancelButton = Gui.new({ id = "cancelButton", width = 70, height = 35 })
+  local applyButton = Gui.new({ id = "applyButton", width = 70, height = 35 })
+  local saveButton = Gui.new({ id = "saveButton", width = 80, height = 35 })
 
   footerRight:addChild(cancelButton)
   footerRight:addChild(applyButton)

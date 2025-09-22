@@ -537,6 +537,7 @@ function Element.new(props)
   self.opacity = props.opacity or 1
 
   self.text = props.text
+  self.textSize = props.textSize or 12
   self.textAlign = props.textAlign or TextAlign.START
 
   --- self positioning ---
@@ -1553,16 +1554,6 @@ end
 ---@param newGameWidth number
 ---@param newGameHeight number
 function Element:resize(newGameWidth, newGameHeight)
-  local prevW = self.prevGameSize.width
-  local prevH = self.prevGameSize.height
-  local ratioW = newGameWidth / prevW
-  local ratioH = newGameHeight / prevH
-
-  -- Handle pixel units: scale proportionally (skip auto-sized dimensions)
-  -- REMOVED: Pixel units should remain fixed during resize, not scale
-  -- Only viewport and percentage units should recalculate
-
-  -- Recalculate viewport and percentage units from original values
   self:recalculateUnits(newGameWidth, newGameHeight)
 
   -- Update children

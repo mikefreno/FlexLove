@@ -27,85 +27,72 @@ function Color:toRGBA()
   return self.r, self.g, self.b, self.a
 end
 
-local enums = {}
-
---- @enum TextAlign
-enums.TextAlign = {
-  START = "start",
-  CENTER = "center",
-  END = "end",
-  JUSTIFY = "justify",
+local enums = {
+  ---@enum TextAlign
+  TextAlign = { START = "start", CENTER = "center", END = "end", JUSTIFY = "justify" },
+  ---@enum Positioning
+  Positioning = { ABSOLUTE = "absolute", RELATIVE = "relative", FLEX = "flex" },
+  ---@enum FlexDirection
+  FlexDirection = { HORIZONTAL = "horizontal", VERTICAL = "vertical" },
+  ---@enum JustifyContent
+  JustifyContent = {
+    FLEX_START = "flex-start",
+    CENTER = "center",
+    SPACE_AROUND = "space-around",
+    FLEX_END = "flex-end",
+    SPACE_EVENLY = "space-evenly",
+    SPACE_BETWEEN = "space-between",
+  },
+  ---@enum JustifySelf
+  JustifySelf = {
+    AUTO = "auto",
+    FLEX_START = "flex-start",
+    CENTER = "center",
+    FLEX_END = "flex-end",
+    SPACE_AROUND = "space-around",
+    SPACE_EVENLY = "space-evenly",
+    SPACE_BETWEEN = "space-between",
+  },
+  ---@enum AlignItems
+  AlignItems = {
+    STRETCH = "stretch",
+    FLEX_START = "flex-start",
+    FLEX_END = "flex-end",
+    CENTER = "center",
+    BASELINE = "baseline",
+  },
+  ---@enum AlignSelf
+  AlignSelf = {
+    AUTO = "auto",
+    STRETCH = "stretch",
+    FLEX_START = "flex-start",
+    FLEX_END = "flex-end",
+    CENTER = "center",
+    BASELINE = "baseline",
+  },
+  ---@enum AlignContent
+  AlignContent = {
+    STRETCH = "stretch",
+    FLEX_START = "flex-start",
+    FLEX_END = "flex-end",
+    CENTER = "center",
+    SPACE_BETWEEN = "space-between",
+    SPACE_AROUND = "space-around",
+  },
+  ---@enum FlexWrap
+  FlexWrap = { NOWRAP = "nowrap", WRAP = "wrap", WRAP_REVERSE = "wrap-reverse" },
 }
 
---- @enum Positioning
-enums.Positioning = {
-  ABSOLUTE = "absolute",
-  RELATIVE = "relative",
-  FLEX = "flex",
-}
-
---- @enum FlexDirection
-enums.FlexDirection = {
-  HORIZONTAL = "horizontal",
-  VERTICAL = "vertical",
-}
-
---- @enum JustifyContent
-enums.JustifyContent = {
-  FLEX_START = "flex-start",
-  CENTER = "center",
-  SPACE_AROUND = "space-around",
-  FLEX_END = "flex-end",
-  SPACE_EVENLY = "space-evenly",
-  SPACE_BETWEEN = "space-between",
-}
-
---- @enum JustifySelf
-enums.JustifySelf = {
-  AUTO = "auto",
-  FLEX_START = "flex-start",
-  CENTER = "center",
-  FLEX_END = "flex-end",
-  SPACE_AROUND = "space-around",
-  SPACE_EVENLY = "space-evenly",
-  SPACE_BETWEEN = "space-between",
-}
-
---- @enum AlignItems
-enums.AlignItems = {
-  STRETCH = "stretch",
-  FLEX_START = "flex-start",
-  FLEX_END = "flex-end",
-  CENTER = "center",
-  BASELINE = "baseline",
-}
-
---- @enum AlignSelf
-enums.AlignSelf = {
-  AUTO = "auto",
-  STRETCH = "stretch",
-  FLEX_START = "flex-start",
-  FLEX_END = "flex-end",
-  CENTER = "center",
-  BASELINE = "baseline",
-}
-
---- @enum AlignContent
-enums.AlignContent = {
-  STRETCH = "stretch",
-  FLEX_START = "flex-start",
-  FLEX_END = "flex-end",
-  CENTER = "center",
-  SPACE_BETWEEN = "space-between",
-  SPACE_AROUND = "space-around",
-}
-
---- @enum FlexWrap
-enums.FlexWrap = {
-  NOWRAP = "nowrap",
-  WRAP = "wrap",
-  WRAP_REVERSE = "wrap-reverse",
-}
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
+  enums.Positioning,
+  enums.FlexDirection,
+  enums.JustifyContent,
+  enums.AlignContent,
+  enums.AlignItems,
+  enums.TextAlign,
+  enums.AlignSelf,
+  enums.JustifySelf,
+  enums.FlexWrap
 
 local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
   enums.Positioning,
@@ -1061,8 +1048,8 @@ function Element:layoutChildren()
   for _, child in ipairs(self.children) do
     -- Only flex positioned children or non-explicitly absolute children participate in flex layout
     -- Relative positioned children maintain their own positioning
-    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute) 
-                        and child.positioning ~= Positioning.RELATIVE
+    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
+      and child.positioning ~= Positioning.RELATIVE
     if isFlexChild then
       table.insert(flexChildren, child)
     end

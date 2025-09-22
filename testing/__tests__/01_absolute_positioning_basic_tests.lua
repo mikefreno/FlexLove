@@ -1,6 +1,6 @@
-package.patheight = package.path .. ";?.lua"
+package.path = package.path .. ";./?.lua;./game/?.lua;./game/utils/?.lua;./game/components/?.lua;./game/systems/?.lua"
 
-local luaunit = require("testing/luaunit")
+local luaunit = require("testing.luaunit")
 require("testing/loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
 local Gui, enums = FlexLove.GUI, FlexLove.enums

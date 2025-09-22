@@ -15,6 +15,9 @@ local testFiles = {
   "testing/__tests__/09_layout_validation_tests.lua",
   "testing/__tests__/10_performance_tests.lua",
   "testing/__tests__/11_auxiliary_functions_tests.lua",
+  "testing/__tests__/12_units_system_tests.lua",
+  "testing/__tests__/13_relative_positioning_tests.lua",
+  "testing/__tests__/14_text_scaling_basic_tests.lua",
 }
 
 -- testingun all tests, but don't exit on error

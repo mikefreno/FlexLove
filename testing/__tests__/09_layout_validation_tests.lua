@@ -36,8 +36,8 @@ local function createTestContainer(props)
   local defaults = {
     x = 0,
     y = 0,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -91,8 +91,8 @@ function TestLayoutValidation:testInvalidEnumValuesGracefulDegradation()
     return Gui.new({
       x = 0,
       y = 0,
-      w = 100,
-      h = 100,
+      width = 100,
+      height = 100,
       positioning = Positioning.FLEX,
       -- flexDirection = "invalid_direction", -- Skip invalid enum to avoid type error
     })
@@ -105,8 +105,8 @@ function TestLayoutValidation:testInvalidEnumValuesGracefulDegradation()
     return Gui.new({
       x = 0,
       y = 0,
-      w = 100,
-      h = 100,
+      width = 100,
+      height = 100,
       positioning = Positioning.FLEX,
       -- justifyContent = "invalid_justify", -- Skip invalid enum to avoid type error
     })
@@ -147,8 +147,8 @@ function TestLayoutValidation:testInvalidPropertyCombinations()
     return Gui.new({
       x = 10,
       y = 10,
-      w = 100,
-      h = 100,
+      width = 100,
+      height = 100,
       positioning = Positioning.ABSOLUTE,
       flexDirection = FlexDirection.VERTICAL, -- Should be ignored
       justifyContent = JustifyContent.CENTER, -- Should be ignored
@@ -163,8 +163,8 @@ function TestLayoutValidation:testInvalidPropertyCombinations()
     return Gui.new({
       x = 10, -- Should work with flex
       y = 10, -- Should work with flex
-      w = 100,
-      h = 100,
+      width = 100,
+      height = 100,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
     })
@@ -181,8 +181,8 @@ function TestLayoutValidation:testNegativeDimensionsAndPositions()
     return Gui.new({
       x = -10,
       y = -20,
-      w = -50,
-      h = -30,
+      width = -50,
+      height = -30,
     })
   end)
   luaunit.assertTrue(success) -- Should not crash
@@ -198,8 +198,8 @@ function TestLayoutValidation:testExtremelyLargeValues()
     return Gui.new({
       x = 999999,
       y = 999999,
-      w = 999999,
-      h = 999999,
+      width = 999999,
+      height = 999999,
     })
   end)
   luaunit.assertTrue(success) -- Should not crash
@@ -218,8 +218,8 @@ function TestLayoutValidation:testInvalidChildParentRelationships()
     local child = Gui.new({
       x = 10,
       y = 10,
-      w = 50,
-      h = 30,
+      width = 50,
+      height = 30,
       positioning = Positioning.FLEX, -- Child tries to be flex container
     })
     child.parent = parent
@@ -237,15 +237,15 @@ function TestLayoutValidation:testLayoutAfterPropertyChanges()
   local container = createTestContainer()
 
   local child1 = Gui.new({
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
   child1.parent = container
   table.insert(container.children, child1)
 
   local child2 = Gui.new({
-    w = 60,
-    h = 35,
+    width = 60,
+    height = 35,
   })
   child2.parent = container
   table.insert(container.children, child2)
@@ -288,14 +288,14 @@ function TestLayoutValidation:testComplexNestedValidation()
     local root = Gui.new({
       x = 0,
       y = 0,
-      w = 200,
-      h = 150,
+      width = 200,
+      height = 150,
       positioning = Positioning.FLEX,
     })
 
     local flex_child = Gui.new({
-      w = 100,
-      h = 75,
+      width = 100,
+      height = 75,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
     })
@@ -305,16 +305,16 @@ function TestLayoutValidation:testComplexNestedValidation()
     local absolute_grandchild = Gui.new({
       x = 10,
       y = 10,
-      w = 30,
-      h = 20,
+      width = 30,
+      height = 20,
       positioning = Positioning.ABSOLUTE,
     })
     absolute_grandchild.parent = flex_child
     table.insert(flex_child.children, absolute_grandchild)
 
     local flex_grandchild = Gui.new({
-      w = 40,
-      h = 25,
+      width = 40,
+      height = 25,
       -- No positioning - should inherit behavior
     })
     flex_grandchild.parent = flex_child
@@ -350,8 +350,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
     local app = Gui.new({
       x = 0,
       y = 0,
-      w = 1200,
-      h = 800,
+      width = 1200,
+      height = 800,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -361,7 +361,7 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Header with complex validation scenarios
     local header = Gui.new({
-      h = 60,
+      height = 60,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -374,8 +374,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Header navigation with potential edge cases
     local nav = Gui.new({
-      w = 400,
-      h = 40,
+      width = 400,
+      height = 40,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -388,8 +388,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
     -- Create nav items with extreme values
     for i = 1, 5 do
       local navItem = Gui.new({
-        w = i == 3 and 0 or 80, -- One item with zero width
-        h = i == 4 and -10 or 24, -- One item with negative height
+        width = i == 3 and 0 or 80, -- One item with zero width
+        height = i == 4 and -10 or 24, -- One item with negative height
         positioning = i == 5 and Positioning.ABSOLUTE or nil, -- Mixed positioning
       })
       navItem.parent = nav
@@ -398,8 +398,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Header actions with validation edge cases
     local actions = Gui.new({
-      w = 200,
-      h = 40,
+      width = 200,
+      height = 40,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_END,
@@ -412,8 +412,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
     -- Actions with extreme dimensions
     for i = 1, 3 do
       local action = Gui.new({
-        w = i == 1 and 999999 or 32, -- Extremely large width
-        h = i == 2 and 0.1 or 32, -- Fractional height
+        width = i == 1 and 999999 or 32, -- Extremely large width
+        height = i == 2 and 0.1 or 32, -- Fractional height
         x = i == 3 and -1000 or nil, -- Extreme negative position
         y = i == 3 and -1000 or nil,
       })
@@ -423,7 +423,7 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Main content with nested validation challenges
     local main = Gui.new({
-      h = 740,
+      height = 740,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -435,8 +435,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Sidebar with deep nesting and edge cases
     local sidebar = Gui.new({
-      w = 250,
-      h = 740,
+      width = 250,
+      height = 740,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -450,7 +450,7 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
     -- Sidebar sections with validation challenges
     for section = 1, 3 do
       local sideSection = Gui.new({
-        h = section == 2 and -100 or 200, -- Negative height test
+        height = section == 2 and -100 or 200, -- Negative height test
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
         justifyContent = JustifyContent.FLEX_START,
@@ -463,8 +463,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
       -- Section items with extreme properties
       for item = 1, 4 do
         local sectionItem = Gui.new({
-          h = 24,
-          w = item == 2 and 0 or nil, -- Zero width test
+          height = 24,
+          width = item == 2 and 0 or nil, -- Zero width test
           positioning = item == 4 and Positioning.ABSOLUTE or nil,
           x = item == 4 and 50 or nil,
           y = item == 4 and 50 or nil,
@@ -477,8 +477,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
         if item <= 2 then
           for nested = 1, 2 do
             local nestedItem = Gui.new({
-              w = nested == 1 and 999999 or 20, -- Extreme width
-              h = 12,
+              width = nested == 1 and 999999 or 20, -- Extreme width
+              height = 12,
               positioning = Positioning.FLEX,
               flexDirection = FlexDirection.HORIZONTAL,
               justifyContent = JustifyContent.CENTER,
@@ -493,8 +493,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Content area with complex validation scenarios
     local content = Gui.new({
-      w = 950,
-      h = 740,
+      width = 950,
+      height = 740,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -506,7 +506,7 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Content grid with wrapping and validation challenges
     local contentGrid = Gui.new({
-      h = 600,
+      height = 600,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       flexWrap = FlexWrap.WRAP,
@@ -521,8 +521,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
     -- Grid items with validation edge cases
     for i = 1, 12 do
       local gridItem = Gui.new({
-        w = i % 4 == 0 and 0 or 200, -- Some zero width items
-        h = i % 3 == 0 and -50 or 150, -- Some negative height items
+        width = i % 4 == 0 and 0 or 200, -- Some zero width items
+        height = i % 3 == 0 and -50 or 150, -- Some negative height items
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
         justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -535,8 +535,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
       -- Grid item content with extreme values
       for j = 1, 3 do
         local itemContent = Gui.new({
-          h = j == 1 and 999999 or 40, -- Extreme height
-          w = j == 2 and -100 or nil, -- Negative width
+          height = j == 1 and 999999 or 40, -- Extreme height
+          width = j == 2 and -100 or nil, -- Negative width
           positioning = j == 3 and Positioning.ABSOLUTE or nil,
           x = j == 3 and -500 or nil, -- Extreme negative position
           y = j == 3 and 1000000 or nil, -- Extreme positive position
@@ -548,7 +548,7 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
 
     -- Footer with final validation tests
     local footer = Gui.new({
-      h = 140,
+      height = 140,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_AROUND,
@@ -562,8 +562,8 @@ function TestLayoutValidation:testComplexMultiLevelLayoutValidation()
     -- Footer sections with final edge cases
     for i = 1, 4 do
       local footerSection = Gui.new({
-        w = i == 1 and 0 or 200,
-        h = i == 2 and -1000 or 100,
+        width = i == 1 and 0 or 200,
+        height = i == 2 and -1000 or 100,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
         justifyContent = JustifyContent.CENTER,
@@ -618,8 +618,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
     local dashboard = Gui.new({
       x = 0,
       y = 0,
-      w = 1000,
-      h = 600,
+      width = 1000,
+      height = 600,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -629,7 +629,7 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
 
     -- Metrics row that will be modified
     local metricsRow = Gui.new({
-      h = 120,
+      height = 120,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       flexWrap = FlexWrap.WRAP,
@@ -645,8 +645,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
     local metrics = {}
     for i = 1, 6 do
       local metric = Gui.new({
-        w = 150,
-        h = 80,
+        width = 150,
+        height = 80,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
         justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -660,8 +660,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
       -- Metric content
       for j = 1, 3 do
         local content = Gui.new({
-          w = 100,
-          h = 20,
+          width = 100,
+          height = 20,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           justifyContent = JustifyContent.CENTER,
@@ -674,7 +674,7 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
 
     -- Content area that will receive dynamic changes
     local contentArea = Gui.new({
-      h = 480,
+      height = 480,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -687,8 +687,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
 
     -- Left panel for modifications
     local leftPanel = Gui.new({
-      w = 300,
-      h = 460,
+      width = 300,
+      height = 460,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -700,8 +700,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
 
     -- Right panel with nested complexity
     local rightPanel = Gui.new({
-      w = 640,
-      h = 460,
+      width = 640,
+      height = 460,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -714,7 +714,7 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
     -- Create nested content for validation testing
     for i = 1, 3 do
       local section = Gui.new({
-        h = 140,
+        height = 140,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         flexWrap = FlexWrap.WRAP,
@@ -729,8 +729,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
       -- Section items for modification testing
       for j = 1, 8 do
         local item = Gui.new({
-          w = 80,
-          h = 60,
+          width = 80,
+          height = 60,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.VERTICAL,
           justifyContent = JustifyContent.CENTER,
@@ -796,8 +796,8 @@ function TestLayoutValidation:testComplexDynamicPropertyValidation()
 
     -- Test 9: Add/remove children dynamically
     local newMetric = Gui.new({
-      w = 0,
-      h = -50,
+      width = 0,
+      height = -50,
       positioning = Positioning.ABSOLUTE,
       x = -1000,
       y = -1000,
@@ -847,22 +847,22 @@ function TestLayoutValidation:testCircularReferenceValidation()
     local container1 = Gui.new({
       x = 0,
       y = 0,
-      w = 200,
-      h = 200,
+      width = 200,
+      height = 200,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
     })
 
     local container2 = Gui.new({
-      w = 180,
-      h = 180,
+      width = 180,
+      height = 180,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
     })
 
     local container3 = Gui.new({
-      w = 160,
-      h = 160,
+      width = 160,
+      height = 160,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
     })
@@ -899,15 +899,15 @@ function TestLayoutValidation:testCircularReferenceValidation()
 
     -- Test case 2: Complex nested structure with potential circular refs
     local container4 = Gui.new({
-      w = 140,
-      h = 140,
+      width = 140,
+      height = 140,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
     })
 
     local container5 = Gui.new({
-      w = 120,
-      h = 120,
+      width = 120,
+      height = 120,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
     })
@@ -962,8 +962,8 @@ function TestLayoutValidation:testLargeStructureValidation()
     local root = Gui.new({
       x = 0,
       y = 0,
-      w = 2000,
-      h = 1500,
+      width = 2000,
+      height = 1500,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -983,8 +983,8 @@ function TestLayoutValidation:testLargeStructureValidation()
 
       for i = 1, items do
         local container = Gui.new({
-          w = depth == 1 and 400 or 100,
-          h = depth == 1 and 200 or 50,
+          width = depth == 1 and 400 or 100,
+          height = depth == 1 and 200 or 50,
           positioning = Positioning.FLEX,
           flexDirection = i % 2 == 0 and FlexDirection.HORIZONTAL or FlexDirection.VERTICAL,
           flexWrap = i % 3 == 0 and FlexWrap.WRAP or FlexWrap.NOWRAP,
@@ -1000,8 +1000,8 @@ function TestLayoutValidation:testLargeStructureValidation()
         if depth >= 3 then
           for j = 1, 3 do
             local leaf = Gui.new({
-              w = 20 + j * 5,
-              h = 15 + j * 3,
+              width = 20 + j * 5,
+              height = 15 + j * 3,
               positioning = j == 3 and Positioning.ABSOLUTE or nil,
               x = j == 3 and j * 10 or nil,
               y = j == 3 and j * 10 or nil,
@@ -1128,8 +1128,8 @@ function TestLayoutValidation:testComplexFlexCombinationValidation()
     local mainContainer = Gui.new({
       x = 0,
       y = 0,
-      w = 2400,
-      h = 1800,
+      width = 2400,
+      height = 1800,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       flexWrap = FlexWrap.WRAP,
@@ -1149,8 +1149,8 @@ function TestLayoutValidation:testComplexFlexCombinationValidation()
             combinationCount = combinationCount + 1
 
             local testContainer = Gui.new({
-              w = 200,
-              h = 150,
+              width = 200,
+              height = 150,
               positioning = Positioning.FLEX,
               flexDirection = flexDir,
               justifyContent = justify,
@@ -1165,8 +1165,8 @@ function TestLayoutValidation:testComplexFlexCombinationValidation()
             -- Add children with edge case properties
             for i = 1, 6 do
               local child = Gui.new({
-                w = i == 1 and 0 or (i == 2 and -10 or (i == 6 and 999999 or 30)),
-                h = i == 3 and 0 or (i == 4 and -5 or (i == 5 and 1000000 or 20)),
+                width = i == 1 and 0 or (i == 2 and -10 or (i == 6 and 999999 or 30)),
+                height = i == 3 and 0 or (i == 4 and -5 or (i == 5 and 1000000 or 20)),
                 positioning = i == 6 and Positioning.ABSOLUTE or nil,
                 x = i == 6 and -100 or nil,
                 y = i == 6 and 200 or nil,
@@ -1177,8 +1177,8 @@ function TestLayoutValidation:testComplexFlexCombinationValidation()
               -- Add nested content to some children
               if i <= 3 then
                 local nested = Gui.new({
-                  w = 15,
-                  h = 10,
+                  width = 15,
+                  height = 10,
                   positioning = Positioning.FLEX,
                   flexDirection = FlexDirection.HORIZONTAL,
                   justifyContent = JustifyContent.CENTER,

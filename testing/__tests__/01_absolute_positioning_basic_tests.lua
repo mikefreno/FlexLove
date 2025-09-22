@@ -1,4 +1,4 @@
-package.path = package.path .. ";?.lua"
+package.patheight = package.path .. ";?.lua"
 
 local luaunit = require("testing/luaunit")
 require("testing/loveStub") -- Required to mock LOVE functions
@@ -25,8 +25,8 @@ function TestAbsolutePositioningBasic:testCreateElementWithAbsolutePositioning()
   local elem = Gui.new({
     x = 100,
     y = 200,
-    w = 300,
-    h = 150,
+    width = 300,
+    height = 150,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -47,8 +47,8 @@ function TestAbsolutePositioningBasic:testDefaultAbsolutePositioning()
   local elem = Gui.new({
     x = 50,
     y = 75,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
   })
 
   -- Default should be relative positioning
@@ -62,8 +62,8 @@ function TestAbsolutePositioningBasic:testZIndexHandling()
   local elem1 = Gui.new({
     x = 0,
     y = 0,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     z = 1,
     positioning = Positioning.ABSOLUTE,
   })
@@ -71,8 +71,8 @@ function TestAbsolutePositioningBasic:testZIndexHandling()
   local elem2 = Gui.new({
     x = 50,
     y = 50,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     z = 5,
     positioning = Positioning.ABSOLUTE,
   })
@@ -80,8 +80,8 @@ function TestAbsolutePositioningBasic:testZIndexHandling()
   local elem3 = Gui.new({
     x = 25,
     y = 25,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     z = 3,
     positioning = Positioning.ABSOLUTE,
   })
@@ -99,8 +99,8 @@ function TestAbsolutePositioningBasic:testDefaultZIndex()
   local elem = Gui.new({
     x = 10,
     y = 20,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -112,16 +112,16 @@ function TestAbsolutePositioningBasic:testCoordinateIndependence()
   local elem1 = Gui.new({
     x = 100,
     y = 100,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
     positioning = Positioning.ABSOLUTE,
   })
 
   local elem2 = Gui.new({
     x = 200,
     y = 200,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -142,8 +142,8 @@ function TestAbsolutePositioningBasic:testAbsoluteWithParentIndependentCoordinat
   local parent = Gui.new({
     x = 50,
     y = 50,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -151,8 +151,8 @@ function TestAbsolutePositioningBasic:testAbsoluteWithParentIndependentCoordinat
     parent = parent,
     x = 25,
     y = 25,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -174,8 +174,8 @@ function TestAbsolutePositioningBasic:testMultipleAbsoluteElementsNonInterferenc
     elements[i] = Gui.new({
       x = i * 10,
       y = i * 20,
-      w = 30,
-      h = 40,
+      width = 30,
+      height = 40,
       z = i,
       positioning = Positioning.ABSOLUTE,
     })
@@ -198,8 +198,8 @@ function TestAbsolutePositioningBasic:testNegativeCoordinates()
   local elem = Gui.new({
     x = -50,
     y = -100,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -212,8 +212,8 @@ function TestAbsolutePositioningBasic:testZeroCoordinates()
   local elem = Gui.new({
     x = 0,
     y = 0,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -224,8 +224,8 @@ end
 -- Test 10: Default coordinates when not specified
 function TestAbsolutePositioningBasic:testDefaultCoordinates()
   local elem = Gui.new({
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -239,8 +239,8 @@ function TestAbsolutePositioningBasic:testElementBounds()
   local elem = Gui.new({
     x = 100,
     y = 200,
-    w = 300,
-    h = 400,
+    width = 300,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -256,8 +256,8 @@ function TestAbsolutePositioningBasic:testParentChildRelationshipAbsolute()
   local parent = Gui.new({
     x = 100,
     y = 100,
-    w = 300,
-    h = 300,
+    width = 300,
+    height = 300,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -265,8 +265,8 @@ function TestAbsolutePositioningBasic:testParentChildRelationshipAbsolute()
     parent = parent,
     x = 50,
     y = 75,
-    w = 100,
-    h = 150,
+    width = 100,
+    height = 150,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -288,15 +288,15 @@ function TestAbsolutePositioningBasic:testAbsoluteChildNoParentAutoSizeAffect()
     positioning = Positioning.ABSOLUTE,
   })
 
-  local originalParentWidth = parent.width
+  local originalParentWidtheight = parent.width
   local originalParentHeight = parent.height
 
   local child = Gui.new({
     parent = parent,
     x = 1000, -- Far outside parent
     y = 1000,
-    w = 500,
-    h = 500,
+    width = 500,
+    height = 500,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -311,16 +311,16 @@ function TestAbsolutePositioningBasic:testAbsoluteNoFlexParticipation()
   local flexParent = Gui.new({
     x = 0,
     y = 0,
-    w = 400,
-    h = 200,
+    width = 400,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = enums.FlexDirection.HORIZONTAL,
   })
 
   local flexChild = Gui.new({
     parent = flexParent,
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
     positioning = Positioning.FLEX,
   })
 
@@ -328,8 +328,8 @@ function TestAbsolutePositioningBasic:testAbsoluteNoFlexParticipation()
     parent = flexParent,
     x = 300,
     y = 150,
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.ABSOLUTE,
   })
 
@@ -347,8 +347,8 @@ function TestAbsolutePositioningBasic:testLargeCoordinateValues()
   local elem = Gui.new({
     x = 9999,
     y = 8888,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     z = 1000,
     positioning = Positioning.ABSOLUTE,
   })
@@ -372,8 +372,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "root",
     x = 100,
     y = 100,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -384,8 +384,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "child1",
     x = 50,
     y = 50,
-    w = 300,
-    h = 400,
+    width = 300,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -395,8 +395,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "grandchild1",
     x = 25,
     y = 25,
-    w = 150,
-    h = 200,
+    width = 150,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -406,8 +406,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "greatGrandchild1",
     x = 10,
     y = 10,
-    w = 50,
-    h = 75,
+    width = 50,
+    height = 75,
     positioning = Positioning.ABSOLUTE,
     z = 4,
   })
@@ -418,8 +418,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "child2",
     x = 450,
     y = 50,
-    w = 300,
-    h = 400,
+    width = 300,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -429,8 +429,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "grandchild2",
     x = 125,
     y = 175,
-    w = 150,
-    h = 200,
+    width = 150,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -440,8 +440,8 @@ function TestAbsolutePositioningBasic:testComplexNestedAbsoluteTree()
     id = "greatGrandchild2",
     x = 90,
     y = 160,
-    w = 50,
-    h = 75,
+    width = 50,
+    height = 75,
     positioning = Positioning.ABSOLUTE,
     z = 4,
   })
@@ -487,8 +487,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "root",
     x = 400,
     y = 100,
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -499,8 +499,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "left",
     x = 200,
     y = 200,
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -510,8 +510,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "right",
     x = 600,
     y = 200,
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -522,8 +522,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "leftLeft",
     x = 100,
     y = 300,
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -533,8 +533,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "leftRight",
     x = 300,
     y = 300,
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -545,8 +545,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "rightLeft",
     x = 500,
     y = 300,
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -556,8 +556,8 @@ function TestAbsolutePositioningBasic:testBinaryTreeAbsoluteStructure()
     id = "rightRight",
     x = 700,
     y = 300,
-    w = 60,
-    h = 30,
+    width = 60,
+    height = 30,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -588,8 +588,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "container",
     x = 0,
     y = 0,
-    w = 1000,
-    h = 1000,
+    width = 1000,
+    height = 1000,
     positioning = Positioning.ABSOLUTE,
     z = 0,
   })
@@ -600,8 +600,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "background",
     x = 100,
     y = 100,
-    w = 800,
-    h = 800,
+    width = 800,
+    height = 800,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -612,8 +612,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "middleParent",
     x = 200,
     y = 200,
-    w = 600,
-    h = 600,
+    width = 600,
+    height = 600,
     positioning = Positioning.ABSOLUTE,
     z = 5,
   })
@@ -623,8 +623,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "middleChild1",
     x = 50,
     y = 50,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 1, -- relative to middleParent
   })
@@ -634,8 +634,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "middleChild2",
     x = 350,
     y = 350,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 2, -- relative to middleParent, above middleChild1
   })
@@ -646,8 +646,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "foreground",
     x = 300,
     y = 300,
-    w = 400,
-    h = 400,
+    width = 400,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
     z = 10,
   })
@@ -657,8 +657,8 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
     id = "foregroundChild",
     x = 150,
     y = 150,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -688,8 +688,8 @@ function TestAbsolutePositioningBasic:testWideShallowAbsoluteTree()
     id = "container",
     x = 0,
     y = 0,
-    w = 2000,
-    h = 500,
+    width = 2000,
+    height = 500,
     positioning = Positioning.ABSOLUTE,
     z = 0,
   })
@@ -702,8 +702,8 @@ function TestAbsolutePositioningBasic:testWideShallowAbsoluteTree()
       id = "sibling" .. i,
       x = i * 180,
       y = 100,
-      w = 150,
-      h = 300,
+      width = 150,
+      height = 300,
       positioning = Positioning.ABSOLUTE,
       z = i, -- Each has different z-index
     })
@@ -715,8 +715,8 @@ function TestAbsolutePositioningBasic:testWideShallowAbsoluteTree()
         id = "child" .. i .. "_" .. j,
         x = 25,
         y = j * 80,
-        w = 100,
-        h = 60,
+        width = 100,
+        height = 60,
         positioning = Positioning.ABSOLUTE,
         z = j,
       })
@@ -740,20 +740,20 @@ function TestAbsolutePositioningBasic:testAsymmetricAbsoluteTree()
     id = "root",
     x = 500,
     y = 100,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
 
   -- Left branch: deep nesting
-  local leftBranch = Gui.new({
+  local leftBrancheight = Gui.new({
     parent = root,
     id = "leftBranch",
     x = 100,
     y = 250,
-    w = 150,
-    h = 400,
+    width = 150,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -763,8 +763,8 @@ function TestAbsolutePositioningBasic:testAsymmetricAbsoluteTree()
     id = "leftDeep1",
     x = 25,
     y = 50,
-    w = 100,
-    h = 80,
+    width = 100,
+    height = 80,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -774,8 +774,8 @@ function TestAbsolutePositioningBasic:testAsymmetricAbsoluteTree()
     id = "leftDeep2",
     x = 10,
     y = 10,
-    w = 80,
-    h = 60,
+    width = 80,
+    height = 60,
     positioning = Positioning.ABSOLUTE,
     z = 4,
   })
@@ -785,20 +785,20 @@ function TestAbsolutePositioningBasic:testAsymmetricAbsoluteTree()
     id = "leftDeep3",
     x = 5,
     y = 5,
-    w = 70,
-    h = 50,
+    width = 70,
+    height = 50,
     positioning = Positioning.ABSOLUTE,
     z = 5,
   })
 
   -- Right branch: wide shallow
-  local rightBranch = Gui.new({
+  local rightBrancheight = Gui.new({
     parent = root,
     id = "rightBranch",
     x = 800,
     y = 250,
-    w = 400,
-    h = 200,
+    width = 400,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -810,8 +810,8 @@ function TestAbsolutePositioningBasic:testAsymmetricAbsoluteTree()
       id = "rightChild" .. i,
       x = i * 70,
       y = 50,
-      w = 60,
-      h = 100,
+      width = 60,
+      height = 100,
       positioning = Positioning.ABSOLUTE,
       z = i,
     })
@@ -839,8 +839,8 @@ function TestAbsolutePositioningBasic:testOverlappingNegativeCoordinates()
     id = "viewport",
     x = 500,
     y = 500,
-    w = 400,
-    h = 400,
+    width = 400,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
     z = 0,
   })
@@ -851,8 +851,8 @@ function TestAbsolutePositioningBasic:testOverlappingNegativeCoordinates()
     id = "topLeft",
     x = -100,
     y = -100,
-    w = 200,
-    h = 200,
+    width = 200,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -862,8 +862,8 @@ function TestAbsolutePositioningBasic:testOverlappingNegativeCoordinates()
     id = "topRight",
     x = 300,
     y = -50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = Positioning.ABSOLUTE,
     z = 2,
   })
@@ -873,8 +873,8 @@ function TestAbsolutePositioningBasic:testOverlappingNegativeCoordinates()
     id = "bottomLeft",
     x = -50,
     y = 350,
-    w = 150,
-    h = 200,
+    width = 150,
+    height = 200,
     positioning = Positioning.ABSOLUTE,
     z = 3,
   })
@@ -884,8 +884,8 @@ function TestAbsolutePositioningBasic:testOverlappingNegativeCoordinates()
     id = "center",
     x = 150,
     y = 150,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.ABSOLUTE,
     z = 10, -- Highest z-index
   })
@@ -912,8 +912,8 @@ function TestAbsolutePositioningBasic:testCircularPositioningPattern()
     id = "center",
     x = 400,
     y = 400,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -932,8 +932,8 @@ function TestAbsolutePositioningBasic:testCircularPositioningPattern()
       id = "orbiter" .. i,
       x = math.floor(x),
       y = math.floor(y),
-      w = 50,
-      h = 50,
+      width = 50,
+      height = 50,
       positioning = Positioning.ABSOLUTE,
       z = i,
     })
@@ -944,8 +944,8 @@ function TestAbsolutePositioningBasic:testCircularPositioningPattern()
       id = "orbiterChild" .. i,
       x = 10,
       y = 10,
-      w = 30,
-      h = 30,
+      width = 30,
+      height = 30,
       positioning = Positioning.ABSOLUTE,
       z = 1,
     })
@@ -966,8 +966,8 @@ function TestAbsolutePositioningBasic:testDeepSingleBranchChain()
     id = "root",
     x = 100,
     y = 100,
-    w = 500,
-    h = 500,
+    width = 500,
+    height = 500,
     positioning = Positioning.ABSOLUTE,
     z = 1,
   })
@@ -979,8 +979,8 @@ function TestAbsolutePositioningBasic:testDeepSingleBranchChain()
       id = "depth" .. i,
       x = 10,
       y = 10,
-      w = math.max(50, 500 - (i * 25)), -- Decreasing width
-      h = math.max(50, 500 - (i * 25)), -- Decreasing height
+      width = math.max(50, 500 - (i * 25)), -- Decreasing width
+      height = math.max(50, 500 - (i * 25)), -- Decreasing height
       positioning = Positioning.ABSOLUTE,
       z = i,
     })
@@ -1011,8 +1011,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
     id = "desktop",
     x = 0,
     y = 0,
-    w = 1920,
-    h = 1080,
+    width = 1920,
+    height = 1080,
     positioning = Positioning.ABSOLUTE,
     z = 0,
   })
@@ -1023,8 +1023,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
     id = "taskbar",
     x = 0,
     y = 1040,
-    w = 1920,
-    h = 40,
+    width = 1920,
+    height = 40,
     positioning = Positioning.ABSOLUTE,
     z = 100, -- Always on top
   })
@@ -1035,8 +1035,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
     id = "window1",
     x = 100,
     y = 100,
-    w = 600,
-    h = 400,
+    width = 600,
+    height = 400,
     positioning = Positioning.ABSOLUTE,
     z = 10,
   })
@@ -1046,8 +1046,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
     id = "window2",
     x = 300,
     y = 200,
-    w = 500,
-    h = 350,
+    width = 500,
+    height = 350,
     positioning = Positioning.ABSOLUTE,
     z = 15, -- Above window1
   })
@@ -1057,8 +1057,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
     id = "window3",
     x = 200,
     y = 150,
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
     positioning = Positioning.ABSOLUTE,
     z = 5, -- Behind window1 and window2
   })
@@ -1070,8 +1070,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
       id = window.id .. "_titlebar",
       x = 0,
       y = 0,
-      w = window.width,
-      h = 30,
+      width = window.width,
+      height = 30,
       positioning = Positioning.ABSOLUTE,
       z = 1,
     })
@@ -1081,8 +1081,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
       id = window.id .. "_content",
       x = 0,
       y = 30,
-      w = window.width,
-      h = window.height - 30,
+      width = window.width,
+      height = window.height - 30,
       positioning = Positioning.ABSOLUTE,
       z = 1,
     })
@@ -1094,8 +1094,8 @@ function TestAbsolutePositioningBasic:testComplexBranchingWithOverlaps()
         id = window.id .. "_item" .. j,
         x = j * 50,
         y = j * 40,
-        w = 80,
-        h = 30,
+        width = 80,
+        height = 30,
         positioning = Positioning.ABSOLUTE,
         z = j,
       })

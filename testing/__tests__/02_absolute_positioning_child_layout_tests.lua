@@ -34,16 +34,16 @@ function TestAbsolutePositioningChildLayout:testAddChildToAbsoluteParent()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local child = Gui.new({
     id = "child",
     x = 10,
     y = 20,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   parent:addChild(child)
@@ -61,24 +61,24 @@ function TestAbsolutePositioningChildLayout:testChildrenMaintainCoordinates()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local child1 = Gui.new({
     id = "child1",
     x = 10,
     y = 20,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
     x = 75,
     y = 85,
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   parent:addChild(child1)
@@ -98,8 +98,8 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentSkipsLayoutChildre
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     flexDirection = FlexDirection.HORIZONTAL,
   })
 
@@ -107,16 +107,16 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentSkipsLayoutChildre
     id = "child1",
     x = 10,
     y = 20,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
     x = 200, -- Way beyond parent w - this would be repositioned in flex layout
     y = 300,
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   parent:addChild(child1)
@@ -137,8 +137,8 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentFlexPropertiesUnch
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.CENTER,
     alignItems = AlignItems.FLEX_END,
@@ -148,8 +148,8 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentFlexPropertiesUnch
     id = "child",
     x = 10,
     y = 20,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   -- Store original values
@@ -176,8 +176,8 @@ function TestAbsolutePositioningChildLayout:testMultipleChildrenIndependentPosit
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 300,
-    h = 300,
+    width = 300,
+    height = 300,
   })
 
   local children = {}
@@ -186,8 +186,8 @@ function TestAbsolutePositioningChildLayout:testMultipleChildrenIndependentPosit
       id = "child" .. i,
       x = i * 25,
       y = i * 30,
-      w = 20,
-      h = 15,
+      width = 20,
+      height = 15,
     })
     parent:addChild(children[i])
   end
@@ -209,16 +209,16 @@ function TestAbsolutePositioningChildLayout:testAbsoluteChildrenIgnoreFlexLayout
     positioning = Positioning.FLEX,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
   })
 
   local flexChild = Gui.new({
     id = "flex_child",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local absoluteChild = Gui.new({
@@ -226,8 +226,8 @@ function TestAbsolutePositioningChildLayout:testAbsoluteChildrenIgnoreFlexLayout
     positioning = Positioning.ABSOLUTE,
     x = 200,
     y = 40,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   parent:addChild(flexChild)
@@ -249,16 +249,16 @@ function TestAbsolutePositioningChildLayout:testChildCoordinatesIndependentOfPar
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local child = Gui.new({
     id = "child",
     x = 25,
     y = 30,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
   })
 
   parent:addChild(child)
@@ -279,8 +279,8 @@ function TestAbsolutePositioningChildLayout:testNestedAbsolutePositioning()
     positioning = Positioning.ABSOLUTE,
     x = 50,
     y = 25,
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
   })
 
   local parent = Gui.new({
@@ -288,16 +288,16 @@ function TestAbsolutePositioningChildLayout:testNestedAbsolutePositioning()
     positioning = Positioning.ABSOLUTE,
     x = 75,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local child = Gui.new({
     id = "child",
     x = 10,
     y = 20,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   grandparent:addChild(parent)
@@ -320,15 +320,15 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentWithFlexChildren()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local flexChild = Gui.new({
     id = "flex_child",
     positioning = Positioning.FLEX,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   parent:addChild(flexChild)
@@ -352,8 +352,8 @@ function TestAbsolutePositioningChildLayout:testAutoSizingWithAbsoluteParentAndC
     id = "child",
     x = 10,
     y = 20,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   parent:addChild(child)
@@ -371,8 +371,8 @@ function TestAbsolutePositioningChildLayout:testChildrenPreservePositioningType(
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local absoluteChild = Gui.new({
@@ -380,15 +380,15 @@ function TestAbsolutePositioningChildLayout:testChildrenPreservePositioningType(
     positioning = Positioning.ABSOLUTE,
     x = 25,
     y = 30,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
   })
 
   local flexChild = Gui.new({
     id = "flex_child",
     positioning = Positioning.FLEX,
-    w = 60,
-    h = 35,
+    width = 60,
+    height = 35,
   })
 
   parent:addChild(absoluteChild)
@@ -406,16 +406,16 @@ function TestAbsolutePositioningChildLayout:testParentChildCoordinateRelationshi
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local child = Gui.new({
     id = "child",
     x = 25,
     y = 30,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
   })
 
   parent:addChild(child)
@@ -434,8 +434,8 @@ function TestAbsolutePositioningChildLayout:testAddChildNoParentRepositioning()
     positioning = Positioning.ABSOLUTE,
     x = 150,
     y = 75,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local originalX = parent.x
@@ -445,8 +445,8 @@ function TestAbsolutePositioningChildLayout:testAddChildNoParentRepositioning()
     id = "child",
     x = 25,
     y = 30,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
   })
 
   parent:addChild(child)
@@ -463,13 +463,13 @@ function TestAbsolutePositioningChildLayout:testChildrenTableMaintained()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
-  local child1 = Gui.new({ id = "child1", x = 10, y = 20, w = 50, h = 30 })
-  local child2 = Gui.new({ id = "child2", x = 70, y = 80, w = 40, h = 25 })
-  local child3 = Gui.new({ id = "child3", x = 120, y = 90, w = 30, h = 35 })
+  local child1 = Gui.new({ id = "child1", x = 10, y = 20, width = 50, height = 30 })
+  local child2 = Gui.new({ id = "child2", x = 70, y = 80, width = 40, height = 25 })
+  local child3 = Gui.new({ id = "child3", x = 120, y = 90, width = 30, height = 35 })
 
   parent:addChild(child1)
   luaunit.assertEquals(#parent.children, 1)
@@ -496,8 +496,8 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentMixedChildTypes()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 50,
-    w = 300,
-    h = 200,
+    width = 300,
+    height = 200,
   })
 
   local absoluteChild = Gui.new({
@@ -505,15 +505,15 @@ function TestAbsolutePositioningChildLayout:testAbsoluteParentMixedChildTypes()
     positioning = Positioning.ABSOLUTE,
     x = 25,
     y = 30,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
   })
 
   local flexChild = Gui.new({
     id = "flex_child",
     positioning = Positioning.FLEX,
-    w = 60,
-    h = 35,
+    width = 60,
+    height = 35,
   })
 
   parent:addChild(absoluteChild)
@@ -548,8 +548,8 @@ function TestAbsolutePositioningChildLayout:testDeepHierarchyMixedPositioning()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 100,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
   })
 
   local flexLevel1 = Gui.new({
@@ -559,8 +559,8 @@ function TestAbsolutePositioningChildLayout:testDeepHierarchyMixedPositioning()
     flexDirection = FlexDirection.HORIZONTAL,
     x = 50, -- Should be ignored due to flex positioning
     y = 50,
-    w = 700,
-    h = 500,
+    width = 700,
+    height = 500,
     gap = 20,
   })
 
@@ -571,24 +571,24 @@ function TestAbsolutePositioningChildLayout:testDeepHierarchyMixedPositioning()
     positioning = Positioning.ABSOLUTE,
     x = 600, -- Absolute position within flex parent
     y = 400,
-    w = 150,
-    h = 100,
+    width = 150,
+    height = 100,
   })
 
   local flexChild1 = Gui.new({
     parent = flexLevel1,
     id = "flexChild1",
     positioning = Positioning.FLEX,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local flexChild2 = Gui.new({
     parent = flexLevel1,
     id = "flexChild2",
     positioning = Positioning.FLEX,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   -- Add grandchildren to flex children
@@ -598,16 +598,16 @@ function TestAbsolutePositioningChildLayout:testDeepHierarchyMixedPositioning()
     positioning = Positioning.ABSOLUTE,
     x = 75,
     y = 75,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
   })
 
   local flexGrandchild = Gui.new({
     parent = flexChild2,
     id = "flexGrandchild",
     positioning = Positioning.FLEX,
-    w = 100,
-    h = 75,
+    width = 100,
+    height = 75,
   })
 
   -- Verify hierarchy structure
@@ -641,8 +641,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 800,
+    width = 1200,
+    height = 800,
   })
 
   -- Left branch: Absolute parent with flex children
@@ -652,8 +652,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
     positioning = Positioning.ABSOLUTE,
     x = 50,
     y = 50,
-    w = 500,
-    h = 700,
+    width = 500,
+    height = 700,
   })
 
   -- Flex container within absolute parent
@@ -662,8 +662,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
     id = "leftFlexContainer",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 400,
-    h = 600,
+    width = 400,
+    height = 600,
     gap = 15,
   })
 
@@ -673,8 +673,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
       parent = leftFlexContainer,
       id = "leftFlexChild" .. i,
       positioning = Positioning.FLEX,
-      w = 350,
-      h = 120,
+      width = 350,
+      height = 120,
     })
 
     -- Each flex child has absolute grandchildren
@@ -685,8 +685,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
         positioning = Positioning.ABSOLUTE,
         x = j * 100,
         y = 20,
-        w = 80,
-        h = 80,
+        width = 80,
+        height = 80,
       })
     end
   end
@@ -699,8 +699,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
       positioning = Positioning.ABSOLUTE,
       x = 450,
       y = i * 200,
-      w = 40,
-      h = 150,
+      width = 40,
+      height = 150,
     })
   end
 
@@ -711,8 +711,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
     positioning = Positioning.ABSOLUTE,
     x = 650,
     y = 50,
-    w = 500,
-    h = 700,
+    width = 500,
+    height = 700,
   })
 
   local rightFlexContainer = Gui.new({
@@ -720,8 +720,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
     id = "rightFlexContainer",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 450,
-    h = 200,
+    width = 450,
+    height = 200,
     gap = 10,
   })
 
@@ -731,8 +731,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
       parent = rightFlexContainer,
       id = "rightFlexChild" .. i,
       positioning = Positioning.FLEX,
-      w = 130,
-      h = 180,
+      width = 130,
+      height = 180,
     })
 
     -- Nested flex container
@@ -741,8 +741,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
       id = "rightNestedFlex" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 120,
-      h = 170,
+      width = 120,
+      height = 170,
       gap = 5,
     })
 
@@ -752,8 +752,8 @@ function TestAbsolutePositioningChildLayout:testMultiBranchAbsoluteWithMixedChil
         parent = nestedFlex,
         id = "rightNestedChild" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = 110,
-        h = 50,
+        width = 110,
+        height = 50,
       })
     end
   end
@@ -781,8 +781,8 @@ function TestAbsolutePositioningChildLayout:testCascadeAbsoluteWithZIndexConflic
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1000,
-    h = 1000,
+    width = 1000,
+    height = 1000,
     z = 0,
   })
 
@@ -795,8 +795,8 @@ function TestAbsolutePositioningChildLayout:testCascadeAbsoluteWithZIndexConflic
       positioning = Positioning.ABSOLUTE,
       x = i * 50,
       y = i * 50,
-      w = 600,
-      h = 600,
+      width = 600,
+      height = 600,
       z = 6 - i, -- Reverse z-index (layer1=5, layer2=4, etc.)
     })
 
@@ -808,8 +808,8 @@ function TestAbsolutePositioningChildLayout:testCascadeAbsoluteWithZIndexConflic
         positioning = Positioning.ABSOLUTE,
         x = j * 100,
         y = j * 100,
-        w = 200,
-        h = 200,
+        width = 200,
+        height = 200,
         z = j, -- Same z-index pattern across all layers
       })
 
@@ -821,8 +821,8 @@ function TestAbsolutePositioningChildLayout:testCascadeAbsoluteWithZIndexConflic
           positioning = Positioning.ABSOLUTE,
           x = k * 30,
           y = k * 30,
-          w = 50,
-          h = 50,
+          width = 50,
+          height = 50,
           z = k,
         })
       end
@@ -858,8 +858,8 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 100,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
   })
 
   local rows, cols = 4, 5
@@ -868,7 +868,7 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
 
   -- Create grid cells
   local cells = {}
-  for row = 1, rows do
+  for rowidth = 1, rows do
     cells[row] = {}
     for col = 1, cols do
       local x = (col - 1) * (cellWidth + gap)
@@ -880,8 +880,8 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
         positioning = Positioning.ABSOLUTE,
         x = x,
         y = y,
-        w = cellWidth,
-        h = cellHeight,
+        width = cellWidth,
+        height = cellHeight,
         z = row * cols + col, -- Unique z-index for each cell
       })
 
@@ -892,8 +892,8 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
         positioning = Positioning.ABSOLUTE,
         x = 0,
         y = 0,
-        w = cellWidth,
-        h = 30,
+        width = cellWidth,
+        height = 30,
         z = 1,
       })
 
@@ -903,8 +903,8 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
         positioning = Positioning.ABSOLUTE,
         x = 5,
         y = 35,
-        w = cellWidth - 10,
-        h = cellHeight - 40,
+        width = cellWidth - 10,
+        height = cellHeight - 40,
         z = 1,
       })
 
@@ -916,8 +916,8 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
           positioning = Positioning.ABSOLUTE,
           x = 10,
           y = i * 25,
-          w = cellWidth - 30,
-          h = 20,
+          width = cellWidth - 30,
+          height = 20,
           z = i,
         })
       end
@@ -927,7 +927,7 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
   -- Verify grid structure
   luaunit.assertEquals(#grid.children, rows * cols)
 
-  for row = 1, rows do
+  for rowidth = 1, rows do
     for col = 1, cols do
       local cell = cells[row][col]
       local expectedX = (col - 1) * (cellWidth + gap)
@@ -950,8 +950,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1920,
-    h = 1080,
+    width = 1920,
+    height = 1080,
     z = 0,
   })
 
@@ -962,8 +962,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1920,
-    h = 1080,
+    width = 1920,
+    height = 1080,
     z = 1,
   })
 
@@ -974,8 +974,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1920,
-    h = 1080,
+    width = 1920,
+    height = 1080,
     z = 1000, -- High z-index for overlay
   })
 
@@ -986,8 +986,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 460, -- Centered: (1920 - 1000) / 2
     y = 290, -- Centered: (1080 - 500) / 2
-    w = 1000,
-    h = 500,
+    width = 1000,
+    height = 500,
     z = 1001,
   })
 
@@ -998,8 +998,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1000,
-    h = 50,
+    width = 1000,
+    height = 50,
     z = 1,
   })
 
@@ -1010,8 +1010,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 50,
-    w = 1000,
-    h = 400,
+    width = 1000,
+    height = 400,
     z = 1,
   })
 
@@ -1022,8 +1022,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1000,
-    h = 40,
+    width = 1000,
+    height = 40,
     z = 2,
   })
 
@@ -1035,8 +1035,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
       positioning = Positioning.ABSOLUTE,
       x = (i - 1) * 250,
       y = 0,
-      w = 250,
-      h = 40,
+      width = 250,
+      height = 40,
       z = i,
     })
   end
@@ -1048,8 +1048,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 10,
     y = 50,
-    w = 980,
-    h = 340,
+    width = 980,
+    height = 340,
     z = 1,
   })
 
@@ -1060,8 +1060,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 710, -- Offset from primary modal
     y = 340,
-    w = 500,
-    h = 400,
+    width = 500,
+    height = 400,
     z = 1002, -- Above primary modal
   })
 
@@ -1072,8 +1072,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1920,
-    h = 1080,
+    width = 1920,
+    height = 1080,
     z = 2000, -- Highest z-index
   })
 
@@ -1083,8 +1083,8 @@ function TestAbsolutePositioningChildLayout:testComplexModalDialogSystem()
     positioning = Positioning.ABSOLUTE,
     x = 800,
     y = 600,
-    w = 200,
-    h = 50,
+    width = 200,
+    height = 50,
     z = 2001,
   })
 
@@ -1113,8 +1113,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 2000,
+    width = 1200,
+    height = 2000,
     z = 0,
   })
 
@@ -1125,8 +1125,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 100,
+    width = 1200,
+    height = 100,
     z = 10,
   })
 
@@ -1137,8 +1137,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 20,
-    w = 1000,
-    h = 60,
+    width = 1000,
+    height = 60,
     z = 1,
   })
 
@@ -1150,8 +1150,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = (i - 1) * 200,
       y = 0,
-      w = 180,
-      h = 60,
+      width = 180,
+      height = 60,
       z = i,
     })
 
@@ -1163,8 +1163,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
         positioning = Positioning.ABSOLUTE,
         x = 0,
         y = 60,
-        w = 180,
-        h = 200,
+        width = 180,
+        height = 200,
         z = 100, -- High z-index for dropdown
       })
 
@@ -1176,8 +1176,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
           positioning = Positioning.ABSOLUTE,
           x = 0,
           y = (j - 1) * 50,
-          w = 180,
-          h = 50,
+          width = 180,
+          height = 50,
           z = j,
         })
       end
@@ -1191,8 +1191,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 100,
-    w = 1200,
-    h = 1700,
+    width = 1200,
+    height = 1700,
     z = 1,
   })
 
@@ -1203,8 +1203,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 0,
-    w = 300,
-    h = 1700,
+    width = 300,
+    height = 1700,
     z = 2,
   })
 
@@ -1216,8 +1216,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 10,
       y = (i - 1) * 280 + 10,
-      w = 280,
-      h = 260,
+      width = 280,
+      height = 260,
       z = i,
     })
 
@@ -1228,8 +1228,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 0,
       y = 0,
-      w = 280,
-      h = 40,
+      width = 280,
+      height = 40,
       z = 1,
     })
 
@@ -1240,8 +1240,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 5,
       y = 45,
-      w = 270,
-      h = 210,
+      width = 270,
+      height = 210,
       z = 1,
     })
 
@@ -1253,8 +1253,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
         positioning = Positioning.ABSOLUTE,
         x = 5,
         y = (j - 1) * 50,
-        w = 260,
-        h = 45,
+        width = 260,
+        height = 45,
         z = j,
       })
     end
@@ -1267,8 +1267,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 320,
     y = 0,
-    w = 880,
-    h = 1700,
+    width = 880,
+    height = 1700,
     z = 1,
   })
 
@@ -1280,8 +1280,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 20,
       y = (i - 1) * 550 + 20,
-      w = 840,
-      h = 500,
+      width = 840,
+      height = 500,
       z = i,
     })
 
@@ -1292,8 +1292,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 0,
       y = 0,
-      w = 840,
-      h = 80,
+      width = 840,
+      height = 80,
       z = 1,
     })
 
@@ -1303,8 +1303,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 0,
       y = 80,
-      w = 840,
-      h = 350,
+      width = 840,
+      height = 350,
       z = 1,
     })
 
@@ -1314,8 +1314,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
       positioning = Positioning.ABSOLUTE,
       x = 0,
       y = 430,
-      w = 840,
-      h = 70,
+      width = 840,
+      height = 70,
       z = 1,
     })
 
@@ -1327,8 +1327,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
         positioning = Positioning.ABSOLUTE,
         x = 20,
         y = 50 + (j - 1) * 100,
-        w = 800,
-        h = 80,
+        width = 800,
+        height = 80,
         z = j,
       })
     end
@@ -1341,8 +1341,8 @@ function TestAbsolutePositioningChildLayout:testDynamicBranchingDOMStructure()
     positioning = Positioning.ABSOLUTE,
     x = 0,
     y = 1800,
-    w = 1200,
-    h = 200,
+    width = 1200,
+    height = 200,
     z = 10,
   })
 
@@ -1381,4 +1381,3 @@ end
 
 -- Run the tests
 luaunit.LuaUnit.run()
-

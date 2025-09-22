@@ -37,8 +37,8 @@ local function createTestContainer(props)
   local defaults = {
     x = 0,
     y = 0,
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -61,8 +61,8 @@ local function createManyChildren(parent, count, child_props)
 
   for i = 1, count do
     local props = {
-      w = child_props.w or 50,
-      h = child_props.h or 30,
+      width = child_props.w or 50,
+      height = child_props.h or 30,
     }
 
     -- Add any additional properties
@@ -152,8 +152,8 @@ end
 function TestPerformance:testComplexNestedLayoutPerformance()
   -- Create a deeply nested structure with multiple levels
   local root = createTestContainer({
-    w = 1000,
-    h = 800,
+    width = 1000,
+    height = 800,
     flexDirection = FlexDirection.VERTICAL,
   })
 
@@ -161,8 +161,8 @@ function TestPerformance:testComplexNestedLayoutPerformance()
     -- Level 1: 5 sections
     for i = 1, 5 do
       local section = Gui.new({
-        w = 950,
-        h = 150,
+        width = 950,
+        height = 150,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -173,8 +173,8 @@ function TestPerformance:testComplexNestedLayoutPerformance()
       -- Level 2: 4 columns per section
       for j = 1, 4 do
         local column = Gui.new({
-          w = 200,
-          h = 140,
+          width = 200,
+          height = 140,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.VERTICAL,
           alignItems = AlignItems.CENTER,
@@ -185,8 +185,8 @@ function TestPerformance:testComplexNestedLayoutPerformance()
         -- Level 3: 3 items per column
         for k = 1, 3 do
           local item = Gui.new({
-            w = 180,
-            h = 40,
+            width = 180,
+            height = 40,
           })
           item.parent = column
           table.insert(column.children, item)
@@ -212,8 +212,8 @@ end
 -- Test 4: Flex Wrap Performance with Many Elements
 function TestPerformance:testFlexWrapPerformanceWithManyElements()
   local container = createTestContainer({
-    w = 400,
-    h = 600,
+    width = 400,
+    height = 600,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
     justifyContent = JustifyContent.SPACE_AROUND,
@@ -222,8 +222,8 @@ function TestPerformance:testFlexWrapPerformanceWithManyElements()
 
   -- Create many children that will wrap
   local children = createManyChildren(container, 50, {
-    w = 80,
-    h = 50,
+    width = 80,
+    height = 50,
   })
 
   local time, _ = measureTime(function()
@@ -366,8 +366,8 @@ end
 -- Test 8: Stress Test with Maximum Elements
 function TestPerformance:testStressTestWithMaximumElements()
   local container = createTestContainer({
-    w = 1200,
-    h = 900,
+    width = 1200,
+    height = 900,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
   })
@@ -375,8 +375,8 @@ function TestPerformance:testStressTestWithMaximumElements()
   -- Create a large number of children for stress testing
   local stress_count = 300
   local children = createManyChildren(container, stress_count, {
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
   })
 
   local time, _ = measureTime(function()
@@ -408,8 +408,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
 
   -- Create enterprise-grade dashboard with deep nesting (5 levels)
   local dashboard = createTestContainer({
-    w = 1920,
-    h = 1080,
+    width = 1920,
+    height = 1080,
     flexDirection = FlexDirection.VERTICAL,
     gap = 10,
   })
@@ -417,8 +417,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
   local time, structure_info = measureTime(function()
     -- Level 1: Header, Main Content, Footer
     local header = Gui.new({
-      w = 1900,
-      h = 80,
+      width = 1900,
+      height = 80,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -429,8 +429,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
     table.insert(dashboard.children, header)
 
     local main_content = Gui.new({
-      w = 1900,
-      h = 980,
+      width = 1900,
+      height = 980,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       gap = 15,
@@ -439,8 +439,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
     table.insert(dashboard.children, main_content)
 
     local footer = Gui.new({
-      w = 1900,
-      h = 60,
+      width = 1900,
+      height = 60,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
@@ -452,8 +452,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
     local header_sections = { "logo", "navigation", "search", "notifications", "user_menu" }
     for i, section_name in ipairs(header_sections) do
       local section = Gui.new({
-        w = section_name == "navigation" and 400 or 150,
-        h = 60,
+        width = section_name == "navigation" and 400 or 150,
+        height = 60,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.CENTER,
@@ -466,8 +466,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
       local item_count = section_name == "navigation" and 6 or 3
       for j = 1, item_count do
         local item = Gui.new({
-          w = section_name == "navigation" and 60 or 45,
-          h = 40,
+          width = section_name == "navigation" and 60 or 45,
+          height = 40,
         })
         item.parent = section
         table.insert(section.children, item)
@@ -476,8 +476,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
 
     -- Level 2: Main content areas (sidebar, dashboard grid)
     local sidebar = Gui.new({
-      w = 280,
-      h = 960,
+      width = 280,
+      height = 960,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       gap = 10,
@@ -486,8 +486,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
     table.insert(main_content.children, sidebar)
 
     local dashboard_grid = Gui.new({
-      w = 1600,
-      h = 960,
+      width = 1600,
+      height = 960,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       gap = 20,
@@ -506,8 +506,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
 
     for _, category in ipairs(menu_categories) do
       local category_container = Gui.new({
-        w = 260,
-        h = 40 + (category.items * 35),
+        width = 260,
+        height = 40 + (category.items * 35),
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
         gap = 2,
@@ -516,15 +516,15 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
       table.insert(sidebar.children, category_container)
 
       -- Category header
-      local category_header = Gui.new({ w = 250, h = 35 })
+      local category_header = Gui.new({ width = 250, height = 35 })
       category_header.parent = category_container
       table.insert(category_container.children, category_header)
 
       -- Level 4: Menu items with sub-indicators
       for i = 1, category.items do
         local menu_item = Gui.new({
-          w = 240,
-          h = 30,
+          width = 240,
+          height = 30,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -534,15 +534,15 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
         table.insert(category_container.children, menu_item)
 
         -- Level 5: Menu item components (text, icon, badge)
-        local item_icon = Gui.new({ w = 20, h = 20 })
+        local item_icon = Gui.new({ width = 20, height = 20 })
         item_icon.parent = menu_item
         table.insert(menu_item.children, item_icon)
 
-        local item_text = Gui.new({ w = 180, h = 25 })
+        local item_text = Gui.new({ width = 180, height = 25 })
         item_text.parent = menu_item
         table.insert(menu_item.children, item_text)
 
-        local item_badge = Gui.new({ w = 25, h = 18 })
+        local item_badge = Gui.new({ width = 25, height = 18 })
         item_badge.parent = menu_item
         table.insert(menu_item.children, item_badge)
       end
@@ -551,8 +551,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
     -- Level 3: Dashboard grid (4x3 widget grid with complex internals)
     for row = 1, 4 do
       local grid_row = Gui.new({
-        w = 1580,
-        h = 220,
+        width = 1580,
+        height = 220,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -563,8 +563,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
 
       for col = 1, 3 do
         local widget = Gui.new({
-          w = 500,
-          h = 200,
+          width = 500,
+          height = 200,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.VERTICAL,
           gap = 8,
@@ -574,8 +574,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
 
         -- Level 4: Widget components (header, content, footer)
         local widget_header = Gui.new({
-          w = 480,
-          h = 40,
+          width = 480,
+          height = 40,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -585,8 +585,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
         table.insert(widget.children, widget_header)
 
         local widget_content = Gui.new({
-          w = 480,
-          h = 120,
+          width = 480,
+          height = 120,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           flexWrap = FlexWrap.WRAP,
@@ -598,8 +598,8 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
         table.insert(widget.children, widget_content)
 
         local widget_footer = Gui.new({
-          w = 480,
-          h = 32,
+          width = 480,
+          height = 32,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           justifyContent = JustifyContent.FLEX_END,
@@ -612,21 +612,21 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
         local content_elements = (row * col) % 4 == 0 and 12 or 8
         for i = 1, content_elements do
           local element = Gui.new({
-            w = content_elements > 10 and 35 or 55,
-            h = content_elements > 10 and 25 or 35,
+            width = content_elements > 10 and 35 or 55,
+            height = content_elements > 10 and 25 or 35,
           })
           element.parent = widget_content
           table.insert(widget_content.children, element)
         end
 
         -- Widget header components
-        local widget_title = Gui.new({ w = 200, h = 30 })
+        local widget_title = Gui.new({ width = 200, height = 30 })
         widget_title.parent = widget_header
         table.insert(widget_header.children, widget_title)
 
         local widget_actions = Gui.new({
-          w = 120,
-          h = 30,
+          width = 120,
+          height = 30,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           gap = 5,
@@ -635,13 +635,13 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
         table.insert(widget_header.children, widget_actions)
 
         for j = 1, 3 do
-          local action_btn = Gui.new({ w = 30, h = 25 })
+          local action_btn = Gui.new({ width = 30, height = 25 })
           action_btn.parent = widget_actions
           table.insert(widget_actions.children, action_btn)
         end
 
         -- Widget footer components
-        local footer_info = Gui.new({ w = 100, h = 25 })
+        local footer_info = Gui.new({ width = 100, height = 25 })
         footer_info.parent = widget_footer
         table.insert(widget_footer.children, footer_info)
       end
@@ -693,8 +693,8 @@ function TestPerformance:testHighFrequencyDynamicLayoutUpdates()
   print("\n=== Test 10: High-Frequency Dynamic Updates Performance ===")
 
   local container = createTestContainer({
-    w = 1200,
-    h = 800,
+    width = 1200,
+    height = 800,
     flexDirection = FlexDirection.VERTICAL,
     gap = 10,
   })
@@ -703,8 +703,8 @@ function TestPerformance:testHighFrequencyDynamicLayoutUpdates()
   local sections = {}
   for i = 1, 8 do
     local section = Gui.new({
-      w = 1180,
-      h = 90,
+      width = 1180,
+      height = 90,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -718,8 +718,8 @@ function TestPerformance:testHighFrequencyDynamicLayoutUpdates()
     -- Create dynamic items in each section
     for j = 1, 10 do
       local item = Gui.new({
-        w = 100,
-        h = 70,
+        width = 100,
+        height = 70,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
         justifyContent = JustifyContent.CENTER,
@@ -730,7 +730,7 @@ function TestPerformance:testHighFrequencyDynamicLayoutUpdates()
 
       -- Sub-items for more complex updates
       for k = 1, 3 do
-        local sub_item = Gui.new({ w = 80, h = 20 })
+        local sub_item = Gui.new({ width = 80, height = 20 })
         sub_item.parent = item
         table.insert(item.children, sub_item)
       end
@@ -821,8 +821,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
 
   -- Create animation-heavy interface structure
   local animation_container = createTestContainer({
-    w = 1400,
-    h = 900,
+    width = 1400,
+    height = 900,
     flexDirection = FlexDirection.VERTICAL,
     gap = 15,
   })
@@ -832,8 +832,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
     -- Create multiple animated sections with complex layouts
     for section_id = 1, 6 do
       local section = Gui.new({
-        w = 1380,
-        h = 140,
+        width = 1380,
+        height = 140,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.SPACE_AROUND,
@@ -846,8 +846,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
       -- Create animated cards/panels
       for card_id = 1, 8 do
         local card = Gui.new({
-          w = 160,
-          h = 120,
+          width = 160,
+          height = 120,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.VERTICAL,
           justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -859,8 +859,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
 
         -- Card header with animated elements
         local card_header = Gui.new({
-          w = 150,
-          h = 30,
+          width = 150,
+          height = 30,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -870,18 +870,18 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
         table.insert(card.children, card_header)
 
         -- Animated header components
-        local title = Gui.new({ w = 100, h = 25 })
+        local title = Gui.new({ width = 100, height = 25 })
         title.parent = card_header
         table.insert(card_header.children, title)
 
-        local status_indicator = Gui.new({ w = 20, h = 20 })
+        local status_indicator = Gui.new({ width = 20, height = 20 })
         status_indicator.parent = card_header
         table.insert(card_header.children, status_indicator)
 
         -- Card content with animated metrics
         local card_content = Gui.new({
-          w = 150,
-          h = 60,
+          width = 150,
+          height = 60,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           flexWrap = FlexWrap.WRAP,
@@ -896,8 +896,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
         local metric_count = 4 + (section_id % 3)
         for i = 1, metric_count do
           local metric = Gui.new({
-            w = 35,
-            h = 25,
+            width = 35,
+            height = 25,
             positioning = Positioning.FLEX,
             justifyContent = JustifyContent.CENTER,
             alignItems = AlignItems.CENTER,
@@ -909,8 +909,8 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
 
         -- Card footer with action buttons
         local card_footer = Gui.new({
-          w = 150,
-          h = 25,
+          width = 150,
+          height = 25,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           justifyContent = JustifyContent.FLEX_END,
@@ -920,7 +920,7 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
         table.insert(card.children, card_footer)
 
         for i = 1, 2 do
-          local action_btn = Gui.new({ w = 25, h = 20 })
+          local action_btn = Gui.new({ width = 25, height = 20 })
           action_btn.parent = card_footer
           table.insert(card_footer.children, action_btn)
           table.insert(animation_elements, action_btn)
@@ -1024,8 +1024,8 @@ function TestPerformance:testMemoryIntensiveLayoutPerformanceWithCleanup()
       -- Create intensive layout structure
       local cycle_start = os.clock()
       local root = createTestContainer({
-        w = 1600,
-        h = 1000,
+        width = 1600,
+        height = 1000,
         flexDirection = FlexDirection.VERTICAL,
         gap = 8,
       })
@@ -1035,8 +1035,8 @@ function TestPerformance:testMemoryIntensiveLayoutPerformanceWithCleanup()
       -- Create memory-intensive nested structure
       for level1 = 1, 10 do
         local section = Gui.new({
-          w = 1580,
-          h = 95,
+          width = 1580,
+          height = 95,
           positioning = Positioning.FLEX,
           flexDirection = FlexDirection.HORIZONTAL,
           flexWrap = FlexWrap.WRAP,
@@ -1049,8 +1049,8 @@ function TestPerformance:testMemoryIntensiveLayoutPerformanceWithCleanup()
 
         for level2 = 1, 15 do
           local container = Gui.new({
-            w = 100,
-            h = 85,
+            width = 100,
+            height = 85,
             positioning = Positioning.FLEX,
             flexDirection = FlexDirection.VERTICAL,
             justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1062,8 +1062,8 @@ function TestPerformance:testMemoryIntensiveLayoutPerformanceWithCleanup()
 
           for level3 = 1, 3 do
             local item = Gui.new({
-              w = 95,
-              h = 25,
+              width = 95,
+              height = 25,
               positioning = Positioning.FLEX,
               flexDirection = FlexDirection.HORIZONTAL,
               justifyContent = JustifyContent.CENTER,
@@ -1075,7 +1075,7 @@ function TestPerformance:testMemoryIntensiveLayoutPerformanceWithCleanup()
 
             -- Add some leaf nodes for memory pressure
             for level4 = 1, 2 do
-              local leaf = Gui.new({ w = 40, h = 20 })
+              local leaf = Gui.new({ width = 40, height = 20 })
               leaf.parent = item
               table.insert(item.children, leaf)
               table.insert(all_elements, leaf)
@@ -1172,8 +1172,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
 
     local test_time, test_metrics = measureTime(function()
       local root = createTestContainer({
-        w = 2000,
-        h = 1500,
+        width = 2000,
+        height = 1500,
         flexDirection = FlexDirection.VERTICAL,
         flexWrap = FlexWrap.WRAP,
         gap = 5,
@@ -1189,8 +1189,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
 
         for row = 1, rows do
           local row_container = Gui.new({
-            w = 1980,
-            h = 25,
+            width = 1980,
+            height = 25,
             positioning = Positioning.FLEX,
             flexDirection = FlexDirection.HORIZONTAL,
             flexWrap = FlexWrap.WRAP,
@@ -1202,7 +1202,7 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
 
           local items_in_this_row = math.min(items_per_row, test_config.elements - (row - 1) * items_per_row)
           for col = 1, items_in_this_row do
-            local item = Gui.new({ w = 35, h = 20 })
+            local item = Gui.new({ width = 35, height = 20 })
             item.parent = row_container
             table.insert(row_container.children, item)
             created_elements = created_elements + 1
@@ -1216,8 +1216,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
 
         for depth = 1, test_config.depth do
           local level_container = Gui.new({
-            w = 1900 - (depth * 50),
-            h = 1400 - (depth * 100),
+            width = 1900 - (depth * 50),
+            height = 1400 - (depth * 100),
             positioning = Positioning.FLEX,
             flexDirection = (depth % 2 == 0) and FlexDirection.VERTICAL or FlexDirection.HORIZONTAL,
             flexWrap = FlexWrap.WRAP,
@@ -1232,7 +1232,7 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
           else
             -- Final level - add many elements
             for i = 1, elements_per_level do
-              local leaf = Gui.new({ w = 30 + (i % 20), h = 25 + (i % 15) })
+              local leaf = Gui.new({ width = 30 + (i % 20), height = 25 + (i % 15) })
               leaf.parent = level_container
               table.insert(level_container.children, leaf)
               created_elements = created_elements + 1
@@ -1252,8 +1252,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
 
           for i = 1, children_count do
             local branch = Gui.new({
-              w = 150 - (current_depth * 15),
-              h = 100 - (current_depth * 10),
+              width = 150 - (current_depth * 15),
+              height = 100 - (current_depth * 10),
               positioning = Positioning.FLEX,
               flexDirection = (i % 2 == 0) and FlexDirection.VERTICAL or FlexDirection.HORIZONTAL,
               justifyContent = JustifyContent.SPACE_AROUND,
@@ -1285,8 +1285,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
 
         for section_id = 1, sections do
           local section = Gui.new({
-            w = 1900,
-            h = 200,
+            width = 1900,
+            height = 200,
             positioning = Positioning.FLEX,
             flexDirection = FlexDirection.HORIZONTAL,
             flexWrap = FlexWrap.WRAP,
@@ -1301,8 +1301,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
           local subsections = 5 + (section_id % 3)
           for sub_id = 1, subsections do
             local subsection = Gui.new({
-              w = 300,
-              h = 180,
+              width = 300,
+              height = 180,
               positioning = Positioning.FLEX,
               flexDirection = FlexDirection.VERTICAL,
               justifyContent = JustifyContent.SPACE_AROUND,
@@ -1318,8 +1318,8 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
               if elem_id % 3 == 0 then
                 -- Complex element with children
                 local complex_elem = Gui.new({
-                  w = 280,
-                  h = 35,
+                  width = 280,
+                  height = 35,
                   positioning = Positioning.FLEX,
                   flexDirection = FlexDirection.HORIZONTAL,
                   justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1330,14 +1330,14 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
                 created_elements = created_elements + 1
 
                 for child_id = 1, 4 do
-                  local child = Gui.new({ w = 60, h = 30 })
+                  local child = Gui.new({ width = 60, height = 30 })
                   child.parent = complex_elem
                   table.insert(complex_elem.children, child)
                   created_elements = created_elements + 1
                 end
               else
                 -- Simple element
-                local simple_elem = Gui.new({ w = 270, h = 25 })
+                local simple_elem = Gui.new({ width = 270, height = 25 })
                 simple_elem.parent = subsection
                 table.insert(subsection.children, simple_elem)
                 created_elements = created_elements + 1

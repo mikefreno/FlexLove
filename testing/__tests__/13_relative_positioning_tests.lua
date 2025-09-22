@@ -15,8 +15,8 @@ function TestRelativePositioning.testBasicRelativePositioning()
   local parent = Gui.new({
     x = 100,
     y = 50,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = "relative",
     background = Color.new(0.2, 0.2, 0.2, 1.0),
   })
@@ -25,16 +25,16 @@ function TestRelativePositioning.testBasicRelativePositioning()
     parent = parent,
     x = 20,
     y = 30,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
     positioning = "relative",
-    background = Color.new(0.8, 0.2, 0.2, 1.0)
+    background = Color.new(0.8, 0.2, 0.2, 1.0),
   })
 
   -- Child should be positioned relative to parent
   luaunit.assertEquals(child.positioning, Positioning.RELATIVE)
   luaunit.assertEquals(child.x, 120) -- parent.x (100) + offset (20)
-  luaunit.assertEquals(child.y, 80)  -- parent.y (50) + offset (30)
+  luaunit.assertEquals(child.y, 80) -- parent.y (50) + offset (30)
 end
 
 -- Test 2: Relative positioning with percentage values
@@ -42,8 +42,8 @@ function TestRelativePositioning.testRelativePositioningPercentages()
   local parent = Gui.new({
     x = 50,
     y = 100,
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
     positioning = "relative",
     background = Color.new(0.2, 0.2, 0.2, 1.0),
   })
@@ -52,10 +52,10 @@ function TestRelativePositioning.testRelativePositioningPercentages()
     parent = parent,
     x = "10%", -- 10% of parent width = 20px
     y = "20%", -- 20% of parent height = 20px
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
     positioning = "relative",
-    background = Color.new(0.8, 0.2, 0.2, 1.0)
+    background = Color.new(0.8, 0.2, 0.2, 1.0),
   })
 
   -- Child should be positioned relative to parent with percentage offsets
@@ -69,23 +69,23 @@ function TestRelativePositioning.testRelativePositioningNoOffset()
   local parent = Gui.new({
     x = 75,
     y = 125,
-    w = 150,
-    h = 200,
+    width = 150,
+    height = 200,
     positioning = "relative",
     background = Color.new(0.2, 0.2, 0.2, 1.0),
   })
 
   local child = Gui.new({
     parent = parent,
-    w = 40,
-    h = 30,
+    width = 40,
+    height = 30,
     positioning = "relative",
-    background = Color.new(0.2, 0.8, 0.2, 1.0)
+    background = Color.new(0.2, 0.8, 0.2, 1.0),
   })
 
   -- Child should be positioned at parent's position with no offset
   luaunit.assertEquals(child.positioning, Positioning.RELATIVE)
-  luaunit.assertEquals(child.x, 75)  -- same as parent.x
+  luaunit.assertEquals(child.x, 75) -- same as parent.x
   luaunit.assertEquals(child.y, 125) -- same as parent.y
 end
 
@@ -94,8 +94,8 @@ function TestRelativePositioning.testMultipleRelativeChildren()
   local parent = Gui.new({
     x = 200,
     y = 300,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
     positioning = "relative",
     background = Color.new(0.2, 0.2, 0.2, 1.0),
   })
@@ -104,20 +104,20 @@ function TestRelativePositioning.testMultipleRelativeChildren()
     parent = parent,
     x = 10,
     y = 15,
-    w = 20,
-    h = 20,
+    width = 20,
+    height = 20,
     positioning = "relative",
-    background = Color.new(0.8, 0.2, 0.2, 1.0)
+    background = Color.new(0.8, 0.2, 0.2, 1.0),
   })
 
   local child2 = Gui.new({
     parent = parent,
     x = 30,
     y = 45,
-    w = 25,
-    h = 25,
+    width = 25,
+    height = 25,
     positioning = "relative",
-    background = Color.new(0.2, 0.8, 0.2, 1.0)
+    background = Color.new(0.2, 0.8, 0.2, 1.0),
   })
 
   -- Both children should be positioned relative to parent
@@ -133,8 +133,8 @@ function TestRelativePositioning.testNestedRelativePositioning()
   local grandparent = Gui.new({
     x = 50,
     y = 60,
-    w = 300,
-    h = 250,
+    width = 300,
+    height = 250,
     positioning = "relative",
     background = Color.new(0.1, 0.1, 0.1, 1.0),
   })
@@ -143,8 +143,8 @@ function TestRelativePositioning.testNestedRelativePositioning()
     parent = grandparent,
     x = 25,
     y = 35,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = "relative",
     background = Color.new(0.3, 0.3, 0.3, 1.0),
   })
@@ -153,18 +153,18 @@ function TestRelativePositioning.testNestedRelativePositioning()
     parent = parent,
     x = 15,
     y = 20,
-    w = 50,
-    h = 40,
+    width = 50,
+    height = 40,
     positioning = "relative",
-    background = Color.new(0.8, 0.8, 0.8, 1.0)
+    background = Color.new(0.8, 0.8, 0.8, 1.0),
   })
 
   -- Each level should be positioned relative to its parent
-  luaunit.assertEquals(parent.x, 75)  -- grandparent.x (50) + offset (25)
-  luaunit.assertEquals(parent.y, 95)  -- grandparent.y (60) + offset (35)
+  luaunit.assertEquals(parent.x, 75) -- grandparent.x (50) + offset (25)
+  luaunit.assertEquals(parent.y, 95) -- grandparent.y (60) + offset (35)
 
-  luaunit.assertEquals(child.x, 90)   -- parent.x (75) + offset (15)
-  luaunit.assertEquals(child.y, 115)  -- parent.y (95) + offset (20)
+  luaunit.assertEquals(child.x, 90) -- parent.x (75) + offset (15)
+  luaunit.assertEquals(child.y, 115) -- parent.y (95) + offset (20)
 end
 
 -- Test 6: Mixed positioning types (relative child in absolute parent)
@@ -172,8 +172,8 @@ function TestRelativePositioning.testMixedPositioning()
   local parent = Gui.new({
     x = 100,
     y = 200,
-    w = 180,
-    h = 120,
+    width = 180,
+    height = 120,
     positioning = "absolute",
     background = Color.new(0.2, 0.2, 0.2, 1.0),
   })
@@ -182,10 +182,10 @@ function TestRelativePositioning.testMixedPositioning()
     parent = parent,
     x = 40,
     y = 25,
-    w = 60,
-    h = 35,
+    width = 60,
+    height = 35,
     positioning = "relative",
-    background = Color.new(0.8, 0.8, 0.2, 1.0)
+    background = Color.new(0.8, 0.8, 0.2, 1.0),
   })
 
   -- Relative child should still be positioned relative to absolute parent
@@ -196,4 +196,4 @@ function TestRelativePositioning.testMixedPositioning()
 end
 
 -- Run all tests
-os.exit(luaunit.LuaUnit.run())
+luaunit.LuaUnit.run()

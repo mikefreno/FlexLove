@@ -40,6 +40,7 @@ enums.TextAlign = {
 --- @enum Positioning
 enums.Positioning = {
   ABSOLUTE = "absolute",
+  RELATIVE = "relative",
   FLEX = "flex",
 }
 
@@ -743,7 +744,7 @@ function Element.new(props)
       self._originalPositioning = props.positioning
       self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
     else
-      self.positioning = Positioning.ABSOLUTE
+      self.positioning = Positioning.RELATIVE
       self._originalPositioning = nil -- No explicit positioning
       self._explicitlyAbsolute = false
     end
@@ -758,13 +759,13 @@ function Element.new(props)
       self._explicitlyAbsolute = false
     else
       -- Default: children in flex containers participate in flex layout
-      -- children in absolute containers default to absolute
+      -- children in other containers default to relative
       if self.parent.positioning == Positioning.FLEX then
         self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
         self._explicitlyAbsolute = false -- Participate in parent's flex layout
       else
-        self.positioning = Positioning.ABSOLUTE
-        self._explicitlyAbsolute = false -- Default for absolute containers
+        self.positioning = Positioning.RELATIVE
+        self._explicitlyAbsolute = false -- Default for other containers
       end
     end
 
@@ -803,6 +804,44 @@ function Element.new(props)
       end
 
       self.z = props.z or 0
+    elseif self.positioning == Positioning.RELATIVE then
+      -- Relative positioning: position relative to parent's position
+      local baseX = self.parent.x
+      local baseY = self.parent.y
+
+      if props.x then
+        if type(props.x) == "string" then
+          local value, unit = Units.parse(props.x)
+          self.units.x = { value = value, unit = unit }
+          local parentWidth = self.parent.width
+          local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          self.x = baseX + offsetX
+        else
+          self.x = baseX + props.x
+          self.units.x = { value = props.x, unit = "px" }
+        end
+      else
+        self.x = baseX
+        self.units.x = { value = 0, unit = "px" }
+      end
+
+      if props.y then
+        if type(props.y) == "string" then
+          local value, unit = Units.parse(props.y)
+          self.units.y = { value = value, unit = unit }
+          local parentHeight = self.parent.height
+          local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          self.y = baseY + offsetY
+        else
+          self.y = baseY + props.y
+          self.units.y = { value = props.y, unit = "px" }
+        end
+      else
+        self.y = baseY
+        self.units.y = { value = 0, unit = "px" }
+      end
+
+      self.z = props.z or self.parent.z or 0
     else
       -- Children in flex containers start at parent position but will be repositioned by layoutChildren
       local baseX = self.parent.x
@@ -946,8 +985,8 @@ function Element:addChild(child)
       child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
       child._explicitlyAbsolute = false -- Participate in parent's flex layout
     else
-      child.positioning = Positioning.ABSOLUTE
-      child._explicitlyAbsolute = false -- Default for absolute containers
+      child.positioning = Positioning.RELATIVE
+      child._explicitlyAbsolute = false -- Default for other containers
     end
   end
   -- If child._originalPositioning is set, it means explicit positioning was provided
@@ -1020,7 +1059,10 @@ function Element:layoutChildren()
   -- Get flex children (children that participate in flex layout)
   local flexChildren = {}
   for _, child in ipairs(self.children) do
-    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
+    -- Only flex positioned children or non-explicitly absolute children participate in flex layout
+    -- Relative positioned children maintain their own positioning
+    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute) 
+                        and child.positioning ~= Positioning.RELATIVE
     if isFlexChild then
       table.insert(flexChildren, child)
     end

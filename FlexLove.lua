@@ -94,17 +94,6 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.JustifySelf,
   enums.FlexWrap
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
-  enums.Positioning,
-  enums.FlexDirection,
-  enums.JustifyContent,
-  enums.AlignContent,
-  enums.AlignItems,
-  enums.TextAlign,
-  enums.AlignSelf,
-  enums.JustifySelf,
-  enums.FlexWrap
-
 -- ====================
 -- Units System
 -- ====================
@@ -143,10 +132,8 @@ function Units.parse(value)
     unit = "px"
   end
 
-  -- Validate unit type (removed vmin/vmax as requested)
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true }
   if not validUnits[unit] then
-    -- Fallback to pixels for unsupported units, keeping the numeric value
     return num, "px"
   end
 
@@ -177,14 +164,14 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
   end
 end
 
---- Get current viewport dimensions
 ---@return number, number -- width, height
 function Units.getViewport()
   -- Try both functions to be compatible with different love versions and test environments
   if love.graphics and love.graphics.getDimensions then
     return love.graphics.getDimensions()
   else
-    return love.window.getMode()
+    local w, h = love.window.getMode()
+    return w, h
   end
 end
 
@@ -488,8 +475,8 @@ Element.__index = Element
 ---@field x number|string? -- X coordinate of the element (default: 0)
 ---@field y number|string? -- Y coordinate of the element (default: 0)
 ---@field z number? -- Z-index for layering (default: 0)
----@field w number|string? -- Width of the element (default: calculated automatically)
----@field h number|string? -- Height of the element (default: calculated automatically)
+---@field width number|string? -- Width of the element (default: calculated automatically)
+---@field height number|string? -- Height of the element (default: calculated automatically)
 ---@field top number|string? -- Offset from top edge (CSS-style positioning)
 ---@field right number|string? -- Offset from right edge (CSS-style positioning)
 ---@field bottom number|string? -- Offset from bottom edge (CSS-style positioning)
@@ -550,7 +537,6 @@ function Element.new(props)
   self.opacity = props.opacity or 1
 
   self.text = props.text
-  self.textSize = props.textSize or 12
   self.textAlign = props.textAlign or TextAlign.START
 
   --- self positioning ---
@@ -584,7 +570,7 @@ function Element.new(props)
   }
 
   -- Handle width (both w and width properties, prefer w if both exist)
-  local widthProp = props.w or props.width
+  local widthProp = props.width
   if widthProp then
     if type(widthProp) == "string" then
       local value, unit = Units.parse(widthProp)
@@ -602,7 +588,7 @@ function Element.new(props)
   end
 
   -- Handle height (both h and height properties, prefer h if both exist)
-  local heightProp = props.h or props.height
+  local heightProp = props.height
   if heightProp then
     if type(heightProp) == "string" then
       local value, unit = Units.parse(heightProp)
@@ -652,8 +638,7 @@ function Element.new(props)
       self.units.textSize = { value = props.textSize, unit = "px" }
     end
   else
-    -- Initialize with default/nil value
-    self.units.textSize = { value = nil, unit = "px" }
+    self.units.textSize = { value = 12, unit = "px" }
   end
 
   -- Store original spacing values for proper resize handling
@@ -731,7 +716,7 @@ function Element.new(props)
       self._originalPositioning = props.positioning
       self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
     else
-      self.positioning = Positioning.RELATIVE
+      self.positioning = Positioning.ABSOLUTE
       self._originalPositioning = nil -- No explicit positioning
       self._explicitlyAbsolute = false
     end
@@ -746,13 +731,13 @@ function Element.new(props)
       self._explicitlyAbsolute = false
     else
       -- Default: children in flex containers participate in flex layout
-      -- children in other containers default to relative
+      -- children in absolute containers default to absolute
       if self.parent.positioning == Positioning.FLEX then
         self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
         self._explicitlyAbsolute = false -- Participate in parent's flex layout
       else
-        self.positioning = Positioning.RELATIVE
-        self._explicitlyAbsolute = false -- Default for other containers
+        self.positioning = Positioning.ABSOLUTE
+        self._explicitlyAbsolute = false -- Default for absolute containers
       end
     end
 
@@ -791,44 +776,6 @@ function Element.new(props)
       end
 
       self.z = props.z or 0
-    elseif self.positioning == Positioning.RELATIVE then
-      -- Relative positioning: position relative to parent's position
-      local baseX = self.parent.x
-      local baseY = self.parent.y
-
-      if props.x then
-        if type(props.x) == "string" then
-          local value, unit = Units.parse(props.x)
-          self.units.x = { value = value, unit = unit }
-          local parentWidth = self.parent.width
-          local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
-          self.x = baseX + offsetX
-        else
-          self.x = baseX + props.x
-          self.units.x = { value = props.x, unit = "px" }
-        end
-      else
-        self.x = baseX
-        self.units.x = { value = 0, unit = "px" }
-      end
-
-      if props.y then
-        if type(props.y) == "string" then
-          local value, unit = Units.parse(props.y)
-          self.units.y = { value = value, unit = unit }
-          local parentHeight = self.parent.height
-          local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
-          self.y = baseY + offsetY
-        else
-          self.y = baseY + props.y
-          self.units.y = { value = props.y, unit = "px" }
-        end
-      else
-        self.y = baseY
-        self.units.y = { value = 0, unit = "px" }
-      end
-
-      self.z = props.z or self.parent.z or 0
     else
       -- Children in flex containers start at parent position but will be repositioned by layoutChildren
       local baseX = self.parent.x
@@ -972,8 +919,8 @@ function Element:addChild(child)
       child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
       child._explicitlyAbsolute = false -- Participate in parent's flex layout
     else
-      child.positioning = Positioning.RELATIVE
-      child._explicitlyAbsolute = false -- Default for other containers
+      child.positioning = Positioning.ABSOLUTE
+      child._explicitlyAbsolute = false -- Default for absolute containers
     end
   end
   -- If child._originalPositioning is set, it means explicit positioning was provided
@@ -1046,10 +993,7 @@ function Element:layoutChildren()
   -- Get flex children (children that participate in flex layout)
   local flexChildren = {}
   for _, child in ipairs(self.children) do
-    -- Only flex positioned children or non-explicitly absolute children participate in flex layout
-    -- Relative positioned children maintain their own positioning
     local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
-      and child.positioning ~= Positioning.RELATIVE
     if isFlexChild then
       table.insert(flexChildren, child)
     end

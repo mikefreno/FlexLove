@@ -34,8 +34,8 @@ function TestHorizontalFlexDirection:testCreateElementWithHorizontalFlexDirectio
     flexDirection = FlexDirection.HORIZONTAL,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   -- Verify element was created with correct properties
@@ -52,8 +52,8 @@ function TestHorizontalFlexDirection:testDefaultFlexDirectionIsHorizontal()
     positioning = Positioning.FLEX,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   -- Default flex direction should be horizontal
@@ -68,26 +68,26 @@ function TestHorizontalFlexDirection:testChildrenPositionedHorizontally()
     flexDirection = FlexDirection.HORIZONTAL,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 40,
-    h = 35,
+    width = 40,
+    height = 35,
   })
 
   parent:addChild(child1)
@@ -121,20 +121,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutWithGap()
     gap = 20, -- Custom gap
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -155,20 +155,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutFlexStart()
     justifyContent = JustifyContent.FLEX_START,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -188,21 +188,21 @@ function TestHorizontalFlexDirection:testHorizontalLayoutCenter()
     justifyContent = JustifyContent.CENTER,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     gap = 10,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -226,21 +226,21 @@ function TestHorizontalFlexDirection:testHorizontalLayoutFlexEnd()
     justifyContent = JustifyContent.FLEX_END,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     gap = 10,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -263,27 +263,27 @@ function TestHorizontalFlexDirection:testHorizontalLayoutSpaceBetween()
     justifyContent = JustifyContent.SPACE_BETWEEN,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
     gap = 0, -- Space-between doesn't use gap, it distributes available space
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   local child3 = Gui.new({
     id = "child3",
-    w = 40,
-    h = 35,
+    width = 40,
+    height = 35,
   })
 
   parent:addChild(child1)
@@ -309,14 +309,14 @@ function TestHorizontalFlexDirection:testSingleChildHorizontalLayout()
     justifyContent = JustifyContent.CENTER,
     x = 10,
     y = 20,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child = Gui.new({
     id = "single_child",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   parent:addChild(child)
@@ -335,8 +335,8 @@ function TestHorizontalFlexDirection:testEmptyParentHorizontalLayout()
     flexDirection = FlexDirection.HORIZONTAL,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   -- No children added
@@ -354,20 +354,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutCoordinateSystem()
     flexDirection = FlexDirection.HORIZONTAL,
     x = 100,
     y = 50,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -390,20 +390,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutMaintainsChildHeights()
     alignItems = AlignItems.FLEX_START, -- Explicitly set to maintain child heights
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 70, -- Different height
+    width = 60,
+    height = 70, -- Different height
   })
 
   parent:addChild(child1)
@@ -423,20 +423,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutAlignItemsStretch()
     alignItems = AlignItems.STRETCH,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -456,20 +456,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutAlignItemsCenter()
     alignItems = AlignItems.CENTER,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -492,20 +492,20 @@ function TestHorizontalFlexDirection:testHorizontalLayoutAlignItemsFlexEnd()
     alignItems = AlignItems.FLEX_END,
     x = 0,
     y = 0,
-    w = 300,
-    h = 100,
+    width = 300,
+    height = 100,
   })
 
   local child1 = Gui.new({
     id = "child1",
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     id = "child2",
-    w = 60,
-    h = 40,
+    width = 60,
+    height = 40,
   })
 
   parent:addChild(child1)
@@ -537,8 +537,8 @@ function TestHorizontalFlexDirection:testNestedHorizontalFlexContainers()
     justifyContent = JustifyContent.SPACE_BETWEEN,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 300,
+    width = 1200,
+    height = 300,
     gap = 20,
   })
 
@@ -550,8 +550,8 @@ function TestHorizontalFlexDirection:testNestedHorizontalFlexContainers()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
-      w = 350,
-      h = 280,
+      width = 350,
+      height = 280,
       gap = 10,
     })
 
@@ -561,8 +561,8 @@ function TestHorizontalFlexDirection:testNestedHorizontalFlexContainers()
         parent = innerContainer,
         id = "item" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = 70,
-        h = 120,
+        width = 70,
+        height = 120,
       })
     end
   end
@@ -594,8 +594,8 @@ function TestHorizontalFlexDirection:testComplexGridLayoutNestedHorizontalFlex()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 1000,
-    h = 800,
+    width = 1000,
+    height = 800,
     gap = 15,
   })
 
@@ -607,8 +607,8 @@ function TestHorizontalFlexDirection:testComplexGridLayoutNestedHorizontalFlex()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_EVENLY,
-      w = 980,
-      h = 180,
+      width = 980,
+      height = 180,
       gap = 12,
     })
 
@@ -622,8 +622,8 @@ function TestHorizontalFlexDirection:testComplexGridLayoutNestedHorizontalFlex()
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.CENTER,
         alignItems = AlignItems.CENTER,
-        w = (980 - (colCount - 1) * 12) / colCount, -- Dynamic width
-        h = 160,
+        width = (980 - (colCount - 1) * 12) / colCount, -- Dynamic width
+        height = 160,
       })
 
       -- Each cell contains a nested horizontal layout with icons
@@ -632,8 +632,8 @@ function TestHorizontalFlexDirection:testComplexGridLayoutNestedHorizontalFlex()
           parent = cell,
           id = "icon" .. row .. "_" .. col .. "_" .. icon,
           positioning = Positioning.FLEX,
-          w = 30,
-          h = 30,
+          width = 30,
+          height = 30,
         })
       end
     end
@@ -667,8 +667,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
     justifyContent = JustifyContent.FLEX_START,
     x = 100,
     y = 100,
-    w = 800,
-    h = 200,
+    width = 800,
+    height = 200,
     gap = 20,
   })
 
@@ -677,24 +677,24 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
     parent = flexContainer,
     id = "flexChild1",
     positioning = Positioning.FLEX,
-    w = 150,
-    h = 180,
+    width = 150,
+    height = 180,
   })
 
   local flexChild2 = Gui.new({
     parent = flexContainer,
     id = "flexChild2",
     positioning = Positioning.FLEX,
-    w = 150,
-    h = 180,
+    width = 150,
+    height = 180,
   })
 
   local flexChild3 = Gui.new({
     parent = flexContainer,
     id = "flexChild3",
     positioning = Positioning.FLEX,
-    w = 150,
-    h = 180,
+    width = 150,
+    height = 180,
   })
 
   -- Add absolute positioned children (should not participate in flex layout)
@@ -704,8 +704,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
     positioning = Positioning.ABSOLUTE,
     x = 600,
     y = 50,
-    w = 100,
-    h = 100,
+    width = 100,
+    height = 100,
   })
 
   local absoluteChild2 = Gui.new({
@@ -714,8 +714,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
     positioning = Positioning.ABSOLUTE,
     x = 650,
     y = 75,
-    w = 80,
-    h = 80,
+    width = 80,
+    height = 80,
   })
 
   -- Add nested flex containers within flex children
@@ -726,8 +726,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
-      w = 140,
-      h = 170,
+      width = 140,
+      height = 170,
       gap = 5,
     })
 
@@ -737,8 +737,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
         parent = nestedFlex,
         id = "nestedItem" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = 60,
-        h = 80,
+        width = 60,
+        height = 80,
       })
     end
 
@@ -749,8 +749,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexWithMixedPositioningChild
       positioning = Positioning.ABSOLUTE,
       x = 120,
       y = 150,
-      w = 25,
-      h = 25,
+      width = 25,
+      height = 25,
     })
   end
 
@@ -787,8 +787,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 1200,
-    h = 400,
+    width = 1200,
+    height = 400,
     gap = 0,
   })
 
@@ -799,8 +799,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 1200,
-    h = 60,
+    width = 1200,
+    height = 60,
     gap = 0,
   })
 
@@ -811,8 +811,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
       parent = primaryNav,
       id = "primaryItem" .. i,
       positioning = Positioning.FLEX,
-      w = 240,
-      h = 60,
+      width = 240,
+      height = 60,
     })
 
     -- Some primary items have secondary navigation
@@ -823,8 +823,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.CENTER,
-        w = 240,
-        h = 40,
+        width = 240,
+        height = 40,
         gap = 5,
       })
 
@@ -835,8 +835,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
           parent = secondaryNav,
           id = "secondaryItem" .. i .. "_" .. j,
           positioning = Positioning.FLEX,
-          w = (240 - (secCount - 1) * 5) / secCount,
-          h = 35,
+          width = (240 - (secCount - 1) * 5) / secCount,
+          height = 35,
         })
 
         -- Tertiary items for some secondary items
@@ -847,8 +847,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
             positioning = Positioning.FLEX,
             flexDirection = FlexDirection.HORIZONTAL,
             justifyContent = JustifyContent.SPACE_EVENLY,
-            w = (240 - (secCount - 1) * 5) / secCount,
-            h = 25,
+            width = (240 - (secCount - 1) * 5) / secCount,
+            height = 25,
             gap = 2,
           })
 
@@ -858,8 +858,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
               parent = tertiaryNav,
               id = "tertiaryItem" .. i .. "_" .. j .. "_" .. k,
               positioning = Positioning.FLEX,
-              w = ((240 - (secCount - 1) * 5) / secCount - 2) / 2,
-              h = 20,
+              width = ((240 - (secCount - 1) * 5) / secCount - 2) / 2,
+              height = 20,
             })
           end
         end
@@ -874,8 +874,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
-    w = 1200,
-    h = 50,
+    width = 1200,
+    height = 50,
     gap = 30,
   })
 
@@ -885,8 +885,8 @@ function TestHorizontalFlexDirection:testMultiLevelHorizontalFlexNavigation()
       parent = secondaryNavBar,
       id = "breadcrumb" .. i,
       positioning = Positioning.FLEX,
-      w = 120,
-      h = 40,
+      width = 120,
+      height = 40,
     })
   end
 
@@ -919,8 +919,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
     justifyContent = JustifyContent.SPACE_AROUND,
     x = 50,
     y = 50,
-    w = 1400,
-    h = 600,
+    width = 1400,
+    height = 600,
     gap = 25,
   })
 
@@ -939,8 +939,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
       id = "card" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = config.width,
-      h = 550,
+      width = config.width,
+      height = 550,
       gap = 10,
     })
 
@@ -951,8 +951,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
-      w = config.width - 20,
-      h = 50,
+      width = config.width - 20,
+      height = 50,
       gap = 10,
     })
 
@@ -961,8 +961,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
       parent = cardHeader,
       id = "cardTitle" .. i,
       positioning = Positioning.FLEX,
-      w = (config.width - 30) * 0.7,
-      h = 40,
+      width = (config.width - 30) * 0.7,
+      height = 40,
     })
 
     local headerActions = Gui.new({
@@ -971,8 +971,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_END,
-      w = (config.width - 30) * 0.3,
-      h = 40,
+      width = (config.width - 30) * 0.3,
+      height = 40,
       gap = 5,
     })
 
@@ -982,8 +982,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
         parent = headerActions,
         id = "actionBtn" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = ((config.width - 30) * 0.3 - 5) / 2,
-        h = 35,
+        width = ((config.width - 30) * 0.3 - 5) / 2,
+        height = 35,
       })
     end
 
@@ -993,8 +993,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
         parent = card,
         id = "cardImage" .. i,
         positioning = Positioning.FLEX,
-        w = config.width - 20,
-        h = 200,
+        width = config.width - 20,
+        height = 200,
       })
     end
 
@@ -1004,8 +1004,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
       id = "cardContent" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = config.width - 20,
-      h = config.hasImage and 240 or 440,
+      width = config.width - 20,
+      height = config.hasImage and 240 or 440,
       gap = 8,
     })
 
@@ -1017,8 +1017,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.FLEX_START,
-        w = config.width - 40,
-        h = (config.hasImage and 230 or 430) / config.items - 8,
+        width = config.width - 40,
+        height = (config.hasImage and 230 or 430) / config.items - 8,
         gap = 10,
       })
 
@@ -1027,16 +1027,16 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
         parent = contentItem,
         id = "itemIcon" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = 30,
-        h = (config.hasImage and 230 or 430) / config.items - 8,
+        width = 30,
+        height = (config.hasImage and 230 or 430) / config.items - 8,
       })
 
       Gui.new({
         parent = contentItem,
         id = "itemText" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = config.width - 80,
-        h = (config.hasImage and 230 or 430) / config.items - 8,
+        width = config.width - 80,
+        height = (config.hasImage and 230 or 430) / config.items - 8,
       })
     end
 
@@ -1047,8 +1047,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
-      w = config.width - 20,
-      h = 50,
+      width = config.width - 20,
+      height = 50,
       gap = 15,
     })
 
@@ -1058,8 +1058,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexCardLayoutDynamicSizing()
         parent = cardFooter,
         id = "footerBtn" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = (config.width - 50) / 3,
-        h = 40,
+        width = (config.width - 50) / 3,
+        height = 40,
       })
     end
   end
@@ -1106,8 +1106,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexOverflowScrolling()
     positioning = Positioning.ABSOLUTE,
     x = 100,
     y = 100,
-    w = 800,
-    h = 200,
+    width = 800,
+    height = 200,
   })
 
   -- Content container (wider than viewport)
@@ -1119,8 +1119,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexOverflowScrolling()
     justifyContent = JustifyContent.FLEX_START,
     x = 0, -- This would change with scrolling
     y = 0,
-    w = 2000, -- Wider than scroll container
-    h = 180,
+    width = 2000, -- Wider than scroll container
+    height = 180,
     gap = 20,
   })
 
@@ -1130,8 +1130,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexOverflowScrolling()
       parent = contentContainer,
       id = "scrollItem" .. i,
       positioning = Positioning.FLEX,
-      w = 120,
-      h = 160,
+      width = 120,
+      height = 160,
     })
 
     -- Each item has internal horizontal layout
@@ -1141,8 +1141,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexOverflowScrolling()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.CENTER,
-      w = 110,
-      h = 150,
+      width = 110,
+      height = 150,
       gap = 5,
     })
 
@@ -1153,8 +1153,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexOverflowScrolling()
         id = "component" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.VERTICAL,
-        w = 50,
-        h = 140,
+        width = 50,
+        height = 140,
         gap = 3,
       })
 
@@ -1164,8 +1164,8 @@ function TestHorizontalFlexDirection:testHorizontalFlexOverflowScrolling()
           parent = component,
           id = "subComponent" .. i .. "_" .. j .. "_" .. k,
           positioning = Positioning.FLEX,
-          w = 45,
-          h = 42,
+          width = 45,
+          height = 42,
         })
       end
     end
@@ -1203,8 +1203,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     flexDirection = FlexDirection.VERTICAL,
     x = 0,
     y = 0,
-    w = 1600,
-    h = 1000,
+    width = 1600,
+    height = 1000,
     gap = 0,
   })
 
@@ -1215,8 +1215,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 1600,
-    h = 80,
+    width = 1600,
+    height = 80,
     gap = 20,
   })
 
@@ -1227,8 +1227,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
-    w = 400,
-    h = 60,
+    width = 400,
+    height = 60,
     gap = 15,
   })
 
@@ -1237,16 +1237,16 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     parent = headerLeft,
     id = "logo",
     positioning = Positioning.FLEX,
-    w = 60,
-    h = 60,
+    width = 60,
+    height = 60,
   })
 
   Gui.new({
     parent = headerLeft,
     id = "title",
     positioning = Positioning.FLEX,
-    w = 300,
-    h = 60,
+    width = 300,
+    height = 60,
   })
 
   -- Header center - search and navigation
@@ -1256,8 +1256,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
-    w = 800,
-    h = 60,
+    width = 800,
+    height = 60,
     gap = 20,
   })
 
@@ -1266,8 +1266,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     parent = headerCenter,
     id = "searchBar",
     positioning = Positioning.FLEX,
-    w = 400,
-    h = 50,
+    width = 400,
+    height = 50,
   })
 
   -- Quick actions
@@ -1277,8 +1277,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
-    w = 300,
-    h = 50,
+    width = 300,
+    height = 50,
     gap = 10,
   })
 
@@ -1287,8 +1287,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = quickActions,
       id = "quickAction" .. i,
       positioning = Positioning.FLEX,
-      w = 65,
-      h = 45,
+      width = 65,
+      height = 45,
     })
   end
 
@@ -1299,8 +1299,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
-    w = 300,
-    h = 60,
+    width = 300,
+    height = 60,
     gap = 10,
   })
 
@@ -1309,16 +1309,16 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     parent = headerRight,
     id = "notifications",
     positioning = Positioning.FLEX,
-    w = 50,
-    h = 50,
+    width = 50,
+    height = 50,
   })
 
   Gui.new({
     parent = headerRight,
     id = "userMenu",
     positioning = Positioning.FLEX,
-    w = 200,
-    h = 50,
+    width = 200,
+    height = 50,
   })
 
   -- Main dashboard content (horizontal sections)
@@ -1328,8 +1328,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
-    w = 1600,
-    h = 920,
+    width = 1600,
+    height = 920,
     gap = 0,
   })
 
@@ -1339,8 +1339,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     id = "leftSidebar",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 250,
-    h = 920,
+    width = 250,
+    height = 920,
     gap = 10,
   })
 
@@ -1351,8 +1351,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       id = "sidebarSection" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 240,
-      h = 170,
+      width = 240,
+      height = 170,
       gap = 5,
     })
 
@@ -1361,8 +1361,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = sidebarSection,
       id = "sectionHeader" .. i,
       positioning = Positioning.FLEX,
-      w = 230,
-      h = 30,
+      width = 230,
+      height = 30,
     })
 
     -- Section items
@@ -1371,8 +1371,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
         parent = sidebarSection,
         id = "sectionItem" .. i .. "_" .. j,
         positioning = Positioning.FLEX,
-        w = 230,
-        h = 30,
+        width = 230,
+        height = 30,
       })
     end
   end
@@ -1383,8 +1383,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     id = "centerArea",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 1100,
-    h = 920,
+    width = 1100,
+    height = 920,
     gap = 20,
   })
 
@@ -1395,8 +1395,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 1080,
-    h = 280,
+    width = 1080,
+    height = 280,
     gap = 20,
   })
 
@@ -1407,8 +1407,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       id = "topWidget" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 250,
-      h = 260,
+      width = 250,
+      height = 260,
       gap = 10,
     })
 
@@ -1419,8 +1419,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
-      w = 240,
-      h = 40,
+      width = 240,
+      height = 40,
       gap = 10,
     })
 
@@ -1428,16 +1428,16 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = widgetHeader,
       id = "widgetTitle" .. i,
       positioning = Positioning.FLEX,
-      w = 180,
-      h = 35,
+      width = 180,
+      height = 35,
     })
 
     Gui.new({
       parent = widgetHeader,
       id = "widgetControls" .. i,
       positioning = Positioning.FLEX,
-      w = 50,
-      h = 35,
+      width = 50,
+      height = 35,
     })
 
     -- Widget content
@@ -1445,8 +1445,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = widget,
       id = "topWidgetContent" .. i,
       positioning = Positioning.FLEX,
-      w = 240,
-      h = 200,
+      width = 240,
+      height = 200,
     })
   end
 
@@ -1457,8 +1457,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_AROUND,
-    w = 1080,
-    h = 600,
+    width = 1080,
+    height = 600,
     gap = 30,
   })
 
@@ -1468,8 +1468,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     id = "largeWidget",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 700,
-    h = 580,
+    width = 700,
+    height = 580,
     gap = 15,
   })
 
@@ -1478,8 +1478,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     parent = largeWidget,
     id = "largeWidgetHeader",
     positioning = Positioning.FLEX,
-    w = 680,
-    h = 50,
+    width = 680,
+    height = 50,
   })
 
   local largeWidgetContent = Gui.new({
@@ -1488,8 +1488,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
-    w = 680,
-    h = 500,
+    width = 680,
+    height = 500,
     gap = 20,
   })
 
@@ -1498,8 +1498,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     parent = largeWidgetContent,
     id = "chart",
     positioning = Positioning.FLEX,
-    w = 400,
-    h = 480,
+    width = 400,
+    height = 480,
   })
 
   local details = Gui.new({
@@ -1507,8 +1507,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     id = "details",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 240,
-    h = 480,
+    width = 240,
+    height = 480,
     gap = 10,
   })
 
@@ -1518,8 +1518,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = details,
       id = "detailItem" .. i,
       positioning = Positioning.FLEX,
-      w = 230,
-      h = 70,
+      width = 230,
+      height = 70,
     })
   end
 
@@ -1529,8 +1529,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     id = "smallWidgets",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 300,
-    h = 580,
+    width = 300,
+    height = 580,
     gap = 20,
   })
 
@@ -1541,8 +1541,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       id = "smallWidget" .. i,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
-      w = 280,
-      h = 173,
+      width = 280,
+      height = 173,
       gap = 10,
     })
 
@@ -1550,16 +1550,16 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = smallWidget,
       id = "smallWidgetHeader" .. i,
       positioning = Positioning.FLEX,
-      w = 270,
-      h = 35,
+      width = 270,
+      height = 35,
     })
 
     Gui.new({
       parent = smallWidget,
       id = "smallWidgetContent" .. i,
       positioning = Positioning.FLEX,
-      w = 270,
-      h = 128,
+      width = 270,
+      height = 128,
     })
   end
 
@@ -1569,8 +1569,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
     id = "rightSidebar",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 250,
-    h = 920,
+    width = 250,
+    height = 920,
     gap = 15,
   })
 
@@ -1580,8 +1580,8 @@ function TestHorizontalFlexDirection:testComplexHorizontalDashboardLayout()
       parent = rightSidebar,
       id = "activityItem" .. i,
       positioning = Positioning.FLEX,
-      w = 240,
-      h = 100,
+      width = 240,
+      height = 100,
     })
   end
 

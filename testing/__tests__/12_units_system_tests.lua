@@ -15,7 +15,9 @@ function TestUnitsSystem:setUp()
   -- Clear any existing GUI elements and reset viewport
   Gui.destroy()
   -- Set a consistent viewport size for testing
-  love.graphics.getDimensions = function() return 1200, 800 end
+  love.graphics.getDimensions = function()
+    return 1200, 800
+  end
 end
 
 function TestUnitsSystem:tearDown()
@@ -30,12 +32,12 @@ function TestUnitsSystem:testUnitsParsePx()
   -- Test pixel unit parsing
   local container = Gui.new({
     id = "container",
-    w = "100px",
-    h = "200px",
+    width = "100px",
+    height = "200px",
     x = "50px",
     y = "75px",
   })
-  
+
   luaunit.assertEquals(container.width, 100)
   luaunit.assertEquals(container.height, 200)
   luaunit.assertEquals(container.x, 50)
@@ -50,19 +52,19 @@ function TestUnitsSystem:testUnitsParsePercentage()
   -- Test percentage unit parsing
   local parent = Gui.new({
     id = "parent",
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
   })
-  
+
   local child = Gui.new({
     id = "child",
-    w = "50%",
-    h = "25%",
+    width = "50%",
+    height = "25%",
     parent = parent,
   })
-  
+
   luaunit.assertEquals(child.width, 200) -- 50% of 400
-  luaunit.assertEquals(child.height, 75)  -- 25% of 300
+  luaunit.assertEquals(child.height, 75) -- 25% of 300
   luaunit.assertEquals(child.units.width.unit, "%")
   luaunit.assertEquals(child.units.height.unit, "%")
   luaunit.assertEquals(child.units.width.value, 50)
@@ -73,10 +75,10 @@ function TestUnitsSystem:testUnitsParseViewportWidth()
   -- Test viewport width units (1200px viewport)
   local container = Gui.new({
     id = "container",
-    w = "50vw",
-    h = "100px",
+    width = "50vw",
+    height = "100px",
   })
-  
+
   luaunit.assertEquals(container.width, 600) -- 50% of 1200
   luaunit.assertEquals(container.units.width.unit, "vw")
   luaunit.assertEquals(container.units.width.value, 50)
@@ -86,10 +88,10 @@ function TestUnitsSystem:testUnitsParseViewportHeight()
   -- Test viewport height units (800px viewport)
   local container = Gui.new({
     id = "container",
-    w = "100px",
-    h = "25vh",
+    width = "100px",
+    height = "25vh",
   })
-  
+
   luaunit.assertEquals(container.height, 200) -- 25% of 800
   luaunit.assertEquals(container.units.height.unit, "vh")
   luaunit.assertEquals(container.units.height.value, 25)
@@ -102,7 +104,7 @@ function TestUnitsSystem:testUnitsAutoSizing()
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
   })
-  
+
   luaunit.assertEquals(autoContainer.units.width.unit, "auto")
   luaunit.assertEquals(autoContainer.units.height.unit, "auto")
   luaunit.assertTrue(autoContainer.autosizing.width)
@@ -113,19 +115,19 @@ function TestUnitsSystem:testMixedUnits()
   -- Test elements with different unit types
   local container = Gui.new({
     id = "container",
-    w = "80vw",      -- viewport width
-    h = "400px",     -- pixels
-    x = "10%",       -- percentage of viewport
-    y = "5vh",       -- viewport height
-    gap = "2vw",     -- viewport width for gap
-    textSize = "16px" -- pixel font size
+    width = "80vw", -- viewport width
+    height = "400px", -- pixels
+    x = "10%", -- percentage of viewport
+    y = "5vh", -- viewport height
+    gap = "2vw", -- viewport width for gap
+    textSize = "16px", -- pixel font size
   })
-  
-  luaunit.assertEquals(container.width, 960)   -- 80% of 1200
-  luaunit.assertEquals(container.height, 400)  -- 400px
-  luaunit.assertEquals(container.x, 120)       -- 10% of 1200
-  luaunit.assertEquals(container.y, 40)        -- 5% of 800
-  luaunit.assertEquals(container.gap, 24)      -- 2% of 1200
+
+  luaunit.assertEquals(container.width, 960) -- 80% of 1200
+  luaunit.assertEquals(container.height, 400) -- 400px
+  luaunit.assertEquals(container.x, 120) -- 10% of 1200
+  luaunit.assertEquals(container.y, 40) -- 5% of 800
+  luaunit.assertEquals(container.gap, 24) -- 2% of 1200
   luaunit.assertEquals(container.textSize, 16) -- 16px
 end
 
@@ -137,18 +139,20 @@ function TestUnitsSystem:testResizeViewportUnits()
   -- Test that viewport units recalculate on resize
   local container = Gui.new({
     id = "container",
-    w = "50vw",
-    h = "25vh",
+    width = "50vw",
+    height = "25vh",
   })
-  
-  luaunit.assertEquals(container.width, 600)  -- 50% of 1200
+
+  luaunit.assertEquals(container.width, 600) -- 50% of 1200
   luaunit.assertEquals(container.height, 200) -- 25% of 800
-  
+
   -- Simulate viewport resize
-  love.graphics.getDimensions = function() return 1600, 1000 end
+  love.graphics.getDimensions = function()
+    return 1600, 1000
+  end
   container:resize(1600, 1000)
-  
-  luaunit.assertEquals(container.width, 800)  -- 50% of 1600
+
+  luaunit.assertEquals(container.width, 800) -- 50% of 1600
   luaunit.assertEquals(container.height, 250) -- 25% of 1000
 end
 
@@ -156,43 +160,43 @@ function TestUnitsSystem:testResizePercentageUnits()
   -- Test percentage units during parent resize
   local parent = Gui.new({
     id = "parent",
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
   })
-  
+
   local child = Gui.new({
     id = "child",
-    w = "75%",
-    h = "50%",
+    width = "75%",
+    height = "50%",
     parent = parent,
   })
-  
-  luaunit.assertEquals(child.width, 300)   -- 75% of 400
-  luaunit.assertEquals(child.height, 150)  -- 50% of 300
-  
+
+  luaunit.assertEquals(child.width, 300) -- 75% of 400
+  luaunit.assertEquals(child.height, 150) -- 50% of 300
+
   -- Resize parent
   parent.width = 600
   parent.height = 500
   child:resize(1200, 800)
-  
-  luaunit.assertEquals(child.width, 450)   -- 75% of 600
-  luaunit.assertEquals(child.height, 250)  -- 50% of 500
+
+  luaunit.assertEquals(child.width, 450) -- 75% of 600
+  luaunit.assertEquals(child.height, 250) -- 50% of 500
 end
 
 function TestUnitsSystem:testResizePixelUnitsNoChange()
   -- Test that pixel units don't change during resize
   local container = Gui.new({
     id = "container",
-    w = "300px",
-    h = "200px",
+    width = "300px",
+    height = "200px",
   })
-  
+
   luaunit.assertEquals(container.width, 300)
   luaunit.assertEquals(container.height, 200)
-  
+
   -- Resize viewport - pixel values should stay the same
   container:resize(1600, 1000)
-  
+
   luaunit.assertEquals(container.width, 300)
   luaunit.assertEquals(container.height, 200)
 end
@@ -205,21 +209,21 @@ function TestUnitsSystem:testPaddingUnits()
   -- Test different unit types for padding
   local container = Gui.new({
     id = "container",
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
     padding = {
       top = "10px",
       right = "5%",
-      bottom = "2vh", 
-      left = "1vw"
-    }
+      bottom = "2vh",
+      left = "1vw",
+    },
   })
-  
-  luaunit.assertEquals(container.padding.top, 10)    -- 10px
-  luaunit.assertEquals(container.padding.right, 20)  -- 5% of 400
+
+  luaunit.assertEquals(container.padding.top, 10) -- 10px
+  luaunit.assertEquals(container.padding.right, 20) -- 5% of 400
   luaunit.assertEquals(container.padding.bottom, 16) -- 2% of 800
-  luaunit.assertEquals(container.padding.left, 12)   -- 1% of 1200
-  
+  luaunit.assertEquals(container.padding.left, 12) -- 1% of 1200
+
   luaunit.assertEquals(container.units.padding.top.unit, "px")
   luaunit.assertEquals(container.units.padding.right.unit, "%")
   luaunit.assertEquals(container.units.padding.bottom.unit, "vh")
@@ -230,21 +234,21 @@ function TestUnitsSystem:testMarginUnits()
   -- Test different unit types for margin
   local container = Gui.new({
     id = "container",
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
     margin = {
       top = "8px",
       right = "3%",
       bottom = "1vh",
-      left = "2vw"
-    }
+      left = "2vw",
+    },
   })
-  
-  luaunit.assertEquals(container.margin.top, 8)      -- 8px
-  luaunit.assertEquals(container.margin.right, 12)   -- 3% of 400
-  luaunit.assertEquals(container.margin.bottom, 8)   -- 1% of 800
-  luaunit.assertEquals(container.margin.left, 24)    -- 2% of 1200
-  
+
+  luaunit.assertEquals(container.margin.top, 8) -- 8px
+  luaunit.assertEquals(container.margin.right, 12) -- 3% of 400
+  luaunit.assertEquals(container.margin.bottom, 8) -- 1% of 800
+  luaunit.assertEquals(container.margin.left, 24) -- 2% of 1200
+
   luaunit.assertEquals(container.units.margin.top.unit, "px")
   luaunit.assertEquals(container.units.margin.right.unit, "%")
   luaunit.assertEquals(container.units.margin.bottom.unit, "vh")
@@ -261,25 +265,25 @@ function TestUnitsSystem:testGapUnits()
     id = "flexContainer",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
-    w = 600,
-    h = 400,
+    width = 600,
+    height = 400,
     gap = "2%", -- 2% of container width
   })
-  
+
   luaunit.assertEquals(flexContainer.gap, 12) -- 2% of 600
   luaunit.assertEquals(flexContainer.units.gap.unit, "%")
   luaunit.assertEquals(flexContainer.units.gap.value, 2)
-  
+
   -- Test with viewport units
   local viewportGapContainer = Gui.new({
-    id = "viewportGapContainer", 
+    id = "viewportGapContainer",
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
     gap = "1vw",
   })
-  
+
   luaunit.assertEquals(viewportGapContainer.gap, 12) -- 1% of 1200 viewport width
   luaunit.assertEquals(viewportGapContainer.units.gap.unit, "vw")
 end
@@ -288,23 +292,23 @@ function TestUnitsSystem:testTextSizeUnits()
   -- Test textSize with different units
   local textElement = Gui.new({
     id = "textElement",
-    w = 200,
-    h = 100,
-    textSize = "16px"
+    width = 200,
+    height = 100,
+    textSize = "16px",
   })
-  
+
   luaunit.assertEquals(textElement.textSize, 16)
   luaunit.assertEquals(textElement.units.textSize.unit, "px")
   luaunit.assertEquals(textElement.units.textSize.value, 16)
-  
+
   -- Test with viewport units
   local viewportTextElement = Gui.new({
     id = "viewportTextElement",
-    w = 200,
-    h = 100,
-    textSize = "2vw"
+    width = 200,
+    height = 100,
+    textSize = "2vw",
   })
-  
+
   luaunit.assertEquals(viewportTextElement.textSize, 24) -- 2% of 1200
   luaunit.assertEquals(viewportTextElement.units.textSize.unit, "vw")
 end
@@ -317,10 +321,10 @@ function TestUnitsSystem:testInvalidUnits()
   -- Test handling of invalid unit specifications (should default to pixels)
   local container = Gui.new({
     id = "container",
-    w = "100invalid", -- Should be treated as 100px
-    h = "50badunit"   -- Should be treated as 50px
+    width = "100invalid", -- Should be treated as 100px
+    height = "50badunit", -- Should be treated as 50px
   })
-  
+
   -- Should fallback to pixel values
   luaunit.assertEquals(container.width, 100)
   luaunit.assertEquals(container.height, 50)
@@ -332,12 +336,12 @@ function TestUnitsSystem:testZeroAndNegativeValues()
   -- Test zero and negative values with units
   local container = Gui.new({
     id = "container",
-    w = "0px",
-    h = "0vh",
+    width = "0px",
+    height = "0vh",
     x = "-10px",
-    y = "-5%"
+    y = "-5%",
   })
-  
+
   luaunit.assertEquals(container.width, 0)
   luaunit.assertEquals(container.height, 0)
   luaunit.assertEquals(container.x, -10)
@@ -348,13 +352,13 @@ function TestUnitsSystem:testVeryLargeValues()
   -- Test very large percentage values
   local container = Gui.new({
     id = "container",
-    w = "200%",  -- 200% of viewport
-    h = "150vh"  -- 150% of viewport height
+    width = "200%", -- 200% of viewport
+    height = "150vh", -- 150% of viewport height
   })
-  
+
   luaunit.assertEquals(container.width, 2400) -- 200% of 1200
   luaunit.assertEquals(container.height, 1200) -- 150% of 800
 end
 
 -- Run the tests
-os.exit(luaunit.LuaUnit.run())
+luaunit.LuaUnit.run()

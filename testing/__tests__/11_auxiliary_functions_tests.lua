@@ -144,14 +144,14 @@ function TestAuxiliaryFunctions:testCalculateAutoWidthWithChildren()
 
   local child1 = Gui.new({
     parent = parent,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     parent = parent,
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   local width = parent:calculateAutoWidth()
@@ -176,14 +176,14 @@ function TestAuxiliaryFunctions:testCalculateAutoHeightWithChildren()
 
   local child1 = Gui.new({
     parent = parent,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     parent = parent,
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   local height = parent:calculateAutoHeight()
@@ -198,8 +198,8 @@ function TestAuxiliaryFunctions:testGetBounds()
   local element = Gui.new({
     x = 10,
     y = 20,
-    w = 100,
-    h = 80,
+    width = 100,
+    height = 80,
   })
 
   local bounds = element:getBounds()
@@ -212,8 +212,8 @@ end
 function TestAuxiliaryFunctions:testUpdateText()
   local element = Gui.new({
     text = "Original Text",
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
   })
 
   element:updateText("New Text")
@@ -327,8 +327,8 @@ end
 
 function TestAuxiliaryFunctions:testAnimationApplyToElement()
   local element = Gui.new({
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
   })
 
   local fadeAnim = Gui.Animation.fade(1.0, 1.0, 0.0)
@@ -339,8 +339,8 @@ end
 
 function TestAuxiliaryFunctions:testAnimationReplaceExisting()
   local element = Gui.new({
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
   })
 
   local fadeAnim1 = Gui.Animation.fade(1.0, 1.0, 0.0)
@@ -366,15 +366,15 @@ function TestAuxiliaryFunctions:testGuiDestroyWithElements()
   local element1 = Gui.new({
     x = 10,
     y = 10,
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
   })
 
   local element2 = Gui.new({
     x = 20,
     y = 20,
-    w = 80,
-    h = 40,
+    width = 80,
+    height = 40,
   })
 
   luaunit.assertEquals(#Gui.topElements, 2)
@@ -385,20 +385,20 @@ end
 
 function TestAuxiliaryFunctions:testGuiDestroyWithNestedElements()
   local parent = Gui.new({
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
   })
 
   local child1 = Gui.new({
     parent = parent,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   local child2 = Gui.new({
     parent = parent,
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   luaunit.assertEquals(#Gui.topElements, 1)
@@ -410,14 +410,14 @@ end
 
 function TestAuxiliaryFunctions:testElementDestroyRemovesFromParent()
   local parent = Gui.new({
-    w = 200,
-    h = 100,
+    width = 200,
+    height = 100,
   })
 
   local child = Gui.new({
     parent = parent,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   luaunit.assertEquals(#parent.children, 1)
@@ -432,8 +432,8 @@ function TestAuxiliaryFunctions:testElementDestroyRemovesFromTopElements()
   local element = Gui.new({
     x = 10,
     y = 10,
-    w = 100,
-    h = 50,
+    width = 100,
+    height = 50,
   })
 
   luaunit.assertEquals(#Gui.topElements, 1)
@@ -445,20 +445,20 @@ end
 
 function TestAuxiliaryFunctions:testElementDestroyNestedChildren()
   local parent = Gui.new({
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
   })
 
   local child = Gui.new({
     parent = parent,
-    w = 100,
-    h = 75,
+    width = 100,
+    height = 75,
   })
 
   local grandchild = Gui.new({
     parent = child,
-    w = 50,
-    h = 30,
+    width = 50,
+    height = 30,
   })
 
   luaunit.assertEquals(#parent.children, 1)
@@ -629,8 +629,8 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
 
   -- Test color application to complex UI structure
   local ui_container = Gui.new({
-    w = 800,
-    h = 600,
+    width = 800,
+    height = 600,
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.VERTICAL,
     gap = 10,
@@ -640,8 +640,8 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
   local component_types = { "header", "content", "sidebar", "footer", "modal" }
   for i, comp_type in ipairs(component_types) do
     local component = Gui.new({
-      w = 780,
-      h = 100,
+      width = 780,
+      height = 100,
       positioning = enums.Positioning.FLEX,
       flexDirection = enums.FlexDirection.HORIZONTAL,
       justifyContent = enums.JustifyContent.SPACE_BETWEEN,
@@ -659,8 +659,8 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
     -- Add sub-components with color variations
     for j = 1, 4 do
       local sub_component = Gui.new({
-        w = 150,
-        h = 80,
+        width = 150,
+        height = 80,
         positioning = enums.Positioning.FLEX,
         justifyContent = enums.JustifyContent.CENTER,
         alignItems = enums.AlignItems.CENTER,
@@ -748,8 +748,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
 
   -- Create dynamic text containers with auto-sizing
   local main_container = Gui.new({
-    w = 1000,
-    h = 800,
+    width = 1000,
+    height = 800,
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.VERTICAL,
     gap = 15,
@@ -757,8 +757,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
 
   for _, scenario in ipairs(text_scenarios) do
     local text_container = Gui.new({
-      w = 900,
-      h = 100,
+      width = 900,
+      height = 100,
       positioning = enums.Positioning.FLEX,
       flexDirection = enums.FlexDirection.HORIZONTAL,
       justifyContent = enums.JustifyContent.SPACE_BETWEEN,
@@ -772,8 +772,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
     local text_element = Gui.new({
       text = scenario.content,
       textSize = scenario.size,
-      w = 0,
-      h = 0, -- Start with zero size for auto-sizing
+      width = 0,
+      height = 0, -- Start with zero size for auto-sizing
     })
     text_element.parent = text_container
     table.insert(text_container.children, text_element)
@@ -820,8 +820,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
     local fixed_element = Gui.new({
       text = scenario.content,
       textSize = scenario.size,
-      w = 200,
-      h = 50, -- Fixed size
+      width = 200,
+      height = 50, -- Fixed size
     })
     fixed_element.parent = text_container
     table.insert(text_container.children, fixed_element)
@@ -830,8 +830,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
     local adaptive_element = Gui.new({
       text = scenario.content,
       textSize = scenario.size,
-      w = math.max(150, auto_width * 0.8),
-      h = math.max(30, auto_height * 1.2),
+      width = math.max(150, auto_width * 0.8),
+      height = math.max(30, auto_height * 1.2),
     })
     adaptive_element.parent = text_container
     table.insert(text_container.children, adaptive_element)
@@ -892,8 +892,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
 
   -- Test complex auto-sizing with nested structures
   local nested_container = Gui.new({
-    w = 800,
-    h = 200,
+    width = 800,
+    height = 200,
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.VERTICAL,
     gap = 10,
@@ -904,8 +904,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
   -- Create nested structure with auto-sizing children
   for level = 1, 3 do
     local level_container = Gui.new({
-      w = 750 - (level * 50),
-      h = 60,
+      width = 750 - (level * 50),
+      height = 60,
       positioning = enums.Positioning.FLEX,
       flexDirection = enums.FlexDirection.HORIZONTAL,
       justifyContent = enums.JustifyContent.SPACE_AROUND,
@@ -923,8 +923,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
       local text_item = Gui.new({
         text = item_text,
         textSize = 14 - level,
-        w = 0,
-        h = 0,
+        width = 0,
+        height = 0,
       })
       text_item.parent = level_container
       table.insert(level_container.children, text_item)
@@ -972,8 +972,8 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
 
   -- Create container for animated elements
   local animation_container = Gui.new({
-    w = 1200,
-    h = 800,
+    width = 1200,
+    height = 800,
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.VERTICAL,
     gap = 20,
@@ -1014,8 +1014,8 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
   -- Create and configure animations for each test case
   for case_idx, test_case in ipairs(animation_test_cases) do
     local case_container = Gui.new({
-      w = 1180,
-      h = 200,
+      width = 1180,
+      height = 200,
       positioning = enums.Positioning.FLEX,
       flexDirection = enums.FlexDirection.HORIZONTAL,
       flexWrap = enums.FlexWrap.WRAP,
@@ -1029,8 +1029,8 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
 
     for elem_idx = 1, test_case.elements do
       local element = Gui.new({
-        w = test_case.properties.width and test_case.properties.width.from or 120,
-        h = test_case.properties.height and test_case.properties.height.from or 60,
+        width = test_case.properties.width and test_case.properties.width.from or 120,
+        height = test_case.properties.height and test_case.properties.height.from or 60,
         opacity = test_case.properties.opacity and test_case.properties.opacity.from or 1.0,
       })
       element.parent = case_container
@@ -1216,7 +1216,7 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
   )
 
   -- Test animation chaining and sequencing
-  local chain_element = Gui.new({ w = 100, h = 50, opacity = 1.0 })
+  local chain_element = Gui.new({ width = 100, height = 50, opacity = 1.0 })
   chain_element.parent = animation_container
   table.insert(animation_container.children, chain_element)
 
@@ -1402,8 +1402,8 @@ function TestAuxiliaryFunctions:testAdvancedGUIManagementAndCleanup()
 
     for _, item in ipairs(structure) do
       local element = Gui.new({
-        w = math.max(100, 300 - level * 20),
-        h = math.max(30, 80 - level * 5),
+        width = math.max(100, 300 - level * 20),
+        height = math.max(30, 80 - level * 5),
         positioning = enums.Positioning.FLEX,
         flexDirection = level % 2 == 0 and enums.FlexDirection.HORIZONTAL or enums.FlexDirection.VERTICAL,
         justifyContent = enums.JustifyContent.FLEX_START,
@@ -1574,8 +1574,8 @@ function TestAuxiliaryFunctions:testAdvancedGUIManagementAndCleanup()
 
   -- Test complex element retrieval and manipulation
   local final_container = Gui.new({
-    w = 400,
-    h = 300,
+    width = 400,
+    height = 300,
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.VERTICAL,
   })
@@ -1584,8 +1584,8 @@ function TestAuxiliaryFunctions:testAdvancedGUIManagementAndCleanup()
   local managed_elements = {}
   for i = 1, 10 do
     local element = Gui.new({
-      w = 350,
-      h = 25,
+      width = 350,
+      height = 25,
       text = "Managed Element " .. i,
       textSize = 12,
     })
@@ -1729,8 +1729,8 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
     local element = Gui.new({
       text = test.text,
       textSize = 14,
-      w = 0,
-      h = 0,
+      width = 0,
+      height = 0,
     })
 
     local text_width = element:calculateTextWidth()
@@ -1794,14 +1794,14 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
 
   -- Extreme hierarchy testing
   local max_depth = 20
-  local extreme_hierarchy_element = Gui.new({ w = 1000, h = 800 })
+  local extreme_hierarchy_element = Gui.new({ width = 1000, height = 800 })
   local current_parent = extreme_hierarchy_element
 
   -- Create extremely deep hierarchy
   for depth = 1, max_depth do
     local child = Gui.new({
-      w = math.max(50, 1000 - depth * 45),
-      h = math.max(30, 800 - depth * 35),
+      width = math.max(50, 1000 - depth * 45),
+      height = math.max(30, 800 - depth * 35),
       positioning = enums.Positioning.FLEX,
       flexDirection = depth % 2 == 0 and enums.FlexDirection.HORIZONTAL or enums.FlexDirection.VERTICAL,
     })
@@ -1828,8 +1828,8 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
 
   -- Test extreme width hierarchy (many siblings)
   local wide_container = Gui.new({
-    w = 2000,
-    h = 200,
+    width = 2000,
+    height = 200,
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.HORIZONTAL,
     flexWrap = enums.FlexWrap.WRAP,
@@ -1838,7 +1838,7 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
 
   local max_siblings = 500
   for i = 1, max_siblings do
-    local sibling = Gui.new({ w = 30, h = 25 })
+    local sibling = Gui.new({ width = 30, height = 25 })
     sibling.parent = wide_container
     table.insert(wide_container.children, sibling)
   end
@@ -1861,7 +1861,7 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
   -- Test massive cleanup operations
   local cleanup_elements = {}
   for i = 1, 1000 do
-    local element = Gui.new({ w = 50, h = 30 })
+    local element = Gui.new({ width = 50, height = 30 })
     table.insert(cleanup_elements, element)
   end
 
@@ -1882,7 +1882,7 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
   luaunit.assertEquals(#Gui.topElements, 0, "All elements should be cleaned up")
 
   -- Test opacity boundary resilience
-  local opacity_element = Gui.new({ w = 100, h = 50, opacity = 0.5 })
+  local opacity_element = Gui.new({ width = 100, height = 50, opacity = 0.5 })
   local extreme_opacities = { -999, -1, 0, 0.5, 1, 2, 999, math.huge, -math.huge }
 
   for _, opacity in ipairs(extreme_opacities) do

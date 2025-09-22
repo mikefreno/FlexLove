@@ -52,8 +52,8 @@ function TestComprehensiveFlex:testComplexRowLayoutWithWrapAndAlignment()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 150,
-    h = 120,
+    width = 150,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -65,23 +65,23 @@ function TestComprehensiveFlex:testComplexRowLayoutWithWrapAndAlignment()
 
   -- Add children that will wrap to second line
   local child1 = createChild(container, {
-    w = 40,
-    h = 30,
+    width = 40,
+    height = 30,
   })
 
   local child2 = createChild(container, {
-    w = 40,
-    h = 30,
+    width = 40,
+    height = 30,
   })
 
   local child3 = createChild(container, {
-    w = 40,
-    h = 30,
+    width = 40,
+    height = 30,
   })
 
   local child4 = createChild(container, {
-    w = 40,
-    h = 30,
+    width = 40,
+    height = 30,
   })
 
   local positions = layoutAndGetPositions(container)
@@ -107,8 +107,8 @@ function TestComprehensiveFlex:testNestedFlexContainersComplexLayout()
   local outerContainer = createContainer({
     x = 0,
     y = 0,
-    w = 180,
-    h = 160,
+    width = 180,
+    height = 160,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_AROUND,
@@ -118,8 +118,8 @@ function TestComprehensiveFlex:testNestedFlexContainersComplexLayout()
 
   -- Inner container 1 - horizontal flex
   local innerContainer1 = createChild(outerContainer, {
-    w = 140,
-    h = 50,
+    width = 140,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
@@ -129,8 +129,8 @@ function TestComprehensiveFlex:testNestedFlexContainersComplexLayout()
 
   -- Inner container 2 - horizontal flex with wrap
   local innerContainer2 = createChild(outerContainer, {
-    w = 140,
-    h = 50,
+    width = 140,
+    height = 50,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -142,24 +142,24 @@ function TestComprehensiveFlex:testNestedFlexContainersComplexLayout()
 
   -- Add children to inner container 1
   local item1 = createChild(innerContainer1, {
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
   })
 
   local item2 = createChild(innerContainer1, {
-    w = 30,
-    h = 35,
+    width = 30,
+    height = 35,
   })
 
   -- Add children to inner container 2
   local item3 = createChild(innerContainer2, {
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   local item4 = createChild(innerContainer2, {
-    w = 40,
-    h = 25,
+    width = 40,
+    height = 25,
   })
 
   local outerPositions = layoutAndGetPositions(outerContainer)
@@ -198,8 +198,8 @@ function TestComprehensiveFlex:testFlexWithAbsolutePositioning()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 160,
-    h = 100,
+    width = 160,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_EVENLY,
@@ -211,13 +211,13 @@ function TestComprehensiveFlex:testFlexWithAbsolutePositioning()
 
   -- Regular flex children
   local flexChild1 = createChild(container, {
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
   })
 
   local flexChild2 = createChild(container, {
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
   })
 
   -- Absolute positioned child (should not affect flex layout)
@@ -225,13 +225,13 @@ function TestComprehensiveFlex:testFlexWithAbsolutePositioning()
     positioning = Positioning.ABSOLUTE,
     x = 10,
     y = 10,
-    w = 20,
-    h = 15,
+    width = 20,
+    height = 15,
   })
 
   local flexChild3 = createChild(container, {
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
   })
 
   local positions = layoutAndGetPositions(container)
@@ -258,8 +258,8 @@ function TestComprehensiveFlex:testComplexWrappingWithMixedAlignments()
   local container = createContainer({
     x = 0,
     y = 0,
-    w = 120,
-    h = 150,
+    width = 120,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_AROUND,
@@ -272,8 +272,8 @@ function TestComprehensiveFlex:testComplexWrappingWithMixedAlignments()
   -- Add 5 children that will wrap into multiple lines
   for i = 1, 5 do
     createChild(container, {
-      w = 35,
-      h = 25,
+      width = 35,
+      height = 25,
     })
   end
 
@@ -307,8 +307,8 @@ function TestComprehensiveFlex:testDeeplyNestedFlexContainers()
   local level1 = createContainer({
     x = 0,
     y = 0,
-    w = 200,
-    h = 150,
+    width = 200,
+    height = 150,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.CENTER,
@@ -317,8 +317,8 @@ function TestComprehensiveFlex:testDeeplyNestedFlexContainers()
   })
 
   local level2 = createChild(level1, {
-    w = 160,
-    h = 100,
+    width = 160,
+    height = 100,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -327,8 +327,8 @@ function TestComprehensiveFlex:testDeeplyNestedFlexContainers()
   })
 
   local level3a = createChild(level2, {
-    w = 70,
-    h = 80,
+    width = 70,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -337,8 +337,8 @@ function TestComprehensiveFlex:testDeeplyNestedFlexContainers()
   })
 
   local level3b = createChild(level2, {
-    w = 70,
-    h = 80,
+    width = 70,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -348,18 +348,18 @@ function TestComprehensiveFlex:testDeeplyNestedFlexContainers()
 
   -- Add leaf elements
   local leafA1 = createChild(level3a, {
-    w = 30,
-    h = 20,
+    width = 30,
+    height = 20,
   })
 
   local leafA2 = createChild(level3a, {
-    w = 25,
-    h = 15,
+    width = 25,
+    height = 15,
   })
 
   local leafB1 = createChild(level3b, {
-    w = 35,
-    h = 18,
+    width = 35,
+    height = 18,
   })
 
   local level1Positions = layoutAndGetPositions(level1)
@@ -420,8 +420,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
   local app = createContainer({
     x = 0,
     y = 0,
-    w = 1200,
-    h = 800,
+    width = 1200,
+    height = 800,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -431,7 +431,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Top navigation bar
   local navbar = createChild(app, {
-    h = 60,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -442,8 +442,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Left section of navbar
   local navLeft = createChild(navbar, {
-    w = 300,
-    h = 40,
+    width = 300,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -451,14 +451,14 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 16,
   })
 
-  createChild(navLeft, { w = 120, h = 28 }) -- logo
-  createChild(navLeft, { w = 80, h = 24 }) -- home link
-  createChild(navLeft, { w = 80, h = 24 }) -- products link
+  createChild(navLeft, { width = 120, height = 28 }) -- logo
+  createChild(navLeft, { width = 80, height = 24 }) -- home link
+  createChild(navLeft, { width = 80, height = 24 }) -- products link
 
   -- Center section of navbar with search
   local navCenter = createChild(navbar, {
-    w = 400,
-    h = 40,
+    width = 400,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.CENTER,
@@ -466,13 +466,13 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 8,
   })
 
-  createChild(navCenter, { w = 300, h = 32 }) -- search input
-  createChild(navCenter, { w = 32, h = 32 }) -- search button
+  createChild(navCenter, { width = 300, height = 32 }) -- search input
+  createChild(navCenter, { width = 32, height = 32 }) -- search button
 
   -- Right section of navbar
   local navRight = createChild(navbar, {
-    w = 200,
-    h = 40,
+    width = 200,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -480,13 +480,13 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 12,
   })
 
-  createChild(navRight, { w = 32, h = 32 }) -- notifications
-  createChild(navRight, { w = 32, h = 32 }) -- cart
-  createChild(navRight, { w = 80, h = 32 }) -- user menu
+  createChild(navRight, { width = 32, height = 32 }) -- notifications
+  createChild(navRight, { width = 32, height = 32 }) -- cart
+  createChild(navRight, { width = 80, height = 32 }) -- user menu
 
   -- Main content area
   local mainContent = createChild(app, {
-    h = 740, -- 800 - 60 navbar
+    height = 740, -- 800 - 60 navbar
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -496,8 +496,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Left sidebar
   local sidebar = createChild(mainContent, {
-    w = 250,
-    h = 740,
+    width = 250,
+    height = 740,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -508,7 +508,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Sidebar navigation
   local sideNav = createChild(sidebar, {
-    h = 300,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -516,12 +516,12 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 8,
   })
 
-  createChild(sideNav, { h = 24 }) -- nav title
+  createChild(sideNav, { height = 24 }) -- nav title
 
   -- Navigation items with nested structure
   for i = 1, 8 do
     local navItem = createChild(sideNav, {
-      h = 32,
+      height = 32,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -531,8 +531,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     })
 
     local navItemLeft = createChild(navItem, {
-      w = 150,
-      h = 24,
+      width = 150,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -540,17 +540,17 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       gap = 8,
     })
 
-    createChild(navItemLeft, { w = 16, h = 16 }) -- icon
-    createChild(navItemLeft, { w = 100, h = 16 }) -- label
+    createChild(navItemLeft, { width = 16, height = 16 }) -- icon
+    createChild(navItemLeft, { width = 100, height = 16 }) -- label
 
     if i <= 3 then -- some items have badges
-      createChild(navItem, { w = 20, h = 16 }) -- badge
+      createChild(navItem, { width = 20, height = 16 }) -- badge
     end
   end
 
   -- Sidebar widget area
   local sideWidget = createChild(sidebar, {
-    h = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -559,10 +559,10 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     padding = { top = 16, right = 16, bottom = 16, left = 16 },
   })
 
-  createChild(sideWidget, { h = 20 }) -- widget title
+  createChild(sideWidget, { height = 20 }) -- widget title
 
   local widgetContent = createChild(sideWidget, {
-    h = 120,
+    height = 120,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -572,7 +572,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   for i = 1, 4 do
     local widgetItem = createChild(widgetContent, {
-      h = 24,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -580,16 +580,16 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       gap = 8,
     })
 
-    createChild(widgetItem, { w = 120, h = 16 }) -- widget text
-    createChild(widgetItem, { w = 40, h = 12 }) -- widget value
+    createChild(widgetItem, { width = 120, height = 16 }) -- widget text
+    createChild(widgetItem, { width = 40, height = 12 }) -- widget value
   end
 
-  createChild(sideWidget, { h = 32 }) -- widget action button
+  createChild(sideWidget, { height = 32 }) -- widget action button
 
   -- Main content panel
   local contentPanel = createChild(mainContent, {
-    w = 950,
-    h = 740, -- 1200 - 250 sidebar
+    width = 950,
+    height = 740, -- 1200 - 250 sidebar
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -599,7 +599,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Content header with breadcrumbs and actions
   local contentHeader = createChild(contentPanel, {
-    h = 80,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -610,8 +610,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Breadcrumbs and title section
   local headerLeft = createChild(contentHeader, {
-    w = 500,
-    h = 40,
+    width = 500,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -621,7 +621,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Breadcrumbs
   local breadcrumbs = createChild(headerLeft, {
-    h = 16,
+    height = 16,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -632,18 +632,18 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
   })
 
   for i = 1, 4 do
-    createChild(breadcrumbs, { w = 60, h = 14 }) -- breadcrumb
+    createChild(breadcrumbs, { width = 60, height = 14 }) -- breadcrumb
     if i < 4 then
-      createChild(breadcrumbs, { w = 8, h = 8 }) -- separator
+      createChild(breadcrumbs, { width = 8, height = 8 }) -- separator
     end
   end
 
-  createChild(headerLeft, { w = 200, h = 24 }) -- page title
+  createChild(headerLeft, { width = 200, height = 24 }) -- page title
 
   -- Action buttons section
   local headerRight = createChild(contentHeader, {
-    w = 300,
-    h = 40,
+    width = 300,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -653,13 +653,13 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 12,
   })
 
-  createChild(headerRight, { w = 80, h = 32 }) -- filter button
-  createChild(headerRight, { w = 80, h = 32 }) -- sort button
-  createChild(headerRight, { w = 100, h = 32 }) -- primary action
+  createChild(headerRight, { width = 80, height = 32 }) -- filter button
+  createChild(headerRight, { width = 80, height = 32 }) -- sort button
+  createChild(headerRight, { width = 100, height = 32 }) -- primary action
 
   -- Main content area with complex layouts
   local contentMain = createChild(contentPanel, {
-    h = 660, -- 740 - 80 header
+    height = 660, -- 740 - 80 header
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -670,8 +670,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Content grid area
   local contentGrid = createChild(contentMain, {
-    w = 600,
-    h = 640,
+    width = 600,
+    height = 640,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -681,7 +681,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Grid header with filters
   local gridHeader = createChild(contentGrid, {
-    h = 60,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -693,8 +693,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Active filters
   local activeFilters = createChild(gridHeader, {
-    w = 350,
-    h = 32,
+    width = 350,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -706,8 +706,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   for i = 1, 4 do
     local filterChip = createChild(activeFilters, {
-      w = 70,
-      h = 24,
+      width = 70,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -716,14 +716,14 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       padding = { top = 2, right = 6, bottom = 2, left = 6 },
     })
 
-    createChild(filterChip, { w = 40, h = 12 }) -- filter text
-    createChild(filterChip, { w = 12, h = 12 }) -- close button
+    createChild(filterChip, { width = 40, height = 12 }) -- filter text
+    createChild(filterChip, { width = 12, height = 12 }) -- close button
   end
 
   -- Grid controls
   local gridControls = createChild(gridHeader, {
-    w = 150,
-    h = 32,
+    width = 150,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -731,12 +731,12 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 8,
   })
 
-  createChild(gridControls, { w = 60, h = 28 }) -- view toggle
-  createChild(gridControls, { w = 60, h = 28 }) -- sort dropdown
+  createChild(gridControls, { width = 60, height = 28 }) -- view toggle
+  createChild(gridControls, { width = 60, height = 28 }) -- sort dropdown
 
   -- Item grid
   local itemGrid = createChild(contentGrid, {
-    h = 560,
+    height = 560,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -749,8 +749,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
   -- Create grid items
   for i = 1, 6 do
     local gridItem = createChild(itemGrid, {
-      w = 180,
-      h = 240,
+      width = 180,
+      height = 240,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -759,10 +759,10 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       padding = { top = 16, right = 16, bottom = 16, left = 16 },
     })
 
-    createChild(gridItem, { h = 120 }) -- item image
+    createChild(gridItem, { height = 120 }) -- item image
 
     local itemInfo = createChild(gridItem, {
-      h = 60,
+      height = 60,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -770,11 +770,11 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       gap = 4,
     })
 
-    createChild(itemInfo, { w = 140, h = 16 }) -- item title
-    createChild(itemInfo, { w = 100, h = 12 }) -- item description
+    createChild(itemInfo, { width = 140, height = 16 }) -- item title
+    createChild(itemInfo, { width = 100, height = 12 }) -- item description
 
     local itemMeta = createChild(itemInfo, {
-      h = 16,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -782,11 +782,11 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       gap = 8,
     })
 
-    createChild(itemMeta, { w = 60, h = 14 }) -- price
-    createChild(itemMeta, { w = 40, h = 14 }) -- rating
+    createChild(itemMeta, { width = 60, height = 14 }) -- price
+    createChild(itemMeta, { width = 40, height = 14 }) -- rating
 
     local itemActions = createChild(gridItem, {
-      h = 32,
+      height = 32,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -794,14 +794,14 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       gap = 8,
     })
 
-    createChild(itemActions, { w = 100, h = 28 }) -- primary action
-    createChild(itemActions, { w = 28, h = 28 }) -- secondary action
+    createChild(itemActions, { width = 100, height = 28 }) -- primary action
+    createChild(itemActions, { width = 28, height = 28 }) -- secondary action
   end
 
   -- Right detail panel
   local detailPanel = createChild(contentMain, {
-    w = 290,
-    h = 640,
+    width = 290,
+    height = 640,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -812,7 +812,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
   -- Detail header
   local detailHeader = createChild(detailPanel, {
-    h = 60,
+    height = 60,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -820,12 +820,12 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 8,
   })
 
-  createChild(detailHeader, { h = 24 }) -- detail title
-  createChild(detailHeader, { h = 16 }) -- detail subtitle
+  createChild(detailHeader, { height = 24 }) -- detail title
+  createChild(detailHeader, { height = 16 }) -- detail subtitle
 
   -- Detail content with complex nested structure
   local detailContent = createChild(detailPanel, {
-    h = 480,
+    height = 480,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -836,7 +836,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
   -- Detail sections
   for i = 1, 3 do
     local detailSection = createChild(detailContent, {
-      h = 140,
+      height = 140,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -845,10 +845,10 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
       padding = { top = 12, right = 12, bottom = 12, left = 12 },
     })
 
-    createChild(detailSection, { h = 18 }) -- section title
+    createChild(detailSection, { height = 18 }) -- section title
 
     local sectionContent = createChild(detailSection, {
-      h = 90,
+      height = 90,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -858,7 +858,7 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
 
     for j = 1, 4 do
       local contentRow = createChild(sectionContent, {
-        h = 18,
+        height = 18,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -866,14 +866,14 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
         gap = 8,
       })
 
-      createChild(contentRow, { w = 120, h = 14 }) -- row label
-      createChild(contentRow, { w = 80, h = 14 }) -- row value
+      createChild(contentRow, { width = 120, height = 14 }) -- row label
+      createChild(contentRow, { width = 80, height = 14 }) -- row value
     end
   end
 
   -- Detail actions
   local detailActions = createChild(detailPanel, {
-    h = 80,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -881,8 +881,8 @@ function TestComprehensiveFlex:testComplexApplicationLayout()
     gap = 12,
   })
 
-  createChild(detailActions, { h = 32 }) -- primary action
-  createChild(detailActions, { h = 28 }) -- secondary action
+  createChild(detailActions, { height = 32 }) -- primary action
+  createChild(detailActions, { height = 28 }) -- secondary action
 
   -- Layout and test positions
   local appPositions = layoutAndGetPositions(app)
@@ -960,8 +960,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   local dashboard = createContainer({
     x = 0,
     y = 0,
-    w = 1400,
-    h = 900,
+    width = 1400,
+    height = 900,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -971,7 +971,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Dashboard header with complex controls
   local dashHeader = createChild(dashboard, {
-    h = 80,
+    height = 80,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -982,8 +982,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Header left: title and time range
   local headerLeft = createChild(dashHeader, {
-    w = 400,
-    h = 48,
+    width = 400,
+    height = 48,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -991,11 +991,11 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 20,
   })
 
-  createChild(headerLeft, { w = 200, h = 32 }) -- dashboard title
+  createChild(headerLeft, { width = 200, height = 32 }) -- dashboard title
 
   local timeRange = createChild(headerLeft, {
-    w = 160,
-    h = 32,
+    width = 160,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1004,13 +1004,13 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     padding = { top = 4, right = 8, bottom = 4, left = 8 },
   })
 
-  createChild(timeRange, { w = 100, h = 16 }) -- time range text
-  createChild(timeRange, { w = 16, h = 16 }) -- dropdown arrow
+  createChild(timeRange, { width = 100, height = 16 }) -- time range text
+  createChild(timeRange, { width = 16, height = 16 }) -- dropdown arrow
 
   -- Header center: key metrics
   local headerCenter = createChild(dashHeader, {
-    w = 600,
-    h = 48,
+    width = 600,
+    height = 48,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1023,8 +1023,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   -- Quick metrics
   for i = 1, 4 do
     local metric = createChild(headerCenter, {
-      w = 120,
-      h = 40,
+      width = 120,
+      height = 40,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1032,14 +1032,14 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 4,
     })
 
-    createChild(metric, { w = 60, h = 16 }) -- metric value
-    createChild(metric, { w = 80, h = 12 }) -- metric label
+    createChild(metric, { width = 60, height = 16 }) -- metric value
+    createChild(metric, { width = 80, height = 12 }) -- metric label
   end
 
   -- Header right: actions and settings
   local headerRight = createChild(dashHeader, {
-    w = 280,
-    h = 48,
+    width = 280,
+    height = 48,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1049,14 +1049,14 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 12,
   })
 
-  createChild(headerRight, { w = 36, h = 36 }) -- refresh button
-  createChild(headerRight, { w = 36, h = 36 }) -- fullscreen button
-  createChild(headerRight, { w = 100, h = 36 }) -- export button
-  createChild(headerRight, { w = 36, h = 36 }) -- settings button
+  createChild(headerRight, { width = 36, height = 36 }) -- refresh button
+  createChild(headerRight, { width = 36, height = 36 }) -- fullscreen button
+  createChild(headerRight, { width = 100, height = 36 }) -- export button
+  createChild(headerRight, { width = 36, height = 36 }) -- settings button
 
   -- Main dashboard content
   local dashContent = createChild(dashboard, {
-    h = 820, -- 900 - 80 header
+    height = 820, -- 900 - 80 header
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1066,8 +1066,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Left sidebar with navigation and filters
   local dashSidebar = createChild(dashContent, {
-    w = 280,
-    h = 820,
+    width = 280,
+    height = 820,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1078,7 +1078,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Sidebar navigation
   local sidebarNav = createChild(dashSidebar, {
-    h = 300,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1086,12 +1086,12 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 12,
   })
 
-  createChild(sidebarNav, { h = 24 }) -- nav title
+  createChild(sidebarNav, { height = 24 }) -- nav title
 
   -- Navigation groups
   for i = 1, 3 do
     local navGroup = createChild(sidebarNav, {
-      h = 80,
+      height = 80,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1099,11 +1099,11 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 4,
     })
 
-    createChild(navGroup, { h = 20 }) -- group title
+    createChild(navGroup, { height = 20 }) -- group title
 
     for j = 1, 3 do
       local navItem = createChild(navGroup, {
-        h = 20,
+        height = 20,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1112,16 +1112,16 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
         padding = { top = 2, right = 8, bottom = 2, left = 16 },
       })
 
-      createChild(navItem, { w = 160, h = 14 }) -- nav label
+      createChild(navItem, { width = 160, height = 14 }) -- nav label
       if j == 1 then
-        createChild(navItem, { w = 20, h = 12 }) -- active indicator
+        createChild(navItem, { width = 20, height = 12 }) -- active indicator
       end
     end
   end
 
   -- Sidebar filters
   local sidebarFilters = createChild(dashSidebar, {
-    h = 250,
+    height = 250,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1130,12 +1130,12 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     padding = { top = 16, right = 16, bottom = 16, left = 0 },
   })
 
-  createChild(sidebarFilters, { h = 24 }) -- filters title
+  createChild(sidebarFilters, { height = 24 }) -- filters title
 
   -- Filter groups
   for i = 1, 3 do
     local filterGroup = createChild(sidebarFilters, {
-      h = 60,
+      height = 60,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1143,10 +1143,10 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 8,
     })
 
-    createChild(filterGroup, { h = 16 }) -- filter group title
+    createChild(filterGroup, { height = 16 }) -- filter group title
 
     local filterOptions = createChild(filterGroup, {
-      h = 36,
+      height = 36,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1156,7 +1156,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
     for j = 1, 2 do
       local filterOption = createChild(filterOptions, {
-        h = 16,
+        height = 16,
         positioning = Positioning.FLEX,
         flexDirection = FlexDirection.HORIZONTAL,
         justifyContent = JustifyContent.FLEX_START,
@@ -1164,14 +1164,14 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
         gap = 8,
       })
 
-      createChild(filterOption, { w = 16, h = 12 }) -- checkbox
-      createChild(filterOption, { w = 120, h = 12 }) -- option label
+      createChild(filterOption, { width = 16, height = 12 }) -- checkbox
+      createChild(filterOption, { width = 120, height = 12 }) -- option label
     end
   end
 
   -- Sidebar recent activity
   local sidebarActivity = createChild(dashSidebar, {
-    h = 200,
+    height = 200,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1180,10 +1180,10 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     padding = { top = 16, right = 16, bottom = 0, left = 0 },
   })
 
-  createChild(sidebarActivity, { h = 20 }) -- activity title
+  createChild(sidebarActivity, { height = 20 }) -- activity title
 
   local activityList = createChild(sidebarActivity, {
-    h = 160,
+    height = 160,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1193,7 +1193,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   for i = 1, 6 do
     local activityItem = createChild(activityList, {
-      h = 24,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1202,8 +1202,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     })
 
     local activityLeft = createChild(activityItem, {
-      w = 160,
-      h = 16,
+      width = 160,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1211,16 +1211,16 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 6,
     })
 
-    createChild(activityLeft, { w = 12, h = 12 }) -- status dot
-    createChild(activityLeft, { w = 120, h = 12 }) -- activity text
+    createChild(activityLeft, { width = 12, height = 12 }) -- status dot
+    createChild(activityLeft, { width = 120, height = 12 }) -- activity text
 
-    createChild(activityItem, { w = 40, h = 10 }) -- timestamp
+    createChild(activityItem, { width = 40, height = 10 }) -- timestamp
   end
 
   -- Main content panels area
   local dashMain = createChild(dashContent, {
-    w = 1120,
-    h = 820, -- 1400 - 280 sidebar
+    width = 1120,
+    height = 820, -- 1400 - 280 sidebar
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1231,7 +1231,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Top metrics row
   local topMetrics = createChild(dashMain, {
-    h = 140,
+    height = 140,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1244,8 +1244,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   -- Large metric cards
   for i = 1, 4 do
     local metricCard = createChild(topMetrics, {
-      w = 250,
-      h = 120,
+      width = 250,
+      height = 120,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1256,7 +1256,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
     -- Card header
     local cardHeader = createChild(metricCard, {
-      h = 24,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1264,12 +1264,12 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 8,
     })
 
-    createChild(cardHeader, { w = 120, h = 16 }) -- metric title
-    createChild(cardHeader, { w = 20, h = 16 }) -- trend icon
+    createChild(cardHeader, { width = 120, height = 16 }) -- metric title
+    createChild(cardHeader, { width = 20, height = 16 }) -- trend icon
 
     -- Metric value and change
     local cardValue = createChild(metricCard, {
-      h = 32,
+      height = 32,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1277,16 +1277,16 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 8,
     })
 
-    createChild(cardValue, { w = 100, h = 28 }) -- main value
-    createChild(cardValue, { w = 60, h = 16 }) -- change percentage
+    createChild(cardValue, { width = 100, height = 28 }) -- main value
+    createChild(cardValue, { width = 60, height = 16 }) -- change percentage
 
     -- Mini chart area
-    createChild(metricCard, { h = 24 }) -- mini chart
+    createChild(metricCard, { height = 24 }) -- mini chart
   end
 
   -- Middle content row with charts
   local middleContent = createChild(dashMain, {
-    h = 320,
+    height = 320,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1296,8 +1296,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Large chart panel
   local chartPanel = createChild(middleContent, {
-    w = 680,
-    h = 300,
+    width = 680,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1308,7 +1308,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Chart header with controls
   local chartHeader = createChild(chartPanel, {
-    h = 40,
+    height = 40,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1316,11 +1316,11 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 16,
   })
 
-  createChild(chartHeader, { w = 200, h = 24 }) -- chart title
+  createChild(chartHeader, { width = 200, height = 24 }) -- chart title
 
   local chartControls = createChild(chartHeader, {
-    w = 200,
-    h = 32,
+    width = 200,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1330,16 +1330,16 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 8,
   })
 
-  createChild(chartControls, { w = 60, h = 24 }) -- time filter
-  createChild(chartControls, { w = 60, h = 24 }) -- chart type
-  createChild(chartControls, { w = 24, h = 24 }) -- options menu
+  createChild(chartControls, { width = 60, height = 24 }) -- time filter
+  createChild(chartControls, { width = 60, height = 24 }) -- chart type
+  createChild(chartControls, { width = 24, height = 24 }) -- options menu
 
   -- Chart area
-  createChild(chartPanel, { h = 200 }) -- main chart
+  createChild(chartPanel, { height = 200 }) -- main chart
 
   -- Chart legend
   local chartLegend = createChild(chartPanel, {
-    h = 28,
+    height = 28,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1351,8 +1351,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   for i = 1, 5 do
     local legendItem = createChild(chartLegend, {
-      w = 80,
-      h = 16,
+      width = 80,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1360,14 +1360,14 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 6,
     })
 
-    createChild(legendItem, { w = 12, h = 12 }) -- color indicator
-    createChild(legendItem, { w = 50, h = 12 }) -- legend text
+    createChild(legendItem, { width = 12, height = 12 }) -- color indicator
+    createChild(legendItem, { width = 50, height = 12 }) -- legend text
   end
 
   -- Side stats panel
   local statsPanel = createChild(middleContent, {
-    w = 360,
-    h = 300,
+    width = 360,
+    height = 300,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1376,11 +1376,11 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     padding = { top = 20, right = 20, bottom = 20, left = 20 },
   })
 
-  createChild(statsPanel, { h = 24 }) -- stats title
+  createChild(statsPanel, { height = 24 }) -- stats title
 
   -- Stats grid
   local statsGrid = createChild(statsPanel, {
-    h = 240,
+    height = 240,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     flexWrap = FlexWrap.WRAP,
@@ -1393,8 +1393,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   -- Stats items in 2x4 grid
   for i = 1, 8 do
     local statItem = createChild(statsGrid, {
-      w = 150,
-      h = 50,
+      width = 150,
+      height = 50,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1403,13 +1403,13 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       padding = { top = 8, right = 8, bottom = 8, left = 8 },
     })
 
-    createChild(statItem, { w = 100, h = 16 }) -- stat label
-    createChild(statItem, { w = 80, h = 20 }) -- stat value
+    createChild(statItem, { width = 100, height = 16 }) -- stat label
+    createChild(statItem, { width = 80, height = 20 }) -- stat value
   end
 
   -- Bottom content row with tables and lists
   local bottomContent = createChild(dashMain, {
-    h = 260,
+    height = 260,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1419,8 +1419,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Data table panel
   local tablePanel = createChild(bottomContent, {
-    w = 540,
-    h = 240,
+    width = 540,
+    height = 240,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1431,7 +1431,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Table header
   local tableHeader = createChild(tablePanel, {
-    h = 32,
+    height = 32,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1439,11 +1439,11 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 12,
   })
 
-  createChild(tableHeader, { w = 150, h = 20 }) -- table title
+  createChild(tableHeader, { width = 150, height = 20 }) -- table title
 
   local tableControls = createChild(tableHeader, {
-    w = 120,
-    h = 24,
+    width = 120,
+    height = 24,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.FLEX_END,
@@ -1451,12 +1451,12 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     gap = 8,
   })
 
-  createChild(tableControls, { w = 80, h = 20 }) -- search box
-  createChild(tableControls, { w = 20, h = 20 }) -- filter button
+  createChild(tableControls, { width = 80, height = 20 }) -- search box
+  createChild(tableControls, { width = 20, height = 20 }) -- filter button
 
   -- Table content
   local tableContent = createChild(tablePanel, {
-    h = 180,
+    height = 180,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1466,7 +1466,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Table header row
   local tableHeaderRow = createChild(tableContent, {
-    h = 24,
+    height = 24,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1475,13 +1475,13 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   })
 
   for i = 1, 4 do
-    createChild(tableHeaderRow, { w = 100, h = 16 }) -- column header
+    createChild(tableHeaderRow, { width = 100, height = 16 }) -- column header
   end
 
   -- Table data rows
   for i = 1, 6 do
     local tableRow = createChild(tableContent, {
-      h = 24,
+      height = 24,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1490,14 +1490,14 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     })
 
     for j = 1, 4 do
-      createChild(tableRow, { w = 100, h = 14 }) -- table cell
+      createChild(tableRow, { width = 100, height = 14 }) -- table cell
     end
   end
 
   -- Right panels (split)
   local rightPanels = createChild(bottomContent, {
-    w = 500,
-    h = 240,
+    width = 500,
+    height = 240,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.HORIZONTAL,
     justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1507,8 +1507,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   -- Alerts panel
   local alertsPanel = createChild(rightPanels, {
-    w = 240,
-    h = 240,
+    width = 240,
+    height = 240,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1517,10 +1517,10 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     padding = { top = 16, right = 16, bottom = 16, left = 16 },
   })
 
-  createChild(alertsPanel, { h = 20 }) -- alerts title
+  createChild(alertsPanel, { height = 20 }) -- alerts title
 
   local alertsList = createChild(alertsPanel, {
-    h = 192,
+    height = 192,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1530,7 +1530,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   for i = 1, 6 do
     local alertItem = createChild(alertsList, {
-      h = 28,
+      height = 28,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1540,8 +1540,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     })
 
     local alertLeft = createChild(alertItem, {
-      w = 160,
-      h = 20,
+      width = 160,
+      height = 20,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.FLEX_START,
@@ -1549,16 +1549,16 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 6,
     })
 
-    createChild(alertLeft, { w = 12, h = 12 }) -- alert icon
-    createChild(alertLeft, { w = 120, h = 12 }) -- alert text
+    createChild(alertLeft, { width = 12, height = 12 }) -- alert icon
+    createChild(alertLeft, { width = 120, height = 12 }) -- alert text
 
-    createChild(alertItem, { w = 16, h = 16 }) -- dismiss button
+    createChild(alertItem, { width = 16, height = 16 }) -- dismiss button
   end
 
   -- Progress panel
   local progressPanel = createChild(rightPanels, {
-    w = 240,
-    h = 240,
+    width = 240,
+    height = 240,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1567,10 +1567,10 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     padding = { top = 16, right = 16, bottom = 16, left = 16 },
   })
 
-  createChild(progressPanel, { h = 20 }) -- progress title
+  createChild(progressPanel, { height = 20 }) -- progress title
 
   local progressList = createChild(progressPanel, {
-    h = 192,
+    height = 192,
     positioning = Positioning.FLEX,
     flexDirection = FlexDirection.VERTICAL,
     justifyContent = JustifyContent.FLEX_START,
@@ -1580,7 +1580,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
 
   for i = 1, 4 do
     local progressItem = createChild(progressList, {
-      h = 40,
+      height = 40,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.VERTICAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1589,7 +1589,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     })
 
     local progressHeader = createChild(progressItem, {
-      h = 16,
+      height = 16,
       positioning = Positioning.FLEX,
       flexDirection = FlexDirection.HORIZONTAL,
       justifyContent = JustifyContent.SPACE_BETWEEN,
@@ -1597,10 +1597,10 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
       gap = 8,
     })
 
-    createChild(progressHeader, { w = 120, h = 12 }) -- progress label
-    createChild(progressHeader, { w = 40, h = 12 }) -- progress percentage
+    createChild(progressHeader, { width = 120, height = 12 }) -- progress label
+    createChild(progressHeader, { width = 40, height = 12 }) -- progress percentage
 
-    createChild(progressItem, { h = 8 }) -- progress bar
+    createChild(progressItem, { height = 8 }) -- progress bar
   end
 
   -- Layout and test positions

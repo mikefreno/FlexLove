@@ -175,6 +175,19 @@ function Units.getViewport()
   end
 end
 
+--- Apply base scaling to a value
+---@param value number
+---@param axis "x"|"y" -- Which axis to scale on
+---@param scaleFactors {x:number, y:number}
+---@return number
+function Units.applyBaseScale(value, axis, scaleFactors)
+  if axis == "x" then
+    return value * scaleFactors.x
+  else
+    return value * scaleFactors.y
+  end
+end
+
 --- Resolve units for spacing properties (padding, margin)
 ---@param spacingProps table?
 ---@param parentWidth number
@@ -233,14 +246,50 @@ end
 --- Top level GUI manager
 ---@class Gui
 ---@field topElements table<integer, Element>
+---@field baseScale {width:number, height:number}?
+---@field scaleFactors {x:number, y:number}
+---@field init fun(config: {baseScale: {width:number, height:number}}): nil
 ---@field resize fun(): nil
 ---@field draw fun(): nil
 ---@field update fun(dt:number): nil
 ---@field destroy fun(): nil
-local Gui = { topElements = {} }
+local Gui = {
+  topElements = {},
+  baseScale = nil,
+  scaleFactors = { x = 1.0, y = 1.0 },
+}
+
+--- Initialize FlexLove with configuration
+---@param config {baseScale?: {width?:number, height?:number}} --Default: {width: 1920, height: 1080}
+function Gui.init(config)
+  if config.baseScale then
+    Gui.baseScale = {
+      width = config.baseScale.width or 1920,
+      height = config.baseScale.height or 1080,
+    }
+
+    -- Calculate initial scale factors
+    local currentWidth, currentHeight = Units.getViewport()
+    Gui.scaleFactors.x = currentWidth / Gui.baseScale.width
+    Gui.scaleFactors.y = currentHeight / Gui.baseScale.height
+  end
+end
+
+--- Get current scale factors
+---@return number, number -- scaleX, scaleY
+function Gui.getScaleFactors()
+  return Gui.scaleFactors.x, Gui.scaleFactors.y
+end
 
 function Gui.resize()
   local newWidth, newHeight = love.window.getMode()
+
+  -- Update scale factors if base scale is set
+  if Gui.baseScale then
+    Gui.scaleFactors.x = newWidth / Gui.baseScale.width
+    Gui.scaleFactors.y = newHeight / Gui.baseScale.height
+  end
+
   for _, win in ipairs(Gui.topElements) do
     win:resize(newWidth, newHeight)
   end
@@ -572,6 +621,9 @@ function Element.new(props)
     },
   }
 
+  -- Get scale factors from Gui (will be used later)
+  local scaleX, scaleY = Gui.getScaleFactors()
+
   -- Handle width (both w and width properties, prefer w if both exist)
   local widthProp = props.width
   if widthProp then
@@ -581,7 +633,8 @@ function Element.new(props)
       local parentWidth = self.parent and self.parent.width or viewportWidth
       self.width = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
     else
-      self.width = widthProp
+      -- Apply base scaling to pixel values
+      self.width = Gui.baseScale and (widthProp * scaleX) or widthProp
       self.units.width = { value = widthProp, unit = "px" }
     end
   else
@@ -599,7 +652,8 @@ function Element.new(props)
       local parentHeight = self.parent and self.parent.height or viewportHeight
       self.height = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
     else
-      self.height = heightProp
+      -- Apply base scaling to pixel values
+      self.height = Gui.baseScale and (heightProp * scaleY) or heightProp
       self.units.height = { value = heightProp, unit = "px" }
     end
   else
@@ -634,14 +688,14 @@ function Element.new(props)
   -- Store original textSize units and constraints
   self.minTextSize = props.minTextSize
   self.maxTextSize = props.maxTextSize
-  
+
   -- Auto-scale text by default (can be disabled with autoScaleText = false)
   if props.autoScaleText == nil then
     self.autoScaleText = true
   else
     self.autoScaleText = props.autoScaleText
   end
-  
+
   if props.textSize then
     if type(props.textSize) == "string" then
       local value, unit = Units.parse(props.textSize)
@@ -664,8 +718,23 @@ function Element.new(props)
         self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, nil)
       end
     else
-      self.textSize = props.textSize
-      self.units.textSize = { value = props.textSize, unit = "px" }
+      -- Validate pixel textSize value
+      if props.textSize <= 0 then
+        error("textSize must be greater than 0, got: " .. tostring(props.textSize))
+      end
+      
+      -- Pixel textSize value
+      if self.autoScaleText then
+        -- Convert pixel value to viewport units for auto-scaling
+        -- Calculate what percentage of viewport height this represents
+        local vhValue = (props.textSize / viewportHeight) * 100
+        self.units.textSize = { value = vhValue, unit = "vh" }
+        self.textSize = props.textSize  -- Initial size is the specified pixel value
+      else
+        -- Apply base scaling to pixel text sizes (no auto-scaling)
+        self.textSize = Gui.baseScale and (props.textSize * scaleY) or props.textSize
+        self.units.textSize = { value = props.textSize, unit = "px" }
+      end
     end
   else
     -- No textSize specified - use auto-scaling default
@@ -674,18 +743,26 @@ function Element.new(props)
       self.textSize = (1.5 / 100) * viewportHeight
       self.units.textSize = { value = 1.5, unit = "vh" }
     else
-      -- Fixed 12px when auto-scaling is disabled
-      self.textSize = 12
+      -- Fixed 12px when auto-scaling is disabled (with base scaling if set)
+      self.textSize = Gui.baseScale and (12 * scaleY) or 12
       self.units.textSize = { value = nil, unit = "px" }
     end
   end
+
+  -- Apply min/max constraints (also scaled)
+  local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+  local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
   
-  -- Apply min/max constraints
-  if self.minTextSize and self.textSize < self.minTextSize then
-    self.textSize = self.minTextSize
+  if minSize and self.textSize < minSize then
+    self.textSize = minSize
   end
-  if self.maxTextSize and self.textSize > self.maxTextSize then
-    self.textSize = self.maxTextSize
+  if maxSize and self.textSize > maxSize then
+    self.textSize = maxSize
+  end
+  
+  -- Protect against too-small text sizes (minimum 1px)
+  if self.textSize < 1 then
+    self.textSize = 1  -- Minimum 1px
   end
 
   -- Store original spacing values for proper resize handling
@@ -730,7 +807,8 @@ function Element.new(props)
         self.units.x = { value = value, unit = unit }
         self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
       else
-        self.x = props.x
+        -- Apply base scaling to pixel positions
+        self.x = Gui.baseScale and (props.x * scaleX) or props.x
         self.units.x = { value = props.x, unit = "px" }
       end
     else
@@ -745,7 +823,8 @@ function Element.new(props)
         self.units.y = { value = value, unit = unit }
         self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
       else
-        self.y = props.y
+        -- Apply base scaling to pixel positions
+        self.y = Gui.baseScale and (props.y * scaleY) or props.y
         self.units.y = { value = props.y, unit = "px" }
       end
     else
@@ -798,7 +877,8 @@ function Element.new(props)
           local parentWidth = self.parent.width
           self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
         else
-          self.x = props.x
+          -- Apply base scaling to pixel positions
+          self.x = Gui.baseScale and (props.x * scaleX) or props.x
           self.units.x = { value = props.x, unit = "px" }
         end
       else
@@ -814,7 +894,8 @@ function Element.new(props)
           local parentHeight = self.parent.height
           self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
         else
-          self.y = props.y
+          -- Apply base scaling to pixel positions
+          self.y = Gui.baseScale and (props.y * scaleY) or props.y
           self.units.y = { value = props.y, unit = "px" }
         end
       else
@@ -836,7 +917,9 @@ function Element.new(props)
           local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
           self.x = baseX + offsetX
         else
-          self.x = baseX + props.x
+          -- Apply base scaling to pixel offsets
+          local scaledOffset = Gui.baseScale and (props.x * scaleX) or props.x
+          self.x = baseX + scaledOffset
           self.units.x = { value = props.x, unit = "px" }
         end
       else
@@ -852,7 +935,9 @@ function Element.new(props)
           local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
           self.y = baseY + offsetY
         else
-          self.y = baseY + props.y
+          -- Apply base scaling to pixel offsets
+          local scaledOffset = Gui.baseScale and (props.y * scaleY) or props.y
+          self.y = baseY + scaledOffset
           self.units.y = { value = props.y, unit = "px" }
         end
       else
@@ -1248,7 +1333,11 @@ function Element:layoutChildren()
           child.y = self.y + self.padding.top + currentCrossPos + child.padding.top
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y + self.padding.top + currentCrossPos + ((lineHeight - childTotalHeight) / 2) + child.padding.top
+          child.y = self.y
+            + self.padding.top
+            + currentCrossPos
+            + ((lineHeight - childTotalHeight) / 2)
+            + child.padding.top
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
           child.y = self.y + self.padding.top + currentCrossPos + lineHeight - childTotalHeight + child.padding.top
@@ -1283,7 +1372,11 @@ function Element:layoutChildren()
           child.x = self.x + self.padding.left + currentCrossPos + child.padding.left
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - childTotalWidth) / 2) + child.padding.left
+          child.x = self.x
+            + self.padding.left
+            + currentCrossPos
+            + ((lineHeight - childTotalWidth) / 2)
+            + child.padding.left
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
           child.x = self.x + self.padding.left + currentCrossPos + lineHeight - childTotalWidth + child.padding.left
@@ -1523,11 +1616,17 @@ end
 ---@param newViewportWidth number
 ---@param newViewportHeight number
 function Element:recalculateUnits(newViewportWidth, newViewportHeight)
+  -- Get updated scale factors
+  local scaleX, scaleY = Gui.getScaleFactors()
+
   -- Recalculate width if using viewport or percentage units (skip auto-sized)
   if self.units.width.unit ~= "px" and self.units.width.unit ~= "auto" then
     local parentWidth = self.parent and self.parent.width or newViewportWidth
     self.width =
       Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
+  elseif self.units.width.unit == "px" and self.units.width.value and Gui.baseScale then
+    -- Reapply base scaling to pixel widths
+    self.width = self.units.width.value * scaleX
   end
 
   -- Recalculate height if using viewport or percentage units (skip auto-sized)
@@ -1535,6 +1634,9 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     local parentHeight = self.parent and self.parent.height or newViewportHeight
     self.height =
       Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
+  elseif self.units.height.unit == "px" and self.units.height.value and Gui.baseScale then
+    -- Reapply base scaling to pixel heights
+    self.height = self.units.height.value * scaleY
   end
 
   -- Recalculate position if using viewport or percentage units
@@ -1545,10 +1647,14 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
       Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
     self.x = baseX + offsetX
   else
-    -- For pixel units, update position relative to parent's new position
+    -- For pixel units, update position relative to parent's new position (with base scaling)
     if self.parent then
       local baseX = self.parent.x
-      self.x = baseX + self.units.x.value
+      local scaledOffset = Gui.baseScale and (self.units.x.value * scaleX) or self.units.x.value
+      self.x = baseX + scaledOffset
+    elseif Gui.baseScale then
+      -- Top-level element with pixel position - apply base scaling
+      self.x = self.units.x.value * scaleX
     end
   end
 
@@ -1559,10 +1665,14 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
       Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
     self.y = baseY + offsetY
   else
-    -- For pixel units, update position relative to parent's new position
+    -- For pixel units, update position relative to parent's new position (with base scaling)
     if self.parent then
       local baseY = self.parent.y
-      self.y = baseY + self.units.y.value
+      local scaledOffset = Gui.baseScale and (self.units.y.value * scaleY) or self.units.y.value
+      self.y = baseY + scaledOffset
+    elseif Gui.baseScale then
+      -- Top-level element with pixel position - apply base scaling
+      self.y = self.units.y.value * scaleY
     end
   end
 
@@ -1570,7 +1680,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   if self.autoScaleText and self.units.textSize.value and self.units.textSize.unit ~= "px" then
     local unit = self.units.textSize.unit
     local value = self.units.textSize.value
-    
+
     if unit == "%" or unit == "vh" then
       -- Percentage and vh are relative to viewport height
       self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
@@ -1586,14 +1696,35 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     else
       self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
     end
+
+    -- Apply min/max constraints (with base scaling)
+    local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+    local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+
+    if minSize and self.textSize < minSize then
+      self.textSize = minSize
+    end
+    if maxSize and self.textSize > maxSize then
+      self.textSize = maxSize
+    end
     
-    -- Apply min/max constraints
-    if self.minTextSize and self.textSize < self.minTextSize then
-      self.textSize = self.minTextSize
+    -- Protect against too-small text sizes (minimum 1px)
+    if self.textSize < 1 then
+      self.textSize = 1  -- Minimum 1px
     end
-    if self.maxTextSize and self.textSize > self.maxTextSize then
-      self.textSize = self.maxTextSize
+  elseif self.units.textSize.unit == "px" and self.units.textSize.value and Gui.baseScale then
+    -- Reapply base scaling to pixel text sizes
+    self.textSize = self.units.textSize.value * scaleY
+    
+    -- Protect against too-small text sizes (minimum 1px)
+    if self.textSize < 1 then
+      self.textSize = 1  -- Minimum 1px
     end
+  end
+  
+  -- Final protection: ensure textSize is always at least 1px (catches all edge cases)
+  if self.text and self.textSize and self.textSize < 1 then
+    self.textSize = 1  -- Minimum 1px
   end
 
   -- Recalculate gap if using viewport or percentage units

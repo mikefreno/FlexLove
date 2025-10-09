@@ -3,17 +3,27 @@
 
 local love_helper = {}
 
+-- Mock window state
+local mockWindowWidth = 800
+local mockWindowHeight = 600
+
 -- Mock window functions
 love_helper.window = {}
 function love_helper.window.getMode()
-  return 800, 600 -- Default resolution
+  return mockWindowWidth, mockWindowHeight
+end
+
+function love_helper.window.setMode(width, height)
+  mockWindowWidth = width
+  mockWindowHeight = height
+  return true
 end
 
 -- Mock graphics functions
 love_helper.graphics = {}
 
 function love_helper.graphics.getDimensions()
-  return 800, 600 -- Default resolution - same as window.getMode
+  return mockWindowWidth, mockWindowHeight
 end
 
 function love_helper.graphics.newFont(size)

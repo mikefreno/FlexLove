@@ -13,12 +13,13 @@ TestTextScaling = {}
 
 -- Basic functionality tests
 function TestTextScaling.testFixedTextSize()
-  -- Create an element with fixed textSize in pixels
+  -- Create an element with fixed textSize in pixels (auto-scaling disabled)
   local element = Gui.new({
     id = "testElement",
     width = 100,
     height = 50,
     textSize = 16, -- Fixed size in pixels
+    autoScaleText = false, -- Disable auto-scaling for truly fixed size
     text = "Hello World",
   })
 
@@ -145,7 +146,7 @@ end
 
 -- Edge case tests
 function TestTextScaling.testZeroPercentageTextSize()
-  -- Create an element with 0% textSize
+  -- Create an element with 0% textSize (protected to minimum 1px)
   local element = Gui.new({
     id = "testElement",
     width = 100,
@@ -154,15 +155,15 @@ function TestTextScaling.testZeroPercentageTextSize()
     text = "Hello World",
   })
 
-  luaunit.assertEquals(element.textSize, 0.0)
+  luaunit.assertEquals(element.textSize, 1) -- Protected to minimum 1px
 
-  -- Should remain 0 after resize
+  -- Should remain at minimum after resize
   element:resize(1600, 1200)
-  luaunit.assertEquals(element.textSize, 0.0)
+  luaunit.assertEquals(element.textSize, 1) -- Protected to minimum 1px
 end
 
 function TestTextScaling.testVerySmallTextSize()
-  -- Create an element with very small textSize
+  -- Create an element with very small textSize (protected to minimum 1px)
   local element = Gui.new({
     id = "testElement",
     width = 100,
@@ -171,10 +172,10 @@ function TestTextScaling.testVerySmallTextSize()
     text = "Hello World",
   })
 
-  -- Check initial state (0.1% of 600px = 0.6px)
-  luaunit.assertEquals(element.textSize, 0.6)
+  -- Check initial state (0.1% of 600px = 0.6px, protected to 1px)
+  luaunit.assertEquals(element.textSize, 1)
 
-  -- Should scale proportionally
+  -- Should scale proportionally when above minimum
   element:resize(1600, 1200)
   luaunit.assertEquals(element.textSize, 1.2) -- 0.1% of 1200px = 1.2px
 end
@@ -250,7 +251,7 @@ end
 function TestTextScaling.testMixedUnitsInDifferentElements()
   -- Create multiple elements with different unit types
   local elements = {
-    Gui.new({ id = "px", textSize = 20, text = "Fixed" }),
+    Gui.new({ id = "px", textSize = 20, autoScaleText = false, text = "Fixed" }),
     Gui.new({ id = "percent", textSize = "5%", text = "Percent" }),
     Gui.new({ id = "vw", textSize = "3vw", text = "ViewWidth" }),
     Gui.new({ id = "vh", textSize = "4vh", text = "ViewHeight" }),

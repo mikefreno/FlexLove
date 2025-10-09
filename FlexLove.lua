@@ -1432,9 +1432,12 @@ function Element:update(dt)
   -- Handle click detection for element
   if self.callback then
     local mx, my = love.mouse.getPosition()
-    local bx = self.x
-    local by = self.y
-    if mx >= bx and mx <= bx + self.width and my >= by and my <= by + self.height then
+    -- Include padding in clickable area to match visual bounds
+    local bx = self.x - self.padding.left
+    local by = self.y - self.padding.top
+    local bw = self.width + self.padding.left + self.padding.right
+    local bh = self.height + self.padding.top + self.padding.bottom
+    if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
       if love.mouse.isDown(1) then
         -- set pressed flag
         self._pressed = true
@@ -1449,7 +1452,7 @@ function Element:update(dt)
     local touches = love.touch.getTouches()
     for _, id in ipairs(touches) do
       local tx, ty = love.touch.getPosition(id)
-      if tx >= bx and tx <= bx + self.width and ty >= by and ty <= by + self.height then
+      if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
         self._touchPressed[id] = true
       elseif self._touchPressed[id] then
         self.callback(self)

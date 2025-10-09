@@ -107,7 +107,7 @@ function TestTextScaling.testVhTextSize()
 end
 
 function TestTextScaling.testNoTextSize()
-  -- Create an element without textSize specified
+  -- Create an element without textSize specified (auto-scaling enabled by default)
   local element = Gui.new({
     id = "testElement",
     width = 100,
@@ -115,13 +115,32 @@ function TestTextScaling.testNoTextSize()
     text = "Hello World",
   })
 
-  -- Check initial state - should default to some value
-  luaunit.assertEquals(element.units.textSize.value, nil)
-  luaunit.assertEquals(element.textSize, 12) -- Default fallback
+  -- Check initial state - should auto-scale by default (1.5vh)
+  luaunit.assertEquals(element.autoScaleText, true)
+  luaunit.assertEquals(element.units.textSize.value, 1.5)
+  luaunit.assertEquals(element.units.textSize.unit, "vh")
+  luaunit.assertEquals(element.textSize, 9.0) -- 1.5% of 600px
 
-  -- Resize should not affect default textSize
+  -- Resize should scale the text
   element:resize(1600, 1200)
-  luaunit.assertEquals(element.textSize, 12)
+  luaunit.assertEquals(element.textSize, 18.0) -- 1.5% of 1200px
+  
+  -- Test with auto-scaling disabled
+  local elementNoScale = Gui.new({
+    id = "testElementNoScale",
+    width = 100,
+    height = 50,
+    text = "Hello World",
+    autoScaleText = false,
+  })
+  
+  luaunit.assertEquals(elementNoScale.autoScaleText, false)
+  luaunit.assertEquals(elementNoScale.units.textSize.value, nil)
+  luaunit.assertEquals(elementNoScale.textSize, 12) -- Fixed 12px
+  
+  -- Resize should not affect textSize when auto-scaling is disabled
+  elementNoScale:resize(1600, 1200)
+  luaunit.assertEquals(elementNoScale.textSize, 12)
 end
 
 -- Edge case tests

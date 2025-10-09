@@ -17,20 +17,22 @@ function love_helper.graphics.getDimensions()
 end
 
 function love_helper.graphics.newFont(size)
+  -- Ensure size is a number
+  local fontSize = tonumber(size) or 12
   -- Return a mock font object with basic methods
   return {
     getWidth = function(self, text)
       -- Handle both colon and dot syntax
       if type(self) == "string" then
         -- Called with dot syntax: font.getWidth(text)
-        return #self * size / 2
+        return #self * fontSize / 2
       else
         -- Called with colon syntax: font:getWidth(text)
-        return #text * size / 2
+        return #text * fontSize / 2
       end
     end,
     getHeight = function()
-      return size
+      return fontSize
     end,
   }
 end

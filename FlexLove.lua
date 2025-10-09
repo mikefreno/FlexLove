@@ -132,7 +132,7 @@ function Units.parse(value)
     unit = "px"
   end
 
-  local validUnits = { px = true, ["%"] = true, vw = true, vh = true }
+  local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   if not validUnits[unit] then
     return num, "px"
   end
@@ -462,6 +462,7 @@ end
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field textSize number? -- Font size for text content
+---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field callback function? -- Callback function for click events
@@ -492,7 +493,8 @@ Element.__index = Element
 ---@field titleColor Color? -- Color of the text content (default: black)
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
 ---@field textColor Color? -- Color of the text content (default: black)
----@field textSize number|string? -- Font size for text content (default: nil)
+---@field textSize number|string? -- Font size for text content (default: auto-scaled)
+---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
 ---@field positioning Positioning? -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection? -- Direction of flex layout (default: HORIZONTAL)
 ---@field justifyContent JustifyContent? -- Alignment of items along main axis (default: FLEX_START)
@@ -629,17 +631,61 @@ function Element.new(props)
   self.padding = Units.resolveSpacing(props.padding, self.width, self.height)
   self.margin = Units.resolveSpacing(props.margin, self.width, self.height)
 
-  -- Store original textSize units
+  -- Store original textSize units and constraints
+  self.minTextSize = props.minTextSize
+  self.maxTextSize = props.maxTextSize
+  
+  -- Auto-scale text by default (can be disabled with autoScaleText = false)
+  if props.autoScaleText == nil then
+    self.autoScaleText = true
+  else
+    self.autoScaleText = props.autoScaleText
+  end
+  
   if props.textSize then
     if type(props.textSize) == "string" then
       local value, unit = Units.parse(props.textSize)
       self.units.textSize = { value = value, unit = unit }
-      self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, nil)
+      
+      -- Resolve textSize based on unit type
+      if unit == "%" or unit == "vh" then
+        -- Percentage and vh are relative to viewport height
+        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      elseif unit == "vw" then
+        -- vw is relative to viewport width
+        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      elseif unit == "ew" then
+        -- Element width relative (will be resolved after width is set)
+        self.textSize = (value / 100) * self.width
+      elseif unit == "eh" then
+        -- Element height relative (will be resolved after height is set)
+        self.textSize = (value / 100) * self.height
+      else
+        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, nil)
+      end
     else
+      self.textSize = props.textSize
       self.units.textSize = { value = props.textSize, unit = "px" }
     end
   else
-    self.units.textSize = { value = 12, unit = "px" }
+    -- No textSize specified - use auto-scaling default
+    if self.autoScaleText then
+      -- Default to 1.5vh (1.5% of viewport height) for auto-scaling
+      self.textSize = (1.5 / 100) * viewportHeight
+      self.units.textSize = { value = 1.5, unit = "vh" }
+    else
+      -- Fixed 12px when auto-scaling is disabled
+      self.textSize = 12
+      self.units.textSize = { value = nil, unit = "px" }
+    end
+  end
+  
+  -- Apply min/max constraints
+  if self.minTextSize and self.textSize < self.minTextSize then
+    self.textSize = self.minTextSize
+  end
+  if self.maxTextSize and self.textSize > self.maxTextSize then
+    self.textSize = self.maxTextSize
   end
 
   -- Store original spacing values for proper resize handling
@@ -1369,10 +1415,10 @@ function Element:draw()
     love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()
-    local tempFont
     if self.textSize then
-      tempFont = love.graphics.newFont(self.textSize)
-      love.graphics.setFont(tempFont)
+      -- Use cached font instead of creating new one every frame
+      local font = FONT_CACHE.get(self.textSize)
+      love.graphics.setFont(font)
     end
     local font = love.graphics.getFont()
     local textWidth = font:getWidth(self.text)
@@ -1520,10 +1566,34 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     end
   end
 
-  -- Recalculate textSize if using viewport units
-  if self.units.textSize.unit ~= "px" then
-    self.textSize =
-      Units.resolve(self.units.textSize.value, self.units.textSize.unit, newViewportWidth, newViewportHeight, nil)
+  -- Recalculate textSize if auto-scaling is enabled or using viewport/element-relative units
+  if self.autoScaleText and self.units.textSize.value and self.units.textSize.unit ~= "px" then
+    local unit = self.units.textSize.unit
+    local value = self.units.textSize.value
+    
+    if unit == "%" or unit == "vh" then
+      -- Percentage and vh are relative to viewport height
+      self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
+    elseif unit == "vw" then
+      -- vw is relative to viewport width
+      self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportWidth)
+    elseif unit == "ew" then
+      -- Element width relative
+      self.textSize = (value / 100) * self.width
+    elseif unit == "eh" then
+      -- Element height relative
+      self.textSize = (value / 100) * self.height
+    else
+      self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
+    end
+    
+    -- Apply min/max constraints
+    if self.minTextSize and self.textSize < self.minTextSize then
+      self.textSize = self.minTextSize
+    end
+    if self.maxTextSize and self.textSize > self.maxTextSize then
+      self.textSize = self.maxTextSize
+    end
   end
 
   -- Recalculate gap if using viewport or percentage units

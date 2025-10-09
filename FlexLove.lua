@@ -1029,9 +1029,9 @@ function Element:layoutChildren()
     for _, child in ipairs(flexChildren) do
       local childMainSize = 0
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        childMainSize = child.width or 0
+        childMainSize = (child.width or 0) + child.padding.left + child.padding.right
       else
-        childMainSize = child.height or 0
+        childMainSize = (child.height or 0) + child.padding.top + child.padding.bottom
       end
 
       -- Check if adding this child would exceed the available space
@@ -1065,7 +1065,7 @@ function Element:layoutChildren()
     end
   end
 
-  -- Calculate line positions and heights
+  -- Calculate line positions and heights (including child padding)
   local lineHeights = {}
   local totalLinesHeight = 0
 
@@ -1074,9 +1074,9 @@ function Element:layoutChildren()
     for _, child in ipairs(line) do
       local childCrossSize = 0
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        childCrossSize = child.height or 0
+        childCrossSize = (child.height or 0) + child.padding.top + child.padding.bottom
       else
-        childCrossSize = child.width or 0
+        childCrossSize = (child.width or 0) + child.padding.left + child.padding.right
       end
       maxCrossSize = math.max(maxCrossSize, childCrossSize)
     end
@@ -1142,13 +1142,15 @@ function Element:layoutChildren()
   for lineIndex, line in ipairs(lines) do
     local lineHeight = lineHeights[lineIndex]
 
-    -- Calculate total size of children in this line
+    -- Calculate total size of children in this line (including padding)
     local totalChildrenSize = 0
     for _, child in ipairs(line) do
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        totalChildrenSize = totalChildrenSize + (child.width or 0)
+        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+        totalChildrenSize = totalChildrenSize + childTotalWidth
       else
-        totalChildrenSize = totalChildrenSize + (child.height or 0)
+        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+        totalChildrenSize = totalChildrenSize + childTotalHeight
       end
     end
 
@@ -1193,18 +1195,21 @@ function Element:layoutChildren()
 
       if self.flexDirection == FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
-        child.x = self.x + self.padding.left + currentMainPos
+        -- Position child accounting for its left padding
+        child.x = self.x + self.padding.left + currentMainPos + child.padding.left
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.y = self.y + self.padding.top + currentCrossPos
+          child.y = self.y + self.padding.top + currentCrossPos + child.padding.top
         elseif effectiveAlign == AlignItems.CENTER then
-          child.y = self.y + self.padding.top + currentCrossPos + ((lineHeight - (child.height or 0)) / 2)
+          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+          child.y = self.y + self.padding.top + currentCrossPos + ((lineHeight - childTotalHeight) / 2) + child.padding.top
         elseif effectiveAlign == AlignItems.FLEX_END then
-          child.y = self.y + self.padding.top + currentCrossPos + lineHeight - (child.height or 0)
+          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+          child.y = self.y + self.padding.top + currentCrossPos + lineHeight - childTotalHeight + child.padding.top
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH always stretches children in cross-axis direction
-          child.height = lineHeight
-          child.y = self.y + self.padding.top + currentCrossPos
+          child.height = lineHeight - child.padding.top - child.padding.bottom
+          child.y = self.y + self.padding.top + currentCrossPos + child.padding.top
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -1220,22 +1225,26 @@ function Element:layoutChildren()
           child:layoutChildren()
         end
 
-        currentMainPos = currentMainPos + (child.width or 0) + itemSpacing
+        -- Advance position by child's total width (width + padding)
+        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+        currentMainPos = currentMainPos + childTotalWidth + itemSpacing
       else
         -- Vertical layout: main axis is Y, cross axis is X
-        local newY = self.y + self.padding.top + currentMainPos
-        child.y = newY
+        -- Position child accounting for its top padding
+        child.y = self.y + self.padding.top + currentMainPos + child.padding.top
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.x = self.x + self.padding.left + currentCrossPos
+          child.x = self.x + self.padding.left + currentCrossPos + child.padding.left
         elseif effectiveAlign == AlignItems.CENTER then
-          child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - (child.width or 0)) / 2)
+          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+          child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - childTotalWidth) / 2) + child.padding.left
         elseif effectiveAlign == AlignItems.FLEX_END then
-          child.x = self.x + self.padding.left + currentCrossPos + lineHeight - (child.width or 0)
+          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+          child.x = self.x + self.padding.left + currentCrossPos + lineHeight - childTotalWidth + child.padding.left
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH always stretches children in cross-axis direction
-          child.width = lineHeight
-          child.x = self.x + self.padding.left + currentCrossPos
+          child.width = lineHeight - child.padding.left - child.padding.right
+          child.x = self.x + self.padding.left + currentCrossPos + child.padding.left
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -1246,7 +1255,9 @@ function Element:layoutChildren()
           child:layoutChildren()
         end
 
-        currentMainPos = currentMainPos + (child.height or 0) + itemSpacing
+        -- Advance position by child's total height (height + padding)
+        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+        currentMainPos = currentMainPos + childTotalHeight + itemSpacing
       end
     end
 

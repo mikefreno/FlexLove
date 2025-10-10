@@ -8,10 +8,10 @@ local Color = {}
 Color.__index = Color
 
 --- Create a new color instance
----@param r number?
----@param g number?
----@param b number?
----@param a number? -- default 1
+---@param r number? -- Default: 0
+---@param g number? -- Default: 0
+---@param b number? -- Default: 0
+---@param a number? -- Default: 1
 ---@return Color
 function Color.new(r, g, b, a)
   local self = setmetatable({}, Color)
@@ -700,7 +700,7 @@ function Element.new(props)
     if type(props.textSize) == "string" then
       local value, unit = Units.parse(props.textSize)
       self.units.textSize = { value = value, unit = unit }
-      
+
       -- Resolve textSize based on unit type
       if unit == "%" or unit == "vh" then
         -- Percentage and vh are relative to viewport height
@@ -722,14 +722,14 @@ function Element.new(props)
       if props.textSize <= 0 then
         error("textSize must be greater than 0, got: " .. tostring(props.textSize))
       end
-      
+
       -- Pixel textSize value
       if self.autoScaleText then
         -- Convert pixel value to viewport units for auto-scaling
         -- Calculate what percentage of viewport height this represents
         local vhValue = (props.textSize / viewportHeight) * 100
         self.units.textSize = { value = vhValue, unit = "vh" }
-        self.textSize = props.textSize  -- Initial size is the specified pixel value
+        self.textSize = props.textSize -- Initial size is the specified pixel value
       else
         -- Apply base scaling to pixel text sizes (no auto-scaling)
         self.textSize = Gui.baseScale and (props.textSize * scaleY) or props.textSize
@@ -752,17 +752,17 @@ function Element.new(props)
   -- Apply min/max constraints (also scaled)
   local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
   local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
-  
+
   if minSize and self.textSize < minSize then
     self.textSize = minSize
   end
   if maxSize and self.textSize > maxSize then
     self.textSize = maxSize
   end
-  
+
   -- Protect against too-small text sizes (minimum 1px)
   if self.textSize < 1 then
-    self.textSize = 1  -- Minimum 1px
+    self.textSize = 1 -- Minimum 1px
   end
 
   -- Store original spacing values for proper resize handling
@@ -1707,24 +1707,24 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     if maxSize and self.textSize > maxSize then
       self.textSize = maxSize
     end
-    
+
     -- Protect against too-small text sizes (minimum 1px)
     if self.textSize < 1 then
-      self.textSize = 1  -- Minimum 1px
+      self.textSize = 1 -- Minimum 1px
     end
   elseif self.units.textSize.unit == "px" and self.units.textSize.value and Gui.baseScale then
     -- Reapply base scaling to pixel text sizes
     self.textSize = self.units.textSize.value * scaleY
-    
+
     -- Protect against too-small text sizes (minimum 1px)
     if self.textSize < 1 then
-      self.textSize = 1  -- Minimum 1px
+      self.textSize = 1 -- Minimum 1px
     end
   end
-  
+
   -- Final protection: ensure textSize is always at least 1px (catches all edge cases)
   if self.text and self.textSize and self.textSize < 1 then
-    self.textSize = 1  -- Minimum 1px
+    self.textSize = 1 -- Minimum 1px
   end
 
   -- Recalculate gap if using viewport or percentage units

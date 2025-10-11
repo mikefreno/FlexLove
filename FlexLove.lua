@@ -31,7 +31,7 @@ local enums = {
   ---@enum TextAlign
   TextAlign = { START = "start", CENTER = "center", END = "end", JUSTIFY = "justify" },
   ---@enum Positioning
-  Positioning = { ABSOLUTE = "absolute", RELATIVE = "relative", FLEX = "flex" },
+  Positioning = { ABSOLUTE = "absolute", RELATIVE = "relative", FLEX = "flex", GRID = "grid" },
   ---@enum FlexDirection
   FlexDirection = { HORIZONTAL = "horizontal", VERTICAL = "vertical" },
   ---@enum JustifyContent
@@ -81,9 +81,38 @@ local enums = {
   },
   ---@enum FlexWrap
   FlexWrap = { NOWRAP = "nowrap", WRAP = "wrap", WRAP_REVERSE = "wrap-reverse" },
+  ---@enum GridAutoFlow
+  GridAutoFlow = { ROW = "row", COLUMN = "column", ROW_DENSE = "row dense", COLUMN_DENSE = "column dense" },
+  ---@enum JustifyItems
+  JustifyItems = {
+    STRETCH = "stretch",
+    START = "start",
+    END = "end",
+    CENTER = "center",
+  },
+  ---@enum AlignContent (Grid)
+  GridAlignContent = {
+    STRETCH = "stretch",
+    START = "start",
+    END = "end",
+    CENTER = "center",
+    SPACE_BETWEEN = "space-between",
+    SPACE_AROUND = "space-around",
+    SPACE_EVENLY = "space-evenly",
+  },
+  ---@enum JustifyContent (Grid)
+  GridJustifyContent = {
+    STRETCH = "stretch",
+    START = "start",
+    END = "end",
+    CENTER = "center",
+    SPACE_BETWEEN = "space-between",
+    SPACE_AROUND = "space-around",
+    SPACE_EVENLY = "space-evenly",
+  },
 }
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap, GridAutoFlow, JustifyItems, GridAlignContent, GridJustifyContent =
   enums.Positioning,
   enums.FlexDirection,
   enums.JustifyContent,
@@ -92,7 +121,11 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.TextAlign,
   enums.AlignSelf,
   enums.JustifySelf,
-  enums.FlexWrap
+  enums.FlexWrap,
+  enums.GridAutoFlow,
+  enums.JustifyItems,
+  enums.GridAlignContent,
+  enums.GridJustifyContent
 
 -- ====================
 -- Units System
@@ -241,6 +274,429 @@ function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
   end
 
   return result
+end
+
+-- ====================
+-- Grid System
+-- ====================
+
+--- Grid track parsing and layout calculations
+local Grid = {}
+
+--- Parse a single track size value
+---@param trackSize string|number
+---@return table -- { type: "px"|"fr"|"%"|"auto"|"minmax"|"min-content"|"max-content", value: number?, min: number?, max: number? }
+function Grid.parseTrackSize(trackSize)
+  if type(trackSize) == "number" then
+    return { type = "px", value = trackSize }
+  end
+  
+  if type(trackSize) ~= "string" then
+    return { type = "auto" }
+  end
+  
+  -- Handle auto
+  if trackSize == "auto" then
+    return { type = "auto" }
+  end
+  
+  -- Handle min-content and max-content
+  if trackSize == "min-content" then
+    return { type = "min-content" }
+  end
+  
+  if trackSize == "max-content" then
+    return { type = "max-content" }
+  end
+  
+  -- Handle fr units
+  local frValue = trackSize:match("^([%d%.]+)fr$")
+  if frValue then
+    return { type = "fr", value = tonumber(frValue) }
+  end
+  
+  -- Handle percentage
+  local percentValue = trackSize:match("^([%d%.]+)%%$")
+  if percentValue then
+    return { type = "%", value = tonumber(percentValue) }
+  end
+  
+  -- Handle pixel values
+  local pxValue = trackSize:match("^([%d%.]+)px$")
+  if pxValue then
+    return { type = "px", value = tonumber(pxValue) }
+  end
+  
+  -- Handle minmax(min, max)
+  local minStr, maxStr = trackSize:match("^minmax%s*%(([^,]+),%s*([^)]+)%)$")
+  if minStr and maxStr then
+    local minTrack = Grid.parseTrackSize(minStr:match("^%s*(.-)%s*$"))
+    local maxTrack = Grid.parseTrackSize(maxStr:match("^%s*(.-)%s*$"))
+    return { type = "minmax", min = minTrack, max = maxTrack }
+  end
+  
+  -- Default to auto for unrecognized formats
+  return { type = "auto" }
+end
+
+--- Parse track list (e.g., "1fr 2fr 100px" or "repeat(3, 1fr)")
+---@param trackList string|table
+---@return table -- Array of parsed track sizes
+function Grid.parseTrackList(trackList)
+  if type(trackList) == "table" then
+    local result = {}
+    for _, track in ipairs(trackList) do
+      table.insert(result, Grid.parseTrackSize(track))
+    end
+    return result
+  end
+  
+  if type(trackList) ~= "string" then
+    return {}
+  end
+  
+  local tracks = {}
+  
+  -- Handle repeat() function
+  local repeatMatch = trackList:match("^repeat%s*%(([^)]+)%)$")
+  if repeatMatch then
+    local countStr, pattern = repeatMatch:match("^%s*(%d+)%s*,%s*(.+)%s*$")
+    if countStr and pattern then
+      local count = tonumber(countStr)
+      local repeatTracks = Grid.parseTrackList(pattern)
+      for i = 1, count do
+        for _, track in ipairs(repeatTracks) do
+          table.insert(tracks, track)
+        end
+      end
+      return tracks
+    end
+  end
+  
+  -- Split by whitespace and parse each track
+  for trackStr in trackList:gmatch("%S+") do
+    table.insert(tracks, Grid.parseTrackSize(trackStr))
+  end
+  
+  return tracks
+end
+
+--- Resolve track sizes to actual pixel values
+---@param tracks table -- Array of parsed track sizes
+---@param availableSize number -- Available space in pixels
+---@param gap number -- Gap between tracks
+---@return table -- Array of resolved pixel sizes
+function Grid.resolveTrackSizes(tracks, availableSize, gap)
+  if #tracks == 0 then
+    return {}
+  end
+  
+  -- Calculate total gap space
+  local totalGapSize = (#tracks - 1) * gap
+  local remainingSpace = availableSize - totalGapSize
+  
+  local resolvedSizes = {}
+  local frTracks = {}
+  local frTotal = 0
+  
+  -- First pass: resolve fixed sizes and collect fr tracks
+  for i, track in ipairs(tracks) do
+    if track.type == "px" then
+      resolvedSizes[i] = track.value
+      remainingSpace = remainingSpace - track.value
+    elseif track.type == "%" then
+      local size = (track.value / 100) * availableSize
+      resolvedSizes[i] = size
+      remainingSpace = remainingSpace - size
+    elseif track.type == "fr" then
+      table.insert(frTracks, i)
+      frTotal = frTotal + track.value
+    elseif track.type == "auto" or track.type == "min-content" or track.type == "max-content" then
+      -- For now, treat auto/min-content/max-content as equal distribution of remaining space
+      resolvedSizes[i] = 0 -- Will be calculated in second pass
+    elseif track.type == "minmax" then
+      -- Simplified: use max if available, otherwise min
+      -- This is a basic implementation - full minmax is complex
+      if track.max.type == "fr" then
+        table.insert(frTracks, i)
+        frTotal = frTotal + track.max.value
+      else
+        local maxSize = Grid.parseTrackSize(track.max)
+        if maxSize.type == "px" then
+          resolvedSizes[i] = maxSize.value
+          remainingSpace = remainingSpace - maxSize.value
+        else
+          resolvedSizes[i] = 0
+        end
+      end
+    end
+  end
+  
+  -- Second pass: distribute remaining space to fr tracks
+  if frTotal > 0 and remainingSpace > 0 then
+    local frUnit = remainingSpace / frTotal
+    for _, i in ipairs(frTracks) do
+      local track = tracks[i]
+      if track.type == "fr" then
+        resolvedSizes[i] = track.value * frUnit
+      elseif track.type == "minmax" and track.max.type == "fr" then
+        resolvedSizes[i] = track.max.value * frUnit
+      end
+    end
+  else
+    -- No space left for fr tracks
+    for _, i in ipairs(frTracks) do
+      resolvedSizes[i] = 0
+    end
+  end
+  
+  -- Third pass: handle auto tracks (equal distribution of any remaining space)
+  local autoTracks = {}
+  for i, track in ipairs(tracks) do
+    if track.type == "auto" or track.type == "min-content" or track.type == "max-content" then
+      if resolvedSizes[i] == 0 then
+        table.insert(autoTracks, i)
+      end
+    end
+  end
+  
+  if #autoTracks > 0 then
+    local autoSize = math.max(0, remainingSpace / #autoTracks)
+    for _, i in ipairs(autoTracks) do
+      resolvedSizes[i] = autoSize
+    end
+  end
+  
+  return resolvedSizes
+end
+
+--- Parse grid line placement (e.g., "1", "2 / 4", "span 2")
+---@param placement string|number|nil
+---@return table -- { start: number?, end: number?, span: number? }
+function Grid.parsePlacement(placement)
+  if not placement then
+    return { start = nil, end_ = nil, span = nil }
+  end
+  
+  if type(placement) == "number" then
+    return { start = placement, end_ = nil, span = nil }
+  end
+  
+  if type(placement) ~= "string" then
+    return { start = nil, end_ = nil, span = nil }
+  end
+  
+  -- Handle "span N" format
+  local spanValue = placement:match("^span%s+(%d+)$")
+  if spanValue then
+    return { start = nil, end_ = nil, span = tonumber(spanValue) }
+  end
+  
+  -- Handle "start / end" format
+  local startStr, endStr = placement:match("^(%d+)%s*/%s*(%d+)$")
+  if startStr and endStr then
+    return { start = tonumber(startStr), end_ = tonumber(endStr), span = nil }
+  end
+  
+  -- Handle single number
+  local lineNum = tonumber(placement)
+  if lineNum then
+    return { start = lineNum, end_ = nil, span = nil }
+  end
+  
+  return { start = nil, end_ = nil, span = nil }
+end
+
+--- Calculate grid item placement
+---@param item Element
+---@param columnCount number
+---@param rowCount number
+---@param autoPlacementCursor {column: number, row: number}
+---@param gridAutoFlow string
+---@return table -- { columnStart: number, columnEnd: number, rowStart: number, rowEnd: number }
+function Grid.calculateItemPlacement(item, columnCount, rowCount, autoPlacementCursor, gridAutoFlow)
+  local columnPlacement = Grid.parsePlacement(item.gridColumn)
+  local rowPlacement = Grid.parsePlacement(item.gridRow)
+  
+  local columnStart, columnEnd, rowStart, rowEnd
+  
+  -- Determine column placement
+  if columnPlacement.start and columnPlacement.end_ then
+    columnStart = columnPlacement.start
+    columnEnd = columnPlacement.end_
+  elseif columnPlacement.start and columnPlacement.span then
+    columnStart = columnPlacement.start
+    columnEnd = columnStart + columnPlacement.span
+  elseif columnPlacement.start then
+    columnStart = columnPlacement.start
+    columnEnd = columnStart + 1
+  elseif columnPlacement.span then
+    -- Auto-place with span
+    columnStart = autoPlacementCursor.column
+    columnEnd = columnStart + columnPlacement.span
+  else
+    -- Auto-place
+    columnStart = autoPlacementCursor.column
+    columnEnd = columnStart + 1
+  end
+  
+  -- Determine row placement
+  if rowPlacement.start and rowPlacement.end_ then
+    rowStart = rowPlacement.start
+    rowEnd = rowPlacement.end_
+  elseif rowPlacement.start and rowPlacement.span then
+    rowStart = rowPlacement.start
+    rowEnd = rowStart + rowPlacement.span
+  elseif rowPlacement.start then
+    rowStart = rowPlacement.start
+    rowEnd = rowStart + 1
+  elseif rowPlacement.span then
+    -- Auto-place with span
+    rowStart = autoPlacementCursor.row
+    rowEnd = rowStart + rowPlacement.span
+  else
+    -- Auto-place
+    rowStart = autoPlacementCursor.row
+    rowEnd = rowStart + 1
+  end
+  
+  return {
+    columnStart = columnStart,
+    columnEnd = columnEnd,
+    rowStart = rowStart,
+    rowEnd = rowEnd,
+  }
+end
+
+--- Layout grid items within a grid container
+---@param element Element -- Grid container element
+function Grid.layoutGridItems(element)
+  if not element.gridTemplateColumns and not element.gridTemplateRows then
+    -- No grid template defined, fall back to single column/row
+    element.gridTemplateColumns = element.gridTemplateColumns or "1fr"
+    element.gridTemplateRows = element.gridTemplateRows or "auto"
+  end
+  
+  -- Parse track definitions
+  local columnTracks = Grid.parseTrackList(element.gridTemplateColumns or "1fr")
+  local rowTracks = Grid.parseTrackList(element.gridTemplateRows or "auto")
+  
+  -- Calculate available space
+  local availableWidth = element.width - element.padding.left - element.padding.right
+  local availableHeight = element.height - element.padding.top - element.padding.bottom
+  
+  -- Resolve track sizes
+  local columnGap = element.columnGap or 0
+  local rowGap = element.rowGap or 0
+  
+  local columnSizes = Grid.resolveTrackSizes(columnTracks, availableWidth, columnGap)
+  local rowSizes = Grid.resolveTrackSizes(rowTracks, availableHeight, rowGap)
+  
+  -- Calculate column and row positions
+  local columnPositions = {}
+  local rowPositions = {}
+  
+  local currentX = element.x + element.padding.left
+  for i, size in ipairs(columnSizes) do
+    columnPositions[i] = currentX
+    currentX = currentX + size + columnGap
+  end
+  columnPositions[#columnSizes + 1] = currentX - columnGap -- End position
+  
+  local currentY = element.y + element.padding.top
+  for i, size in ipairs(rowSizes) do
+    rowPositions[i] = currentY
+    currentY = currentY + size + rowGap
+  end
+  rowPositions[#rowSizes + 1] = currentY - rowGap -- End position
+  
+  -- Auto-placement cursor
+  local autoPlacementCursor = { column = 1, row = 1 }
+  local gridAutoFlow = element.gridAutoFlow or GridAutoFlow.ROW
+  
+  -- Place grid items
+  for _, child in ipairs(element.children) do
+    -- Skip explicitly absolute positioned children
+    if not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute) then
+      local placement = Grid.calculateItemPlacement(
+        child,
+        #columnSizes,
+        #rowSizes,
+        autoPlacementCursor,
+        gridAutoFlow
+      )
+      
+      -- Ensure placement is within bounds, expand grid if necessary
+      local columnStart = math.max(1, math.min(placement.columnStart, #columnSizes + 1))
+      local columnEnd = math.max(columnStart + 1, math.min(placement.columnEnd, #columnSizes + 1))
+      local rowStart = math.max(1, math.min(placement.rowStart, #rowSizes + 1))
+      local rowEnd = math.max(rowStart + 1, math.min(placement.rowEnd, #rowSizes + 1))
+      
+      -- Calculate item position and size
+      local itemX = columnPositions[columnStart] or element.x
+      local itemY = rowPositions[rowStart] or element.y
+      local itemWidth = (columnPositions[columnEnd] or (element.x + element.width)) - itemX - columnGap
+      local itemHeight = (rowPositions[rowEnd] or (element.y + element.height)) - itemY - rowGap
+      
+      -- Apply alignment within grid cell
+      local effectiveJustifySelf = child.justifySelf or element.justifyItems or JustifyItems.STRETCH
+      local effectiveAlignSelf = child.alignSelf or element.alignItems or AlignItems.STRETCH
+      
+      -- Handle justifySelf (horizontal alignment)
+      if effectiveJustifySelf == JustifyItems.STRETCH or effectiveJustifySelf == "stretch" then
+        child.x = itemX + child.padding.left
+        child.width = itemWidth - child.padding.left - child.padding.right
+      elseif effectiveJustifySelf == JustifyItems.START or effectiveJustifySelf == "start" or effectiveJustifySelf == "flex-start" then
+        child.x = itemX + child.padding.left
+        -- Keep child's natural width
+      elseif effectiveJustifySelf == JustifyItems.END or effectiveJustifySelf == "end" or effectiveJustifySelf == "flex-end" then
+        child.x = itemX + itemWidth - child.width - child.padding.right
+      elseif effectiveJustifySelf == JustifyItems.CENTER or effectiveJustifySelf == "center" then
+        child.x = itemX + (itemWidth - child.width) / 2
+      else
+        -- Default to stretch
+        child.x = itemX + child.padding.left
+        child.width = itemWidth - child.padding.left - child.padding.right
+      end
+      
+      -- Handle alignSelf (vertical alignment)
+      if effectiveAlignSelf == AlignItems.STRETCH or effectiveAlignSelf == "stretch" then
+        child.y = itemY + child.padding.top
+        child.height = itemHeight - child.padding.top - child.padding.bottom
+      elseif effectiveAlignSelf == AlignItems.FLEX_START or effectiveAlignSelf == "flex-start" or effectiveAlignSelf == "start" then
+        child.y = itemY + child.padding.top
+        -- Keep child's natural height
+      elseif effectiveAlignSelf == AlignItems.FLEX_END or effectiveAlignSelf == "flex-end" or effectiveAlignSelf == "end" then
+        child.y = itemY + itemHeight - child.height - child.padding.bottom
+      elseif effectiveAlignSelf == AlignItems.CENTER or effectiveAlignSelf == "center" then
+        child.y = itemY + (itemHeight - child.height) / 2
+      else
+        -- Default to stretch
+        child.y = itemY + child.padding.top
+        child.height = itemHeight - child.padding.top - child.padding.bottom
+      end
+      
+      -- Update auto-placement cursor
+      if gridAutoFlow == GridAutoFlow.ROW or gridAutoFlow == "row" then
+        autoPlacementCursor.column = columnEnd
+        if autoPlacementCursor.column > #columnSizes then
+          autoPlacementCursor.column = 1
+          autoPlacementCursor.row = autoPlacementCursor.row + 1
+        end
+      elseif gridAutoFlow == GridAutoFlow.COLUMN or gridAutoFlow == "column" then
+        autoPlacementCursor.row = rowEnd
+        if autoPlacementCursor.row > #rowSizes then
+          autoPlacementCursor.row = 1
+          autoPlacementCursor.column = autoPlacementCursor.column + 1
+        end
+      end
+      
+      -- Layout child's children if it has any
+      if #child.children > 0 then
+        child:layoutChildren()
+      end
+    end
+  end
 end
 
 --- Top level GUI manager
@@ -516,6 +972,18 @@ end
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field callback function? -- Callback function for click events
 ---@field units table -- Original unit specifications for responsive behavior
+---@field gridTemplateColumns string|table? -- Grid column track definitions
+---@field gridTemplateRows string|table? -- Grid row track definitions
+---@field gridAutoFlow GridAutoFlow? -- Grid auto-placement algorithm
+---@field gridAutoColumns string? -- Size of auto-generated columns
+---@field gridAutoRows string? -- Size of auto-generated rows
+---@field columnGap number|string? -- Gap between grid columns
+---@field rowGap number|string? -- Gap between grid rows
+---@field gridColumn string|number? -- Grid item column placement
+---@field gridRow string|number? -- Grid item row placement
+---@field gridArea string? -- Grid item named area placement
+---@field justifyItems JustifyItems? -- Default horizontal alignment for grid items
+---@field alignItems AlignItems? -- Default vertical alignment for grid items
 local Element = {}
 Element.__index = Element
 
@@ -555,6 +1023,17 @@ Element.__index = Element
 ---@field callback function? -- Callback function for click events
 ---@field transform table? -- Transform properties for animations and styling
 ---@field transition table? -- Transition settings for animations
+---@field gridTemplateColumns string|table? -- Grid column track definitions (e.g., "1fr 2fr 100px" or {"1fr", "2fr", "100px"})
+---@field gridTemplateRows string|table? -- Grid row track definitions
+---@field gridAutoFlow GridAutoFlow? -- Grid auto-placement algorithm (default: ROW)
+---@field gridAutoColumns string? -- Size of auto-generated columns (default: "auto")
+---@field gridAutoRows string? -- Size of auto-generated rows (default: "auto")
+---@field columnGap number|string? -- Gap between grid columns
+---@field rowGap number|string? -- Gap between grid rows
+---@field gridColumn string|number? -- Grid item column placement (e.g., "1", "2 / 4", "span 2")
+---@field gridRow string|number? -- Grid item row placement
+---@field gridArea string? -- Grid item named area placement
+---@field justifyItems JustifyItems? -- Default horizontal alignment for grid items
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -1023,6 +1502,47 @@ function Element.new(props)
     self.justifySelf = props.justifySelf or JustifySelf.AUTO
   end
 
+  -- Grid container properties
+  if self.positioning == Positioning.GRID then
+    self.gridTemplateColumns = props.gridTemplateColumns
+    self.gridTemplateRows = props.gridTemplateRows
+    self.gridAutoFlow = props.gridAutoFlow or GridAutoFlow.ROW
+    self.gridAutoColumns = props.gridAutoColumns or "auto"
+    self.gridAutoRows = props.gridAutoRows or "auto"
+    self.justifyContent = props.justifyContent or GridJustifyContent.START
+    self.alignContent = props.alignContent or GridAlignContent.START
+    self.justifyItems = props.justifyItems or JustifyItems.STRETCH
+    self.alignItems = props.alignItems or AlignItems.STRETCH
+    
+    -- Handle columnGap and rowGap
+    if props.columnGap then
+      if type(props.columnGap) == "string" then
+        local value, unit = Units.parse(props.columnGap)
+        self.columnGap = Units.resolve(value, unit, viewportWidth, viewportHeight, self.width)
+      else
+        self.columnGap = props.columnGap
+      end
+    else
+      self.columnGap = 0
+    end
+    
+    if props.rowGap then
+      if type(props.rowGap) == "string" then
+        local value, unit = Units.parse(props.rowGap)
+        self.rowGap = Units.resolve(value, unit, viewportWidth, viewportHeight, self.height)
+      else
+        self.rowGap = props.rowGap
+      end
+    else
+      self.rowGap = 0
+    end
+  end
+
+  -- Grid item properties (can be set on any element that's a child of a grid)
+  self.gridColumn = props.gridColumn
+  self.gridRow = props.gridRow
+  self.gridArea = props.gridArea
+
   self.alignSelf = props.alignSelf or AlignSelf.AUTO
 
   ---animation
@@ -1047,9 +1567,9 @@ function Element:addChild(child)
   -- If child was created without explicit positioning, inherit from parent
   if child._originalPositioning == nil then
     -- No explicit positioning was set during construction
-    if self.positioning == Positioning.FLEX then
-      child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex, not AS flex
-      child._explicitlyAbsolute = false -- Participate in parent's flex layout
+    if self.positioning == Positioning.FLEX or self.positioning == Positioning.GRID then
+      child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
+      child._explicitlyAbsolute = false -- Participate in parent's layout
     else
       child.positioning = Positioning.ABSOLUTE
       child._explicitlyAbsolute = false -- Default for absolute containers
@@ -1113,6 +1633,12 @@ function Element:layoutChildren()
         self:applyPositioningOffsets(child)
       end
     end
+    return
+  end
+
+  -- Handle grid layout
+  if self.positioning == Positioning.GRID then
+    Grid.layoutGridItems(self)
     return
   end
 

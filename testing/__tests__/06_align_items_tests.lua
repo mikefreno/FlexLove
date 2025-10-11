@@ -748,16 +748,18 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
   luaunit.assertEquals(title.y, 23) -- Same center alignment
 
   -- Verify actions buttons have FLEX_START alignment
-  luaunit.assertEquals(btn1.y, 10) -- Start of actions container
-  luaunit.assertEquals(btn2.y, 10) -- Same start position
+  -- actions is centered in header: header.y (10) + (header.height (50) - actions.height (30)) / 2 = 20
+  luaunit.assertEquals(btn1.y, 20) -- Start of actions container
+  luaunit.assertEquals(btn2.y, 20) -- Same start position
 
   -- Verify content alignment (FLEX_END)
   luaunit.assertEquals(contentText.x, 60) -- 300 - 250 = 50, plus card.x = 10 + 50 = 60
   luaunit.assertEquals(metadata.x, 130) -- 300 - 180 = 120, plus card.x = 10 + 120 = 130
 
   -- Verify footer center alignment
-  luaunit.assertEquals(timestamp.y, 175) -- Footer center: (30 - 16) / 2 = 7, plus footer.y = 168 + 7 = 175
-  luaunit.assertEquals(status.y, 173) -- Footer center: (30 - 20) / 2 = 5, plus footer.y = 168 + 5 = 173
+  -- footer.y = card.y (10) + header.height (50) + gap (10) + content.height (120) + gap (10) = 200
+  luaunit.assertEquals(timestamp.y, 207) -- Footer center: (30 - 16) / 2 = 7, plus footer.y = 200 + 7 = 207
+  luaunit.assertEquals(status.y, 205) -- Footer center: (30 - 20) / 2 = 5, plus footer.y = 200 + 5 = 205
 end
 
 -- Test 17: Complex Media Object Pattern with Nested Alignments

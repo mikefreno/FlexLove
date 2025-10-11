@@ -868,7 +868,7 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
 
   -- Create grid cells
   local cells = {}
-  for rowidth = 1, rows do
+  for row = 1, rows do
     cells[row] = {}
     for col = 1, cols do
       local x = (col - 1) * (cellWidth + gap)
@@ -927,7 +927,7 @@ function TestAbsolutePositioningChildLayout:testGridStructureAbsolutePositioning
   -- Verify grid structure
   luaunit.assertEquals(#grid.children, rows * cols)
 
-  for rowidth = 1, rows do
+  for row = 1, rows do
     for col = 1, cols do
       local cell = cells[row][col]
       local expectedX = (col - 1) * (cellWidth + gap)

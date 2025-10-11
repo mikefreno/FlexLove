@@ -1275,6 +1275,11 @@ function Element.new(props)
     end
   end
 
+  -- Grid item properties (set early so they're available when addChild is called)
+  self.gridColumn = props.gridColumn
+  self.gridRow = props.gridRow
+  self.gridArea = props.gridArea
+
   ------ add hereditary ------
   if props.parent == nil then
     table.insert(Gui.topElements, self)
@@ -1537,11 +1542,6 @@ function Element.new(props)
       self.rowGap = 0
     end
   end
-
-  -- Grid item properties (can be set on any element that's a child of a grid)
-  self.gridColumn = props.gridColumn
-  self.gridRow = props.gridRow
-  self.gridArea = props.gridArea
 
   self.alignSelf = props.alignSelf or AlignSelf.AUTO
 

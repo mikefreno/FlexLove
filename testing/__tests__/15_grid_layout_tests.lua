@@ -285,7 +285,7 @@ function TestGridLayout:test_justify_items_stretch()
     positioning = enums.Positioning.GRID,
     gridTemplateColumns = "100px 100px 100px",
     gridTemplateRows = "100px",
-    justifyItems = enums.JustifyItems.STRETCH,
+    justifyItems = enums.GridJustifyItems.STRETCH,
     columnGap = 0,
     rowGap = 0,
     padding = { horizontal = 0, vertical = 0 },

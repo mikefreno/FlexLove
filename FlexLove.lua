@@ -475,6 +475,56 @@ end
 -- Simple GUI library for LOVE2D
 -- Provides element and button creation, drawing, and click handling.
 
+-- ====================
+-- Event System
+-- ====================
+
+---@class InputEvent
+---@field type "click"|"press"|"release"|"rightclick"|"middleclick"
+---@field button number -- Mouse button: 1 (left), 2 (right), 3 (middle)
+---@field x number -- Mouse X position
+---@field y number -- Mouse Y position
+---@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, cmd:boolean}
+---@field clickCount number -- Number of clicks (for double/triple click detection)
+---@field timestamp number -- Time when event occurred
+local InputEvent = {}
+InputEvent.__index = InputEvent
+
+---@class InputEventProps
+---@field type "click"|"press"|"release"|"rightclick"|"middleclick"
+---@field button number
+---@field x number
+---@field y number
+---@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, cmd:boolean}
+---@field clickCount number?
+---@field timestamp number?
+
+--- Create a new input event
+---@param props InputEventProps
+---@return InputEvent
+function InputEvent.new(props)
+  local self = setmetatable({}, InputEvent)
+  self.type = props.type
+  self.button = props.button
+  self.x = props.x
+  self.y = props.y
+  self.modifiers = props.modifiers
+  self.clickCount = props.clickCount or 1
+  self.timestamp = props.timestamp or love.timer.getTime()
+  return self
+end
+
+--- Get current keyboard modifiers state
+---@return {shift:boolean, ctrl:boolean, alt:boolean, cmd:boolean}
+local function getModifiers()
+  return {
+    shift = love.keyboard.isDown("lshift", "rshift"),
+    ctrl = love.keyboard.isDown("lctrl", "rctrl"),
+    alt = love.keyboard.isDown("lalt", "ralt"),
+    cmd = love.keyboard.isDown("lgui", "rgui") -- Mac Command key
+  }
+end
+
 ---@class Animation
 ---@field duration number
 ---@field start {width?:number, height?:number, opacity?:number}
@@ -685,8 +735,13 @@ end
 ---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
----@field callback function? -- Callback function for click events
+---@field callback fun(element:Element, event:InputEvent)? -- Callback function for interaction events
 ---@field units table -- Original unit specifications for responsive behavior
+---@field _pressed table<number, boolean> -- Track pressed state per mouse button
+---@field _lastClickTime number? -- Timestamp of last click for double-click detection
+---@field _lastClickButton number? -- Button of last click
+---@field _clickCount number -- Current click count for multi-click detection
+---@field _touchPressed table<any, boolean> -- Track touch pressed state
 ---@field gridRows number? -- Number of rows in the grid
 ---@field gridColumns number? -- Number of columns in the grid
 ---@field columnGap number|string? -- Gap between grid columns
@@ -727,7 +782,7 @@ Element.__index = Element
 ---@field flexWrap FlexWrap? -- Whether children wrap to multiple lines (default: NOWRAP)
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
----@field callback function? -- Callback function for click events
+---@field callback fun(element:Element, event:InputEvent)? -- Callback function for interaction events
 ---@field transform table? -- Transform properties for animations and styling
 ---@field transition table? -- Transition settings for animations
 ---@field gridRows number? -- Number of rows in the grid (default: 1)
@@ -743,6 +798,13 @@ function Element.new(props)
   self.children = {}
   self.callback = props.callback
   self.id = props.id or ""
+
+  -- Initialize click tracking for event system
+  self._pressed = {} -- Track pressed state per mouse button
+  self._lastClickTime = nil
+  self._lastClickButton = nil
+  self._clickCount = 0
+  self._touchPressed = {}
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
@@ -1788,15 +1850,25 @@ function Element:draw()
   end
 
   -- Draw visual feedback when element is pressed (if it has a callback)
-  if self.callback and self._pressed then
-    love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-    love.graphics.rectangle(
-      "fill",
-      self.x,
-      self.y,
-      self.width + self.padding.left + self.padding.right,
-      self.height + self.padding.top + self.padding.bottom
-    )
+  if self.callback then
+    -- Check if any button is pressed
+    local anyPressed = false
+    for _, pressed in pairs(self._pressed) do
+      if pressed then
+        anyPressed = true
+        break
+      end
+    end
+    if anyPressed then
+      love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
+      love.graphics.rectangle(
+        "fill",
+        self.x,
+        self.y,
+        self.width + self.padding.left + self.padding.right,
+        self.height + self.padding.top + self.padding.bottom
+      )
+    end
   end
 
   -- Sort children by z-index before drawing
@@ -1838,7 +1910,7 @@ function Element:update(dt)
     end
   end
 
-  -- Handle click detection for element
+  -- Handle click detection for element with enhanced event system
   if self.callback then
     local mx, my = love.mouse.getPosition()
     -- Clickable area is the border box (x, y already includes padding)
@@ -1846,25 +1918,104 @@ function Element:update(dt)
     local by = self.y
     local bw = self.width + self.padding.left + self.padding.right
     local bh = self.height + self.padding.top + self.padding.bottom
-    if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
-      if love.mouse.isDown(1) then
-        -- set pressed flag
-        self._pressed = true
-      elseif not love.mouse.isDown(1) and self._pressed then
-        self.callback(self)
-        self._pressed = false
+    local isHovering = mx >= bx and mx <= bx + bw and my >= by and my <= by + bh
+    
+    -- Check all three mouse buttons
+    local buttons = {1, 2, 3} -- left, right, middle
+    
+    for _, button in ipairs(buttons) do
+      if isHovering then
+        if love.mouse.isDown(button) then
+          -- Button is pressed down
+          if not self._pressed[button] then
+            -- Just pressed - fire press event
+            local modifiers = getModifiers()
+            local pressEvent = InputEvent.new({
+              type = "press",
+              button = button,
+              x = mx,
+              y = my,
+              modifiers = modifiers,
+              clickCount = 1,
+            })
+            self.callback(self, pressEvent)
+            self._pressed[button] = true
+          end
+        elseif self._pressed[button] then
+          -- Button was just released - fire click event
+          local currentTime = love.timer.getTime()
+          local modifiers = getModifiers()
+          
+          -- Determine click count (double-click detection)
+          local clickCount = 1
+          local doubleClickThreshold = 0.3 -- 300ms for double-click
+          
+          if self._lastClickTime 
+             and self._lastClickButton == button
+             and (currentTime - self._lastClickTime) < doubleClickThreshold then
+            clickCount = self._clickCount + 1
+          else
+            clickCount = 1
+          end
+          
+          self._clickCount = clickCount
+          self._lastClickTime = currentTime
+          self._lastClickButton = button
+          
+          -- Determine event type based on button
+          local eventType = "click"
+          if button == 2 then
+            eventType = "rightclick"
+          elseif button == 3 then
+            eventType = "middleclick"
+          end
+          
+          local clickEvent = InputEvent.new({
+            type = eventType,
+            button = button,
+            x = mx,
+            y = my,
+            modifiers = modifiers,
+            clickCount = clickCount,
+          })
+          
+          self.callback(self, clickEvent)
+          self._pressed[button] = false
+          
+          -- Fire release event
+          local releaseEvent = InputEvent.new({
+            type = "release",
+            button = button,
+            x = mx,
+            y = my,
+            modifiers = modifiers,
+            clickCount = clickCount,
+          })
+          self.callback(self, releaseEvent)
+        end
+      else
+        -- Mouse left the element - reset pressed state
+        self._pressed[button] = false
       end
-    else
-      self._pressed = false
     end
 
+    -- Handle touch events (maintain backward compatibility)
     local touches = love.touch.getTouches()
     for _, id in ipairs(touches) do
       local tx, ty = love.touch.getPosition(id)
       if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
         self._touchPressed[id] = true
       elseif self._touchPressed[id] then
-        self.callback(self)
+        -- Create touch event (treat as left click)
+        local touchEvent = InputEvent.new({
+          type = "click",
+          button = 1,
+          x = tx,
+          y = ty,
+          modifiers = getModifiers(),
+          clickCount = 1,
+        })
+        self.callback(self, touchEvent)
         self._touchPressed[id] = false
       end
     end

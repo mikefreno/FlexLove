@@ -48,6 +48,274 @@ function Color.fromHex(hexWithTag)
   end
 end
 
+-- ====================
+-- Theme System
+-- ====================
+
+---@class ThemeRegion
+---@field x number -- X position in atlas
+---@field y number -- Y position in atlas
+---@field w number -- Width in atlas
+---@field h number -- Height in atlas
+
+---@class ThemeComponent
+---@field atlas string|love.Image? -- Optional: component-specific atlas (overrides theme atlas)
+---@field regions {topLeft:ThemeRegion, topCenter:ThemeRegion, topRight:ThemeRegion, middleLeft:ThemeRegion, middleCenter:ThemeRegion, middleRight:ThemeRegion, bottomLeft:ThemeRegion, bottomCenter:ThemeRegion, bottomRight:ThemeRegion}
+---@field stretch {horizontal:table<integer, string>, vertical:table<integer, string>}
+---@field states table<string, ThemeComponent>?
+---@field _loadedAtlas love.Image? -- Internal: cached loaded atlas image
+
+---@class ThemeDefinition
+---@field name string
+---@field atlas string|love.Image? -- Optional: global atlas (can be overridden per component)
+---@field components table<string, ThemeComponent>
+---@field colors table<string, Color>?
+
+---@class Theme
+---@field name string
+---@field atlas love.Image? -- Optional: global atlas
+---@field components table<string, ThemeComponent>
+---@field colors table<string, Color>
+local Theme = {}
+Theme.__index = Theme
+
+-- Global theme registry
+local themes = {}
+local activeTheme = nil
+
+--- Create a new theme instance
+---@param definition ThemeDefinition
+---@return Theme
+function Theme.new(definition)
+  local self = setmetatable({}, Theme)
+  self.name = definition.name
+
+  -- Load global atlas if it's a string path
+  if definition.atlas then
+    if type(definition.atlas) == "string" then
+      self.atlas = love.graphics.newImage(definition.atlas)
+    else
+      self.atlas = definition.atlas
+    end
+  end
+
+  self.components = definition.components or {}
+  self.colors = definition.colors or {}
+
+  -- Load component-specific atlases
+  for componentName, component in pairs(self.components) do
+    if component.atlas then
+      if type(component.atlas) == "string" then
+        component._loadedAtlas = love.graphics.newImage(component.atlas)
+      else
+        component._loadedAtlas = component.atlas
+      end
+    end
+
+    -- Also load atlases for component states
+    if component.states then
+      for stateName, stateComponent in pairs(component.states) do
+        if stateComponent.atlas then
+          if type(stateComponent.atlas) == "string" then
+            stateComponent._loadedAtlas = love.graphics.newImage(stateComponent.atlas)
+          else
+            stateComponent._loadedAtlas = stateComponent.atlas
+          end
+        end
+      end
+    end
+  end
+
+  return self
+end
+
+--- Load a theme from a Lua file
+---@param path string -- Path to theme definition file
+---@return Theme
+function Theme.load(path)
+  -- Check if it's a built-in theme
+  local builtInPath = "themes/" .. path .. ".lua"
+  local definition
+
+  -- Try to load as built-in first
+  local success, result = pcall(function()
+    return love.filesystem.load(builtInPath)()
+  end)
+
+  if success then
+    definition = result
+  else
+    -- Try to load as custom path
+    success, result = pcall(function()
+      return love.filesystem.load(path)()
+    end)
+
+    if success then
+      definition = result
+    else
+      error("Failed to load theme from: " .. path .. "\nError: " .. tostring(result))
+    end
+  end
+
+  local theme = Theme.new(definition)
+  themes[theme.name] = theme
+
+  return theme
+end
+
+--- Set the active theme
+---@param themeOrName Theme|string
+function Theme.setActive(themeOrName)
+  if type(themeOrName) == "string" then
+    -- Try to load if not already loaded
+    if not themes[themeOrName] then
+      Theme.load(themeOrName)
+    end
+    activeTheme = themes[themeOrName]
+  else
+    activeTheme = themeOrName
+  end
+
+  if not activeTheme then
+    error("Failed to set active theme: " .. tostring(themeOrName))
+  end
+end
+
+--- Get the active theme
+---@return Theme?
+function Theme.getActive()
+  return activeTheme
+end
+
+--- Get a component from the active theme
+---@param componentName string
+---@param state string?
+---@return ThemeComponent?
+function Theme.getComponent(componentName, state)
+  if not activeTheme then
+    return nil
+  end
+
+  local component = activeTheme.components[componentName]
+  if not component then
+    return nil
+  end
+
+  -- Check for state-specific override
+  if state and component.states and component.states[state] then
+    return component.states[state]
+  end
+
+  return component
+end
+
+-- ====================
+-- NineSlice Renderer
+-- ====================
+
+local NineSlice = {}
+
+--- Draw a 9-slice component
+---@param component ThemeComponent
+---@param atlas love.Image
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param opacity number?
+function NineSlice.draw(component, atlas, x, y, width, height, opacity)
+  if not component or not atlas then
+    return
+  end
+
+  opacity = opacity or 1
+  love.graphics.setColor(1, 1, 1, opacity)
+
+  local regions = component.regions
+
+  -- Calculate dimensions
+  local cornerWidth = regions.topLeft.w
+  local cornerHeight = regions.topLeft.h
+  local rightCornerWidth = regions.topRight.w
+  local rightCornerHeight = regions.topRight.h
+  local bottomLeftHeight = regions.bottomLeft.h
+  local bottomRightHeight = regions.bottomRight.h
+
+  -- Center dimensions (stretchable area)
+  local centerWidth = width - cornerWidth - rightCornerWidth
+  local centerHeight = height - cornerHeight - bottomLeftHeight
+
+  -- Create quads for each region
+  local atlasWidth, atlasHeight = atlas:getDimensions()
+
+  -- Helper to create quad
+  local function makeQuad(region)
+    return love.graphics.newQuad(region.x, region.y, region.w, region.h, atlasWidth, atlasHeight)
+  end
+
+  -- Top-left corner
+  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y)
+
+  -- Top-right corner
+  love.graphics.draw(atlas, makeQuad(regions.topRight), x + width - rightCornerWidth, y)
+
+  -- Bottom-left corner
+  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + height - bottomLeftHeight)
+
+  -- Bottom-right corner
+  love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + width - rightCornerWidth, y + height - bottomRightHeight)
+
+  -- Top edge (stretched)
+  if centerWidth > 0 then
+    local scaleX = centerWidth / regions.topCenter.w
+    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + cornerWidth, y, 0, scaleX, 1)
+  end
+
+  -- Bottom edge (stretched)
+  if centerWidth > 0 then
+    local scaleX = centerWidth / regions.bottomCenter.w
+    love.graphics.draw(
+      atlas,
+      makeQuad(regions.bottomCenter),
+      x + cornerWidth,
+      y + height - bottomLeftHeight,
+      0,
+      scaleX,
+      1
+    )
+  end
+
+  -- Left edge (stretched)
+  if centerHeight > 0 then
+    local scaleY = centerHeight / regions.middleLeft.h
+    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + cornerHeight, 0, 1, scaleY)
+  end
+
+  -- Right edge (stretched)
+  if centerHeight > 0 then
+    local scaleY = centerHeight / regions.middleRight.h
+    love.graphics.draw(
+      atlas,
+      makeQuad(regions.middleRight),
+      x + width - rightCornerWidth,
+      y + cornerHeight,
+      0,
+      1,
+      scaleY
+    )
+  end
+
+  -- Center (stretched both ways)
+  if centerWidth > 0 and centerHeight > 0 then
+    local scaleX = centerWidth / regions.middleCenter.w
+    local scaleY = centerHeight / regions.middleCenter.h
+    love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + cornerWidth, y + cornerHeight, 0, scaleX, scaleY)
+  end
+
+  -- Reset color
+  love.graphics.setColor(1, 1, 1, 1)
+end
+
 local enums = {
   ---@enum TextAlign
   TextAlign = { START = "start", CENTER = "center", END = "end", JUSTIFY = "justify" },
@@ -521,7 +789,7 @@ local function getModifiers()
     shift = love.keyboard.isDown("lshift", "rshift"),
     ctrl = love.keyboard.isDown("lctrl", "rctrl"),
     alt = love.keyboard.isDown("lalt", "ralt"),
-    cmd = love.keyboard.isDown("lgui", "rgui") -- Mac Command key
+    cmd = love.keyboard.isDown("lgui", "rgui"), -- Mac Command key
   }
 end
 
@@ -746,6 +1014,10 @@ end
 ---@field gridColumns number? -- Number of columns in the grid
 ---@field columnGap number|string? -- Gap between grid columns
 ---@field rowGap number|string? -- Gap between grid rows
+---@field theme string|{component:string, state:string?}? -- Theme component to use for rendering
+---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
+---@field disabled boolean? -- Whether the element is disabled (default: false)
+---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 local Element = {}
 Element.__index = Element
 
@@ -789,6 +1061,9 @@ Element.__index = Element
 ---@field gridColumns number? -- Number of columns in the grid (default: 1)
 ---@field columnGap number|string? -- Gap between grid columns
 ---@field rowGap number|string? -- Gap between grid rows
+---@field theme string|{component:string, state:string?}? -- Theme component to use for rendering
+---@field disabled boolean? -- Whether the element is disabled (default: false)
+---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -805,6 +1080,14 @@ function Element.new(props)
   self._lastClickButton = nil
   self._clickCount = 0
   self._touchPressed = {}
+
+  -- Initialize theme
+  self.theme = props.theme
+  self._themeState = "normal"
+  
+  -- Initialize state properties
+  self.disabled = props.disabled or false
+  self.active = props.active or false
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
@@ -1771,43 +2054,85 @@ function Element:draw()
     end
   end
 
-  -- Apply opacity to all drawing operations
-  -- (x, y) represents border box, so draw background from (x, y)
-  local backgroundWithOpacity =
-    Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
-  love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  love.graphics.rectangle(
-    "fill",
-    self.x,
-    self.y,
-    self.width + self.padding.left + self.padding.right,
-    self.height + self.padding.top + self.padding.bottom
-  )
-  -- Draw borders based on border property
-  local borderColorWithOpacity =
-    Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
-  love.graphics.setColor(borderColorWithOpacity:toRGBA())
-  if self.border.top then
-    love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
+  -- Check if element has a theme
+  local hasTheme = false
+  if self.theme then
+    local componentName, state
+
+    if type(self.theme) == "string" then
+      componentName = self.theme
+      state = self._themeState
+    else
+      componentName = self.theme.component
+      state = self.theme.state or self._themeState
+    end
+
+    local component = Theme.getComponent(componentName, state)
+    if component then
+      local activeTheme = Theme.getActive()
+      if activeTheme then
+        -- Use component-specific atlas if available, otherwise use theme atlas
+        local atlasToUse = component._loadedAtlas or activeTheme.atlas
+
+        if atlasToUse then
+          NineSlice.draw(
+            component,
+            atlasToUse,
+            self.x,
+            self.y,
+            self.width + self.padding.left + self.padding.right,
+            self.height + self.padding.top + self.padding.bottom,
+            self.opacity
+          )
+          hasTheme = true
+        end
+      end
+    end
   end
-  if self.border.bottom then
-    love.graphics.line(
+
+  -- Draw background if no theme is used
+  if not hasTheme then
+    -- Apply opacity to all drawing operations
+    -- (x, y) represents border box, so draw background from (x, y)
+    local backgroundWithOpacity =
+      Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
+    love.graphics.setColor(backgroundWithOpacity:toRGBA())
+    love.graphics.rectangle(
+      "fill",
       self.x,
-      self.y + self.height + self.padding.top + self.padding.bottom,
-      self.x + self.width + self.padding.left + self.padding.right,
-      self.y + self.height + self.padding.top + self.padding.bottom
-    )
-  end
-  if self.border.left then
-    love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
-  end
-  if self.border.right then
-    love.graphics.line(
-      self.x + self.width + self.padding.left + self.padding.right,
       self.y,
-      self.x + self.width + self.padding.left + self.padding.right,
-      self.y + self.height + self.padding.top + self.padding.bottom
+      self.width + self.padding.left + self.padding.right,
+      self.height + self.padding.top + self.padding.bottom
     )
+  end
+
+  -- Draw borders based on border property (skip if using theme)
+  if not hasTheme then
+    local borderColorWithOpacity =
+      Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+    love.graphics.setColor(borderColorWithOpacity:toRGBA())
+    if self.border.top then
+      love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
+    end
+    if self.border.bottom then
+      love.graphics.line(
+        self.x,
+        self.y + self.height + self.padding.top + self.padding.bottom,
+        self.x + self.width + self.padding.left + self.padding.right,
+        self.y + self.height + self.padding.top + self.padding.bottom
+      )
+    end
+    if self.border.left then
+      love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
+    end
+    if self.border.right then
+      love.graphics.line(
+        self.x + self.width + self.padding.left + self.padding.right,
+        self.y,
+        self.x + self.width + self.padding.left + self.padding.right,
+        self.y + self.height + self.padding.top + self.padding.bottom
+      )
+    end
   end
 
   -- Draw element text if present
@@ -1911,7 +2236,7 @@ function Element:update(dt)
   end
 
   -- Handle click detection for element with enhanced event system
-  if self.callback then
+  if self.callback or self.theme then
     local mx, my = love.mouse.getPosition()
     -- Clickable area is the border box (x, y already includes padding)
     local bx = self.x
@@ -1919,104 +2244,139 @@ function Element:update(dt)
     local bw = self.width + self.padding.left + self.padding.right
     local bh = self.height + self.padding.top + self.padding.bottom
     local isHovering = mx >= bx and mx <= bx + bw and my >= by and my <= by + bh
-    
-    -- Check all three mouse buttons
-    local buttons = {1, 2, 3} -- left, right, middle
-    
-    for _, button in ipairs(buttons) do
-      if isHovering then
-        if love.mouse.isDown(button) then
-          -- Button is pressed down
-          if not self._pressed[button] then
-            -- Just pressed - fire press event
+
+    -- Update theme state based on interaction
+    if self.theme then
+      -- Disabled state takes priority
+      if self.disabled then
+        self._themeState = "disabled"
+      -- Active state (for inputs when focused/typing)
+      elseif self.active then
+        self._themeState = "active"
+      elseif isHovering then
+        -- Check if any button is pressed
+        local anyPressed = false
+        for _, pressed in pairs(self._pressed) do
+          if pressed then
+            anyPressed = true
+            break
+          end
+        end
+
+        if anyPressed then
+          self._themeState = "pressed"
+        else
+          self._themeState = "hover"
+        end
+      else
+        self._themeState = "normal"
+      end
+    end
+
+    -- Only process button events if callback exists and element is not disabled
+    if self.callback and not self.disabled then
+      -- Check all three mouse buttons
+      local buttons = { 1, 2, 3 } -- left, right, middle
+
+      for _, button in ipairs(buttons) do
+        if isHovering then
+          if love.mouse.isDown(button) then
+            -- Button is pressed down
+            if not self._pressed[button] then
+              -- Just pressed - fire press event
+              local modifiers = getModifiers()
+              local pressEvent = InputEvent.new({
+                type = "press",
+                button = button,
+                x = mx,
+                y = my,
+                modifiers = modifiers,
+                clickCount = 1,
+              })
+              self.callback(self, pressEvent)
+              self._pressed[button] = true
+            end
+          elseif self._pressed[button] then
+            -- Button was just released - fire click event
+            local currentTime = love.timer.getTime()
             local modifiers = getModifiers()
-            local pressEvent = InputEvent.new({
-              type = "press",
+
+            -- Determine click count (double-click detection)
+            local clickCount = 1
+            local doubleClickThreshold = 0.3 -- 300ms for double-click
+
+            if
+              self._lastClickTime
+              and self._lastClickButton == button
+              and (currentTime - self._lastClickTime) < doubleClickThreshold
+            then
+              clickCount = self._clickCount + 1
+            else
+              clickCount = 1
+            end
+
+            self._clickCount = clickCount
+            self._lastClickTime = currentTime
+            self._lastClickButton = button
+
+            -- Determine event type based on button
+            local eventType = "click"
+            if button == 2 then
+              eventType = "rightclick"
+            elseif button == 3 then
+              eventType = "middleclick"
+            end
+
+            local clickEvent = InputEvent.new({
+              type = eventType,
               button = button,
               x = mx,
               y = my,
               modifiers = modifiers,
-              clickCount = 1,
+              clickCount = clickCount,
             })
-            self.callback(self, pressEvent)
-            self._pressed[button] = true
+
+            self.callback(self, clickEvent)
+            self._pressed[button] = false
+
+            -- Fire release event
+            local releaseEvent = InputEvent.new({
+              type = "release",
+              button = button,
+              x = mx,
+              y = my,
+              modifiers = modifiers,
+              clickCount = clickCount,
+            })
+            self.callback(self, releaseEvent)
           end
-        elseif self._pressed[button] then
-          -- Button was just released - fire click event
-          local currentTime = love.timer.getTime()
-          local modifiers = getModifiers()
-          
-          -- Determine click count (double-click detection)
-          local clickCount = 1
-          local doubleClickThreshold = 0.3 -- 300ms for double-click
-          
-          if self._lastClickTime 
-             and self._lastClickButton == button
-             and (currentTime - self._lastClickTime) < doubleClickThreshold then
-            clickCount = self._clickCount + 1
-          else
-            clickCount = 1
-          end
-          
-          self._clickCount = clickCount
-          self._lastClickTime = currentTime
-          self._lastClickButton = button
-          
-          -- Determine event type based on button
-          local eventType = "click"
-          if button == 2 then
-            eventType = "rightclick"
-          elseif button == 3 then
-            eventType = "middleclick"
-          end
-          
-          local clickEvent = InputEvent.new({
-            type = eventType,
-            button = button,
-            x = mx,
-            y = my,
-            modifiers = modifiers,
-            clickCount = clickCount,
-          })
-          
-          self.callback(self, clickEvent)
+        else
+          -- Mouse left the element - reset pressed state
           self._pressed[button] = false
-          
-          -- Fire release event
-          local releaseEvent = InputEvent.new({
-            type = "release",
-            button = button,
-            x = mx,
-            y = my,
-            modifiers = modifiers,
-            clickCount = clickCount,
-          })
-          self.callback(self, releaseEvent)
         end
-      else
-        -- Mouse left the element - reset pressed state
-        self._pressed[button] = false
       end
-    end
+    end -- end if self.callback
 
     -- Handle touch events (maintain backward compatibility)
-    local touches = love.touch.getTouches()
-    for _, id in ipairs(touches) do
-      local tx, ty = love.touch.getPosition(id)
-      if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
-        self._touchPressed[id] = true
-      elseif self._touchPressed[id] then
-        -- Create touch event (treat as left click)
-        local touchEvent = InputEvent.new({
-          type = "click",
-          button = 1,
-          x = tx,
-          y = ty,
-          modifiers = getModifiers(),
-          clickCount = 1,
-        })
-        self.callback(self, touchEvent)
-        self._touchPressed[id] = false
+    if self.callback then
+      local touches = love.touch.getTouches()
+      for _, id in ipairs(touches) do
+        local tx, ty = love.touch.getPosition(id)
+        if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
+          self._touchPressed[id] = true
+        elseif self._touchPressed[id] then
+          -- Create touch event (treat as left click)
+          local touchEvent = InputEvent.new({
+            type = "click",
+            button = 1,
+            x = tx,
+            y = ty,
+            modifiers = getModifiers(),
+            clickCount = 1,
+          })
+          self.callback(self, touchEvent)
+          self._touchPressed[id] = false
+        end
       end
     end
   end
@@ -2308,4 +2668,5 @@ end
 Gui.new = Element.new
 Gui.Element = Element
 Gui.Animation = Animation
-return { GUI = Gui, Color = Color, enums = enums }
+Gui.Theme = Theme
+return { GUI = Gui, Color = Color, Theme = Theme, enums = enums }

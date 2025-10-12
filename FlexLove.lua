@@ -320,26 +320,30 @@ function Grid.layoutGridItems(element)
     
     -- Stretch child to fill cell by default
     if effectiveAlignItems == AlignItems.STRETCH or effectiveAlignItems == "stretch" then
-      child.x = cellX + child.padding.left
-      child.y = cellY + child.padding.top
+      child.x = cellX
+      child.y = cellY
       child.width = cellWidth - child.padding.left - child.padding.right
       child.height = cellHeight - child.padding.top - child.padding.bottom
       -- Disable auto-sizing when stretched by grid
       child.autosizing.width = false
       child.autosizing.height = false
     elseif effectiveAlignItems == AlignItems.CENTER or effectiveAlignItems == "center" then
-      child.x = cellX + (cellWidth - child.width) / 2
-      child.y = cellY + (cellHeight - child.height) / 2
+      local childTotalWidth = child.width + child.padding.left + child.padding.right
+      local childTotalHeight = child.height + child.padding.top + child.padding.bottom
+      child.x = cellX + (cellWidth - childTotalWidth) / 2
+      child.y = cellY + (cellHeight - childTotalHeight) / 2
     elseif effectiveAlignItems == AlignItems.FLEX_START or effectiveAlignItems == "flex-start" or effectiveAlignItems == "start" then
-      child.x = cellX + child.padding.left
-      child.y = cellY + child.padding.top
+      child.x = cellX
+      child.y = cellY
     elseif effectiveAlignItems == AlignItems.FLEX_END or effectiveAlignItems == "flex-end" or effectiveAlignItems == "end" then
-      child.x = cellX + cellWidth - child.width - child.padding.right
-      child.y = cellY + cellHeight - child.height - child.padding.bottom
+      local childTotalWidth = child.width + child.padding.left + child.padding.right
+      local childTotalHeight = child.height + child.padding.top + child.padding.bottom
+      child.x = cellX + cellWidth - childTotalWidth
+      child.y = cellY + cellHeight - childTotalHeight
     else
       -- Default to stretch
-      child.x = cellX + child.padding.left
-      child.y = cellY + child.padding.top
+      child.x = cellX
+      child.y = cellY
       child.width = cellWidth - child.padding.left - child.padding.right
       child.height = cellHeight - child.padding.top - child.padding.bottom
       -- Disable auto-sizing when stretched by grid
@@ -1241,24 +1245,28 @@ function Element:applyPositioningOffsets(element)
     return
   end
 
-  -- Apply top offset (distance from parent's top edge)
+  -- Apply top offset (distance from parent's content box top edge)
   if element.top then
     element.y = parent.y + parent.padding.top + element.top
   end
 
-  -- Apply bottom offset (distance from parent's bottom edge)
+  -- Apply bottom offset (distance from parent's content box bottom edge)
+  -- Element's total height includes its padding
   if element.bottom then
-    element.y = parent.y + parent.height - parent.padding.bottom - element.height - element.bottom
+    local elementTotalHeight = element.height + element.padding.top + element.padding.bottom
+    element.y = parent.y + parent.height + parent.padding.top - element.bottom - elementTotalHeight
   end
 
-  -- Apply left offset (distance from parent's left edge)
+  -- Apply left offset (distance from parent's content box left edge)
   if element.left then
     element.x = parent.x + parent.padding.left + element.left
   end
 
-  -- Apply right offset (distance from parent's right edge)
+  -- Apply right offset (distance from parent's content box right edge)
+  -- Element's total width includes its padding
   if element.right then
-    element.x = parent.x + parent.width - parent.padding.right - element.width - element.right
+    local elementTotalWidth = element.width + element.padding.left + element.padding.right
+    element.x = parent.x + parent.width + parent.padding.left - element.right - elementTotalWidth
   end
 end
 
@@ -1490,25 +1498,24 @@ function Element:layoutChildren()
 
       if self.flexDirection == FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
-        -- Position child accounting for its left padding
-        child.x = self.x + self.padding.left + currentMainPos + child.padding.left
+        -- Position child at border box (x, y represents top-left including padding)
+        child.x = self.x + self.padding.left + currentMainPos
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.y = self.y + self.padding.top + currentCrossPos + child.padding.top
+          child.y = self.y + self.padding.top + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
           child.y = self.y
             + self.padding.top
             + currentCrossPos
             + ((lineHeight - childTotalHeight) / 2)
-            + child.padding.top
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y + self.padding.top + currentCrossPos + lineHeight - childTotalHeight + child.padding.top
+          child.y = self.y + self.padding.top + currentCrossPos + lineHeight - childTotalHeight
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH always stretches children in cross-axis direction
           child.height = lineHeight - child.padding.top - child.padding.bottom
-          child.y = self.y + self.padding.top + currentCrossPos + child.padding.top
+          child.y = self.y + self.padding.top + currentCrossPos
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -1529,25 +1536,24 @@ function Element:layoutChildren()
         currentMainPos = currentMainPos + childTotalWidth + itemSpacing
       else
         -- Vertical layout: main axis is Y, cross axis is X
-        -- Position child accounting for its top padding
-        child.y = self.y + self.padding.top + currentMainPos + child.padding.top
+        -- Position child at border box (x, y represents top-left including padding)
+        child.y = self.y + self.padding.top + currentMainPos
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.x = self.x + self.padding.left + currentCrossPos + child.padding.left
+          child.x = self.x + self.padding.left + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
           child.x = self.x
             + self.padding.left
             + currentCrossPos
             + ((lineHeight - childTotalWidth) / 2)
-            + child.padding.left
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x + self.padding.left + currentCrossPos + lineHeight - childTotalWidth + child.padding.left
+          child.x = self.x + self.padding.left + currentCrossPos + lineHeight - childTotalWidth
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH always stretches children in cross-axis direction
           child.width = lineHeight - child.padding.left - child.padding.right
-          child.x = self.x + self.padding.left + currentCrossPos + child.padding.left
+          child.x = self.x + self.padding.left + currentCrossPos
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -1618,13 +1624,14 @@ function Element:draw()
   end
 
   -- Apply opacity to all drawing operations
+  -- (x, y) represents border box, so draw background from (x, y)
   local backgroundWithOpacity =
     Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
   love.graphics.rectangle(
     "fill",
-    self.x - self.padding.left,
-    self.y - self.padding.top,
+    self.x,
+    self.y,
     self.width + self.padding.left + self.padding.right,
     self.height + self.padding.top + self.padding.bottom
   )
@@ -1634,34 +1641,34 @@ function Element:draw()
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
   if self.border.top then
     love.graphics.line(
-      self.x - self.padding.left,
-      self.y - self.padding.top,
-      self.x + self.width + (self.padding.right or 0),
-      self.y - self.padding.top
+      self.x,
+      self.y,
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y
     )
   end
   if self.border.bottom then
     love.graphics.line(
-      self.x - self.padding.left,
-      self.y + self.height + self.padding.bottom,
-      self.x + self.width + self.padding.right,
-      self.y + self.height + self.padding.bottom
+      self.x,
+      self.y + self.height + self.padding.top + self.padding.bottom,
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y + self.height + self.padding.top + self.padding.bottom
     )
   end
   if self.border.left then
     love.graphics.line(
-      self.x - self.padding.left,
-      self.y - self.padding.top,
-      self.x - self.padding.left,
-      self.y + self.height + self.padding.bottom
+      self.x,
+      self.y,
+      self.x,
+      self.y + self.height + self.padding.top + self.padding.bottom
     )
   end
   if self.border.right then
     love.graphics.line(
-      self.x + self.width + self.padding.right,
-      self.y - self.padding.top,
-      self.x + self.width + self.padding.right,
-      self.y + self.height + self.padding.bottom
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y,
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y + self.height + self.padding.top + self.padding.bottom
     )
   end
 
@@ -1681,19 +1688,22 @@ function Element:draw()
     local textWidth = font:getWidth(self.text)
     local textHeight = font:getHeight()
     local tx, ty
+    -- Text is drawn in the content box (inside padding)
+    local contentX = self.x + self.padding.left
+    local contentY = self.y + self.padding.top
     if self.textAlign == TextAlign.START then
-      tx = self.x
-      ty = self.y
+      tx = contentX
+      ty = contentY
     elseif self.textAlign == TextAlign.CENTER then
-      tx = self.x + (self.width - textWidth) / 2
-      ty = self.y + (self.height - textHeight) / 2
+      tx = contentX + (self.width - textWidth) / 2
+      ty = contentY + (self.height - textHeight) / 2
     elseif self.textAlign == TextAlign.END then
-      tx = self.x + self.width - textWidth - 10
-      ty = self.y + self.height - textHeight - 10
+      tx = contentX + self.width - textWidth - 10
+      ty = contentY + self.height - textHeight - 10
     elseif self.textAlign == TextAlign.JUSTIFY then
       --- need to figure out spreading
-      tx = self.x
-      ty = self.y
+      tx = contentX
+      ty = contentY
     end
     love.graphics.print(self.text, tx, ty)
     if self.textSize then
@@ -1706,8 +1716,8 @@ function Element:draw()
     love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
     love.graphics.rectangle(
       "fill",
-      self.x - self.padding.left,
-      self.y - self.padding.top,
+      self.x,
+      self.y,
       self.width + self.padding.left + self.padding.right,
       self.height + self.padding.top + self.padding.bottom
     )
@@ -1746,9 +1756,9 @@ function Element:update(dt)
   -- Handle click detection for element
   if self.callback then
     local mx, my = love.mouse.getPosition()
-    -- Include padding in clickable area to match visual bounds
-    local bx = self.x - self.padding.left
-    local by = self.y - self.padding.top
+    -- Clickable area is the border box (x, y already includes padding)
+    local bx = self.x
+    local by = self.y
     local bw = self.width + self.padding.left + self.padding.right
     local bh = self.height + self.padding.top + self.padding.bottom
     if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then

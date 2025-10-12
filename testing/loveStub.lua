@@ -70,6 +70,10 @@ function love_helper.graphics.setColor(r, g, b, a)
   -- Mock color setting
 end
 
+function love_helper.graphics.setFont(font)
+  -- Mock font setting
+end
+
 function love_helper.graphics.rectangle(mode, x, y, width, height)
   -- Mock rectangle drawing
 end

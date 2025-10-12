@@ -1799,7 +1799,16 @@ function Element:draw()
     )
   end
 
+  -- Sort children by z-index before drawing
+  local sortedChildren = {}
   for _, child in ipairs(self.children) do
+    table.insert(sortedChildren, child)
+  end
+  table.sort(sortedChildren, function(a, b)
+    return a.z < b.z
+  end)
+
+  for _, child in ipairs(sortedChildren) do
     child:draw()
   end
 end

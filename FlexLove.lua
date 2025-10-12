@@ -677,7 +677,7 @@ local Gui = {
 }
 
 --- Initialize FlexLove with configuration
----@param config {baseScale?: {width?:number, height?:number}} --Default: {width: 1920, height: 1080}
+---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition} --Default: {width: 1920, height: 1080}
 function Gui.init(config)
   if config.baseScale then
     Gui.baseScale = {
@@ -689,6 +689,19 @@ function Gui.init(config)
     local currentWidth, currentHeight = Units.getViewport()
     Gui.scaleFactors.x = currentWidth / Gui.baseScale.width
     Gui.scaleFactors.y = currentHeight / Gui.baseScale.height
+  end
+
+  -- Load and set theme if specified
+  if config.theme then
+    if type(config.theme) == "string" then
+      -- Load theme by name
+      Theme.load(config.theme)
+      Theme.setActive(config.theme)
+    elseif type(config.theme) == "table" then
+      -- Load theme from definition
+      local theme = Theme.new(config.theme)
+      Theme.setActive(theme)
+    end
   end
 end
 
@@ -1084,7 +1097,7 @@ function Element.new(props)
   -- Initialize theme
   self.theme = props.theme
   self._themeState = "normal"
-  
+
   -- Initialize state properties
   self.disabled = props.disabled or false
   self.active = props.active or false

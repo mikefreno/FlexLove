@@ -102,9 +102,34 @@ local enums = {
   },
   ---@enum FlexWrap
   FlexWrap = { NOWRAP = "nowrap", WRAP = "wrap", WRAP_REVERSE = "wrap-reverse" },
+  ---@enum TextSize
+  TextSize = {
+    XXS = "xxs",
+    XS = "xs",
+    SM = "sm",
+    MD = "md",
+    LG = "lg",
+    XL = "xl",
+    XXL = "xxl",
+    XL3 = "3xl",
+    XL4 = "4xl",
+  },
 }
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
+-- Text size preset mappings (in vh units for auto-scaling)
+local TEXT_SIZE_PRESETS = {
+  xxs = 0.75, -- 0.75vh
+  xs = 1.25, -- 1.25vh
+  sm = 1.75, -- 1.75vh
+  md = 2.25, -- 2.25vh (default)
+  lg = 2.75, -- 2.75vh
+  xl = 3.5, -- 3.5vh
+  xxl = 4.5, -- 4.5vh
+  ["3xl"] = 5.0, -- 5vh
+  ["4xl"] = 7.0, -- 7vh
+}
+
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap, TextSize =
   enums.Positioning,
   enums.FlexDirection,
   enums.JustifyContent,
@@ -113,7 +138,8 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.TextAlign,
   enums.AlignSelf,
   enums.JustifySelf,
-  enums.FlexWrap
+  enums.FlexWrap,
+  enums.TextSize
 
 -- ====================
 -- Units System
@@ -276,21 +302,21 @@ local Grid = {}
 function Grid.layoutGridItems(element)
   local rows = element.gridRows or 1
   local columns = element.gridColumns or 1
-  
+
   -- Calculate available space
   local availableWidth = element.width - element.padding.left - element.padding.right
   local availableHeight = element.height - element.padding.top - element.padding.bottom
-  
+
   -- Get gaps
   local columnGap = element.columnGap or 0
   local rowGap = element.rowGap or 0
-  
+
   -- Calculate cell sizes (equal distribution)
   local totalColumnGaps = (columns - 1) * columnGap
   local totalRowGaps = (rows - 1) * rowGap
   local cellWidth = (availableWidth - totalColumnGaps) / columns
   local cellHeight = (availableHeight - totalRowGaps) / rows
-  
+
   -- Get children that participate in grid layout
   local gridChildren = {}
   for _, child in ipairs(element.children) do
@@ -298,26 +324,26 @@ function Grid.layoutGridItems(element)
       table.insert(gridChildren, child)
     end
   end
-  
+
   -- Place children in grid cells
   for i, child in ipairs(gridChildren) do
     -- Calculate row and column (0-indexed for calculation)
     local index = i - 1
     local col = index % columns
     local row = math.floor(index / columns)
-    
+
     -- Skip if we've exceeded the grid
     if row >= rows then
       break
     end
-    
+
     -- Calculate cell position
     local cellX = element.x + element.padding.left + (col * (cellWidth + columnGap))
     local cellY = element.y + element.padding.top + (row * (cellHeight + rowGap))
-    
+
     -- Apply alignment within grid cell (default to stretch)
     local effectiveAlignItems = element.alignItems or AlignItems.STRETCH
-    
+
     -- Stretch child to fill cell by default
     if effectiveAlignItems == AlignItems.STRETCH or effectiveAlignItems == "stretch" then
       child.x = cellX
@@ -332,10 +358,18 @@ function Grid.layoutGridItems(element)
       local childTotalHeight = child.height + child.padding.top + child.padding.bottom
       child.x = cellX + (cellWidth - childTotalWidth) / 2
       child.y = cellY + (cellHeight - childTotalHeight) / 2
-    elseif effectiveAlignItems == AlignItems.FLEX_START or effectiveAlignItems == "flex-start" or effectiveAlignItems == "start" then
+    elseif
+      effectiveAlignItems == AlignItems.FLEX_START
+      or effectiveAlignItems == "flex-start"
+      or effectiveAlignItems == "start"
+    then
       child.x = cellX
       child.y = cellY
-    elseif effectiveAlignItems == AlignItems.FLEX_END or effectiveAlignItems == "flex-end" or effectiveAlignItems == "end" then
+    elseif
+      effectiveAlignItems == AlignItems.FLEX_END
+      or effectiveAlignItems == "flex-end"
+      or effectiveAlignItems == "end"
+    then
       local childTotalWidth = child.width + child.padding.left + child.padding.right
       local childTotalHeight = child.height + child.padding.top + child.padding.bottom
       child.x = cellX + cellWidth - childTotalWidth
@@ -350,7 +384,7 @@ function Grid.layoutGridItems(element)
       child.autosizing.width = false
       child.autosizing.height = false
     end
-    
+
     -- Layout child's children if it has any
     if #child.children > 0 then
       child:layoutChildren()
@@ -433,6 +467,9 @@ function Gui.destroy()
     win:destroy()
   end
   Gui.topElements = {}
+  -- Reset base scale and scale factors
+  Gui.baseScale = nil
+  Gui.scaleFactors = { x = 1.0, y = 1.0 }
 end
 
 -- Simple GUI library for LOVE2D
@@ -583,6 +620,25 @@ function FONT_CACHE.getFont(textSize)
   end
 end
 
+-- ====================
+-- Text Size Utilities
+-- ====================
+
+--- Resolve text size preset to viewport units
+---@param sizeValue string|number
+---@return number, string -- Returns value and unit ("vh" for presets, original unit otherwise)
+local function resolveTextSizePreset(sizeValue)
+  if type(sizeValue) == "string" then
+    -- Check if it's a preset
+    local preset = TEXT_SIZE_PRESETS[sizeValue]
+    if preset then
+      return preset, "vh"
+    end
+  end
+  -- Not a preset, return nil to indicate normal parsing should occur
+  return nil, nil
+end
+
 ---@class Border
 ---@field top boolean?
 ---@field right boolean?
@@ -625,7 +681,7 @@ end
 ---@field flexWrap FlexWrap -- Whether children wrap to multiple lines (default: NOWRAP)
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
----@field textSize number? -- Font size for text content
+---@field textSize number? -- Resolved font size for text content in pixels
 ---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
@@ -661,7 +717,7 @@ Element.__index = Element
 ---@field titleColor Color? -- Color of the text content (default: black)
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
 ---@field textColor Color? -- Color of the text content (default: black)
----@field textSize number|string? -- Font size for text content (default: auto-scaled)
+---@field textSize number|string? -- Font size: number (px), string with units ("2vh", "10%"), or preset ("xxs"|"xs"|"sm"|"md"|"lg"|"xl"|"xxl"|"3xl"|"4xl") (default: "md")
 ---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
 ---@field positioning Positioning? -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection? -- Direction of flex layout (default: HORIZONTAL)
@@ -711,7 +767,6 @@ function Element.new(props)
   self.opacity = props.opacity or 1
 
   self.text = props.text
-  self.textSize = props.textSize or 12
   self.textAlign = props.textAlign or TextAlign.START
 
   --- self positioning ---
@@ -746,6 +801,95 @@ function Element.new(props)
 
   -- Get scale factors from Gui (will be used later)
   local scaleX, scaleY = Gui.getScaleFactors()
+
+  -- Store original textSize units and constraints
+  self.minTextSize = props.minTextSize
+  self.maxTextSize = props.maxTextSize
+
+  -- Set autoScaleText BEFORE textSize processing (needed for correct initialization)
+  if props.autoScaleText == nil then
+    self.autoScaleText = true
+  else
+    self.autoScaleText = props.autoScaleText
+  end
+
+  -- Handle textSize BEFORE width/height calculation (needed for auto-sizing)
+  if props.textSize then
+    if type(props.textSize) == "string" then
+      -- Check if it's a preset first
+      local presetValue, presetUnit = resolveTextSizePreset(props.textSize)
+      local value, unit
+
+      if presetValue then
+        -- It's a preset, use the preset value and unit
+        value, unit = presetValue, presetUnit
+        self.units.textSize = { value = value, unit = unit }
+      else
+        -- Not a preset, parse normally
+        value, unit = Units.parse(props.textSize)
+        self.units.textSize = { value = value, unit = unit }
+      end
+
+      -- Resolve textSize based on unit type
+      if unit == "%" or unit == "vh" then
+        -- Percentage and vh are relative to viewport height
+        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      elseif unit == "vw" then
+        -- vw is relative to viewport width
+        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      elseif unit == "ew" then
+        -- ew is relative to element width (use viewport width as fallback during initialization)
+        -- Will be re-resolved after width is set
+        self.textSize = (value / 100) * viewportWidth
+      elseif unit == "eh" then
+        -- eh is relative to element height (use viewport height as fallback during initialization)
+        -- Will be re-resolved after height is set
+        self.textSize = (value / 100) * viewportHeight
+      elseif unit == "px" then
+        -- Pixel units
+        self.textSize = value
+      else
+        error("Unknown textSize unit: " .. unit)
+      end
+    else
+      -- Validate pixel textSize value
+      if props.textSize <= 0 then
+        error("textSize must be greater than 0, got: " .. tostring(props.textSize))
+      end
+
+      -- Pixel textSize value
+      if self.autoScaleText and Gui.baseScale then
+        -- With base scaling: store original pixel value and scale relative to base resolution
+        self.units.textSize = { value = props.textSize, unit = "px" }
+        self.textSize = props.textSize * scaleY
+      elseif self.autoScaleText then
+        -- Without base scaling: convert to viewport units for auto-scaling
+        -- Calculate what percentage of viewport height this represents
+        local vhValue = (props.textSize / viewportHeight) * 100
+        self.units.textSize = { value = vhValue, unit = "vh" }
+        self.textSize = props.textSize -- Initial size is the specified pixel value
+      else
+        -- No auto-scaling: apply base scaling if set, otherwise use raw value
+        self.textSize = Gui.baseScale and (props.textSize * scaleY) or props.textSize
+        self.units.textSize = { value = props.textSize, unit = "px" }
+      end
+    end
+  else
+    -- No textSize specified - use auto-scaling default
+    if self.autoScaleText and Gui.baseScale then
+      -- With base scaling: use 12px as default and scale
+      self.units.textSize = { value = 12, unit = "px" }
+      self.textSize = 12 * scaleY
+    elseif self.autoScaleText then
+      -- Without base scaling: default to 1.5vh (1.5% of viewport height)
+      self.units.textSize = { value = 1.5, unit = "vh" }
+      self.textSize = (1.5 / 100) * viewportHeight
+    else
+      -- No auto-scaling: use 12px with optional base scaling
+      self.textSize = Gui.baseScale and (12 * scaleY) or 12
+      self.units.textSize = { value = nil, unit = "px" }
+    end
+  end
 
   -- Handle width (both w and width properties, prefer w if both exist)
   local widthProp = props.width
@@ -808,67 +952,15 @@ function Element.new(props)
   self.padding = Units.resolveSpacing(props.padding, self.width, self.height)
   self.margin = Units.resolveSpacing(props.margin, self.width, self.height)
 
-  -- Store original textSize units and constraints
-  self.minTextSize = props.minTextSize
-  self.maxTextSize = props.maxTextSize
-
-  -- Auto-scale text by default (can be disabled with autoScaleText = false)
-  if props.autoScaleText == nil then
-    self.autoScaleText = true
-  else
-    self.autoScaleText = props.autoScaleText
-  end
-
-  if props.textSize then
-    if type(props.textSize) == "string" then
-      local value, unit = Units.parse(props.textSize)
-      self.units.textSize = { value = value, unit = unit }
-
-      -- Resolve textSize based on unit type
-      if unit == "%" or unit == "vh" then
-        -- Percentage and vh are relative to viewport height
-        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
-      elseif unit == "vw" then
-        -- vw is relative to viewport width
-        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
-      elseif unit == "ew" then
-        -- Element width relative (will be resolved after width is set)
-        self.textSize = (value / 100) * self.width
-      elseif unit == "eh" then
-        -- Element height relative (will be resolved after height is set)
-        self.textSize = (value / 100) * self.height
-      else
-        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, nil)
-      end
-    else
-      -- Validate pixel textSize value
-      if props.textSize <= 0 then
-        error("textSize must be greater than 0, got: " .. tostring(props.textSize))
-      end
-
-      -- Pixel textSize value
-      if self.autoScaleText then
-        -- Convert pixel value to viewport units for auto-scaling
-        -- Calculate what percentage of viewport height this represents
-        local vhValue = (props.textSize / viewportHeight) * 100
-        self.units.textSize = { value = vhValue, unit = "vh" }
-        self.textSize = props.textSize -- Initial size is the specified pixel value
-      else
-        -- Apply base scaling to pixel text sizes (no auto-scaling)
-        self.textSize = Gui.baseScale and (props.textSize * scaleY) or props.textSize
-        self.units.textSize = { value = props.textSize, unit = "px" }
-      end
-    end
-  else
-    -- No textSize specified - use auto-scaling default
-    if self.autoScaleText then
-      -- Default to 1.5vh (1.5% of viewport height) for auto-scaling
-      self.textSize = (1.5 / 100) * viewportHeight
-      self.units.textSize = { value = 1.5, unit = "vh" }
-    else
-      -- Fixed 12px when auto-scaling is disabled (with base scaling if set)
-      self.textSize = Gui.baseScale and (12 * scaleY) or 12
-      self.units.textSize = { value = nil, unit = "px" }
+  -- Re-resolve ew/eh textSize units now that width/height are set
+  if props.textSize and type(props.textSize) == "string" then
+    local value, unit = Units.parse(props.textSize)
+    if unit == "ew" then
+      -- Element width relative (now that width is set)
+      self.textSize = (value / 100) * self.width
+    elseif unit == "eh" then
+      -- Element height relative (now that height is set)
+      self.textSize = (value / 100) * self.height
     end
   end
 
@@ -1505,10 +1597,7 @@ function Element:layoutChildren()
           child.y = self.y + self.padding.top + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y
-            + self.padding.top
-            + currentCrossPos
-            + ((lineHeight - childTotalHeight) / 2)
+          child.y = self.y + self.padding.top + currentCrossPos + ((lineHeight - childTotalHeight) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
           child.y = self.y + self.padding.top + currentCrossPos + lineHeight - childTotalHeight
@@ -1543,10 +1632,7 @@ function Element:layoutChildren()
           child.x = self.x + self.padding.left + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x
-            + self.padding.left
-            + currentCrossPos
-            + ((lineHeight - childTotalWidth) / 2)
+          child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - childTotalWidth) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
           child.x = self.x + self.padding.left + currentCrossPos + lineHeight - childTotalWidth
@@ -1640,12 +1726,7 @@ function Element:draw()
     Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
   if self.border.top then
-    love.graphics.line(
-      self.x,
-      self.y,
-      self.x + self.width + self.padding.left + self.padding.right,
-      self.y
-    )
+    love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
   end
   if self.border.bottom then
     love.graphics.line(
@@ -1656,12 +1737,7 @@ function Element:draw()
     )
   end
   if self.border.left then
-    love.graphics.line(
-      self.x,
-      self.y,
-      self.x,
-      self.y + self.height + self.padding.top + self.padding.bottom
-    )
+    love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
   end
   if self.border.right then
     love.graphics.line(
@@ -1851,11 +1927,17 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   end
 
   -- Recalculate textSize if auto-scaling is enabled or using viewport/element-relative units
-  if self.autoScaleText and self.units.textSize.value and self.units.textSize.unit ~= "px" then
+  if self.autoScaleText and self.units.textSize.value then
     local unit = self.units.textSize.unit
     local value = self.units.textSize.value
 
-    if unit == "%" or unit == "vh" then
+    if unit == "px" and Gui.baseScale then
+      -- With base scaling: scale pixel values relative to base resolution
+      self.textSize = value * scaleY
+    elseif unit == "px" then
+      -- Without base scaling but auto-scaling enabled: text doesn't scale
+      self.textSize = value
+    elseif unit == "%" or unit == "vh" then
       -- Percentage and vh are relative to viewport height
       self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
     elseif unit == "vw" then
@@ -1887,7 +1969,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
       self.textSize = 1 -- Minimum 1px
     end
   elseif self.units.textSize.unit == "px" and self.units.textSize.value and Gui.baseScale then
-    -- Reapply base scaling to pixel text sizes
+    -- No auto-scaling but base scaling is set: reapply base scaling to pixel text sizes
     self.textSize = self.units.textSize.value * scaleY
 
     -- Protect against too-small text sizes (minimum 1px)
@@ -1983,6 +2065,10 @@ end
 
 ---@return number
 function Element:calculateTextHeight()
+  if self.text == nil then
+    return 0
+  end
+
   if self.textSize then
     local tempFont = FONT_CACHE.get(self.textSize)
     local height = tempFont:getHeight()

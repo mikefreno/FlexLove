@@ -372,15 +372,16 @@ end
 
 local NineSlice = {}
 
---- Draw a 9-slice component
+--- Draw a 9-slice component with borders in padding area
 ---@param component ThemeComponent
 ---@param atlas love.Image
----@param x number
----@param y number
----@param width number
----@param height number
+---@param x number -- X position of border box (top-left corner)
+---@param y number -- Y position of border box (top-left corner)
+---@param contentWidth number -- Width of content area (excludes padding)
+---@param contentHeight number -- Height of content area (excludes padding)
+---@param padding {top:number, right:number, bottom:number, left:number} -- Padding defines border thickness
 ---@param opacity number?
-function NineSlice.draw(component, atlas, x, y, width, height, opacity)
+function NineSlice.draw(component, atlas, x, y, contentWidth, contentHeight, padding, opacity)
   if not component or not atlas then
     return
   end
@@ -390,19 +391,20 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
 
   local regions = component.regions
 
-  -- Calculate dimensions
-  local cornerWidth = regions.topLeft.w
-  local cornerHeight = regions.topLeft.h
-  local rightCornerWidth = regions.topRight.w
-  local rightCornerHeight = regions.topRight.h
-  local bottomLeftHeight = regions.bottomLeft.h
-  local bottomRightHeight = regions.bottomRight.h
-  local bottomLeftWidth = regions.bottomLeft.w
-  local bottomRightWidth = regions.bottomRight.w
+  -- Calculate source image border dimensions from regions
+  local sourceBorderLeft = regions.topLeft.w
+  local sourceBorderRight = regions.topRight.w
+  local sourceBorderTop = regions.topLeft.h
+  local sourceBorderBottom = regions.bottomLeft.h
+  local sourceCenterWidth = regions.middleCenter.w
+  local sourceCenterHeight = regions.middleCenter.h
 
-  -- Calculate minimum required dimensions
-  local minWidth = cornerWidth + rightCornerWidth
-  local minHeight = cornerHeight + bottomLeftHeight
+  -- Calculate scale factors to fit borders within padding
+  -- Borders scale to fit the padding dimensions
+  local scaleLeft = padding.left / sourceBorderLeft
+  local scaleRight = padding.right / sourceBorderRight
+  local scaleTop = padding.top / sourceBorderTop
+  local scaleBottom = padding.bottom / sourceBorderBottom
 
   -- Create quads for each region
   local atlasWidth, atlasHeight = atlas:getDimensions()
@@ -412,117 +414,78 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     return love.graphics.newQuad(region.x, region.y, region.w, region.h, atlasWidth, atlasHeight)
   end
 
-  -- Check if element is too small and needs proportional scaling
-  local scaleDownX = 1
-  local scaleDownY = 1
+  -- Top-left corner (scales to fit top-left padding)
+  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y, 0, scaleLeft, scaleTop)
 
-  if width < minWidth then
-    scaleDownX = width / minWidth
-  end
+  -- Top-right corner (scales to fit top-right padding)
+  love.graphics.draw(atlas, makeQuad(regions.topRight), x + padding.left + contentWidth, y, 0, scaleRight, scaleTop)
 
-  if height < minHeight then
-    scaleDownY = height / minHeight
-  end
+  -- Bottom-left corner (scales to fit bottom-left padding)
+  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + padding.top + contentHeight, 0, scaleLeft, scaleBottom)
 
-  -- Apply proportional scaling to corner dimensions if needed
-  local scaledCornerWidth = cornerWidth * scaleDownX
-  local scaledRightCornerWidth = rightCornerWidth * scaleDownX
-  local scaledCornerHeight = cornerHeight * scaleDownY
-  local scaledBottomLeftHeight = bottomLeftHeight * scaleDownY
-  local scaledBottomRightHeight = bottomRightHeight * scaleDownY
-
-  -- Center dimensions (stretchable area)
-  local centerWidth = width - scaledCornerWidth - scaledRightCornerWidth
-  local centerHeight = height - scaledCornerHeight - scaledBottomLeftHeight
-
-  -- Top-left corner
-  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y, 0, scaleDownX, scaleDownY)
-
-  -- Top-right corner
-  love.graphics.draw(
-    atlas,
-    makeQuad(regions.topRight),
-    x + width - scaledRightCornerWidth,
-    y,
-    0,
-    scaleDownX,
-    scaleDownY
-  )
-
-  -- Bottom-left corner
-  love.graphics.draw(
-    atlas,
-    makeQuad(regions.bottomLeft),
-    x,
-    y + height - scaledBottomLeftHeight,
-    0,
-    scaleDownX,
-    scaleDownY
-  )
-
-  -- Bottom-right corner
+  -- Bottom-right corner (scales to fit bottom-right padding)
   love.graphics.draw(
     atlas,
     makeQuad(regions.bottomRight),
-    x + width - scaledRightCornerWidth,
-    y + height - scaledBottomRightHeight,
+    x + padding.left + contentWidth,
+    y + padding.top + contentHeight,
     0,
-    scaleDownX,
-    scaleDownY
+    scaleRight,
+    scaleBottom
   )
 
-  -- Top edge (stretched)
-  if centerWidth > 0 then
-    local scaleX = centerWidth / regions.topCenter.w
-    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + scaledCornerWidth, y, 0, scaleX, scaleDownY)
+  -- Top edge (stretched to content width, scaled to padding.top height)
+  if contentWidth > 0 then
+    local stretchScaleX = contentWidth / sourceCenterWidth
+    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + padding.left, y, 0, stretchScaleX, scaleTop)
   end
 
-  -- Bottom edge (stretched)
-  if centerWidth > 0 then
-    local scaleX = centerWidth / regions.bottomCenter.w
+  -- Bottom edge (stretched to content width, scaled to padding.bottom height)
+  if contentWidth > 0 then
+    local stretchScaleX = contentWidth / sourceCenterWidth
     love.graphics.draw(
       atlas,
       makeQuad(regions.bottomCenter),
-      x + scaledCornerWidth,
-      y + height - scaledBottomLeftHeight,
+      x + padding.left,
+      y + padding.top + contentHeight,
       0,
-      scaleX,
-      scaleDownY
+      stretchScaleX,
+      scaleBottom
     )
   end
 
-  -- Left edge (stretched)
-  if centerHeight > 0 then
-    local scaleY = centerHeight / regions.middleLeft.h
-    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + scaledCornerHeight, 0, scaleDownX, scaleY)
+  -- Left edge (scaled to padding.left width, stretched to content height)
+  if contentHeight > 0 then
+    local stretchScaleY = contentHeight / sourceCenterHeight
+    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + padding.top, 0, scaleLeft, stretchScaleY)
   end
 
-  -- Right edge (stretched)
-  if centerHeight > 0 then
-    local scaleY = centerHeight / regions.middleRight.h
+  -- Right edge (scaled to padding.right width, stretched to content height)
+  if contentHeight > 0 then
+    local stretchScaleY = contentHeight / sourceCenterHeight
     love.graphics.draw(
       atlas,
       makeQuad(regions.middleRight),
-      x + width - scaledRightCornerWidth,
-      y + scaledCornerHeight,
+      x + padding.left + contentWidth,
+      y + padding.top,
       0,
-      scaleDownX,
-      scaleY
+      scaleRight,
+      stretchScaleY
     )
   end
 
-  -- Center (stretched both ways)
-  if centerWidth > 0 and centerHeight > 0 then
-    local scaleX = centerWidth / regions.middleCenter.w
-    local scaleY = centerHeight / regions.middleCenter.h
+  -- Center (stretched to fill content area)
+  if contentWidth > 0 and contentHeight > 0 then
+    local stretchScaleX = contentWidth / sourceCenterWidth
+    local stretchScaleY = contentHeight / sourceCenterHeight
     love.graphics.draw(
       atlas,
       makeQuad(regions.middleCenter),
-      x + scaledCornerWidth,
-      y + scaledCornerHeight,
+      x + padding.left,
+      y + padding.top,
       0,
-      scaleX,
-      scaleY
+      stretchScaleX,
+      stretchScaleY
     )
   end
 
@@ -600,6 +563,7 @@ local enums = {
 
 -- Text size preset mappings (in vh units for auto-scaling)
 local TEXT_SIZE_PRESETS = {
+  ["2xs"] = 0.75, -- 0.75vh
   xxs = 0.75, -- 0.75vh
   xs = 1.25, -- 1.25vh
   sm = 1.75, -- 1.75vh
@@ -607,6 +571,7 @@ local TEXT_SIZE_PRESETS = {
   lg = 2.75, -- 2.75vh
   xl = 3.5, -- 3.5vh
   xxl = 4.5, -- 4.5vh
+  ["2xl"] = 4.5, -- 4.5vh
   ["3xl"] = 5.0, -- 5vh
   ["4xl"] = 7.0, -- 7vh
 }
@@ -790,32 +755,33 @@ function Grid.layoutGridItems(element)
   local reservedRight = 0
   local reservedTop = 0
   local reservedBottom = 0
-  
+
   for _, child in ipairs(element.children) do
     -- Only consider absolutely positioned children with explicit positioning
     if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+      -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
+      local childBorderBoxWidth = child:getBorderBoxWidth()
+      local childBorderBoxHeight = child:getBorderBoxHeight()
+
       if child.left then
-        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-        reservedLeft = math.max(reservedLeft, child.left + childTotalWidth)
+        reservedLeft = math.max(reservedLeft, child.left + childBorderBoxWidth)
       end
       if child.right then
-        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-        reservedRight = math.max(reservedRight, child.right + childTotalWidth)
+        reservedRight = math.max(reservedRight, child.right + childBorderBoxWidth)
       end
       if child.top then
-        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-        reservedTop = math.max(reservedTop, child.top + childTotalHeight)
+        reservedTop = math.max(reservedTop, child.top + childBorderBoxHeight)
       end
       if child.bottom then
-        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-        reservedBottom = math.max(reservedBottom, child.bottom + childTotalHeight)
+        reservedBottom = math.max(reservedBottom, child.bottom + childBorderBoxHeight)
       end
     end
   end
 
   -- Calculate available space (accounting for padding and reserved space)
-  local availableWidth = element.width - element.padding.left - element.padding.right - reservedLeft - reservedRight
-  local availableHeight = element.height - element.padding.top - element.padding.bottom - reservedTop - reservedBottom
+  -- BORDER-BOX MODEL: element.width and element.height are already content dimensions
+  local availableWidth = element.width - reservedLeft - reservedRight
+  local availableHeight = element.height - reservedTop - reservedBottom
 
   -- Get gaps
   local columnGap = element.columnGap or 0
@@ -855,19 +821,22 @@ function Grid.layoutGridItems(element)
     local effectiveAlignItems = element.alignItems or AlignItems.STRETCH
 
     -- Stretch child to fill cell by default
+    -- BORDER-BOX MODEL: Set border-box dimensions, content area adjusts automatically
     if effectiveAlignItems == AlignItems.STRETCH or effectiveAlignItems == "stretch" then
       child.x = cellX
       child.y = cellY
-      child.width = cellWidth - child.padding.left - child.padding.right
-      child.height = cellHeight - child.padding.top - child.padding.bottom
+      child._borderBoxWidth = cellWidth
+      child._borderBoxHeight = cellHeight
+      child.width = math.max(0, cellWidth - child.padding.left - child.padding.right)
+      child.height = math.max(0, cellHeight - child.padding.top - child.padding.bottom)
       -- Disable auto-sizing when stretched by grid
       child.autosizing.width = false
       child.autosizing.height = false
     elseif effectiveAlignItems == AlignItems.CENTER or effectiveAlignItems == "center" then
-      local childTotalWidth = child.width + child.padding.left + child.padding.right
-      local childTotalHeight = child.height + child.padding.top + child.padding.bottom
-      child.x = cellX + (cellWidth - childTotalWidth) / 2
-      child.y = cellY + (cellHeight - childTotalHeight) / 2
+      local childBorderBoxWidth = child:getBorderBoxWidth()
+      local childBorderBoxHeight = child:getBorderBoxHeight()
+      child.x = cellX + (cellWidth - childBorderBoxWidth) / 2
+      child.y = cellY + (cellHeight - childBorderBoxHeight) / 2
     elseif
       effectiveAlignItems == AlignItems.FLEX_START
       or effectiveAlignItems == "flex-start"
@@ -880,16 +849,18 @@ function Grid.layoutGridItems(element)
       or effectiveAlignItems == "flex-end"
       or effectiveAlignItems == "end"
     then
-      local childTotalWidth = child.width + child.padding.left + child.padding.right
-      local childTotalHeight = child.height + child.padding.top + child.padding.bottom
-      child.x = cellX + cellWidth - childTotalWidth
-      child.y = cellY + cellHeight - childTotalHeight
+      local childBorderBoxWidth = child:getBorderBoxWidth()
+      local childBorderBoxHeight = child:getBorderBoxHeight()
+      child.x = cellX + cellWidth - childBorderBoxWidth
+      child.y = cellY + cellHeight - childBorderBoxHeight
     else
       -- Default to stretch
       child.x = cellX
       child.y = cellY
-      child.width = cellWidth - child.padding.left - child.padding.right
-      child.height = cellHeight - child.padding.top - child.padding.bottom
+      child._borderBoxWidth = cellWidth
+      child._borderBoxHeight = cellHeight
+      child.width = math.max(0, cellWidth - child.padding.left - child.padding.right)
+      child.height = math.max(0, cellHeight - child.padding.top - child.padding.bottom)
       -- Disable auto-sizing when stretched by grid
       child.autosizing.width = false
       child.autosizing.height = false
@@ -1186,7 +1157,7 @@ local FONT_CACHE = {}
 function FONT_CACHE.get(size, fontPath)
   -- Create cache key from size and font path
   local cacheKey = fontPath and (fontPath .. "_" .. tostring(size)) or tostring(size)
-  
+
   if not FONT_CACHE[cacheKey] then
     if fontPath then
       -- Load custom font
@@ -1274,7 +1245,7 @@ end
 ---@field gap number|string -- Space between children elements (default: 10)
 ---@field padding {top?:number, right?:number, bottom?:number, left?:number}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field margin {top?:number, right?:number, bottom?:number, left?:number} -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
----@field positioning Positioning -- Layout positioning mode (default: ABSOLUTE)
+---@field positioning Positioning -- Layout positioning mode (default: RELATIVE)
 ---@field flexDirection FlexDirection -- Direction of flex layout (default: HORIZONTAL)
 ---@field justifyContent JustifyContent -- Alignment of items along main axis (default: FLEX_START)
 ---@field alignItems AlignItems -- Alignment of items along cross axis (default: STRETCH)
@@ -1333,7 +1304,7 @@ Element.__index = Element
 ---@field textSize number|string? -- Font size: number (px), string with units ("2vh", "10%"), or preset ("xxs"|"xs"|"sm"|"md"|"lg"|"xl"|"xxl"|"3xl"|"4xl") (default: "md")
 ---@field fontFamily string? -- Font family name from theme or path to font file (default: theme default or system default)
 ---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
----@field positioning Positioning? -- Layout positioning mode (default: ABSOLUTE)
+---@field positioning Positioning? -- Layout positioning mode (default: RELATIVE)
 ---@field flexDirection FlexDirection? -- Direction of flex layout (default: HORIZONTAL)
 ---@field justifyContent JustifyContent? -- Alignment of items along main axis (default: FLEX_START)
 ---@field alignItems AlignItems? -- Alignment of items along cross axis (default: STRETCH)
@@ -1489,13 +1460,16 @@ function Element.new(props)
 
   -- Handle fontFamily (can be font name from theme or direct path to font file)
   self.fontFamily = props.fontFamily
-  
+
   -- If using themeComponent but no fontFamily specified, apply default font
   if props.themeComponent and not props.fontFamily then
     local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
     if themeToUse and themeToUse.fonts then
-      -- Use default font from theme if available
-      self.fontFamily = "default"
+      if self.parent then
+        self.fontFamily = self.parent.fontFamily
+      else
+        self.fontFamily = "default"
+      end
     end
   end
 
@@ -1579,39 +1553,47 @@ function Element.new(props)
 
   -- Handle width (both w and width properties, prefer w if both exist)
   local widthProp = props.width
+  local tempWidth = 0 -- Temporary width for padding resolution
   if widthProp then
     if type(widthProp) == "string" then
       local value, unit = Units.parse(widthProp)
       self.units.width = { value = value, unit = unit }
       local parentWidth = self.parent and self.parent.width or viewportWidth
-      self.width = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+      tempWidth = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
     else
       -- Apply base scaling to pixel values
-      self.width = Gui.baseScale and (widthProp * scaleX) or widthProp
+      tempWidth = Gui.baseScale and (widthProp * scaleX) or widthProp
       self.units.width = { value = widthProp, unit = "px" }
     end
+    self.width = tempWidth
   else
     self.autosizing.width = true
-    self.width = self:calculateAutoWidth()
+    -- Calculate auto-width without padding first
+    tempWidth = self:calculateAutoWidth()
+    self.width = tempWidth
     self.units.width = { value = nil, unit = "auto" } -- Mark as auto-sized
   end
 
   -- Handle height (both h and height properties, prefer h if both exist)
   local heightProp = props.height
+  local tempHeight = 0 -- Temporary height for padding resolution
   if heightProp then
     if type(heightProp) == "string" then
       local value, unit = Units.parse(heightProp)
       self.units.height = { value = value, unit = unit }
       local parentHeight = self.parent and self.parent.height or viewportHeight
-      self.height = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+      tempHeight = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
     else
       -- Apply base scaling to pixel values
-      self.height = Gui.baseScale and (heightProp * scaleY) or heightProp
+      tempHeight = Gui.baseScale and (heightProp * scaleY) or heightProp
       self.units.height = { value = heightProp, unit = "px" }
     end
+    self.height = tempHeight
   else
     self.autosizing.height = true
-    self.height = self:calculateAutoHeight()
+    -- Calculate auto-height without padding first
+    tempHeight = self:calculateAutoHeight()
+    self.height = tempHeight
     self.units.height = { value = nil, unit = "auto" } -- Mark as auto-sized
   end
 
@@ -1630,13 +1612,39 @@ function Element.new(props)
       self.units.gap = { value = props.gap, unit = "px" }
     end
   else
-    self.gap = 10
-    self.units.gap = { value = 10, unit = "px" }
+    self.gap = 0
+    self.units.gap = { value = 0, unit = "px" }
   end
 
-  -- Resolve padding and margin based on element's own size (after width/height are set)
-  self.padding = Units.resolveSpacing(props.padding, self.width, self.height)
+  -- BORDER-BOX MODEL: For auto-sizing, we need to add padding to content dimensions
+  -- For explicit sizing, width/height already include padding (border-box)
+
+  -- First, resolve padding using temporary dimensions
+  -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
+  local tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
   self.margin = Units.resolveSpacing(props.margin, self.width, self.height)
+
+  -- For auto-sized elements, add padding to get border-box dimensions
+  if self.autosizing.width then
+    self._borderBoxWidth = self.width + tempPadding.left + tempPadding.right
+  else
+    -- For explicit sizing, width is already border-box
+    self._borderBoxWidth = self.width
+  end
+
+  if self.autosizing.height then
+    self._borderBoxHeight = self.height + tempPadding.top + tempPadding.bottom
+  else
+    -- For explicit sizing, height is already border-box
+    self._borderBoxHeight = self.height
+  end
+
+  -- Re-resolve padding based on final border-box dimensions (important for percentage padding)
+  self.padding = Units.resolveSpacing(props.padding, self._borderBoxWidth, self._borderBoxHeight)
+
+  -- Calculate final content dimensions by subtracting padding from border-box
+  self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)
+  self.height = math.max(0, self._borderBoxHeight - self.padding.top - self.padding.bottom)
 
   -- Re-resolve ew/eh textSize units now that width/height are set
   if props.textSize and type(props.textSize) == "string" then
@@ -1745,7 +1753,7 @@ function Element.new(props)
       self._originalPositioning = props.positioning
       self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
     else
-      self.positioning = Positioning.ABSOLUTE
+      self.positioning = Positioning.RELATIVE
       self._originalPositioning = nil -- No explicit positioning
       self._explicitlyAbsolute = false
     end
@@ -1763,13 +1771,13 @@ function Element.new(props)
       self._explicitlyAbsolute = false
     else
       -- Default: children in flex/grid containers participate in parent's layout
-      -- children in absolute containers default to absolute
+      -- children in relative/absolute containers default to relative
       if self.parent.positioning == Positioning.FLEX or self.parent.positioning == Positioning.GRID then
         self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
         self._explicitlyAbsolute = false -- Participate in parent's layout
       else
-        self.positioning = Positioning.ABSOLUTE
-        self._explicitlyAbsolute = false -- Default for absolute containers
+        self.positioning = Positioning.RELATIVE
+        self._explicitlyAbsolute = false -- Default for relative/absolute containers
       end
     end
 
@@ -1968,10 +1976,22 @@ function Element.new(props)
   return self
 end
 
---- Get element bounds
+--- Get element bounds (content box)
 ---@return { x:number, y:number, width:number, height:number }
 function Element:getBounds()
   return { x = self.x, y = self.y, width = self.width, height = self.height }
+end
+
+--- Get border-box width (including padding)
+---@return number
+function Element:getBorderBoxWidth()
+  return self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+end
+
+--- Get border-box height (including padding)
+---@return number
+function Element:getBorderBoxHeight()
+  return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 end
 
 --- Add child to element
@@ -1987,8 +2007,8 @@ function Element:addChild(child)
       child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
       child._explicitlyAbsolute = false -- Participate in parent's layout
     else
-      child.positioning = Positioning.ABSOLUTE
-      child._explicitlyAbsolute = false -- Default for absolute containers
+      child.positioning = Positioning.RELATIVE
+      child._explicitlyAbsolute = false -- Default for relative/absolute containers
     end
   end
   -- If child._originalPositioning is set, it means explicit positioning was provided
@@ -2000,10 +2020,16 @@ function Element:addChild(child)
   -- (CSS: absolutely positioned children don't affect parent auto-sizing)
   if not child._explicitlyAbsolute then
     if self.autosizing.height then
-      self.height = self:calculateAutoHeight()
+      local contentHeight = self:calculateAutoHeight()
+      -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
+      self._borderBoxHeight = contentHeight + self.padding.top + self.padding.bottom
+      self.height = contentHeight
     end
     if self.autosizing.width then
-      self.width = self:calculateAutoWidth()
+      local contentWidth = self:calculateAutoWidth()
+      -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
+      self._borderBoxWidth = contentWidth + self.padding.left + self.padding.right
+      self.width = contentWidth
     end
   end
 
@@ -2029,10 +2055,10 @@ function Element:applyPositioningOffsets(element)
   end
 
   -- Apply bottom offset (distance from parent's content box bottom edge)
-  -- Element's total height includes its padding
+  -- BORDER-BOX MODEL: Use border-box dimensions for positioning
   if element.bottom then
-    local elementTotalHeight = element.height + element.padding.top + element.padding.bottom
-    element.y = parent.y + parent.height + parent.padding.top - element.bottom - elementTotalHeight
+    local elementBorderBoxHeight = element:getBorderBoxHeight()
+    element.y = parent.y + parent.padding.top + parent.height - element.bottom - elementBorderBoxHeight
   end
 
   -- Apply left offset (distance from parent's content box left edge)
@@ -2041,16 +2067,16 @@ function Element:applyPositioningOffsets(element)
   end
 
   -- Apply right offset (distance from parent's content box right edge)
-  -- Element's total width includes its padding
+  -- BORDER-BOX MODEL: Use border-box dimensions for positioning
   if element.right then
-    local elementTotalWidth = element.width + element.padding.left + element.padding.right
-    element.x = parent.x + parent.width + parent.padding.left - element.right - elementTotalWidth
+    local elementBorderBoxWidth = element:getBorderBoxWidth()
+    element.x = parent.x + parent.padding.left + parent.width - element.right - elementBorderBoxWidth
   end
 end
 
 function Element:layoutChildren()
-  if self.positioning == Positioning.ABSOLUTE then
-    -- Absolute positioned containers don't layout their children according to flex rules,
+  if self.positioning == Positioning.ABSOLUTE or self.positioning == Positioning.RELATIVE then
+    -- Absolute/Relative positioned containers don't layout their children according to flex rules,
     -- but they should still apply CSS positioning offsets to their children
     for _, child in ipairs(self.children) do
       if child.top or child.right or child.bottom or child.left then
@@ -2090,60 +2116,56 @@ function Element:layoutChildren()
   local reservedMainEnd = 0 -- Space reserved at the end of main axis (right for horizontal, bottom for vertical)
   local reservedCrossStart = 0 -- Space reserved at the start of cross axis (top for horizontal, left for vertical)
   local reservedCrossEnd = 0 -- Space reserved at the end of cross axis (bottom for horizontal, right for vertical)
-  
+
   for _, child in ipairs(self.children) do
     -- Only consider absolutely positioned children with explicit positioning
     if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+      -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
+      local childBorderBoxWidth = child:getBorderBoxWidth()
+      local childBorderBoxHeight = child:getBorderBoxHeight()
+
       if self.flexDirection == FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Check for left positioning (reserves space at main axis start)
         if child.left then
-          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          local spaceNeeded = child.left + childTotalWidth
+          local spaceNeeded = child.left + childBorderBoxWidth
           reservedMainStart = math.max(reservedMainStart, spaceNeeded)
         end
         -- Check for right positioning (reserves space at main axis end)
         if child.right then
-          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          local spaceNeeded = child.right + childTotalWidth
+          local spaceNeeded = child.right + childBorderBoxWidth
           reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
         end
         -- Check for top positioning (reserves space at cross axis start)
         if child.top then
-          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          local spaceNeeded = child.top + childTotalHeight
+          local spaceNeeded = child.top + childBorderBoxHeight
           reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
         end
         -- Check for bottom positioning (reserves space at cross axis end)
         if child.bottom then
-          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          local spaceNeeded = child.bottom + childTotalHeight
+          local spaceNeeded = child.bottom + childBorderBoxHeight
           reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
         end
       else
         -- Vertical layout: main axis is Y, cross axis is X
         -- Check for top positioning (reserves space at main axis start)
         if child.top then
-          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          local spaceNeeded = child.top + childTotalHeight
+          local spaceNeeded = child.top + childBorderBoxHeight
           reservedMainStart = math.max(reservedMainStart, spaceNeeded)
         end
         -- Check for bottom positioning (reserves space at main axis end)
         if child.bottom then
-          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          local spaceNeeded = child.bottom + childTotalHeight
+          local spaceNeeded = child.bottom + childBorderBoxHeight
           reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
         end
         -- Check for left positioning (reserves space at cross axis start)
         if child.left then
-          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          local spaceNeeded = child.left + childTotalWidth
+          local spaceNeeded = child.left + childBorderBoxWidth
           reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
         end
         -- Check for right positioning (reserves space at cross axis end)
         if child.right then
-          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          local spaceNeeded = child.right + childTotalWidth
+          local spaceNeeded = child.right + childBorderBoxWidth
           reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
         end
       end
@@ -2151,14 +2173,15 @@ function Element:layoutChildren()
   end
 
   -- Calculate available space (accounting for padding and reserved space)
+  -- BORDER-BOX MODEL: self.width and self.height are already content dimensions (padding subtracted)
   local availableMainSize = 0
   local availableCrossSize = 0
   if self.flexDirection == FlexDirection.HORIZONTAL then
-    availableMainSize = self.width - self.padding.left - self.padding.right - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.height - self.padding.top - self.padding.bottom - reservedCrossStart - reservedCrossEnd
+    availableMainSize = self.width - reservedMainStart - reservedMainEnd
+    availableCrossSize = self.height - reservedCrossStart - reservedCrossEnd
   else
-    availableMainSize = self.height - self.padding.top - self.padding.bottom - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.width - self.padding.left - self.padding.right - reservedCrossStart - reservedCrossEnd
+    availableMainSize = self.height - reservedMainStart - reservedMainEnd
+    availableCrossSize = self.width - reservedCrossStart - reservedCrossEnd
   end
 
   -- Handle flex wrap: create lines of children
@@ -2173,11 +2196,12 @@ function Element:layoutChildren()
     local currentLineSize = 0
 
     for _, child in ipairs(flexChildren) do
+      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
       local childMainSize = 0
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        childMainSize = (child.width or 0) + child.padding.left + child.padding.right
+        childMainSize = child:getBorderBoxWidth()
       else
-        childMainSize = (child.height or 0) + child.padding.top + child.padding.bottom
+        childMainSize = child:getBorderBoxHeight()
       end
 
       -- Check if adding this child would exceed the available space
@@ -2218,11 +2242,12 @@ function Element:layoutChildren()
   for lineIndex, line in ipairs(lines) do
     local maxCrossSize = 0
     for _, child in ipairs(line) do
+      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
       local childCrossSize = 0
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        childCrossSize = (child.height or 0) + child.padding.top + child.padding.bottom
+        childCrossSize = child:getBorderBoxHeight()
       else
-        childCrossSize = (child.width or 0) + child.padding.left + child.padding.right
+        childCrossSize = child:getBorderBoxWidth()
       end
       maxCrossSize = math.max(maxCrossSize, childCrossSize)
     end
@@ -2289,14 +2314,13 @@ function Element:layoutChildren()
     local lineHeight = lineHeights[lineIndex]
 
     -- Calculate total size of children in this line (including padding)
+    -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
     local totalChildrenSize = 0
     for _, child in ipairs(line) do
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-        totalChildrenSize = totalChildrenSize + childTotalWidth
+        totalChildrenSize = totalChildrenSize + child:getBorderBoxWidth()
       else
-        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-        totalChildrenSize = totalChildrenSize + childTotalHeight
+        totalChildrenSize = totalChildrenSize + child:getBorderBoxHeight()
       end
     end
 
@@ -2345,17 +2369,23 @@ function Element:layoutChildren()
         -- Add reservedMainStart to account for absolutely positioned siblings
         child.x = self.x + self.padding.left + reservedMainStart + currentMainPos
 
+        -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
+        local childBorderBoxHeight = child:getBorderBoxHeight()
+
         if effectiveAlign == AlignItems.FLEX_START then
           child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
-          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalHeight) / 2)
+          child.y = self.y
+            + self.padding.top
+            + reservedCrossStart
+            + currentCrossPos
+            + ((lineHeight - childBorderBoxHeight) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
-          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalHeight
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childBorderBoxHeight
         elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH always stretches children in cross-axis direction
-          child.height = lineHeight - child.padding.top - child.padding.bottom
+          -- STRETCH: Set border-box height to lineHeight, content area shrinks to fit
+          child._borderBoxHeight = lineHeight
+          child.height = math.max(0, lineHeight - child.padding.top - child.padding.bottom)
           child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
         end
 
@@ -2372,26 +2402,31 @@ function Element:layoutChildren()
           child:layoutChildren()
         end
 
-        -- Advance position by child's total width (width + padding)
-        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-        currentMainPos = currentMainPos + childTotalWidth + itemSpacing
+        -- Advance position by child's border-box width
+        currentMainPos = currentMainPos + child:getBorderBoxWidth() + itemSpacing
       else
         -- Vertical layout: main axis is Y, cross axis is X
         -- Position child at border box (x, y represents top-left including padding)
         -- Add reservedMainStart to account for absolutely positioned siblings
         child.y = self.y + self.padding.top + reservedMainStart + currentMainPos
 
+        -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
+        local childBorderBoxWidth = child:getBorderBoxWidth()
+
         if effectiveAlign == AlignItems.FLEX_START then
           child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
-          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalWidth) / 2)
+          child.x = self.x
+            + self.padding.left
+            + reservedCrossStart
+            + currentCrossPos
+            + ((lineHeight - childBorderBoxWidth) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
-          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalWidth
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childBorderBoxWidth
         elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH always stretches children in cross-axis direction
-          child.width = lineHeight - child.padding.left - child.padding.right
+          -- STRETCH: Set border-box width to lineHeight, content area shrinks to fit
+          child._borderBoxWidth = lineHeight
+          child.width = math.max(0, lineHeight - child.padding.left - child.padding.right)
           child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
         end
 
@@ -2403,9 +2438,8 @@ function Element:layoutChildren()
           child:layoutChildren()
         end
 
-        -- Advance position by child's total height (height + padding)
-        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-        currentMainPos = currentMainPos + childTotalHeight + itemSpacing
+        -- Advance position by child's border-box height
+        currentMainPos = currentMainPos + child:getBorderBoxHeight() + itemSpacing
       end
     end
 
@@ -2466,6 +2500,7 @@ function Element:draw()
   -- LAYER 1: Draw backgroundColor first (behind everything)
   -- Apply opacity to all drawing operations
   -- (x, y) represents border box, so draw background from (x, y)
+  -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
   local backgroundWithOpacity =
     Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
@@ -2473,8 +2508,8 @@ function Element:draw()
     "fill",
     self.x,
     self.y,
-    self.width + self.padding.left + self.padding.right,
-    self.height + self.padding.top + self.padding.bottom,
+    self._borderBoxWidth or (self.width + self.padding.left + self.padding.right),
+    self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom),
     self.cornerRadius
   )
 
@@ -2512,15 +2547,7 @@ function Element:draw()
         local atlasToUse = component._loadedAtlas or themeToUse.atlas
 
         if atlasToUse then
-          NineSlice.draw(
-            component,
-            atlasToUse,
-            self.x,
-            self.y,
-            self.width + self.padding.left + self.padding.right,
-            self.height + self.padding.top + self.padding.bottom,
-            self.opacity
-          )
+          NineSlice.draw(component, atlasToUse, self.x, self.y, self.width, self.height, self.padding, self.opacity)
         else
           print("[FlexLove] No atlas for component: " .. self.themeComponent)
         end
@@ -2540,39 +2567,26 @@ function Element:draw()
   -- Check if all borders are enabled
   local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
 
+  -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
+  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+
   if allBorders then
     -- Draw complete rounded rectangle border
-    RoundedRect.draw(
-      "line",
-      self.x,
-      self.y,
-      self.width + self.padding.left + self.padding.right,
-      self.height + self.padding.top + self.padding.bottom,
-      self.cornerRadius
-    )
+    RoundedRect.draw("line", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
   else
     -- Draw individual borders (without rounded corners for partial borders)
     if self.border.top then
-      love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
+      love.graphics.line(self.x, self.y, self.x + borderBoxWidth, self.y)
     end
     if self.border.bottom then
-      love.graphics.line(
-        self.x,
-        self.y + self.height + self.padding.top + self.padding.bottom,
-        self.x + self.width + self.padding.left + self.padding.right,
-        self.y + self.height + self.padding.top + self.padding.bottom
-      )
+      love.graphics.line(self.x, self.y + borderBoxHeight, self.x + borderBoxWidth, self.y + borderBoxHeight)
     end
     if self.border.left then
-      love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
+      love.graphics.line(self.x, self.y, self.x, self.y + borderBoxHeight)
     end
     if self.border.right then
-      love.graphics.line(
-        self.x + self.width + self.padding.left + self.padding.right,
-        self.y,
-        self.x + self.width + self.padding.left + self.padding.right,
-        self.y + self.height + self.padding.top + self.padding.bottom
-      )
+      love.graphics.line(self.x + borderBoxWidth, self.y, self.x + borderBoxWidth, self.y + borderBoxHeight)
     end
   end
 
@@ -2602,7 +2616,7 @@ function Element:draw()
           fontPath = themeToUse.fonts.default
         end
       end
-      
+
       -- Use cached font instead of creating new one every frame
       local font = FONT_CACHE.get(self.textSize, fontPath)
       love.graphics.setFont(font)
@@ -2645,15 +2659,11 @@ function Element:draw()
       end
     end
     if anyPressed then
+      -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
+      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
       love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-      RoundedRect.draw(
-        "fill",
-        self.x,
-        self.y,
-        self.width + self.padding.left + self.padding.right,
-        self.height + self.padding.top + self.padding.bottom,
-        self.cornerRadius
-      )
+      RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
     end
   end
 
@@ -2674,13 +2684,10 @@ function Element:draw()
 
   if hasRoundedCorners and #sortedChildren > 0 then
     -- Use stencil to clip children to rounded rectangle
-    local stencilFunc = RoundedRect.stencilFunction(
-      self.x,
-      self.y,
-      self.width + self.padding.left + self.padding.right,
-      self.height + self.padding.top + self.padding.bottom,
-      self.cornerRadius
-    )
+    -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+    local stencilFunc = RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
     love.graphics.stencil(stencilFunc, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
@@ -2727,10 +2734,11 @@ function Element:update(dt)
   if self.callback or self.themeComponent then
     local mx, my = love.mouse.getPosition()
     -- Clickable area is the border box (x, y already includes padding)
+    -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection
     local bx = self.x
     local by = self.y
-    local bw = self.width + self.padding.left + self.padding.right
-    local bh = self.height + self.padding.top + self.padding.bottom
+    local bw = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    local bh = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
     local isHovering = mx >= bx and mx <= bx + bw and my >= by and my <= by + bh
 
     -- Update theme state based on interaction
@@ -3027,6 +3035,17 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
       )
     end
   end
+
+  -- BORDER-BOX MODEL: After recalculating width/height/padding, update border-box dimensions
+  -- Width and height were calculated as border-box, now we need to subtract padding for content area
+  if self.units.width.unit ~= "auto" then
+    self._borderBoxWidth = self.width
+    self.width = math.max(0, self.width - self.padding.left - self.padding.right)
+  end
+  if self.units.height.unit ~= "auto" then
+    self._borderBoxHeight = self.height
+    self.height = math.max(0, self.height - self.padding.top - self.padding.bottom)
+  end
 end
 
 --- Resize element and its children based on game window size change
@@ -3042,10 +3061,16 @@ function Element:resize(newGameWidth, newGameHeight)
 
   -- Recalculate auto-sized dimensions after children are resized
   if self.autosizing.width then
-    self.width = self:calculateAutoWidth()
+    local contentWidth = self:calculateAutoWidth()
+    -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
+    self._borderBoxWidth = contentWidth + self.padding.left + self.padding.right
+    self.width = contentWidth
   end
   if self.autosizing.height then
-    self.height = self:calculateAutoHeight()
+    local contentHeight = self:calculateAutoHeight()
+    -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
+    self._borderBoxHeight = contentHeight + self.padding.top + self.padding.bottom
+    self.height = contentHeight
   end
 
   self:layoutChildren()
@@ -3089,21 +3114,20 @@ function Element:calculateTextHeight()
 end
 
 function Element:calculateAutoWidth()
-  local width = self:calculateTextWidth()
+  -- BORDER-BOX MODEL: Calculate content width, caller will add padding to get border-box
+  local contentWidth = self:calculateTextWidth()
   if not self.children or #self.children == 0 then
-    return width
+    return contentWidth
   end
 
-  local totalWidth = width
+  local totalWidth = contentWidth
   local participatingChildren = 0
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
-      local paddingAdjustment = (child.padding.left or 0) + (child.padding.right or 0)
-      local childWidth = child.width or child:calculateAutoWidth()
-      local childOffset = childWidth + paddingAdjustment
-
-      totalWidth = totalWidth + childOffset
+      -- BORDER-BOX MODEL: Use border-box width for auto-sizing calculations
+      local childBorderBoxWidth = child:getBorderBoxWidth()
+      totalWidth = totalWidth + childBorderBoxWidth
       participatingChildren = participatingChildren + 1
     end
   end
@@ -3123,11 +3147,9 @@ function Element:calculateAutoHeight()
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
-      local paddingAdjustment = (child.padding.top or 0) + (child.padding.bottom or 0)
-      local childHeight = child.height or child:calculateAutoHeight()
-      local childOffset = childHeight + paddingAdjustment
-
-      totalHeight = totalHeight + childOffset
+      -- BORDER-BOX MODEL: Use border-box height for auto-sizing calculations
+      local childBorderBoxHeight = child:getBorderBoxHeight()
+      totalHeight = totalHeight + childBorderBoxHeight
       participatingChildren = participatingChildren + 1
     end
   end

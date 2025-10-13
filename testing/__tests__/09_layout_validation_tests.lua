@@ -126,7 +126,7 @@ function TestLayoutValidation:testMissingRequiredPropertiesDefaults()
   luaunit.assertIsNumber(element.y)
   luaunit.assertIsNumber(element.width)
   luaunit.assertIsNumber(element.height)
-  luaunit.assertEquals(element.positioning, Positioning.ABSOLUTE) -- Default positioning
+  luaunit.assertEquals(element.positioning, Positioning.RELATIVE) -- Default positioning
 
   -- Test flex container with minimal properties
   local success2, flex_element = captureError(function()

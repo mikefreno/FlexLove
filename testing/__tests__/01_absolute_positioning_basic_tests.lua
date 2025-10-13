@@ -51,8 +51,8 @@ function TestAbsolutePositioningBasic:testDefaultAbsolutePositioning()
     height = 100,
   })
 
-  -- Default should be absolute positioning (RELATIVE not yet implemented)
-  luaunit.assertEquals(elem.positioning, Positioning.ABSOLUTE)
+  -- Default should be relative positioning
+  luaunit.assertEquals(elem.positioning, Positioning.RELATIVE)
   luaunit.assertEquals(elem.x, 50)
   luaunit.assertEquals(elem.y, 75)
 end

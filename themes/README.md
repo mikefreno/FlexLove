@@ -2,7 +2,15 @@
 
 ## Overview
 
-FlexLove supports a flexible 9-slice/9-patch theming system that allows you to create scalable UI components using texture atlases.
+FlexLove supports a flexible 9-slice/9-patch theming system that allows you to create scalable UI components using texture atlases. Themes provide state-based visual feedback and automatically handle element sizing.
+
+## Key Features
+
+- **9-Slice Scaling**: Images scale properly to any size without distortion
+- **State Management**: Automatic visual feedback for hover, pressed, disabled, and active states
+- **Layered Rendering**: Themes render on top of backgroundColor, with borders on top
+- **Flexible Organization**: Use separate images, single atlas, or hybrid approach
+- **Automatic Highlight Disable**: Elements with themes automatically disable the pressed overlay
 
 ## Image Organization Options
 
@@ -166,6 +174,7 @@ Legend:
 local FlexLove = require("FlexLove")
 local Theme = FlexLove.Theme
 local Gui = FlexLove.GUI
+local Color = FlexLove.Color
 
 -- Load theme
 Theme.load("my_theme")
@@ -176,9 +185,14 @@ local button = Gui.new({
   width = 150,
   height = 40,
   text = "Click Me",
-  theme = "button",  -- Uses button component from active theme
+  textAlign = "center",
+  textColor = Color.new(1, 1, 1, 1),
+  backgroundColor = Color.new(0.2, 0.4, 0.8, 0.3),  -- Shows behind theme
+  themeComponent = "button",  -- Uses button component from active theme
   callback = function(element, event)
-    print("Clicked!")
+    if event.type == "click" then
+      print("Clicked!")
+    end
   end
 })
 
@@ -186,16 +200,34 @@ local button = Gui.new({
 local panel = Gui.new({
   width = 300,
   height = 200,
-  theme = "panel"
+  backgroundColor = Color.new(0.1, 0.1, 0.2, 0.5),  -- Background tint
+  themeComponent = "panel"
 })
 ```
 
+## Rendering Layers
+
+Elements with themes render in this order:
+
+1. **backgroundColor** - Rendered first (behind everything)
+2. **Theme 9-slice** - Rendered on top of backgroundColor
+3. **Borders** - Rendered on top of theme (if specified)
+4. **Text** - Rendered last (on top of everything)
+
+This allows you to:
+- Tint themed elements with backgroundColor
+- Add custom borders on top of themes
+- Layer visual effects
+
 ## Component States
 
-Buttons automatically handle three states:
+Themes automatically handle visual states for interactive elements:
+
 - **normal**: Default appearance
-- **hover**: When mouse is over the button
-- **pressed**: When button is being clicked
+- **hover**: When mouse is over the element
+- **pressed**: When element is being clicked
+- **disabled**: When element.disabled = true
+- **active**: When element.active = true (for inputs/focused elements)
 
 Define state-specific images in your theme:
 
@@ -211,9 +243,108 @@ button = {
     pressed = {
       atlas = "themes/button_pressed.png",
       regions = { ... }
+    },
+    disabled = {
+      atlas = "themes/button_disabled.png",
+      regions = { ... }
     }
   }
 }
+```
+
+## Theme Definition Example
+
+```lua
+-- themes/my_theme.lua
+return {
+  name = "My Theme",
+  atlas = "themes/my_theme/atlas.png",
+  
+  components = {
+    panel = {
+      regions = {
+        topLeft = {x=0, y=0, w=8, h=8},
+        topCenter = {x=8, y=0, w=8, h=8},
+        topRight = {x=16, y=0, w=8, h=8},
+        middleLeft = {x=0, y=8, w=8, h=8},
+        middleCenter = {x=8, y=8, w=8, h=8},
+        middleRight = {x=16, y=8, w=8, h=8},
+        bottomLeft = {x=0, y=16, w=8, h=8},
+        bottomCenter = {x=8, y=16, w=8, h=8},
+        bottomRight = {x=16, y=16, w=8, h=8}
+      }
+    },
+    
+    button = {
+      regions = {
+        topLeft = {x=24, y=0, w=8, h=8},
+        topCenter = {x=32, y=0, w=8, h=8},
+        topRight = {x=40, y=0, w=8, h=8},
+        middleLeft = {x=24, y=8, w=8, h=8},
+        middleCenter = {x=32, y=8, w=8, h=8},
+        middleRight = {x=40, y=8, w=8, h=8},
+        bottomLeft = {x=24, y=16, w=8, h=8},
+        bottomCenter = {x=32, y=16, w=8, h=8},
+        bottomRight = {x=40, y=16, w=8, h=8}
+      },
+      states = {
+        hover = {
+          regions = {
+            -- Different region coordinates for hover state
+            topLeft = {x=48, y=0, w=8, h=8},
+            -- ... etc
+          }
+        },
+        pressed = {
+          regions = {
+            -- Different region coordinates for pressed state
+            topLeft = {x=72, y=0, w=8, h=8},
+            -- ... etc
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Advanced Features
+
+### Automatic Highlight Disable
+
+Elements with `themeComponent` automatically set `disableHighlight = true` to prevent the default gray pressed overlay from interfering with theme visuals. You can override this:
+
+```lua
+Gui.new({
+  themeComponent = "button",
+  disableHighlight = false,  -- Force enable highlight overlay
+  -- ...
+})
+```
+
+### Combining with Corner Radius
+
+You can use cornerRadius with themed elements:
+
+```lua
+Gui.new({
+  themeComponent = "button",
+  cornerRadius = 10,  -- Clips theme to rounded corners
+  -- ...
+})
+```
+
+### Border Overlay
+
+Add custom borders on top of themes:
+
+```lua
+Gui.new({
+  themeComponent = "panel",
+  border = { top = true, bottom = true, left = true, right = true },
+  borderColor = Color.new(1, 1, 0, 1),  -- Yellow border on top of theme
+  -- ...
+})
 ```
 
 ## Tips
@@ -223,6 +354,7 @@ button = {
 3. **Consistent Style**: Keep corner sizes consistent across components
 4. **State Variations**: For button states, change colors/brightness rather than structure
 5. **Atlas Packing**: Use tools like TexturePacker or Aseprite to create efficient atlases
+6. **Transparency**: Use semi-transparent backgroundColor to tint themed elements
 
 ## Tools for Creating Atlases
 
@@ -231,8 +363,15 @@ button = {
 - **Shoebox**: Free sprite sheet packer
 - **GIMP/Photoshop**: Manual layout with guides
 
+## Example Themes
+
+See the `space/` directory for a complete theme example with:
+- Panel component
+- Button component with states (normal, hover, pressed, disabled)
+- Compressed and uncompressed versions
+
 ## See Also
 
-- `default.lua` - Example theme with single atlas
-- `separate_images_example.lua` - Example with separate images per component
+- `space.lua` - Complete theme definition example
 - `ThemeSystemDemo.lua` - Interactive demo of theme system
+- `ThemeLayeringDemo.lua` - Demo of backgroundColor/theme/border layering

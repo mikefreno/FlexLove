@@ -1,5 +1,6 @@
 -- Space Theme
--- All images are 256x256 with perfectly centered 9-slice regions
+-- Panel is 882x687 with 110px border
+-- All other components are 189x189 with 31px/127px regions
 
 -- Define Color inline to avoid circular dependency
 local Color = {}
@@ -17,23 +18,23 @@ end
 return {
   name = "Space Theme",
   components = {
-    -- Panel component
+    -- Panel component (882x687 with 110px border)
     panel = {
-      atlas = "themes/space/panel-compressed.png",
+      atlas = "themes/space/panel.png",
       regions = {
-        -- Equal-sized regions for 256x256 image (85-86-85 split)
+        -- 9-slice regions for 882x687 image (110-662-110 split)
         -- Top row
-        topLeft = { x = 0, y = 0, w = 85, h = 85 },
-        topCenter = { x = 85, y = 0, w = 86, h = 85 },
-        topRight = { x = 171, y = 0, w = 85, h = 85 },
+        topLeft = { x = 0, y = 0, w = 110, h = 110 },
+        topCenter = { x = 110, y = 0, w = 662, h = 110 },
+        topRight = { x = 772, y = 0, w = 110, h = 110 },
         -- Middle row (stretchable)
-        middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-        middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-        middleRight = { x = 171, y = 85, w = 85, h = 86 },
+        middleLeft = { x = 0, y = 110, w = 110, h = 467 },
+        middleCenter = { x = 110, y = 110, w = 662, h = 467 },
+        middleRight = { x = 772, y = 110, w = 110, h = 467 },
         -- Bottom row
-        bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-        bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-        bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+        bottomLeft = { x = 0, y = 577, w = 110, h = 110 },
+        bottomCenter = { x = 110, y = 577, w = 662, h = 110 },
+        bottomRight = { x = 772, y = 577, w = 110, h = 110 },
       },
       stretch = {
         horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -41,19 +42,18 @@ return {
       },
     },
 
-    -- Button component with states
     button = {
-      atlas = "themes/space/interactive-compressed.png",
+      atlas = "themes/space/interactive.png",
       regions = {
-        topLeft = { x = 0, y = 0, w = 85, h = 85 },
-        topCenter = { x = 85, y = 0, w = 86, h = 85 },
-        topRight = { x = 171, y = 0, w = 85, h = 85 },
-        middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-        middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-        middleRight = { x = 171, y = 85, w = 85, h = 86 },
-        bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-        bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-        bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+        topLeft = { x = 0, y = 0, w = 31, h = 31 },
+        topCenter = { x = 31, y = 0, w = 127, h = 31 },
+        topRight = { x = 158, y = 0, w = 31, h = 31 },
+        middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+        middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+        middleRight = { x = 158, y = 31, w = 31, h = 127 },
+        bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+        bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+        bottomRight = { x = 158, y = 158, w = 31, h = 31 },
       },
       stretch = {
         horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -61,17 +61,17 @@ return {
       },
       states = {
         hover = {
-          atlas = "themes/space/interactive-hovered-compressed.png",
+          atlas = "themes/space/interactive-hover.png",
           regions = {
-            topLeft = { x = 0, y = 0, w = 85, h = 85 },
-            topCenter = { x = 85, y = 0, w = 86, h = 85 },
-            topRight = { x = 171, y = 0, w = 85, h = 85 },
-            middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-            middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-            middleRight = { x = 171, y = 85, w = 85, h = 86 },
-            bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-            bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-            bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+            topLeft = { x = 0, y = 0, w = 31, h = 31 },
+            topCenter = { x = 31, y = 0, w = 127, h = 31 },
+            topRight = { x = 158, y = 0, w = 31, h = 31 },
+            middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+            middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+            middleRight = { x = 158, y = 31, w = 31, h = 127 },
+            bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+            bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+            bottomRight = { x = 158, y = 158, w = 31, h = 31 },
           },
           stretch = {
             horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -79,17 +79,17 @@ return {
           },
         },
         pressed = {
-          atlas = "themes/space/interactive-pressed-compressed.png",
+          atlas = "themes/space/interactive-pressed.png",
           regions = {
-            topLeft = { x = 0, y = 0, w = 85, h = 85 },
-            topCenter = { x = 85, y = 0, w = 86, h = 85 },
-            topRight = { x = 171, y = 0, w = 85, h = 85 },
-            middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-            middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-            middleRight = { x = 171, y = 85, w = 85, h = 86 },
-            bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-            bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-            bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+            topLeft = { x = 0, y = 0, w = 31, h = 31 },
+            topCenter = { x = 31, y = 0, w = 127, h = 31 },
+            topRight = { x = 158, y = 0, w = 31, h = 31 },
+            middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+            middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+            middleRight = { x = 158, y = 31, w = 31, h = 127 },
+            bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+            bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+            bottomRight = { x = 158, y = 158, w = 31, h = 31 },
           },
           stretch = {
             horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -97,17 +97,17 @@ return {
           },
         },
         disabled = {
-          atlas = "themes/space/interactive-disabled-compressed.png",
+          atlas = "themes/space/interactive-disabled.png",
           regions = {
-            topLeft = { x = 0, y = 0, w = 85, h = 85 },
-            topCenter = { x = 85, y = 0, w = 86, h = 85 },
-            topRight = { x = 171, y = 0, w = 85, h = 85 },
-            middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-            middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-            middleRight = { x = 171, y = 85, w = 85, h = 86 },
-            bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-            bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-            bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+            topLeft = { x = 0, y = 0, w = 31, h = 31 },
+            topCenter = { x = 31, y = 0, w = 127, h = 31 },
+            topRight = { x = 158, y = 0, w = 31, h = 31 },
+            middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+            middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+            middleRight = { x = 158, y = 31, w = 31, h = 127 },
+            bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+            bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+            bottomRight = { x = 158, y = 158, w = 31, h = 31 },
           },
           stretch = {
             horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -119,17 +119,17 @@ return {
 
     -- Input component with active and disabled states
     input = {
-      atlas = "themes/space/interactive-compressed.png",
+      atlas = "themes/space/interactive.png",
       regions = {
-        topLeft = { x = 0, y = 0, w = 85, h = 85 },
-        topCenter = { x = 85, y = 0, w = 86, h = 85 },
-        topRight = { x = 171, y = 0, w = 85, h = 85 },
-        middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-        middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-        middleRight = { x = 171, y = 85, w = 85, h = 86 },
-        bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-        bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-        bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+        topLeft = { x = 0, y = 0, w = 31, h = 31 },
+        topCenter = { x = 31, y = 0, w = 127, h = 31 },
+        topRight = { x = 158, y = 0, w = 31, h = 31 },
+        middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+        middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+        middleRight = { x = 158, y = 31, w = 31, h = 127 },
+        bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+        bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+        bottomRight = { x = 158, y = 158, w = 31, h = 31 },
       },
       stretch = {
         horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -137,17 +137,17 @@ return {
       },
       states = {
         active = {
-          atlas = "themes/space/interactive-hovered-compressed.png",
+          atlas = "themes/space/interactive-hover.png",
           regions = {
-            topLeft = { x = 0, y = 0, w = 85, h = 85 },
-            topCenter = { x = 85, y = 0, w = 86, h = 85 },
-            topRight = { x = 171, y = 0, w = 85, h = 85 },
-            middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-            middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-            middleRight = { x = 171, y = 85, w = 85, h = 86 },
-            bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-            bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-            bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+            topLeft = { x = 0, y = 0, w = 31, h = 31 },
+            topCenter = { x = 31, y = 0, w = 127, h = 31 },
+            topRight = { x = 158, y = 0, w = 31, h = 31 },
+            middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+            middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+            middleRight = { x = 158, y = 31, w = 31, h = 127 },
+            bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+            bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+            bottomRight = { x = 158, y = 158, w = 31, h = 31 },
           },
           stretch = {
             horizontal = { "topCenter", "middleCenter", "bottomCenter" },
@@ -155,17 +155,17 @@ return {
           },
         },
         disabled = {
-          atlas = "themes/space/interactive-disabled-compressed.png",
+          atlas = "themes/space/interactive-disabled.png",
           regions = {
-            topLeft = { x = 0, y = 0, w = 85, h = 85 },
-            topCenter = { x = 85, y = 0, w = 86, h = 85 },
-            topRight = { x = 171, y = 0, w = 85, h = 85 },
-            middleLeft = { x = 0, y = 85, w = 85, h = 86 },
-            middleCenter = { x = 85, y = 85, w = 86, h = 86 },
-            middleRight = { x = 171, y = 85, w = 85, h = 86 },
-            bottomLeft = { x = 0, y = 171, w = 85, h = 85 },
-            bottomCenter = { x = 85, y = 171, w = 86, h = 85 },
-            bottomRight = { x = 171, y = 171, w = 85, h = 85 },
+            topLeft = { x = 0, y = 0, w = 31, h = 31 },
+            topCenter = { x = 31, y = 0, w = 127, h = 31 },
+            topRight = { x = 158, y = 0, w = 31, h = 31 },
+            middleLeft = { x = 0, y = 31, w = 31, h = 127 },
+            middleCenter = { x = 31, y = 31, w = 127, h = 127 },
+            middleRight = { x = 158, y = 31, w = 31, h = 127 },
+            bottomLeft = { x = 0, y = 158, w = 31, h = 31 },
+            bottomCenter = { x = 31, y = 158, w = 127, h = 31 },
+            bottomRight = { x = 158, y = 158, w = 31, h = 31 },
           },
           stretch = {
             horizontal = { "topCenter", "middleCenter", "bottomCenter" },

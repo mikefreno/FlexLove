@@ -12,8 +12,8 @@ This feature implements support for negative margins in the FlexLove library. Th
 
 ## Status
 
-- [ ] Task 1: Define negative margin structure and data types
-- [ ] Task 2: Implement negative margin application logic
-- [ ] Task 3: Integrate negative margin support into theme system
-- [ ] Task 4: Add validation for negative margins
-- [ ] Task 5: Write tests for negative margin functionality
+- [x] Task 1: Define negative margin structure and data types
+- [x] Task 2: Implement negative margin application logic
+- [x] Task 3: Integrate negative margin support into theme system
+- [x] Task 4: Add validation for negative margins
+- [x] Task 5: Write tests for negative margin functionality

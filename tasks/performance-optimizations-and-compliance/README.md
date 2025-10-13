@@ -5,9 +5,9 @@ Objective: Improve FlexLove library performance and make it more predictable and
 Status legend: [ ] todo, [~] in-progress, [x] done
 
 Tasks
-- [ ] 01 — Unit System Optimization → `01-unit-system-optimization.md`
-- [ ] 02 — Font Cache Improvements → `02-font-cache-improvements.md`
-- [ ] 03 — Layout Algorithm Optimization → `03-layout-algorithm-optimization.md`
+- [x] 01 — Unit System Optimization → `01-unit-system-optimization.md`
+- [x] 02 — Font Cache Improvements → `02-font-cache-improvements.md`
+- [x] 03 — Layout Algorithm Optimization → `03-layout-algorithm-optimization.md`
 - [ ] 04 — Event System Predictability → `04-event-system-predictability.md`
 - [ ] 05 — Theme System Stability → `05-theme-system-stability.md`
 - [ ] 06 — Animation Performance → `06-animation-performance.md`

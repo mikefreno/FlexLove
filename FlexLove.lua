@@ -778,9 +778,37 @@ function Grid.layoutGridItems(element)
   local rows = element.gridRows or 1
   local columns = element.gridColumns or 1
 
-  -- Calculate available space
-  local availableWidth = element.width - element.padding.left - element.padding.right
-  local availableHeight = element.height - element.padding.top - element.padding.bottom
+  -- Calculate space reserved by absolutely positioned siblings
+  local reservedLeft = 0
+  local reservedRight = 0
+  local reservedTop = 0
+  local reservedBottom = 0
+  
+  for _, child in ipairs(element.children) do
+    -- Only consider absolutely positioned children with explicit positioning
+    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+      if child.left then
+        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+        reservedLeft = math.max(reservedLeft, child.left + childTotalWidth)
+      end
+      if child.right then
+        local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+        reservedRight = math.max(reservedRight, child.right + childTotalWidth)
+      end
+      if child.top then
+        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+        reservedTop = math.max(reservedTop, child.top + childTotalHeight)
+      end
+      if child.bottom then
+        local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+        reservedBottom = math.max(reservedBottom, child.bottom + childTotalHeight)
+      end
+    end
+  end
+
+  -- Calculate available space (accounting for padding and reserved space)
+  local availableWidth = element.width - element.padding.left - element.padding.right - reservedLeft - reservedRight
+  local availableHeight = element.height - element.padding.top - element.padding.bottom - reservedTop - reservedBottom
 
   -- Get gaps
   local columnGap = element.columnGap or 0
@@ -812,9 +840,9 @@ function Grid.layoutGridItems(element)
       break
     end
 
-    -- Calculate cell position
-    local cellX = element.x + element.padding.left + (col * (cellWidth + columnGap))
-    local cellY = element.y + element.padding.top + (row * (cellHeight + rowGap))
+    -- Calculate cell position (accounting for reserved space)
+    local cellX = element.x + element.padding.left + reservedLeft + (col * (cellWidth + columnGap))
+    local cellY = element.y + element.padding.top + reservedTop + (row * (cellHeight + rowGap))
 
     -- Apply alignment within grid cell (default to stretch)
     local effectiveAlignItems = element.alignItems or AlignItems.STRETCH
@@ -2016,15 +2044,80 @@ function Element:layoutChildren()
     return
   end
 
-  -- Calculate available space (accounting for padding)
+  -- Calculate space reserved by absolutely positioned siblings with explicit positioning
+  local reservedMainStart = 0 -- Space reserved at the start of main axis (left for horizontal, top for vertical)
+  local reservedMainEnd = 0 -- Space reserved at the end of main axis (right for horizontal, bottom for vertical)
+  local reservedCrossStart = 0 -- Space reserved at the start of cross axis (top for horizontal, left for vertical)
+  local reservedCrossEnd = 0 -- Space reserved at the end of cross axis (bottom for horizontal, right for vertical)
+  
+  for _, child in ipairs(self.children) do
+    -- Only consider absolutely positioned children with explicit positioning
+    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+      if self.flexDirection == FlexDirection.HORIZONTAL then
+        -- Horizontal layout: main axis is X, cross axis is Y
+        -- Check for left positioning (reserves space at main axis start)
+        if child.left then
+          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+          local spaceNeeded = child.left + childTotalWidth
+          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
+        end
+        -- Check for right positioning (reserves space at main axis end)
+        if child.right then
+          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+          local spaceNeeded = child.right + childTotalWidth
+          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
+        end
+        -- Check for top positioning (reserves space at cross axis start)
+        if child.top then
+          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+          local spaceNeeded = child.top + childTotalHeight
+          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
+        end
+        -- Check for bottom positioning (reserves space at cross axis end)
+        if child.bottom then
+          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+          local spaceNeeded = child.bottom + childTotalHeight
+          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
+        end
+      else
+        -- Vertical layout: main axis is Y, cross axis is X
+        -- Check for top positioning (reserves space at main axis start)
+        if child.top then
+          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+          local spaceNeeded = child.top + childTotalHeight
+          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
+        end
+        -- Check for bottom positioning (reserves space at main axis end)
+        if child.bottom then
+          local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
+          local spaceNeeded = child.bottom + childTotalHeight
+          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
+        end
+        -- Check for left positioning (reserves space at cross axis start)
+        if child.left then
+          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+          local spaceNeeded = child.left + childTotalWidth
+          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
+        end
+        -- Check for right positioning (reserves space at cross axis end)
+        if child.right then
+          local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
+          local spaceNeeded = child.right + childTotalWidth
+          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
+        end
+      end
+    end
+  end
+
+  -- Calculate available space (accounting for padding and reserved space)
   local availableMainSize = 0
   local availableCrossSize = 0
   if self.flexDirection == FlexDirection.HORIZONTAL then
-    availableMainSize = self.width - self.padding.left - self.padding.right
-    availableCrossSize = self.height - self.padding.top - self.padding.bottom
+    availableMainSize = self.width - self.padding.left - self.padding.right - reservedMainStart - reservedMainEnd
+    availableCrossSize = self.height - self.padding.top - self.padding.bottom - reservedCrossStart - reservedCrossEnd
   else
-    availableMainSize = self.height - self.padding.top - self.padding.bottom
-    availableCrossSize = self.width - self.padding.left - self.padding.right
+    availableMainSize = self.height - self.padding.top - self.padding.bottom - reservedMainStart - reservedMainEnd
+    availableCrossSize = self.width - self.padding.left - self.padding.right - reservedCrossStart - reservedCrossEnd
   end
 
   -- Handle flex wrap: create lines of children
@@ -2208,20 +2301,21 @@ function Element:layoutChildren()
       if self.flexDirection == FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Position child at border box (x, y represents top-left including padding)
-        child.x = self.x + self.padding.left + currentMainPos
+        -- Add reservedMainStart to account for absolutely positioned siblings
+        child.x = self.x + self.padding.left + reservedMainStart + currentMainPos
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.y = self.y + self.padding.top + currentCrossPos
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y + self.padding.top + currentCrossPos + ((lineHeight - childTotalHeight) / 2)
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalHeight) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalHeight = (child.height or 0) + child.padding.top + child.padding.bottom
-          child.y = self.y + self.padding.top + currentCrossPos + lineHeight - childTotalHeight
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalHeight
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH always stretches children in cross-axis direction
           child.height = lineHeight - child.padding.top - child.padding.bottom
-          child.y = self.y + self.padding.top + currentCrossPos
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -2243,20 +2337,21 @@ function Element:layoutChildren()
       else
         -- Vertical layout: main axis is Y, cross axis is X
         -- Position child at border box (x, y represents top-left including padding)
-        child.y = self.y + self.padding.top + currentMainPos
+        -- Add reservedMainStart to account for absolutely positioned siblings
+        child.y = self.y + self.padding.top + reservedMainStart + currentMainPos
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.x = self.x + self.padding.left + currentCrossPos
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
         elseif effectiveAlign == AlignItems.CENTER then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x + self.padding.left + currentCrossPos + ((lineHeight - childTotalWidth) / 2)
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalWidth) / 2)
         elseif effectiveAlign == AlignItems.FLEX_END then
           local childTotalWidth = (child.width or 0) + child.padding.left + child.padding.right
-          child.x = self.x + self.padding.left + currentCrossPos + lineHeight - childTotalWidth
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalWidth
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH always stretches children in cross-axis direction
           child.width = lineHeight - child.padding.left - child.padding.right
-          child.x = self.x + self.padding.left + currentCrossPos
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
         end
 
         -- Apply positioning offsets (top, right, bottom, left)

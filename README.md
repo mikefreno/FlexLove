@@ -6,7 +6,7 @@ FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a f
 
 ## ⚠️ Development Status
 
-This library is under active development. While many features are functional, some aspects may change or have incomplete implementations.
+This library is under active development. While many features are functional, some aspects may change or have incomplete/broken implementations.
 
 ## Features
 

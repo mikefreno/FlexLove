@@ -1459,18 +1459,23 @@ function Element.new(props)
   end
 
   -- Handle fontFamily (can be font name from theme or direct path to font file)
-  self.fontFamily = props.fontFamily
-
-  -- If using themeComponent but no fontFamily specified, apply default font
-  if props.themeComponent and not props.fontFamily then
+  -- Priority: explicit props.fontFamily > parent fontFamily > theme default
+  if props.fontFamily then
+    -- Explicitly set fontFamily takes highest priority
+    self.fontFamily = props.fontFamily
+  elseif self.parent and self.parent.fontFamily then
+    -- Inherit from parent if parent has fontFamily set
+    self.fontFamily = self.parent.fontFamily
+  elseif props.themeComponent then
+    -- If using themeComponent, try to get default from theme
     local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
-    if themeToUse and themeToUse.fonts then
-      if self.parent then
-        self.fontFamily = self.parent.fontFamily
-      else
-        self.fontFamily = "default"
-      end
+    if themeToUse and themeToUse.fonts and themeToUse.fonts["default"] then
+      self.fontFamily = "default"
+    else
+      self.fontFamily = nil
     end
+  else
+    self.fontFamily = nil
   end
 
   -- Handle textSize BEFORE width/height calculation (needed for auto-sizing)
@@ -3086,7 +3091,23 @@ function Element:calculateTextWidth()
   end
 
   if self.textSize then
-    local tempFont = FONT_CACHE.get(self.textSize)
+    -- Resolve font path from font family (same logic as in draw)
+    local fontPath = nil
+    if self.fontFamily then
+      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+        fontPath = themeToUse.fonts[self.fontFamily]
+      else
+        fontPath = self.fontFamily
+      end
+    elseif self.themeComponent then
+      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
+        fontPath = themeToUse.fonts.default
+      end
+    end
+    
+    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local width = tempFont:getWidth(self.text)
     return width
   end
@@ -3103,7 +3124,23 @@ function Element:calculateTextHeight()
   end
 
   if self.textSize then
-    local tempFont = FONT_CACHE.get(self.textSize)
+    -- Resolve font path from font family (same logic as in draw)
+    local fontPath = nil
+    if self.fontFamily then
+      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+        fontPath = themeToUse.fonts[self.fontFamily]
+      else
+        fontPath = self.fontFamily
+      end
+    elseif self.themeComponent then
+      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
+        fontPath = themeToUse.fonts.default
+      end
+    end
+    
+    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local height = tempFont:getHeight()
     return height
   end

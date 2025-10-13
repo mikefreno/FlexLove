@@ -21,6 +21,8 @@ local testFiles = {
   "testing/__tests__/15_grid_layout_tests.lua",
   "testing/__tests__/16_event_system_tests.lua",
   "testing/__tests__/17_sibling_space_reservation_tests.lua",
+  "testing/__tests__/18_font_family_inheritance_tests.lua",
+  "testing/__tests__/19_negative_margin_tests.lua",
 }
 
 -- testingun all tests, but don't exit on error

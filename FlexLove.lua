@@ -83,6 +83,55 @@ Theme.__index = Theme
 local themes = {}
 local activeTheme = nil
 
+--- Auto-detect the base path where FlexLove is located
+---@return string modulePath, string filesystemPath
+local function getFlexLoveBasePath()
+  -- Get debug info to find where this file is loaded from
+  local info = debug.getinfo(1, "S")
+  if info and info.source then
+    local source = info.source
+    -- Remove leading @ if present
+    if source:sub(1, 1) == "@" then
+      source = source:sub(2)
+    end
+
+    -- Extract the directory path (remove FlexLove.lua)
+    local filesystemPath = source:match("(.*/)")
+    if filesystemPath then
+      -- Store the original filesystem path for loading assets
+      local fsPath = filesystemPath
+      -- Remove leading ./ if present
+      fsPath = fsPath:gsub("^%./", "")
+      -- Remove trailing /
+      fsPath = fsPath:gsub("/$", "")
+      
+      -- Convert filesystem path to Lua module path
+      local modulePath = fsPath:gsub("/", ".")
+      
+      return modulePath, fsPath
+    end
+  end
+
+  -- Fallback: try common paths
+  return "libs", "libs"
+end
+
+-- Store the base paths when module loads
+local FLEXLOVE_BASE_PATH, FLEXLOVE_FILESYSTEM_PATH = getFlexLoveBasePath()
+
+--- Helper function to resolve image paths relative to FlexLove
+---@param imagePath string
+---@return string
+local function resolveImagePath(imagePath)
+  -- If path is already absolute or starts with known LÖVE paths, use as-is
+  if imagePath:match("^/") or imagePath:match("^[A-Z]:") then
+    return imagePath
+  end
+  
+  -- Otherwise, make it relative to FlexLove's location
+  return FLEXLOVE_FILESYSTEM_PATH .. "/" .. imagePath
+end
+
 --- Create a new theme instance
 ---@param definition ThemeDefinition
 ---@return Theme
@@ -93,7 +142,8 @@ function Theme.new(definition)
   -- Load global atlas if it's a string path
   if definition.atlas then
     if type(definition.atlas) == "string" then
-      self.atlas = love.graphics.newImage(definition.atlas)
+      local resolvedPath = resolveImagePath(definition.atlas)
+      self.atlas = love.graphics.newImage(resolvedPath)
     else
       self.atlas = definition.atlas
     end
@@ -106,7 +156,8 @@ function Theme.new(definition)
   for componentName, component in pairs(self.components) do
     if component.atlas then
       if type(component.atlas) == "string" then
-        component._loadedAtlas = love.graphics.newImage(component.atlas)
+        local resolvedPath = resolveImagePath(component.atlas)
+        component._loadedAtlas = love.graphics.newImage(resolvedPath)
       else
         component._loadedAtlas = component.atlas
       end
@@ -117,7 +168,8 @@ function Theme.new(definition)
       for stateName, stateComponent in pairs(component.states) do
         if stateComponent.atlas then
           if type(stateComponent.atlas) == "string" then
-            stateComponent._loadedAtlas = love.graphics.newImage(stateComponent.atlas)
+            local resolvedPath = resolveImagePath(stateComponent.atlas)
+            stateComponent._loadedAtlas = love.graphics.newImage(resolvedPath)
           else
             stateComponent._loadedAtlas = stateComponent.atlas
           end
@@ -130,35 +182,37 @@ function Theme.new(definition)
 end
 
 --- Load a theme from a Lua file
----@param path string -- Path to theme definition file
+---@param path string -- Path to theme definition file (e.g., "space" or "mytheme")
 ---@return Theme
 function Theme.load(path)
-  -- Check if it's a built-in theme
-  local builtInPath = "themes/" .. path .. ".lua"
   local definition
 
-  -- Try to load as built-in first
+  -- Build the theme module path relative to FlexLove
+  local themePath = FLEXLOVE_BASE_PATH .. ".themes." .. path
+
   local success, result = pcall(function()
-    return love.filesystem.load(builtInPath)()
+    return require(themePath)
   end)
 
   if success then
     definition = result
   else
-    -- Try to load as custom path
+    -- Fallback: try as direct path
     success, result = pcall(function()
-      return love.filesystem.load(path)()
+      return require(path)
     end)
 
     if success then
       definition = result
     else
-      error("Failed to load theme from: " .. path .. "\nError: " .. tostring(result))
+      error("Failed to load theme '" .. path .. "'\nTried: " .. themePath .. "\nError: " .. tostring(result))
     end
   end
 
   local theme = Theme.new(definition)
+  -- Register theme by both its display name and load path
   themes[theme.name] = theme
+  themes[path] = theme
 
   return theme
 end
@@ -665,15 +719,12 @@ end
 ---@field topElements table<integer, Element>
 ---@field baseScale {width:number, height:number}?
 ---@field scaleFactors {x:number, y:number}
----@field init fun(config: {baseScale: {width:number, height:number}}): nil
----@field resize fun(): nil
----@field draw fun(): nil
----@field update fun(dt:number): nil
----@field destroy fun(): nil
+---@field defaultTheme string? -- Default theme name to use for elements
 local Gui = {
   topElements = {},
   baseScale = nil,
   scaleFactors = { x = 1.0, y = 1.0 },
+  defaultTheme = nil,
 }
 
 --- Initialize FlexLove with configuration
@@ -693,14 +744,24 @@ function Gui.init(config)
 
   -- Load and set theme if specified
   if config.theme then
-    if type(config.theme) == "string" then
-      -- Load theme by name
-      Theme.load(config.theme)
-      Theme.setActive(config.theme)
-    elseif type(config.theme) == "table" then
-      -- Load theme from definition
-      local theme = Theme.new(config.theme)
-      Theme.setActive(theme)
+    local success, err = pcall(function()
+      if type(config.theme) == "string" then
+        -- Load theme by name
+        Theme.load(config.theme)
+        Theme.setActive(config.theme)
+        Gui.defaultTheme = config.theme
+        print("[FlexLove] Theme loaded: " .. config.theme)
+      elseif type(config.theme) == "table" then
+        -- Load theme from definition
+        local theme = Theme.new(config.theme)
+        Theme.setActive(theme)
+        Gui.defaultTheme = theme.name
+        print("[FlexLove] Theme loaded: " .. theme.name)
+      end
+    end)
+
+    if not success then
+      print("[FlexLove] Failed to load theme: " .. tostring(err))
     end
   end
 end
@@ -1074,7 +1135,8 @@ Element.__index = Element
 ---@field gridColumns number? -- Number of columns in the grid (default: 1)
 ---@field columnGap number|string? -- Gap between grid columns
 ---@field rowGap number|string? -- Gap between grid rows
----@field theme string|{component:string, state:string?}? -- Theme component to use for rendering
+---@field theme string? -- Theme name to use (e.g., "space", "dark"). Defaults to theme from Gui.init()
+---@field themeComponent string? -- Theme component to use (e.g., "panel", "button", "input"). If nil, no theme is applied
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 local ElementProps = {}
@@ -1095,8 +1157,14 @@ function Element.new(props)
   self._touchPressed = {}
 
   -- Initialize theme
-  self.theme = props.theme
   self._themeState = "normal"
+
+  -- Handle theme property:
+  -- - theme: which theme to use (defaults to Gui.defaultTheme if not specified)
+  -- - themeComponent: which component from the theme (e.g., "panel", "button", "input")
+  -- If themeComponent is nil, no theme is applied (manual styling)
+  self.theme = props.theme or Gui.defaultTheme
+  self.themeComponent = props.themeComponent or nil
 
   -- Initialize state properties
   self.disabled = props.disabled or false
@@ -2067,25 +2135,39 @@ function Element:draw()
     end
   end
 
-  -- Check if element has a theme
+  -- Check if element has a theme component
   local hasTheme = false
-  if self.theme then
-    local componentName, state
-
-    if type(self.theme) == "string" then
-      componentName = self.theme
-      state = self._themeState
+  if self.themeComponent then
+    -- Get the theme to use
+    local themeToUse = nil
+    if self.theme then
+      -- Element specifies a specific theme - load it if needed
+      if themes[self.theme] then
+        themeToUse = themes[self.theme]
+      else
+        -- Try to load the theme
+        pcall(function()
+          Theme.load(self.theme)
+        end)
+        themeToUse = themes[self.theme]
+      end
     else
-      componentName = self.theme.component
-      state = self.theme.state or self._themeState
+      -- Use active theme
+      themeToUse = Theme.getActive()
     end
 
-    local component = Theme.getComponent(componentName, state)
-    if component then
-      local activeTheme = Theme.getActive()
-      if activeTheme then
+    if themeToUse then
+      -- Get the component from the theme
+      local component = themeToUse.components[self.themeComponent]
+      if component then
+        -- Check for state-specific override
+        local state = self._themeState
+        if state and component.states and component.states[state] then
+          component = component.states[state]
+        end
+
         -- Use component-specific atlas if available, otherwise use theme atlas
-        local atlasToUse = component._loadedAtlas or activeTheme.atlas
+        local atlasToUse = component._loadedAtlas or themeToUse.atlas
 
         if atlasToUse then
           NineSlice.draw(
@@ -2098,8 +2180,14 @@ function Element:draw()
             self.opacity
           )
           hasTheme = true
+        else
+          print("[FlexLove] No atlas for component: " .. self.themeComponent)
         end
+      else
+        print("[FlexLove] Component not found: " .. self.themeComponent .. " in theme: " .. themeToUse.name)
       end
+    else
+      print("[FlexLove] No theme available for themeComponent: " .. self.themeComponent)
     end
   end
 
@@ -2249,7 +2337,7 @@ function Element:update(dt)
   end
 
   -- Handle click detection for element with enhanced event system
-  if self.callback or self.theme then
+  if self.callback or self.themeComponent then
     local mx, my = love.mouse.getPosition()
     -- Clickable area is the border box (x, y already includes padding)
     local bx = self.x
@@ -2259,7 +2347,7 @@ function Element:update(dt)
     local isHovering = mx >= bx and mx <= bx + bw and my >= by and my <= by + bh
 
     -- Update theme state based on interaction
-    if self.theme then
+    if self.themeComponent then
       -- Disabled state takes priority
       if self.disabled then
         self._themeState = "disabled"

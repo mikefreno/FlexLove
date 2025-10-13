@@ -20,7 +20,7 @@ local back = Gui.new({
   width = 100,
   height = 100,
   z = 1,
-  background = Color.new(1, 0, 0, 0.8),
+  backgroundColor = Color.new(1, 0, 0, 0.8),
   text = "Z=1 (Back)",
   textColor = Color.new(1, 1, 1),
 })
@@ -32,7 +32,7 @@ local middle = Gui.new({
   width = 100,
   height = 100,
   z = 2,
-  background = Color.new(0, 1, 0, 0.8),
+  backgroundColor = Color.new(0, 1, 0, 0.8),
   text = "Z=2 (Middle)",
   textColor = Color.new(1, 1, 1),
 })
@@ -44,7 +44,7 @@ local front = Gui.new({
   width = 100,
   height = 100,
   z = 3,
-  background = Color.new(0, 0, 1, 0.8),
+  backgroundColor = Color.new(0, 0, 1, 0.8),
   text = "Z=3 (Front)",
   textColor = Color.new(1, 1, 1),
 })
@@ -75,7 +75,7 @@ local parent = Gui.new({
   y = 0,
   width = 300,
   height = 300,
-  background = Color.new(0.1, 0.1, 0.1, 1),
+  backgroundColor = Color.new(0.1, 0.1, 0.1, 1),
 })
 
 -- Create children in random z-order
@@ -87,7 +87,7 @@ local child3 = Gui.new({
   width = 80,
   height = 80,
   z = 3,
-  background = Color.new(0, 0, 1, 0.8),
+  backgroundColor = Color.new(0, 0, 1, 0.8),
   text = "Z=3",
   textColor = Color.new(1, 1, 1),
 })
@@ -100,7 +100,7 @@ local child1 = Gui.new({
   width = 80,
   height = 80,
   z = 1,
-  background = Color.new(1, 0, 0, 0.8),
+  backgroundColor = Color.new(1, 0, 0, 0.8),
   text = "Z=1",
   textColor = Color.new(1, 1, 1),
 })
@@ -113,7 +113,7 @@ local child2 = Gui.new({
   width = 80,
   height = 80,
   z = 2,
-  background = Color.new(0, 1, 0, 0.8),
+  backgroundColor = Color.new(0, 1, 0, 0.8),
   text = "Z=2",
   textColor = Color.new(1, 1, 1),
 })
@@ -131,14 +131,14 @@ print("   Z-index can be negative for background elements\n")
 
 Gui.destroy()
 
-local background = Gui.new({
+local backgroundColor = Gui.new({
   id = "background",
   x = 0,
   y = 0,
   width = 200,
   height = 200,
   z = -1,
-  background = Color.new(0.2, 0.2, 0.2, 1),
+  backgroundColor = Color.new(0.2, 0.2, 0.2, 1),
   text = "Background (z=-1)",
   textColor = Color.new(1, 1, 1),
 })
@@ -150,7 +150,7 @@ local normal = Gui.new({
   width = 100,
   height = 100,
   z = 0,
-  background = Color.new(0.5, 0.5, 0.5, 1),
+  backgroundColor = Color.new(0.5, 0.5, 0.5, 1),
   text = "Normal (z=0)",
   textColor = Color.new(1, 1, 1),
 })
@@ -175,7 +175,7 @@ local default1 = Gui.new({
   y = 10,
   width = 50,
   height = 50,
-  background = Color.new(1, 0, 0, 1),
+  backgroundColor = Color.new(1, 0, 0, 1),
 })
 
 local explicit = Gui.new({
@@ -185,7 +185,7 @@ local explicit = Gui.new({
   width = 50,
   height = 50,
   z = 1,
-  background = Color.new(0, 1, 0, 1),
+  backgroundColor = Color.new(0, 1, 0, 1),
 })
 
 local default2 = Gui.new({
@@ -194,7 +194,7 @@ local default2 = Gui.new({
   y = 50,
   width = 50,
   height = 50,
-  background = Color.new(0, 0, 1, 1),
+  backgroundColor = Color.new(0, 0, 1, 1),
 })
 
 print("default1.z =", default1.z, "(default)")

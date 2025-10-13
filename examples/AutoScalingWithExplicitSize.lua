@@ -70,7 +70,7 @@ local pauseMenu = Gui.new({
   flexDirection = "vertical",
   justifyContent = "center",
   alignItems = "center",
-  background = Color.new(0.1, 0.1, 0.1, 0.9),
+  backgroundColor = Color.new(0.1, 0.1, 0.1, 0.9),
 })
 
 local title = Gui.new({

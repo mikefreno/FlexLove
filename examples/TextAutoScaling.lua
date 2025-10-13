@@ -95,7 +95,7 @@ local box = Gui.new({
   text = "Responsive Box",
   textSize = "10ew",
   textAlign = "center",
-  background = Color.new(0.2, 0.2, 0.2),
+  backgroundColor = Color.new(0.2, 0.2, 0.2),
   textColor = Color.new(1, 1, 1),
 })
 print("   Initial (width=200): textSize = " .. box.textSize .. "px")

@@ -1,7 +1,18 @@
 -- Space Theme
 -- All images are 256x256 with perfectly centered 9-slice regions
 
-local Color = require("FlexLove").Color
+-- Define Color inline to avoid circular dependency
+local Color = {}
+Color.__index = Color
+
+function Color.new(r, g, b, a)
+  local self = setmetatable({}, Color)
+  self.r = r or 0
+  self.g = g or 0
+  self.b = b or 0
+  self.a = a or 1
+  return self
+end
 
 return {
   name = "Space Theme",

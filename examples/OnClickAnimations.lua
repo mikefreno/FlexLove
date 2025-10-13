@@ -20,7 +20,7 @@ function OnClickAnimDemo.init()
     z = 10,
     w = 300,
     h = 200,
-    background = Color.new(0.1, 0.1, 0.3, 0.8),
+    backgroundColor = Color.new(0.1, 0.1, 0.3, 0.8),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(0.7, 0.7, 0.7, 1),
   })
@@ -33,7 +33,7 @@ function OnClickAnimDemo.init()
     w = 100,
     h = 40,
     text = "Fade",
-    background = Color.new(0.2, 0.9, 0.6, 0.8),
+    backgroundColor = Color.new(0.2, 0.9, 0.6, 0.8),
     textColor = Color.new(1, 1, 1),
     borderColor = Color.new(0.4, 1, 0.8, 1),
     callback = function()
@@ -51,7 +51,7 @@ function OnClickAnimDemo.init()
     w = 100,
     h = 40,
     text = "Scale",
-    background = Color.new(0.9, 0.6, 0.2, 0.8),
+    backgroundColor = Color.new(0.9, 0.6, 0.2, 0.8),
     textColor = Color.new(1, 1, 1),
     borderColor = Color.new(1, 0.8, 0.4, 1),
     callback = function()

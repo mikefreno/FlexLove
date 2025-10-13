@@ -73,7 +73,7 @@ local container = Gui.new({
   flexDirection = "vertical",
   gap = 10,
   padding = { horizontal = 20, vertical = 20 },
-  background = Color.new(0.1, 0.1, 0.1),
+  backgroundColor = Color.new(0.1, 0.1, 0.1),
 })
 
 local title = Gui.new({

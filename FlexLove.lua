@@ -1082,7 +1082,7 @@ end
 ---@field border Border -- Border configuration for the element
 ---@field opacity number
 ---@field borderColor Color -- Color of the border
----@field background Color -- Background color of the element
+---@field backgroundColor Color -- Background color of the element
 ---@field prevGameSize {width:number, height:number} -- Previous game size for resize calculations
 ---@field text string? -- Text content to display in the element
 ---@field textColor Color -- Color of the text content
@@ -1135,7 +1135,7 @@ Element.__index = Element
 ---@field border Border? -- Border configuration for the element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field opacity number?
----@field background Color? -- Background color (default: transparent)
+---@field backgroundColor Color? -- Background color (default: transparent)
 ---@field gap number|string? -- Space between children elements (default: 10)
 ---@field padding {top:number|string?, right:number|string?, bottom:number|string?, left:number|string?, horizontal: number|string?, vertical:number|string?}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field margin {top:number|string?, right:number|string?, bottom:number|string?, left:number|string?, horizontal: number|string?, vertical:number|string?}? -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
@@ -1214,7 +1214,7 @@ function Element.new(props)
       left = false,
     }
   self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
-  self.background = props.background or Color.new(0, 0, 0, 0)
+  self.backgroundColor = props.backgroundColor or Color.new(0, 0, 0, 0)
   self.opacity = props.opacity or 1
 
   self.text = props.text
@@ -2152,16 +2152,29 @@ end
 --- Draw element and its children
 function Element:draw()
   -- Handle opacity during animation
-  local drawBackground = self.background
+  local drawBackgroundColor = self.backgroundColor
   if self.animation then
     local anim = self.animation:interpolate()
     if anim.opacity then
-      drawBackground = Color.new(self.background.r, self.background.g, self.background.b, anim.opacity)
+      drawBackgroundColor = Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
-  -- Check if element has a theme component
-  local hasTheme = false
+  -- LAYER 1: Draw backgroundColor first (behind everything)
+  -- Apply opacity to all drawing operations
+  -- (x, y) represents border box, so draw background from (x, y)
+  local backgroundWithOpacity =
+    Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
+  love.graphics.setColor(backgroundWithOpacity:toRGBA())
+  love.graphics.rectangle(
+    "fill",
+    self.x,
+    self.y,
+    self.width + self.padding.left + self.padding.right,
+    self.height + self.padding.top + self.padding.bottom
+  )
+
+  -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
   if self.themeComponent then
     -- Get the theme to use
     local themeToUse = nil
@@ -2204,7 +2217,6 @@ function Element:draw()
             self.height + self.padding.top + self.padding.bottom,
             self.opacity
           )
-          hasTheme = true
         else
           print("[FlexLove] No atlas for component: " .. self.themeComponent)
         end
@@ -2216,49 +2228,31 @@ function Element:draw()
     end
   end
 
-  -- Draw background if no theme is used
-  if not hasTheme then
-    -- Apply opacity to all drawing operations
-    -- (x, y) represents border box, so draw background from (x, y)
-    local backgroundWithOpacity =
-      Color.new(drawBackground.r, drawBackground.g, drawBackground.b, drawBackground.a * self.opacity)
-    love.graphics.setColor(backgroundWithOpacity:toRGBA())
-    love.graphics.rectangle(
-      "fill",
+  -- LAYER 3: Draw borders on top of theme (always render if specified)
+  local borderColorWithOpacity =
+    Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  love.graphics.setColor(borderColorWithOpacity:toRGBA())
+  if self.border.top then
+    love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
+  end
+  if self.border.bottom then
+    love.graphics.line(
       self.x,
-      self.y,
-      self.width + self.padding.left + self.padding.right,
-      self.height + self.padding.top + self.padding.bottom
+      self.y + self.height + self.padding.top + self.padding.bottom,
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y + self.height + self.padding.top + self.padding.bottom
     )
   end
-
-  -- Draw borders based on border property (skip if using theme)
-  if not hasTheme then
-    local borderColorWithOpacity =
-      Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
-    love.graphics.setColor(borderColorWithOpacity:toRGBA())
-    if self.border.top then
-      love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
-    end
-    if self.border.bottom then
-      love.graphics.line(
-        self.x,
-        self.y + self.height + self.padding.top + self.padding.bottom,
-        self.x + self.width + self.padding.left + self.padding.right,
-        self.y + self.height + self.padding.top + self.padding.bottom
-      )
-    end
-    if self.border.left then
-      love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
-    end
-    if self.border.right then
-      love.graphics.line(
-        self.x + self.width + self.padding.left + self.padding.right,
-        self.y,
-        self.x + self.width + self.padding.left + self.padding.right,
-        self.y + self.height + self.padding.top + self.padding.bottom
-      )
-    end
+  if self.border.left then
+    love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
+  end
+  if self.border.right then
+    love.graphics.line(
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y,
+      self.x + self.width + self.padding.left + self.padding.right,
+      self.y + self.height + self.padding.top + self.padding.bottom
+    )
   end
 
   -- Draw element text if present
@@ -2356,7 +2350,7 @@ function Element:update(dt)
       self.opacity = anim.opacity or self.opacity
       -- Update background color with interpolated opacity
       if anim.opacity then
-        self.background.a = anim.opacity
+        self.backgroundColor.a = anim.opacity
       end
     end
   end

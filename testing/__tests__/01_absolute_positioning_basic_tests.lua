@@ -595,7 +595,7 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
   })
 
   -- Background layer (z=1)
-  local background = Gui.new({
+  local backgroundColor = Gui.new({
     parent = container,
     id = "background",
     x = 100,

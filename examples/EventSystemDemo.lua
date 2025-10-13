@@ -19,7 +19,7 @@ function EventSystemDemo.init()
     y = 50,
     width = 700,
     height = 500,
-    background = Color.new(0.15, 0.15, 0.2, 0.95),
+    backgroundColor = Color.new(0.15, 0.15, 0.2, 0.95),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(0.8, 0.8, 0.8, 1),
     positioning = "flex",
@@ -36,7 +36,7 @@ function EventSystemDemo.init()
     textSize = 18,
     textAlign = "center",
     textColor = Color.new(1, 1, 1, 1),
-    background = Color.new(0.2, 0.2, 0.3, 1),
+    backgroundColor = Color.new(0.2, 0.2, 0.3, 1),
   })
 
   -- Button container
@@ -46,7 +46,7 @@ function EventSystemDemo.init()
     positioning = "flex",
     flexDirection = "horizontal",
     gap = 15,
-    background = Color.new(0.1, 0.1, 0.15, 0.5),
+    backgroundColor = Color.new(0.1, 0.1, 0.15, 0.5),
     padding = { top = 15, right = 15, bottom = 15, left = 15 },
   })
 
@@ -67,7 +67,7 @@ function EventSystemDemo.init()
     text = "Left Click Me",
     textAlign = "center",
     textColor = Color.new(1, 1, 1, 1),
-    background = Color.new(0.2, 0.6, 0.9, 0.8),
+    backgroundColor = Color.new(0.2, 0.6, 0.9, 0.8),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(0.4, 0.8, 1, 1),
     callback = function(element, event)
@@ -85,7 +85,7 @@ function EventSystemDemo.init()
     text = "Right Click Me",
     textAlign = "center",
     textColor = Color.new(1, 1, 1, 1),
-    background = Color.new(0.9, 0.4, 0.4, 0.8),
+    backgroundColor = Color.new(0.9, 0.4, 0.4, 0.8),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(1, 0.6, 0.6, 1),
     callback = function(element, event)
@@ -105,7 +105,7 @@ function EventSystemDemo.init()
     text = "Try Shift/Ctrl",
     textAlign = "center",
     textColor = Color.new(1, 1, 1, 1),
-    background = Color.new(0.6, 0.9, 0.4, 0.8),
+    backgroundColor = Color.new(0.6, 0.9, 0.4, 0.8),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(0.8, 1, 0.6, 1),
     callback = function(element, event)
@@ -133,7 +133,7 @@ function EventSystemDemo.init()
     text = "All Events",
     textAlign = "center",
     textColor = Color.new(1, 1, 1, 1),
-    background = Color.new(0.9, 0.7, 0.3, 0.8),
+    backgroundColor = Color.new(0.9, 0.7, 0.3, 0.8),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(1, 0.9, 0.5, 1),
     callback = function(element, event)
@@ -151,7 +151,7 @@ function EventSystemDemo.init()
     textSize = 14,
     textAlign = "start",
     textColor = Color.new(0.9, 0.9, 1, 1),
-    background = Color.new(0.05, 0.05, 0.1, 1),
+    backgroundColor = Color.new(0.05, 0.05, 0.1, 1),
     border = { top = true, bottom = true, left = true, right = true },
     borderColor = Color.new(0.3, 0.3, 0.4, 1),
     padding = { top = 10, right = 10, bottom = 10, left = 10 },

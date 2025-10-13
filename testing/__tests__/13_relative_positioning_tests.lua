@@ -18,7 +18,7 @@ function TestRelativePositioning.testBasicRelativePositioning()
     width = 200,
     height = 150,
     positioning = "relative",
-    background = Color.new(0.2, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.2, 0.2, 1.0),
   })
 
   local child = Gui.new({
@@ -28,7 +28,7 @@ function TestRelativePositioning.testBasicRelativePositioning()
     width = 50,
     height = 40,
     positioning = "relative",
-    background = Color.new(0.8, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.8, 0.2, 0.2, 1.0),
   })
 
   -- Child should be positioned relative to parent
@@ -45,7 +45,7 @@ function TestRelativePositioning.testRelativePositioningPercentages()
     width = 200,
     height = 100,
     positioning = "relative",
-    background = Color.new(0.2, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.2, 0.2, 1.0),
   })
 
   local child = Gui.new({
@@ -55,7 +55,7 @@ function TestRelativePositioning.testRelativePositioningPercentages()
     width = 30,
     height = 20,
     positioning = "relative",
-    background = Color.new(0.8, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.8, 0.2, 0.2, 1.0),
   })
 
   -- Child should be positioned relative to parent with percentage offsets
@@ -72,7 +72,7 @@ function TestRelativePositioning.testRelativePositioningNoOffset()
     width = 150,
     height = 200,
     positioning = "relative",
-    background = Color.new(0.2, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.2, 0.2, 1.0),
   })
 
   local child = Gui.new({
@@ -80,7 +80,7 @@ function TestRelativePositioning.testRelativePositioningNoOffset()
     width = 40,
     height = 30,
     positioning = "relative",
-    background = Color.new(0.2, 0.8, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.8, 0.2, 1.0),
   })
 
   -- Child should be positioned at parent's position with no offset
@@ -97,7 +97,7 @@ function TestRelativePositioning.testMultipleRelativeChildren()
     width = 100,
     height = 100,
     positioning = "relative",
-    background = Color.new(0.2, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.2, 0.2, 1.0),
   })
 
   local child1 = Gui.new({
@@ -107,7 +107,7 @@ function TestRelativePositioning.testMultipleRelativeChildren()
     width = 20,
     height = 20,
     positioning = "relative",
-    background = Color.new(0.8, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.8, 0.2, 0.2, 1.0),
   })
 
   local child2 = Gui.new({
@@ -117,7 +117,7 @@ function TestRelativePositioning.testMultipleRelativeChildren()
     width = 25,
     height = 25,
     positioning = "relative",
-    background = Color.new(0.2, 0.8, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.8, 0.2, 1.0),
   })
 
   -- Both children should be positioned relative to parent
@@ -136,7 +136,7 @@ function TestRelativePositioning.testNestedRelativePositioning()
     width = 300,
     height = 250,
     positioning = "relative",
-    background = Color.new(0.1, 0.1, 0.1, 1.0),
+    backgroundColor = Color.new(0.1, 0.1, 0.1, 1.0),
   })
 
   local parent = Gui.new({
@@ -146,7 +146,7 @@ function TestRelativePositioning.testNestedRelativePositioning()
     width = 200,
     height = 150,
     positioning = "relative",
-    background = Color.new(0.3, 0.3, 0.3, 1.0),
+    backgroundColor = Color.new(0.3, 0.3, 0.3, 1.0),
   })
 
   local child = Gui.new({
@@ -156,7 +156,7 @@ function TestRelativePositioning.testNestedRelativePositioning()
     width = 50,
     height = 40,
     positioning = "relative",
-    background = Color.new(0.8, 0.8, 0.8, 1.0),
+    backgroundColor = Color.new(0.8, 0.8, 0.8, 1.0),
   })
 
   -- Each level should be positioned relative to its parent
@@ -175,7 +175,7 @@ function TestRelativePositioning.testMixedPositioning()
     width = 180,
     height = 120,
     positioning = "absolute",
-    background = Color.new(0.2, 0.2, 0.2, 1.0),
+    backgroundColor = Color.new(0.2, 0.2, 0.2, 1.0),
   })
 
   local child = Gui.new({
@@ -185,7 +185,7 @@ function TestRelativePositioning.testMixedPositioning()
     width = 60,
     height = 35,
     positioning = "relative",
-    background = Color.new(0.8, 0.8, 0.2, 1.0),
+    backgroundColor = Color.new(0.8, 0.8, 0.2, 1.0),
   })
 
   -- Relative child should still be positioned relative to absolute parent

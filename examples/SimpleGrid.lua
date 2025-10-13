@@ -24,7 +24,7 @@ local grid1 = Gui.new({
   gridColumns = 3,
   columnGap = 10,
   rowGap = 10,
-  background = Color.new(0.9, 0.9, 0.9, 1),
+  backgroundColor = Color.new(0.9, 0.9, 0.9, 1),
   padding = { horizontal = 20, vertical = 20 },
 })
 
@@ -32,7 +32,7 @@ local grid1 = Gui.new({
 for i = 1, 6 do
   Gui.new({
     parent = grid1,
-    background = Color.new(0.2, 0.5, 0.8, 1),
+    backgroundColor = Color.new(0.2, 0.5, 0.8, 1),
     text = "Item " .. i,
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
@@ -58,14 +58,14 @@ local grid2 = Gui.new({
   gridColumns = 4,
   columnGap = 5,
   rowGap = 5,
-  background = Color.new(0.9, 0.9, 0.9, 1),
+  backgroundColor = Color.new(0.9, 0.9, 0.9, 1),
   padding = { horizontal = 10, vertical = 10 },
 })
 
 for i = 1, 16 do
   Gui.new({
     parent = grid2,
-    background = Color.new(0.3, 0.6, 0.3, 1),
+    backgroundColor = Color.new(0.3, 0.6, 0.3, 1),
     text = tostring(i),
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
@@ -90,7 +90,7 @@ local grid3 = Gui.new({
   gridColumns = 5,
   columnGap = 10,
   rowGap = 0,
-  background = Color.new(0.9, 0.9, 0.9, 1),
+  backgroundColor = Color.new(0.9, 0.9, 0.9, 1),
   padding = { horizontal = 10, vertical = 10 },
 })
 
@@ -98,7 +98,7 @@ local labels = { "Home", "Products", "About", "Contact", "Login" }
 for i = 1, 5 do
   Gui.new({
     parent = grid3,
-    background = Color.new(0.3, 0.3, 0.8, 1),
+    backgroundColor = Color.new(0.3, 0.3, 0.8, 1),
     text = labels[i],
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
@@ -122,14 +122,14 @@ local grid4 = Gui.new({
   gridColumns = 1,
   columnGap = 0,
   rowGap = 10,
-  background = Color.new(0.9, 0.9, 0.9, 1),
+  backgroundColor = Color.new(0.9, 0.9, 0.9, 1),
   padding = { horizontal = 10, vertical = 10 },
 })
 
 for i = 1, 5 do
   Gui.new({
     parent = grid4,
-    background = Color.new(0.5, 0.3, 0.7, 1),
+    backgroundColor = Color.new(0.5, 0.3, 0.7, 1),
     text = "Option " .. i,
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
@@ -153,14 +153,14 @@ local outerGrid = Gui.new({
   gridColumns = 2,
   columnGap = 10,
   rowGap = 10,
-  background = Color.new(0.85, 0.85, 0.85, 1),
+  backgroundColor = Color.new(0.85, 0.85, 0.85, 1),
   padding = { horizontal = 10, vertical = 10 },
 })
 
 -- Top-left: Simple item
 Gui.new({
   parent = outerGrid,
-  background = Color.new(0.5, 0.3, 0.7, 1),
+  backgroundColor = Color.new(0.5, 0.3, 0.7, 1),
   text = "Single Item",
   textColor = Color.new(1, 1, 1, 1),
   textAlign = enums.TextAlign.CENTER,
@@ -174,14 +174,14 @@ local nestedGrid1 = Gui.new({
   gridColumns = 2,
   columnGap = 5,
   rowGap = 5,
-  background = Color.new(0.7, 0.7, 0.7, 1),
+  backgroundColor = Color.new(0.7, 0.7, 0.7, 1),
   padding = { horizontal = 5, vertical = 5 },
 })
 
 for i = 1, 4 do
   Gui.new({
     parent = nestedGrid1,
-    background = Color.new(0.3, 0.6, 0.9, 1),
+    backgroundColor = Color.new(0.3, 0.6, 0.9, 1),
     text = "A" .. i,
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
@@ -196,14 +196,14 @@ local nestedGrid2 = Gui.new({
   gridColumns = 3,
   columnGap = 5,
   rowGap = 5,
-  background = Color.new(0.7, 0.7, 0.7, 1),
+  backgroundColor = Color.new(0.7, 0.7, 0.7, 1),
   padding = { horizontal = 5, vertical = 5 },
 })
 
 for i = 1, 3 do
   Gui.new({
     parent = nestedGrid2,
-    background = Color.new(0.9, 0.6, 0.3, 1),
+    backgroundColor = Color.new(0.9, 0.6, 0.3, 1),
     text = "B" .. i,
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
@@ -213,7 +213,7 @@ end
 -- Bottom-right: Another simple item
 Gui.new({
   parent = outerGrid,
-  background = Color.new(0.3, 0.7, 0.5, 1),
+  backgroundColor = Color.new(0.3, 0.7, 0.5, 1),
   text = "Another Item",
   textColor = Color.new(1, 1, 1, 1),
   textAlign = enums.TextAlign.CENTER,

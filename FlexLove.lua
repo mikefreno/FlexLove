@@ -65,17 +65,23 @@ end
 ---@field states table<string, ThemeComponent>?
 ---@field _loadedAtlas love.Image? -- Internal: cached loaded atlas image
 
+---@class FontFamily
+---@field path string -- Path to the font file (relative to FlexLove or absolute)
+---@field _loadedFont love.Font? -- Internal: cached loaded font
+
 ---@class ThemeDefinition
 ---@field name string
 ---@field atlas string|love.Image? -- Optional: global atlas (can be overridden per component)
 ---@field components table<string, ThemeComponent>
 ---@field colors table<string, Color>?
+---@field fonts table<string, string>? -- Optional: font family definitions (name -> path)
 
 ---@class Theme
 ---@field name string
 ---@field atlas love.Image? -- Optional: global atlas
 ---@field components table<string, ThemeComponent>
 ---@field colors table<string, Color>
+---@field fonts table<string, string> -- Font family definitions
 local Theme = {}
 Theme.__index = Theme
 
@@ -151,6 +157,7 @@ function Theme.new(definition)
 
   self.components = definition.components or {}
   self.colors = definition.colors or {}
+  self.fonts = definition.fonts or {}
 
   -- Load component-specific atlases
   for componentName, component in pairs(self.components) do
@@ -1174,20 +1181,40 @@ local FONT_CACHE = {}
 
 --- Create or get a font from cache
 ---@param size number
+---@param fontPath string? -- Optional: path to font file
 ---@return love.Font
-function FONT_CACHE.get(size)
-  if not FONT_CACHE[size] then
-    FONT_CACHE[size] = love.graphics.newFont(size)
+function FONT_CACHE.get(size, fontPath)
+  -- Create cache key from size and font path
+  local cacheKey = fontPath and (fontPath .. "_" .. tostring(size)) or tostring(size)
+  
+  if not FONT_CACHE[cacheKey] then
+    if fontPath then
+      -- Load custom font
+      local resolvedPath = resolveImagePath(fontPath)
+      -- Note: love.graphics.newFont signature is (path, size) for custom fonts
+      local success, font = pcall(love.graphics.newFont, resolvedPath, size)
+      if success then
+        FONT_CACHE[cacheKey] = font
+      else
+        -- Fallback to default font if custom font fails to load
+        print("[FlexLove] Failed to load font: " .. fontPath .. " - using default font")
+        FONT_CACHE[cacheKey] = love.graphics.newFont(size)
+      end
+    else
+      -- Load default font
+      FONT_CACHE[cacheKey] = love.graphics.newFont(size)
+    end
   end
-  return FONT_CACHE[size]
+  return FONT_CACHE[cacheKey]
 end
 
 --- Get font for text size (cached)
 ---@param textSize number?
+---@param fontPath string? -- Optional: path to font file
 ---@return love.Font
-function FONT_CACHE.getFont(textSize)
+function FONT_CACHE.getFont(textSize, fontPath)
   if textSize then
-    return FONT_CACHE.get(textSize)
+    return FONT_CACHE.get(textSize, fontPath)
   else
     return love.graphics.getFont()
   end
@@ -1256,6 +1283,7 @@ end
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field textSize number? -- Resolved font size for text content in pixels
+---@field fontFamily string? -- Font family name from theme or path to font file
 ---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
@@ -1303,6 +1331,7 @@ Element.__index = Element
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
 ---@field textColor Color? -- Color of the text content (default: black)
 ---@field textSize number|string? -- Font size: number (px), string with units ("2vh", "10%"), or preset ("xxs"|"xs"|"sm"|"md"|"lg"|"xl"|"xxl"|"3xl"|"4xl") (default: "md")
+---@field fontFamily string? -- Font family name from theme or path to font file (default: theme default or system default)
 ---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
 ---@field positioning Positioning? -- Layout positioning mode (default: ABSOLUTE)
 ---@field flexDirection FlexDirection? -- Direction of flex layout (default: HORIZONTAL)
@@ -1456,6 +1485,18 @@ function Element.new(props)
     self.autoScaleText = true
   else
     self.autoScaleText = props.autoScaleText
+  end
+
+  -- Handle fontFamily (can be font name from theme or direct path to font file)
+  self.fontFamily = props.fontFamily
+  
+  -- If using themeComponent but no fontFamily specified, apply default font
+  if props.themeComponent and not props.fontFamily then
+    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    if themeToUse and themeToUse.fonts then
+      -- Use default font from theme if available
+      self.fontFamily = "default"
+    end
   end
 
   -- Handle textSize BEFORE width/height calculation (needed for auto-sizing)
@@ -2543,8 +2584,27 @@ function Element:draw()
 
     local origFont = love.graphics.getFont()
     if self.textSize then
+      -- Resolve font path from font family
+      local fontPath = nil
+      if self.fontFamily then
+        -- Check if fontFamily is a theme font name
+        local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+        if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+          fontPath = themeToUse.fonts[self.fontFamily]
+        else
+          -- Treat as direct path to font file
+          fontPath = self.fontFamily
+        end
+      elseif self.themeComponent then
+        -- If using themeComponent but no fontFamily specified, check for default font in theme
+        local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+        if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
+          fontPath = themeToUse.fonts.default
+        end
+      end
+      
       -- Use cached font instead of creating new one every frame
-      local font = FONT_CACHE.get(self.textSize)
+      local font = FONT_CACHE.get(self.textSize, fontPath)
       love.graphics.setFont(font)
     end
     local font = love.graphics.getFont()

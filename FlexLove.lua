@@ -104,10 +104,10 @@ local function getFlexLoveBasePath()
       fsPath = fsPath:gsub("^%./", "")
       -- Remove trailing /
       fsPath = fsPath:gsub("/$", "")
-      
+
       -- Convert filesystem path to Lua module path
       local modulePath = fsPath:gsub("/", ".")
-      
+
       return modulePath, fsPath
     end
   end
@@ -127,7 +127,7 @@ local function resolveImagePath(imagePath)
   if imagePath:match("^/") or imagePath:match("^[A-Z]:") then
     return imagePath
   end
-  
+
   -- Otherwise, make it relative to FlexLove's location
   return FLEXLOVE_FILESYSTEM_PATH .. "/" .. imagePath
 end
@@ -264,6 +264,102 @@ function Theme.getComponent(componentName, state)
 end
 
 -- ====================
+-- Rounded Rectangle Helper
+-- ====================
+
+local RoundedRect = {}
+
+--- Generate points for a rounded rectangle
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+---@param segments number? -- Number of segments per corner arc (default: 10)
+---@return table -- Array of vertices for love.graphics.polygon
+function RoundedRect.getPoints(x, y, width, height, cornerRadius, segments)
+  segments = segments or 10
+  local points = {}
+
+  -- Helper to add arc points
+  local function addArc(cx, cy, radius, startAngle, endAngle)
+    if radius <= 0 then
+      table.insert(points, cx)
+      table.insert(points, cy)
+      return
+    end
+
+    for i = 0, segments do
+      local angle = startAngle + (endAngle - startAngle) * (i / segments)
+      table.insert(points, cx + math.cos(angle) * radius)
+      table.insert(points, cy + math.sin(angle) * radius)
+    end
+  end
+
+  local r1 = math.min(cornerRadius.topLeft, width / 2, height / 2)
+  local r2 = math.min(cornerRadius.topRight, width / 2, height / 2)
+  local r3 = math.min(cornerRadius.bottomRight, width / 2, height / 2)
+  local r4 = math.min(cornerRadius.bottomLeft, width / 2, height / 2)
+
+  -- Top-right corner
+  addArc(x + width - r2, y + r2, r2, -math.pi / 2, 0)
+
+  -- Bottom-right corner
+  addArc(x + width - r3, y + height - r3, r3, 0, math.pi / 2)
+
+  -- Bottom-left corner
+  addArc(x + r4, y + height - r4, r4, math.pi / 2, math.pi)
+
+  -- Top-left corner
+  addArc(x + r1, y + r1, r1, math.pi, math.pi * 1.5)
+
+  return points
+end
+
+--- Draw a filled rounded rectangle
+---@param mode string -- "fill" or "line"
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+function RoundedRect.draw(mode, x, y, width, height, cornerRadius)
+  -- Check if any corners are rounded
+  local hasRoundedCorners = cornerRadius.topLeft > 0
+    or cornerRadius.topRight > 0
+    or cornerRadius.bottomLeft > 0
+    or cornerRadius.bottomRight > 0
+
+  if not hasRoundedCorners then
+    -- No rounded corners, use regular rectangle
+    love.graphics.rectangle(mode, x, y, width, height)
+    return
+  end
+
+  local points = RoundedRect.getPoints(x, y, width, height, cornerRadius)
+
+  if mode == "fill" then
+    love.graphics.polygon("fill", points)
+  else
+    -- For line mode, draw the outline
+    love.graphics.polygon("line", points)
+  end
+end
+
+--- Create a stencil function for rounded rectangle clipping
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+---@return function
+function RoundedRect.stencilFunction(x, y, width, height, cornerRadius)
+  return function()
+    RoundedRect.draw("fill", x, y, width, height, cornerRadius)
+  end
+end
+
+-- ====================
 -- NineSlice Renderer
 -- ====================
 
@@ -312,11 +408,11 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   -- Check if element is too small and needs proportional scaling
   local scaleDownX = 1
   local scaleDownY = 1
-  
+
   if width < minWidth then
     scaleDownX = width / minWidth
   end
-  
+
   if height < minHeight then
     scaleDownY = height / minHeight
   end
@@ -336,13 +432,37 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y, 0, scaleDownX, scaleDownY)
 
   -- Top-right corner
-  love.graphics.draw(atlas, makeQuad(regions.topRight), x + width - scaledRightCornerWidth, y, 0, scaleDownX, scaleDownY)
+  love.graphics.draw(
+    atlas,
+    makeQuad(regions.topRight),
+    x + width - scaledRightCornerWidth,
+    y,
+    0,
+    scaleDownX,
+    scaleDownY
+  )
 
   -- Bottom-left corner
-  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + height - scaledBottomLeftHeight, 0, scaleDownX, scaleDownY)
+  love.graphics.draw(
+    atlas,
+    makeQuad(regions.bottomLeft),
+    x,
+    y + height - scaledBottomLeftHeight,
+    0,
+    scaleDownX,
+    scaleDownY
+  )
 
   -- Bottom-right corner
-  love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + width - scaledRightCornerWidth, y + height - scaledBottomRightHeight, 0, scaleDownX, scaleDownY)
+  love.graphics.draw(
+    atlas,
+    makeQuad(regions.bottomRight),
+    x + width - scaledRightCornerWidth,
+    y + height - scaledBottomRightHeight,
+    0,
+    scaleDownX,
+    scaleDownY
+  )
 
   -- Top edge (stretched)
   if centerWidth > 0 then
@@ -388,7 +508,15 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   if centerWidth > 0 and centerHeight > 0 then
     local scaleX = centerWidth / regions.middleCenter.w
     local scaleY = centerHeight / regions.middleCenter.h
-    love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + scaledCornerWidth, y + scaledCornerHeight, 0, scaleX, scaleY)
+    love.graphics.draw(
+      atlas,
+      makeQuad(regions.middleCenter),
+      x + scaledCornerWidth,
+      y + scaledCornerHeight,
+      0,
+      scaleX,
+      scaleY
+    )
   end
 
   -- Reset color
@@ -1083,6 +1211,7 @@ end
 ---@field opacity number
 ---@field borderColor Color -- Color of the border
 ---@field backgroundColor Color -- Background color of the element
+---@field cornerRadius number|{topLeft:number?, topRight:number?, bottomLeft:number?, bottomRight:number?}? -- Corner radius for rounded corners (default: 0)
 ---@field prevGameSize {width:number, height:number} -- Previous game size for resize calculations
 ---@field text string? -- Text content to display in the element
 ---@field textColor Color -- Color of the text content
@@ -1117,6 +1246,7 @@ end
 ---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
+---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 local Element = {}
 Element.__index = Element
 
@@ -1136,6 +1266,7 @@ Element.__index = Element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field opacity number?
 ---@field backgroundColor Color? -- Background color (default: transparent)
+---@field cornerRadius number|{topLeft:number?, topRight:number?, bottomLeft:number?, bottomRight:number?}? -- Corner radius: number (all corners) or table for individual corners (default: 0)
 ---@field gap number|string? -- Space between children elements (default: 10)
 ---@field padding {top:number|string?, right:number|string?, bottom:number|string?, left:number|string?, horizontal: number|string?, vertical:number|string?}? -- Padding around children (default: {top=0, right=0, bottom=0, left=0})
 ---@field margin {top:number|string?, right:number|string?, bottom:number|string?, left:number|string?, horizontal: number|string?, vertical:number|string?}? -- Margin around children (default: {top=0, right=0, bottom=0, left=0})
@@ -1164,6 +1295,7 @@ Element.__index = Element
 ---@field themeComponent string? -- Theme component to use (e.g., "panel", "button", "input"). If nil, no theme is applied
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
+---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -1195,6 +1327,14 @@ function Element.new(props)
   self.disabled = props.disabled or false
   self.active = props.active or false
 
+  -- disableHighlight defaults to true when using themeComponent (themes handle their own visual feedback)
+  -- Can be explicitly overridden by setting props.disableHighlight
+  if props.disableHighlight ~= nil then
+    self.disableHighlight = props.disableHighlight
+  else
+    self.disableHighlight = self.themeComponent ~= nil
+  end
+
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
 
@@ -1216,6 +1356,32 @@ function Element.new(props)
   self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
   self.backgroundColor = props.backgroundColor or Color.new(0, 0, 0, 0)
   self.opacity = props.opacity or 1
+
+  -- Handle cornerRadius (can be number or table)
+  if props.cornerRadius then
+    if type(props.cornerRadius) == "number" then
+      self.cornerRadius = {
+        topLeft = props.cornerRadius,
+        topRight = props.cornerRadius,
+        bottomLeft = props.cornerRadius,
+        bottomRight = props.cornerRadius,
+      }
+    else
+      self.cornerRadius = {
+        topLeft = props.cornerRadius.topLeft or 0,
+        topRight = props.cornerRadius.topRight or 0,
+        bottomLeft = props.cornerRadius.bottomLeft or 0,
+        bottomRight = props.cornerRadius.bottomRight or 0,
+      }
+    end
+  else
+    self.cornerRadius = {
+      topLeft = 0,
+      topRight = 0,
+      bottomLeft = 0,
+      bottomRight = 0,
+    }
+  end
 
   self.text = props.text
   self.textAlign = props.textAlign or TextAlign.START
@@ -2156,7 +2322,8 @@ function Element:draw()
   if self.animation then
     local anim = self.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor = Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor =
+        Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
@@ -2166,12 +2333,13 @@ function Element:draw()
   local backgroundWithOpacity =
     Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  love.graphics.rectangle(
+  RoundedRect.draw(
     "fill",
     self.x,
     self.y,
     self.width + self.padding.left + self.padding.right,
-    self.height + self.padding.top + self.padding.bottom
+    self.height + self.padding.top + self.padding.bottom,
+    self.cornerRadius
   )
 
   -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
@@ -2232,27 +2400,44 @@ function Element:draw()
   local borderColorWithOpacity =
     Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
-  if self.border.top then
-    love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
-  end
-  if self.border.bottom then
-    love.graphics.line(
+
+  -- Check if all borders are enabled
+  local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
+
+  if allBorders then
+    -- Draw complete rounded rectangle border
+    RoundedRect.draw(
+      "line",
       self.x,
-      self.y + self.height + self.padding.top + self.padding.bottom,
-      self.x + self.width + self.padding.left + self.padding.right,
-      self.y + self.height + self.padding.top + self.padding.bottom
-    )
-  end
-  if self.border.left then
-    love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
-  end
-  if self.border.right then
-    love.graphics.line(
-      self.x + self.width + self.padding.left + self.padding.right,
       self.y,
-      self.x + self.width + self.padding.left + self.padding.right,
-      self.y + self.height + self.padding.top + self.padding.bottom
+      self.width + self.padding.left + self.padding.right,
+      self.height + self.padding.top + self.padding.bottom,
+      self.cornerRadius
     )
+  else
+    -- Draw individual borders (without rounded corners for partial borders)
+    if self.border.top then
+      love.graphics.line(self.x, self.y, self.x + self.width + self.padding.left + self.padding.right, self.y)
+    end
+    if self.border.bottom then
+      love.graphics.line(
+        self.x,
+        self.y + self.height + self.padding.top + self.padding.bottom,
+        self.x + self.width + self.padding.left + self.padding.right,
+        self.y + self.height + self.padding.top + self.padding.bottom
+      )
+    end
+    if self.border.left then
+      love.graphics.line(self.x, self.y, self.x, self.y + self.height + self.padding.top + self.padding.bottom)
+    end
+    if self.border.right then
+      love.graphics.line(
+        self.x + self.width + self.padding.left + self.padding.right,
+        self.y,
+        self.x + self.width + self.padding.left + self.padding.right,
+        self.y + self.height + self.padding.top + self.padding.bottom
+      )
+    end
   end
 
   -- Draw element text if present
@@ -2294,8 +2479,8 @@ function Element:draw()
     end
   end
 
-  -- Draw visual feedback when element is pressed (if it has a callback)
-  if self.callback then
+  -- Draw visual feedback when element is pressed (if it has a callback and highlight is not disabled)
+  if self.callback and not self.disableHighlight then
     -- Check if any button is pressed
     local anyPressed = false
     for _, pressed in pairs(self._pressed) do
@@ -2306,12 +2491,13 @@ function Element:draw()
     end
     if anyPressed then
       love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-      love.graphics.rectangle(
+      RoundedRect.draw(
         "fill",
         self.x,
         self.y,
         self.width + self.padding.left + self.padding.right,
-        self.height + self.padding.top + self.padding.bottom
+        self.height + self.padding.top + self.padding.bottom,
+        self.cornerRadius
       )
     end
   end
@@ -2325,8 +2511,35 @@ function Element:draw()
     return a.z < b.z
   end)
 
-  for _, child in ipairs(sortedChildren) do
-    child:draw()
+  -- Check if we need to clip children to rounded corners
+  local hasRoundedCorners = self.cornerRadius.topLeft > 0
+    or self.cornerRadius.topRight > 0
+    or self.cornerRadius.bottomLeft > 0
+    or self.cornerRadius.bottomRight > 0
+
+  if hasRoundedCorners and #sortedChildren > 0 then
+    -- Use stencil to clip children to rounded rectangle
+    local stencilFunc = RoundedRect.stencilFunction(
+      self.x,
+      self.y,
+      self.width + self.padding.left + self.padding.right,
+      self.height + self.padding.top + self.padding.bottom,
+      self.cornerRadius
+    )
+
+    love.graphics.stencil(stencilFunc, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+
+    for _, child in ipairs(sortedChildren) do
+      child:draw()
+    end
+
+    love.graphics.setStencilTest()
+  else
+    -- No clipping needed
+    for _, child in ipairs(sortedChildren) do
+      child:draw()
+    end
   end
 end
 

@@ -294,10 +294,12 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   local rightCornerHeight = regions.topRight.h
   local bottomLeftHeight = regions.bottomLeft.h
   local bottomRightHeight = regions.bottomRight.h
+  local bottomLeftWidth = regions.bottomLeft.w
+  local bottomRightWidth = regions.bottomRight.w
 
-  -- Center dimensions (stretchable area)
-  local centerWidth = width - cornerWidth - rightCornerWidth
-  local centerHeight = height - cornerHeight - bottomLeftHeight
+  -- Calculate minimum required dimensions
+  local minWidth = cornerWidth + rightCornerWidth
+  local minHeight = cornerHeight + bottomLeftHeight
 
   -- Create quads for each region
   local atlasWidth, atlasHeight = atlas:getDimensions()
@@ -307,22 +309,45 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     return love.graphics.newQuad(region.x, region.y, region.w, region.h, atlasWidth, atlasHeight)
   end
 
+  -- Check if element is too small and needs proportional scaling
+  local scaleDownX = 1
+  local scaleDownY = 1
+  
+  if width < minWidth then
+    scaleDownX = width / minWidth
+  end
+  
+  if height < minHeight then
+    scaleDownY = height / minHeight
+  end
+
+  -- Apply proportional scaling to corner dimensions if needed
+  local scaledCornerWidth = cornerWidth * scaleDownX
+  local scaledRightCornerWidth = rightCornerWidth * scaleDownX
+  local scaledCornerHeight = cornerHeight * scaleDownY
+  local scaledBottomLeftHeight = bottomLeftHeight * scaleDownY
+  local scaledBottomRightHeight = bottomRightHeight * scaleDownY
+
+  -- Center dimensions (stretchable area)
+  local centerWidth = width - scaledCornerWidth - scaledRightCornerWidth
+  local centerHeight = height - scaledCornerHeight - scaledBottomLeftHeight
+
   -- Top-left corner
-  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y)
+  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y, 0, scaleDownX, scaleDownY)
 
   -- Top-right corner
-  love.graphics.draw(atlas, makeQuad(regions.topRight), x + width - rightCornerWidth, y)
+  love.graphics.draw(atlas, makeQuad(regions.topRight), x + width - scaledRightCornerWidth, y, 0, scaleDownX, scaleDownY)
 
   -- Bottom-left corner
-  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + height - bottomLeftHeight)
+  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + height - scaledBottomLeftHeight, 0, scaleDownX, scaleDownY)
 
   -- Bottom-right corner
-  love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + width - rightCornerWidth, y + height - bottomRightHeight)
+  love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + width - scaledRightCornerWidth, y + height - scaledBottomRightHeight, 0, scaleDownX, scaleDownY)
 
   -- Top edge (stretched)
   if centerWidth > 0 then
     local scaleX = centerWidth / regions.topCenter.w
-    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + cornerWidth, y, 0, scaleX, 1)
+    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + scaledCornerWidth, y, 0, scaleX, scaleDownY)
   end
 
   -- Bottom edge (stretched)
@@ -331,18 +356,18 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     love.graphics.draw(
       atlas,
       makeQuad(regions.bottomCenter),
-      x + cornerWidth,
-      y + height - bottomLeftHeight,
+      x + scaledCornerWidth,
+      y + height - scaledBottomLeftHeight,
       0,
       scaleX,
-      1
+      scaleDownY
     )
   end
 
   -- Left edge (stretched)
   if centerHeight > 0 then
     local scaleY = centerHeight / regions.middleLeft.h
-    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + cornerHeight, 0, 1, scaleY)
+    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + scaledCornerHeight, 0, scaleDownX, scaleY)
   end
 
   -- Right edge (stretched)
@@ -351,10 +376,10 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     love.graphics.draw(
       atlas,
       makeQuad(regions.middleRight),
-      x + width - rightCornerWidth,
-      y + cornerHeight,
+      x + width - scaledRightCornerWidth,
+      y + scaledCornerHeight,
       0,
-      1,
+      scaleDownX,
       scaleY
     )
   end
@@ -363,7 +388,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   if centerWidth > 0 and centerHeight > 0 then
     local scaleX = centerWidth / regions.middleCenter.w
     local scaleY = centerHeight / regions.middleCenter.h
-    love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + cornerWidth, y + cornerHeight, 0, scaleX, scaleY)
+    love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + scaledCornerWidth, y + scaledCornerHeight, 0, scaleX, scaleY)
   end
 
   -- Reset color

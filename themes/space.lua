@@ -16,7 +16,6 @@ end
 
 return {
   name = "Space Theme",
-
   components = {
     -- Panel component
     panel = {
@@ -183,5 +182,12 @@ return {
     secondary = Color.new(0.15, 0.20, 0.25), -- deep steel-gray background for panels
     text = Color.new(0.80, 0.90, 1.00), -- soft cool-white for general text
     textDark = Color.new(0.35, 0.40, 0.45), -- dimmed gray-blue for secondary text
+  },
+
+  -- Optional: Theme fonts
+  -- Define font families that can be referenced by name
+  -- Paths are relative to FlexLove location or absolute
+  fonts = {
+    default = "themes/space/VT323-Regular.ttf",
   },
 }

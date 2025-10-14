@@ -2026,12 +2026,16 @@ function Element.new(props)
       right = { value = nil, unit = "px" },
       bottom = { value = nil, unit = "px" },
       left = { value = nil, unit = "px" },
+      horizontal = { value = nil, unit = "px" }, -- Shorthand for left/right
+      vertical = { value = nil, unit = "px" }, -- Shorthand for top/bottom
     },
     margin = {
       top = { value = nil, unit = "px" },
       right = { value = nil, unit = "px" },
       bottom = { value = nil, unit = "px" },
       left = { value = nil, unit = "px" },
+      horizontal = { value = nil, unit = "px" }, -- Shorthand for left/right
+      vertical = { value = nil, unit = "px" }, -- Shorthand for top/bottom
     },
   }
 
@@ -2275,18 +2279,58 @@ function Element.new(props)
   end
 
   -- Store original spacing values for proper resize handling
+  -- Store shorthand properties first (horizontal/vertical)
+  if props.padding then
+    if props.padding.horizontal then
+      if type(props.padding.horizontal) == "string" then
+        local value, unit = Units.parse(props.padding.horizontal)
+        self.units.padding.horizontal = { value = value, unit = unit }
+      else
+        self.units.padding.horizontal = { value = props.padding.horizontal, unit = "px" }
+      end
+    end
+    if props.padding.vertical then
+      if type(props.padding.vertical) == "string" then
+        local value, unit = Units.parse(props.padding.vertical)
+        self.units.padding.vertical = { value = value, unit = unit }
+      else
+        self.units.padding.vertical = { value = props.padding.vertical, unit = "px" }
+      end
+    end
+  end
+
   -- Initialize all padding sides
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
     if props.padding and props.padding[side] then
       if type(props.padding[side]) == "string" then
         local value, unit = Units.parse(props.padding[side])
-        self.units.padding[side] = { value = value, unit = unit }
+        self.units.padding[side] = { value = value, unit = unit, explicit = true }
       else
-        self.units.padding[side] = { value = props.padding[side], unit = "px" }
+        self.units.padding[side] = { value = props.padding[side], unit = "px", explicit = true }
       end
     else
-      -- Use resolved padding values from Units.resolveSpacing
-      self.units.padding[side] = { value = self.padding[side], unit = "px" }
+      -- Mark as derived from shorthand (will use shorthand during resize if available)
+      self.units.padding[side] = { value = self.padding[side], unit = "px", explicit = false }
+    end
+  end
+
+  -- Store margin shorthand properties
+  if props.margin then
+    if props.margin.horizontal then
+      if type(props.margin.horizontal) == "string" then
+        local value, unit = Units.parse(props.margin.horizontal)
+        self.units.margin.horizontal = { value = value, unit = unit }
+      else
+        self.units.margin.horizontal = { value = props.margin.horizontal, unit = "px" }
+      end
+    end
+    if props.margin.vertical then
+      if type(props.margin.vertical) == "string" then
+        local value, unit = Units.parse(props.margin.vertical)
+        self.units.margin.vertical = { value = value, unit = unit }
+      else
+        self.units.margin.vertical = { value = props.margin.vertical, unit = "px" }
+      end
     end
   end
 
@@ -2295,13 +2339,13 @@ function Element.new(props)
     if props.margin and props.margin[side] then
       if type(props.margin[side]) == "string" then
         local value, unit = Units.parse(props.margin[side])
-        self.units.margin[side] = { value = value, unit = unit }
+        self.units.margin[side] = { value = value, unit = unit, explicit = true }
       else
-        self.units.margin[side] = { value = props.margin[side], unit = "px" }
+        self.units.margin[side] = { value = props.margin[side], unit = "px", explicit = true }
       end
     else
-      -- Use resolved margin values from Units.resolveSpacing
-      self.units.margin[side] = { value = self.margin[side], unit = "px" }
+      -- Mark as derived from shorthand (will use shorthand during resize if available)
+      self.units.margin[side] = { value = self.margin[side], unit = "px", explicit = false }
     end
   end
 
@@ -3688,12 +3732,61 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   end
 
   -- Recalculate spacing (padding/margin) if using viewport or percentage units
-  local containerWidth = self.parent and self.parent.width or newViewportWidth
-  local containerHeight = self.parent and self.parent.height or newViewportHeight
+  -- For percentage-based padding, we need to use the parent's border-box dimensions
+  local parentBorderBoxWidth = self.parent and self.parent._borderBoxWidth or newViewportWidth
+  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight or newViewportHeight
 
+  -- Handle shorthand properties first (horizontal/vertical)
+  local resolvedHorizontalPadding = nil
+  local resolvedVerticalPadding = nil
+  
+  if self.units.padding.horizontal and self.units.padding.horizontal.unit ~= "px" then
+    resolvedHorizontalPadding = Units.resolve(
+      self.units.padding.horizontal.value,
+      self.units.padding.horizontal.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxWidth
+    )
+  elseif self.units.padding.horizontal and self.units.padding.horizontal.value then
+    resolvedHorizontalPadding = self.units.padding.horizontal.value
+  end
+
+  if self.units.padding.vertical and self.units.padding.vertical.unit ~= "px" then
+    resolvedVerticalPadding = Units.resolve(
+      self.units.padding.vertical.value,
+      self.units.padding.vertical.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxHeight
+    )
+  elseif self.units.padding.vertical and self.units.padding.vertical.value then
+    resolvedVerticalPadding = self.units.padding.vertical.value
+  end
+
+  -- Resolve individual padding sides (with fallback to shorthand)
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    if self.units.padding[side].unit ~= "px" then
-      local parentSize = (side == "top" or side == "bottom") and containerHeight or containerWidth
+    -- Check if this side was explicitly set or if we should use shorthand
+    local useShorthand = false
+    if not self.units.padding[side].explicit then
+      -- Not explicitly set, check if we have shorthand
+      if side == "left" or side == "right" then
+        useShorthand = resolvedHorizontalPadding ~= nil
+      elseif side == "top" or side == "bottom" then
+        useShorthand = resolvedVerticalPadding ~= nil
+      end
+    end
+
+    if useShorthand then
+      -- Use shorthand value
+      if side == "left" or side == "right" then
+        self.padding[side] = resolvedHorizontalPadding
+      else
+        self.padding[side] = resolvedVerticalPadding
+      end
+    elseif self.units.padding[side].unit ~= "px" then
+      -- Recalculate non-pixel units
+      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
       self.padding[side] = Units.resolve(
         self.units.padding[side].value,
         self.units.padding[side].unit,
@@ -3702,9 +3795,60 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
         parentSize
       )
     end
+    -- If unit is "px" and not using shorthand, value stays the same
+  end
 
-    if self.units.margin[side].unit ~= "px" then
-      local parentSize = (side == "top" or side == "bottom") and containerHeight or containerWidth
+  -- Handle margin shorthand properties
+  local resolvedHorizontalMargin = nil
+  local resolvedVerticalMargin = nil
+  
+  if self.units.margin.horizontal and self.units.margin.horizontal.unit ~= "px" then
+    resolvedHorizontalMargin = Units.resolve(
+      self.units.margin.horizontal.value,
+      self.units.margin.horizontal.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxWidth
+    )
+  elseif self.units.margin.horizontal and self.units.margin.horizontal.value then
+    resolvedHorizontalMargin = self.units.margin.horizontal.value
+  end
+
+  if self.units.margin.vertical and self.units.margin.vertical.unit ~= "px" then
+    resolvedVerticalMargin = Units.resolve(
+      self.units.margin.vertical.value,
+      self.units.margin.vertical.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxHeight
+    )
+  elseif self.units.margin.vertical and self.units.margin.vertical.value then
+    resolvedVerticalMargin = self.units.margin.vertical.value
+  end
+
+  -- Resolve individual margin sides (with fallback to shorthand)
+  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
+    -- Check if this side was explicitly set or if we should use shorthand
+    local useShorthand = false
+    if not self.units.margin[side].explicit then
+      -- Not explicitly set, check if we have shorthand
+      if side == "left" or side == "right" then
+        useShorthand = resolvedHorizontalMargin ~= nil
+      elseif side == "top" or side == "bottom" then
+        useShorthand = resolvedVerticalMargin ~= nil
+      end
+    end
+
+    if useShorthand then
+      -- Use shorthand value
+      if side == "left" or side == "right" then
+        self.margin[side] = resolvedHorizontalMargin
+      else
+        self.margin[side] = resolvedVerticalMargin
+      end
+    elseif self.units.margin[side].unit ~= "px" then
+      -- Recalculate non-pixel units
+      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
       self.margin[side] = Units.resolve(
         self.units.margin[side].value,
         self.units.margin[side].unit,
@@ -3713,6 +3857,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
         parentSize
       )
     end
+    -- If unit is "px" and not using shorthand, value stays the same
   end
 
   -- BORDER-BOX MODEL: After recalculating width/height/padding, update border-box dimensions

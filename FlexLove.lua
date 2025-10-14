@@ -3271,6 +3271,7 @@ function Element:draw()
             and component.regions.bottomCenter
             and component.regions.bottomRight
           if hasAllRegions then
+            -- NineSlice.draw expects content dimensions (without padding), not border-box
             NineSlice.draw(component, atlasToUse, self.x, self.y, self.width, self.height, self.padding, self.opacity)
           else
             -- Silently skip drawing if component structure is invalid
@@ -3608,24 +3609,26 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Get updated scale factors
   local scaleX, scaleY = Gui.getScaleFactors()
 
-  -- Recalculate width if using viewport or percentage units (skip auto-sized)
+  -- Recalculate border-box width if using viewport or percentage units (skip auto-sized)
+  -- Store in _borderBoxWidth temporarily, will calculate content width after padding is resolved
   if self.units.width.unit ~= "px" and self.units.width.unit ~= "auto" then
     local parentWidth = self.parent and self.parent.width or newViewportWidth
-    self.width =
+    self._borderBoxWidth =
       Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
   elseif self.units.width.unit == "px" and self.units.width.value and Gui.baseScale then
-    -- Reapply base scaling to pixel widths
-    self.width = self.units.width.value * scaleX
+    -- Reapply base scaling to pixel widths (border-box)
+    self._borderBoxWidth = self.units.width.value * scaleX
   end
 
-  -- Recalculate height if using viewport or percentage units (skip auto-sized)
+  -- Recalculate border-box height if using viewport or percentage units (skip auto-sized)
+  -- Store in _borderBoxHeight temporarily, will calculate content height after padding is resolved
   if self.units.height.unit ~= "px" and self.units.height.unit ~= "auto" then
     local parentHeight = self.parent and self.parent.height or newViewportHeight
-    self.height =
+    self._borderBoxHeight =
       Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
   elseif self.units.height.unit == "px" and self.units.height.value and Gui.baseScale then
-    -- Reapply base scaling to pixel heights
-    self.height = self.units.height.value * scaleY
+    -- Reapply base scaling to pixel heights (border-box)
+    self._borderBoxHeight = self.units.height.value * scaleY
   end
 
   -- Recalculate position if using viewport or percentage units
@@ -3732,9 +3735,11 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   end
 
   -- Recalculate spacing (padding/margin) if using viewport or percentage units
-  -- For percentage-based padding, we need to use the parent's border-box dimensions
-  local parentBorderBoxWidth = self.parent and self.parent._borderBoxWidth or newViewportWidth
-  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight or newViewportHeight
+  -- For percentage-based padding:
+  -- - If element has a parent: use parent's border-box dimensions (CSS spec for child elements)
+  -- - If element has no parent: use element's own border-box dimensions (CSS spec for root elements)
+  local parentBorderBoxWidth = self.parent and self.parent._borderBoxWidth or self._borderBoxWidth or newViewportWidth
+  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight or self._borderBoxHeight or newViewportHeight
 
   -- Handle shorthand properties first (horizontal/vertical)
   local resolvedHorizontalPadding = nil
@@ -3860,15 +3865,27 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     -- If unit is "px" and not using shorthand, value stays the same
   end
 
-  -- BORDER-BOX MODEL: After recalculating width/height/padding, update border-box dimensions
-  -- Width and height were calculated as border-box, now we need to subtract padding for content area
+  -- BORDER-BOX MODEL: Calculate content dimensions from border-box dimensions
+  -- For explicitly-sized elements (non-auto), _borderBoxWidth/_borderBoxHeight were set earlier
+  -- Now we calculate content width/height by subtracting padding
   if self.units.width.unit ~= "auto" then
-    self._borderBoxWidth = self.width
-    self.width = math.max(0, self.width - self.padding.left - self.padding.right)
+    -- _borderBoxWidth was already set during width recalculation
+    -- Calculate content width by subtracting padding
+    self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)
+  else
+    -- For auto-sized elements, width is content width (calculated in resize method)
+    -- Update border-box to include padding
+    self._borderBoxWidth = self.width + self.padding.left + self.padding.right
   end
+  
   if self.units.height.unit ~= "auto" then
-    self._borderBoxHeight = self.height
-    self.height = math.max(0, self.height - self.padding.top - self.padding.bottom)
+    -- _borderBoxHeight was already set during height recalculation
+    -- Calculate content height by subtracting padding
+    self.height = math.max(0, self._borderBoxHeight - self.padding.top - self.padding.bottom)
+  else
+    -- For auto-sized elements, height is content height (calculated in resize method)
+    -- Update border-box to include padding
+    self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
   end
 end
 

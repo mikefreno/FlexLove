@@ -205,6 +205,8 @@ cornerRadius = {
 ```
 
 ### Theme System
+ 
+To create a theme explore themes/space.lua as a reference
 
 Load and apply themes for consistent styling:
 
@@ -368,8 +370,9 @@ The `examples/` directory contains comprehensive demos:
 
 Run tests with:
 ```bash
-cd testing
-lua runAll.lua
+lua testing/runAll.lua
+# or a specific test:
+lua testing/__tests__/<specific_test>
 ```
 
 ## License

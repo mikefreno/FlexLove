@@ -442,9 +442,9 @@ function TestHorizontalFlexDirection:testHorizontalLayoutAlignItemsStretch()
   parent:addChild(child1)
   parent:addChild(child2)
 
-  -- With align-items stretch in horizontal layout, children should stretch to parent height
-  luaunit.assertEquals(child1.height, parent.height)
-  luaunit.assertEquals(child2.height, parent.height)
+  -- With align-items stretch, children with explicit heights should keep them (CSS flexbox behavior)
+  luaunit.assertEquals(child1.height, 30)
+  luaunit.assertEquals(child2.height, 40)
 end
 
 -- Test 14: Horizontal layout with align-items center

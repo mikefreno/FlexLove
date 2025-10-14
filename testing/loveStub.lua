@@ -88,12 +88,59 @@ end
 
 -- Mock mouse functions
 love_helper.mouse = {}
+
+-- Mock mouse state
+local mockMouseX = 0
+local mockMouseY = 0
+local mockMouseButtons = {} -- Table to track button states
+
 function love_helper.mouse.getPosition()
-  return 0, 0 -- Default position
+  return mockMouseX, mockMouseY
+end
+
+function love_helper.mouse.setPosition(x, y)
+  mockMouseX = x
+  mockMouseY = y
 end
 
 function love_helper.mouse.isDown(button)
-  return false -- Default not pressed
+  return mockMouseButtons[button] or false
+end
+
+function love_helper.mouse.setDown(button, isDown)
+  mockMouseButtons[button] = isDown
+end
+
+-- Mock timer functions
+love_helper.timer = {}
+
+-- Mock time state
+local mockTime = 0
+
+function love_helper.timer.getTime()
+  return mockTime
+end
+
+function love_helper.timer.setTime(time)
+  mockTime = time
+end
+
+function love_helper.timer.step(dt)
+  mockTime = mockTime + dt
+end
+
+-- Mock keyboard functions
+love_helper.keyboard = {}
+
+-- Mock keyboard state
+local mockKeyboardKeys = {} -- Table to track key states
+
+function love_helper.keyboard.isDown(key)
+  return mockKeyboardKeys[key] or false
+end
+
+function love_helper.keyboard.setDown(key, isDown)
+  mockKeyboardKeys[key] = isDown
 end
 
 -- Mock touch functions

@@ -186,11 +186,11 @@ function TestComprehensiveFlex:testNestedFlexContainersComplexLayout()
   -- Positions are absolute including parent container position
   luaunit.assertEquals(inner2Positions[1].x, 20) -- parent x + 0
   luaunit.assertEquals(inner2Positions[1].y, 95) -- parent y + 0
-  luaunit.assertEquals(inner2Positions[1].height, 50) -- stretched to full container height
+  luaunit.assertEquals(inner2Positions[1].height, 25) -- explicit height, not stretched (CSS spec compliance)
 
   luaunit.assertEquals(inner2Positions[2].x, 60) -- parent x + 40
   luaunit.assertEquals(inner2Positions[2].y, 95) -- parent y + 0
-  luaunit.assertEquals(inner2Positions[2].height, 50) -- stretched to full container height
+  luaunit.assertEquals(inner2Positions[2].height, 25) -- explicit height, not stretched (CSS spec compliance)
 end
 
 -- Test 3: All flex properties combined with absolute positioning
@@ -390,19 +390,19 @@ function TestComprehensiveFlex:testDeeplyNestedFlexContainers()
   -- These positions are relative to level 1 container position
   luaunit.assertEquals(level2Positions[1].x, 20) -- positioned by level 1
   luaunit.assertEquals(level2Positions[1].y, 25) -- positioned by level 1
-  luaunit.assertEquals(level2Positions[1].height, 100) -- stretched to full cross-axis height
+  luaunit.assertEquals(level2Positions[1].height, 80) -- explicit height, not stretched (CSS spec compliance)
 
   luaunit.assertEquals(level2Positions[2].x, 110) -- positioned by level 1 + space-between
   luaunit.assertEquals(level2Positions[2].y, 25) -- positioned by level 1
-  luaunit.assertEquals(level2Positions[2].height, 100) -- stretched to full cross-axis height
+  luaunit.assertEquals(level2Positions[2].height, 80) -- explicit height, not stretched (CSS spec compliance)
 
   -- Level 3a: flex-end justification, center alignment
   -- Positions are absolute including parent positions
   luaunit.assertEquals(level3aPositions[1].x, 40) -- absolute position
-  luaunit.assertEquals(level3aPositions[1].y, 90) -- flex-end: positioned at bottom of stretched container
+  luaunit.assertEquals(level3aPositions[1].y, 70) -- flex-end: 25 (level2.y) + 45 (80 - 35 total children)
 
   luaunit.assertEquals(level3aPositions[2].x, 42.5) -- absolute position
-  luaunit.assertEquals(level3aPositions[2].y, 110) -- second item: 90 + 20 = 110
+  luaunit.assertEquals(level3aPositions[2].y, 90) -- second item: 70 + 20 = 90
 
   -- Level 3b: flex-start justification, flex-end alignment
   -- Positions are absolute including parent positions
@@ -1656,8 +1656,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     middlePositions[i] = { x = child.x, y = child.y, width = child.width, height = child.height }
   end
 
-  luaunit.assertEquals(middlePositions[1].x, 300) -- chart panel (300 + 20 padding)
-  luaunit.assertEquals(middlePositions[2].x, 1000) -- stats panel (300 + 680 + 20)
+  luaunit.assertEquals(middlePositions[1].x, 300) -- chart panel (280 sidebar + 20 padding)
+  luaunit.assertEquals(middlePositions[2].x, 1020) -- stats panel (280 + 20 + 680 + 40 gap with SPACE_BETWEEN)
 
   -- Test chart legend wrapping
   local chartPanel = middleContent.children[1]
@@ -1699,7 +1699,7 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
   end
 
   luaunit.assertEquals(bottomPositions[1].x, 300) -- table panel
-  luaunit.assertEquals(bottomPositions[2].x, 860) -- right panels (300 + 540 + 20)
+  luaunit.assertEquals(bottomPositions[2].x, 880) -- right panels (280 + 20 + 540 + 40 gap with SPACE_BETWEEN)
 
   -- Test right panels layout
   local rightPanels = bottomContent.children[2]
@@ -1710,8 +1710,8 @@ function TestComprehensiveFlex:testComplexDashboardLayout()
     rightPositions[i] = { x = child.x, y = child.y, width = child.width, height = child.height }
   end
 
-  luaunit.assertEquals(rightPositions[1].x, 860) -- alerts panel
-  luaunit.assertEquals(rightPositions[2].x, 1120) -- progress panel (860 + 240 + 20)
+  luaunit.assertEquals(rightPositions[1].x, 880) -- alerts panel (same as parent due to SPACE_BETWEEN)
+  luaunit.assertEquals(rightPositions[2].x, 1140) -- progress panel (880 + 240 + 20)
 end
 
 luaunit.LuaUnit.run()

@@ -402,9 +402,9 @@ function TestVerticalFlexDirection:testVerticalLayoutAlignItemsStretch()
   parent:addChild(child1)
   parent:addChild(child2)
 
-  -- Children should be stretched to fill parent width
-  luaunit.assertEquals(child1.width, parent.width)
-  luaunit.assertEquals(child2.width, parent.width)
+  -- Children with explicit widths should keep them (CSS flexbox behavior)
+  luaunit.assertEquals(child1.width, 80)
+  luaunit.assertEquals(child2.width, 60)
 end
 
 -- Test 13: Vertical layout with space-between

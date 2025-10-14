@@ -183,7 +183,7 @@ local fadeIn = FlexLove.Animation.fade(1.0, 0, 1)
 fadeIn:apply(element)
 
 -- Scale animation
-local scaleUp = FlexLove.Animation.scale(0.5, 
+local scaleUp = FlexLove.Animation.scale(0.5,
   { width = 100, height = 50 },
   { width = 200, height = 100 }
 )
@@ -287,18 +287,30 @@ end
 function Color.fromHex(hexWithTag)
   local hex = hexWithTag:gsub("#", "")
   if #hex == 6 then
-    local r = tonumber("0x" .. hex:sub(1, 2)) or 0
-    local g = tonumber("0x" .. hex:sub(3, 4)) or 0
-    local b = tonumber("0x" .. hex:sub(5, 6)) or 0
+    local r = tonumber("0x" .. hex:sub(1, 2))
+    local g = tonumber("0x" .. hex:sub(3, 4))
+    local b = tonumber("0x" .. hex:sub(5, 6))
+    if not r or not g or not b then
+      error(
+        formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag))
+      )
+    end
     return Color.new(r, g, b, 1)
   elseif #hex == 8 then
-    local r = tonumber("0x" .. hex:sub(1, 2)) or 0
-    local g = tonumber("0x" .. hex:sub(3, 4)) or 0
-    local b = tonumber("0x" .. hex:sub(5, 6)) or 0
-    local a = tonumber("0x" .. hex:sub(7, 8)) / 255
-    return Color.new(r, g, b, a)
+    local r = tonumber("0x" .. hex:sub(1, 2))
+    local g = tonumber("0x" .. hex:sub(3, 4))
+    local b = tonumber("0x" .. hex:sub(5, 6))
+    local a = tonumber("0x" .. hex:sub(7, 8))
+    if not r or not g or not b or not a then
+      error(
+        formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag))
+      )
+    end
+    return Color.new(r, g, b, a / 255)
   else
-    error(formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag)))
+    error(
+      formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag))
+    )
   end
 end
 
@@ -399,7 +411,7 @@ local function safeLoadImage(imagePath)
   local success, result = pcall(function()
     return love.graphics.newImage(imagePath)
   end)
-  
+
   if success then
     return result, nil
   else
@@ -419,27 +431,27 @@ local function validateThemeDefinition(definition)
   if not definition then
     return false, "Theme definition is nil"
   end
-  
+
   if type(definition) ~= "table" then
     return false, "Theme definition must be a table"
   end
-  
+
   if not definition.name or type(definition.name) ~= "string" then
     return false, "Theme must have a 'name' field (string)"
   end
-  
+
   if definition.components and type(definition.components) ~= "table" then
     return false, "Theme 'components' must be a table"
   end
-  
+
   if definition.colors and type(definition.colors) ~= "table" then
     return false, "Theme 'colors' must be a table"
   end
-  
+
   if definition.fonts and type(definition.fonts) ~= "table" then
     return false, "Theme 'fonts' must be a table"
   end
-  
+
   return true, nil
 end
 
@@ -449,7 +461,7 @@ function Theme.new(definition)
   if not valid then
     error("[FlexLove] Invalid theme definition: " .. tostring(err))
   end
-  
+
   local self = setmetatable({}, Theme)
   self.name = definition.name
 
@@ -595,7 +607,7 @@ function Theme.getFont(fontName)
   if not activeTheme then
     return nil
   end
-  
+
   return activeTheme.fonts and activeTheme.fonts[fontName]
 end
 
@@ -606,7 +618,7 @@ function Theme.getColor(colorName)
   if not activeTheme then
     return nil
   end
-  
+
   return activeTheme.colors and activeTheme.colors[colorName]
 end
 
@@ -624,6 +636,43 @@ function Theme.getRegisteredThemes()
     table.insert(themeNames, name)
   end
   return themeNames
+end
+
+--- Get all available color names from the active theme
+---@return table<string>|nil -- Array of color names, or nil if no theme active
+function Theme.getColorNames()
+  if not activeTheme or not activeTheme.colors then
+    return nil
+  end
+  
+  local colorNames = {}
+  for name, _ in pairs(activeTheme.colors) do
+    table.insert(colorNames, name)
+  end
+  return colorNames
+end
+
+--- Get all colors from the active theme
+---@return table<string, Color>|nil -- Table of all colors, or nil if no theme active
+function Theme.getAllColors()
+  if not activeTheme then
+    return nil
+  end
+  
+  return activeTheme.colors
+end
+
+--- Get a color with a fallback if not found
+---@param colorName string -- Name of the color to retrieve
+---@param fallback Color|nil -- Fallback color if not found (default: white)
+---@return Color -- The color or fallback
+function Theme.getColorOrDefault(colorName, fallback)
+  local color = Theme.getColor(colorName)
+  if color then
+    return color
+  end
+  
+  return fallback or Color.new(1, 1, 1, 1)
 end
 
 -- ====================
@@ -1021,7 +1070,7 @@ function Units.getViewport()
   if Gui and Gui._cachedViewport and Gui._cachedViewport.width > 0 then
     return Gui._cachedViewport.width, Gui._cachedViewport.height
   end
-  
+
   -- Query viewport dimensions normally
   if love.graphics and love.graphics.getDimensions then
     return love.graphics.getDimensions()
@@ -1105,7 +1154,7 @@ function Units.isValid(unitStr)
   if type(unitStr) ~= "string" then
     return false
   end
-  
+
   local value, unit = Units.parse(unitStr)
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   return validUnits[unit] == true
@@ -1269,7 +1318,7 @@ local Gui = {
   baseScale = nil,
   scaleFactors = { x = 1.0, y = 1.0 },
   defaultTheme = nil,
-  _cachedViewport = { width = 0, height = 0 },  -- Cached viewport dimensions
+  _cachedViewport = { width = 0, height = 0 }, -- Cached viewport dimensions
 }
 
 --- Initialize FlexLove with configuration
@@ -1348,7 +1397,7 @@ end
 ---@return Element? -- Returns the topmost element or nil
 function Gui.getElementAtPosition(x, y)
   local candidates = {}
-  
+
   -- Recursively collect all elements that contain the point
   local function collectHits(element)
     -- Check if point is within element bounds
@@ -1356,30 +1405,30 @@ function Gui.getElementAtPosition(x, y)
     local by = element.y
     local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-    
+
     if x >= bx and x <= bx + bw and y >= by and y <= by + bh then
       -- Only consider elements with callbacks (interactive elements)
       if element.callback and not element.disabled then
         table.insert(candidates, element)
       end
-      
+
       -- Check children
       for _, child in ipairs(element.children) do
         collectHits(child)
       end
     end
   end
-  
+
   -- Collect hits from all top-level elements
   for _, element in ipairs(Gui.topElements) do
     collectHits(element)
   end
-  
+
   -- Sort by z-index (highest first)
   table.sort(candidates, function(a, b)
     return a.z > b.z
   end)
-  
+
   -- Return the topmost element (highest z-index)
   return candidates[1]
 end
@@ -1388,15 +1437,15 @@ function Gui.update(dt)
   -- Reset event handling flags for new frame
   local mx, my = love.mouse.getPosition()
   local topElement = Gui.getElementAtPosition(mx, my)
-  
+
   -- Mark which element should handle events this frame
   Gui._activeEventElement = topElement
-  
+
   -- Update all elements
   for _, win in ipairs(Gui.topElements) do
     win:update(dt)
   end
-  
+
   -- Clear active element for next frame
   Gui._activeEventElement = nil
 end
@@ -1474,15 +1523,23 @@ end
 ---@field transition table?
 --- Easing functions for animations
 local Easing = {
-  linear = function(t) return t end,
-  
-  easeInQuad = function(t) return t * t end,
-  easeOutQuad = function(t) return t * (2 - t) end,
+  linear = function(t)
+    return t
+  end,
+
+  easeInQuad = function(t)
+    return t * t
+  end,
+  easeOutQuad = function(t)
+    return t * (2 - t)
+  end,
   easeInOutQuad = function(t)
     return t < 0.5 and 2 * t * t or -1 + (4 - 2 * t) * t
   end,
-  
-  easeInCubic = function(t) return t * t * t end,
+
+  easeInCubic = function(t)
+    return t * t * t
+  end,
   easeOutCubic = function(t)
     local t1 = t - 1
     return t1 * t1 * t1 + 1
@@ -1490,13 +1547,15 @@ local Easing = {
   easeInOutCubic = function(t)
     return t < 0.5 and 4 * t * t * t or (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
   end,
-  
-  easeInQuart = function(t) return t * t * t * t end,
+
+  easeInQuart = function(t)
+    return t * t * t * t
+  end,
   easeOutQuart = function(t)
     local t1 = t - 1
     return 1 - t1 * t1 * t1 * t1
   end,
-  
+
   easeInExpo = function(t)
     return t == 0 and 0 or math.pow(2, 10 * (t - 1))
   end,
@@ -1536,15 +1595,15 @@ function Animation.new(props)
   self.transform = props.transform
   self.transition = props.transition
   self.elapsed = 0
-  
+
   -- Set easing function (default to linear)
   local easingName = props.easing or "linear"
   self.easing = Easing[easingName] or Easing.linear
-  
+
   -- Pre-allocate result table to avoid GC pressure
   self._cachedResult = {}
   self._resultDirty = true
-  
+
   return self
 end
 
@@ -1552,7 +1611,7 @@ end
 ---@return boolean
 function Animation:update(dt)
   self.elapsed = self.elapsed + dt
-  self._resultDirty = true  -- Mark cached result as dirty
+  self._resultDirty = true -- Mark cached result as dirty
   if self.elapsed >= self.duration then
     return true -- finished
   else
@@ -1566,10 +1625,10 @@ function Animation:interpolate()
   if not self._resultDirty then
     return self._cachedResult
   end
-  
+
   local t = math.min(self.elapsed / self.duration, 1)
-  t = self.easing(t)  -- Apply easing function
-  local result = self._cachedResult  -- Reuse existing table
+  t = self.easing(t) -- Apply easing function
+  local result = self._cachedResult -- Reuse existing table
 
   -- Clear previous values
   result.width = nil
@@ -1597,7 +1656,7 @@ function Animation:interpolate()
     end
   end
 
-  self._resultDirty = false  -- Mark as clean
+  self._resultDirty = false -- Mark as clean
   return result
 end
 
@@ -1643,8 +1702,8 @@ function Animation.scale(duration, fromScale, toScale)
 end
 
 local FONT_CACHE = {}
-local FONT_CACHE_MAX_SIZE = 50  -- Limit cache size to prevent unbounded growth
-local FONT_CACHE_ORDER = {}     -- Track access order for LRU eviction
+local FONT_CACHE_MAX_SIZE = 50 -- Limit cache size to prevent unbounded growth
+local FONT_CACHE_ORDER = {} -- Track access order for LRU eviction
 
 --- Create or get a font from cache
 ---@param size number
@@ -1671,10 +1730,10 @@ function FONT_CACHE.get(size, fontPath)
       -- Load default font
       FONT_CACHE[cacheKey] = love.graphics.newFont(size)
     end
-    
+
     -- Add to access order for LRU tracking
     table.insert(FONT_CACHE_ORDER, cacheKey)
-    
+
     -- Evict oldest entry if cache is full (LRU eviction)
     if #FONT_CACHE_ORDER > FONT_CACHE_MAX_SIZE then
       local oldestKey = table.remove(FONT_CACHE_ORDER, 1)
@@ -2159,7 +2218,11 @@ function Element.new(props)
   -- First, resolve padding using temporary dimensions
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
   local tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
-  self.margin = Units.resolveSpacing(props.margin, self.width, self.height)
+
+  -- Margin percentages are relative to parent's dimensions (CSS spec)
+  local parentWidth = self.parent and self.parent.width or viewportWidth
+  local parentHeight = self.parent and self.parent.height or viewportHeight
+  self.margin = Units.resolveSpacing(props.margin, parentWidth, parentHeight)
 
   -- For auto-sized elements, add padding to get border-box dimensions
   if self.autosizing.width then
@@ -2878,16 +2941,13 @@ function Element:layoutChildren()
     elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
       startPos = 0
       if #line > 1 then
-        -- Gap already accounted for in freeSpace calculation
         itemSpacing = self.gap + (freeSpace / (#line - 1))
       end
     elseif self.justifyContent == JustifyContent.SPACE_AROUND then
-      -- Gap already accounted for in freeSpace calculation
       local spaceAroundEach = freeSpace / #line
       startPos = spaceAroundEach / 2
       itemSpacing = self.gap + spaceAroundEach
     elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
-      -- Gap already accounted for in freeSpace calculation
       local spaceBetween = freeSpace / (#line + 1)
       startPos = spaceBetween
       itemSpacing = self.gap + spaceBetween
@@ -2923,9 +2983,12 @@ function Element:layoutChildren()
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childBorderBoxHeight
         elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH: Set border-box height to lineHeight, content area shrinks to fit
-          child._borderBoxHeight = lineHeight
-          child.height = math.max(0, lineHeight - child.padding.top - child.padding.bottom)
+          -- STRETCH: Only apply if height was not explicitly set
+          if child.autosizing and child.autosizing.height then
+            -- STRETCH: Set border-box height to lineHeight, content area shrinks to fit
+            child._borderBoxHeight = lineHeight
+            child.height = math.max(0, lineHeight - child.padding.top - child.padding.bottom)
+          end
           child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
         end
 
@@ -2964,9 +3027,12 @@ function Element:layoutChildren()
         elseif effectiveAlign == AlignItems.FLEX_END then
           child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childBorderBoxWidth
         elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH: Set border-box width to lineHeight, content area shrinks to fit
-          child._borderBoxWidth = lineHeight
-          child.width = math.max(0, lineHeight - child.padding.left - child.padding.right)
+          -- STRETCH: Only apply if width was not explicitly set
+          if child.autosizing and child.autosizing.width then
+            -- STRETCH: Set border-box width to lineHeight, content area shrinks to fit
+            child._borderBoxWidth = lineHeight
+            child.width = math.max(0, lineHeight - child.padding.left - child.padding.right)
+          end
           child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
         end
 
@@ -3023,7 +3089,7 @@ function Element:destroy()
 
   -- Clear animation reference
   self.animation = nil
-  
+
   -- Clear callback to prevent closure leaks
   self.callback = nil
 end
@@ -3034,7 +3100,7 @@ function Element:draw()
   if self.opacity <= 0 then
     return
   end
-  
+
   -- Handle opacity during animation
   local drawBackgroundColor = self.backgroundColor
   if self.animation then
@@ -3048,7 +3114,7 @@ function Element:draw()
   -- Cache border box dimensions for this draw call (optimization)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-  
+
   -- LAYER 1: Draw backgroundColor first (behind everything)
   -- Apply opacity to all drawing operations
   -- (x, y) represents border box, so draw background from (x, y)
@@ -3056,14 +3122,7 @@ function Element:draw()
   local backgroundWithOpacity =
     Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  RoundedRect.draw(
-    "fill",
-    self.x,
-    self.y,
-    borderBoxWidth,
-    borderBoxHeight,
-    self.cornerRadius
-  )
+  RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
   -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
   if self.themeComponent then
@@ -3100,11 +3159,15 @@ function Element:draw()
 
         if atlasToUse and component.regions then
           -- Validate component has required structure
-          local hasAllRegions = component.regions.topLeft and component.regions.topCenter and 
-                                component.regions.topRight and component.regions.middleLeft and
-                                component.regions.middleCenter and component.regions.middleRight and
-                                component.regions.bottomLeft and component.regions.bottomCenter and
-                                component.regions.bottomRight
+          local hasAllRegions = component.regions.topLeft
+            and component.regions.topCenter
+            and component.regions.topRight
+            and component.regions.middleLeft
+            and component.regions.middleCenter
+            and component.regions.middleRight
+            and component.regions.bottomLeft
+            and component.regions.bottomCenter
+            and component.regions.bottomRight
           if hasAllRegions then
             NineSlice.draw(component, atlasToUse, self.x, self.y, self.width, self.height, self.padding, self.opacity)
           else
@@ -3659,7 +3722,7 @@ function Element:calculateTextWidth()
         fontPath = themeToUse.fonts.default
       end
     end
-    
+
     local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local width = tempFont:getWidth(self.text)
     return width
@@ -3692,7 +3755,7 @@ function Element:calculateTextHeight()
         fontPath = themeToUse.fonts.default
       end
     end
-    
+
     local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local height = tempFont:getHeight()
     return height
@@ -3710,19 +3773,34 @@ function Element:calculateAutoWidth()
     return contentWidth
   end
 
+  -- For HORIZONTAL flex: sum children widths + gaps
+  -- For VERTICAL flex: max of children widths
+  local isHorizontal = self.flexDirection == "horizontal"
   local totalWidth = contentWidth
+  local maxWidth = contentWidth
   local participatingChildren = 0
+
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
       -- BORDER-BOX MODEL: Use border-box width for auto-sizing calculations
       local childBorderBoxWidth = child:getBorderBoxWidth()
-      totalWidth = totalWidth + childBorderBoxWidth
+      if isHorizontal then
+        totalWidth = totalWidth + childBorderBoxWidth
+      else
+        maxWidth = math.max(maxWidth, childBorderBoxWidth)
+      end
       participatingChildren = participatingChildren + 1
     end
   end
 
-  return totalWidth + (self.gap * participatingChildren)
+  if isHorizontal then
+    -- Add gaps between children (n-1 gaps for n children)
+    local gapCount = math.max(0, participatingChildren - 1)
+    return totalWidth + (self.gap * gapCount)
+  else
+    return maxWidth
+  end
 end
 
 --- Calculate auto height based on children
@@ -3732,19 +3810,34 @@ function Element:calculateAutoHeight()
     return height
   end
 
+  -- For VERTICAL flex: sum children heights + gaps
+  -- For HORIZONTAL flex: max of children heights
+  local isVertical = self.flexDirection == "vertical"
   local totalHeight = height
+  local maxHeight = height
   local participatingChildren = 0
+
   for _, child in ipairs(self.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
       -- BORDER-BOX MODEL: Use border-box height for auto-sizing calculations
       local childBorderBoxHeight = child:getBorderBoxHeight()
-      totalHeight = totalHeight + childBorderBoxHeight
+      if isVertical then
+        totalHeight = totalHeight + childBorderBoxHeight
+      else
+        maxHeight = math.max(maxHeight, childBorderBoxHeight)
+      end
       participatingChildren = participatingChildren + 1
     end
   end
 
-  return totalHeight + (self.gap * participatingChildren)
+  if isVertical then
+    -- Add gaps between children (n-1 gaps for n children)
+    local gapCount = math.max(0, participatingChildren - 1)
+    return totalHeight + (self.gap * gapCount)
+  else
+    return maxHeight
+  end
 end
 
 ---@param newText string
@@ -3769,4 +3862,23 @@ Gui.new = Element.new
 Gui.Element = Element
 Gui.Animation = Animation
 Gui.Theme = Theme
-return { GUI = Gui, Gui = Gui, Element = Element, Color = Color, Theme = Theme, Animation = Animation, enums = enums }
+
+-- Export individual enums for convenience
+return {
+  GUI = Gui,
+  Gui = Gui,
+  Element = Element,
+  Color = Color,
+  Theme = Theme,
+  Animation = Animation,
+  enums = enums,
+  -- Export individual enums at top level
+  Positioning = Positioning,
+  FlexDirection = FlexDirection,
+  JustifyContent = JustifyContent,
+  AlignItems = AlignItems,
+  AlignSelf = AlignSelf,
+  AlignContent = AlignContent,
+  FlexWrap = FlexWrap,
+  TextAlign = TextAlign,
+}

@@ -16,6 +16,7 @@ function TestEventSystem:setUp()
   -- Initialize GUI before each test
   Gui.init({ baseScale = { width = 1920, height = 1080 } })
   love.window.setMode(1920, 1080)
+  Gui.resize(1920, 1080) -- Recalculate scale factors after setMode
 end
 
 function TestEventSystem:tearDown()

@@ -189,11 +189,11 @@ function TestAlignItems:testHorizontalFlexAlignItemsStretch()
   container:addChild(child1)
   container:addChild(child2)
 
-  -- Children should be stretched to fill container height
+  -- Children with explicit heights should NOT be stretched (CSS flexbox behavior)
   luaunit.assertEquals(child1.y, 0)
   luaunit.assertEquals(child2.y, 0)
-  luaunit.assertEquals(child1.height, 100)
-  luaunit.assertEquals(child2.height, 100)
+  luaunit.assertEquals(child1.height, 30)  -- Keeps explicit height
+  luaunit.assertEquals(child2.height, 40)  -- Keeps explicit height
 end
 
 -- Test 5: Vertical Flex with AlignItems.FLEX_START
@@ -357,11 +357,11 @@ function TestAlignItems:testVerticalFlexAlignItemsStretch()
   container:addChild(child1)
   container:addChild(child2)
 
-  -- Children should be stretched to fill container width
+  -- Children with explicit widths should NOT be stretched (CSS flexbox behavior)
   luaunit.assertEquals(child1.x, 0)
   luaunit.assertEquals(child2.x, 0)
-  luaunit.assertEquals(child1.width, 200)
-  luaunit.assertEquals(child2.width, 200)
+  luaunit.assertEquals(child1.width, 50)  -- Keeps explicit width
+  luaunit.assertEquals(child2.width, 80)  -- Keeps explicit width
 end
 
 -- Test 9: Default AlignItems value (should be STRETCH)
@@ -386,9 +386,9 @@ function TestAlignItems:testDefaultAlignItems()
 
   container:addChild(child)
 
-  -- Default should be STRETCH
+  -- Default should be STRETCH, but explicit heights are respected
   luaunit.assertEquals(container.alignItems, AlignItems.STRETCH)
-  luaunit.assertEquals(child.height, 100) -- Should be stretched
+  luaunit.assertEquals(child.height, 30) -- Keeps explicit height (CSS flexbox behavior)
 end
 
 -- Test 10: AlignItems with mixed child sizes

@@ -280,12 +280,12 @@ function TestFlexWrap07_WrapWithStretchAlignItems()
 
   local positions = layoutAndGetPositions(container)
 
-  -- All children in first line should stretch to tallest (35)
-  luaunit.assertEquals(positions[1].height, 35) -- child1 stretched
-  luaunit.assertEquals(positions[2].height, 35) -- child2 keeps height
+  -- Children with explicit heights should keep them (CSS flexbox behavior)
+  luaunit.assertEquals(positions[1].height, 20) -- child1 keeps explicit height
+  luaunit.assertEquals(positions[2].height, 35) -- child2 keeps explicit height
 
-  -- Child in second line should keep its height (no other children to stretch to)
-  luaunit.assertEquals(positions[3].height, 25) -- child3 original height
+  -- Child in second line should keep its height
+  luaunit.assertEquals(positions[3].height, 25) -- child3 keeps explicit height
 
   -- Verify positions
   luaunit.assertEquals(positions[1].y, 0) -- First line

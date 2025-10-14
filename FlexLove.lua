@@ -1,4 +1,256 @@
--- Utility class for color handling
+--[[
+================================================================================
+FlexLove - Flexible UI Library for LÖVE Framework
+================================================================================
+
+A comprehensive UI library providing flexbox/grid layouts, theming, animations,
+and event handling for LÖVE2D games.
+
+ARCHITECTURE OVERVIEW:
+---------------------
+1. Color System      - RGBA color utilities with hex conversion
+2. Theme System      - 9-slice theming with state support (normal/hover/pressed/disabled)
+3. Units System      - Responsive units (px, %, vw, vh, ew, eh) with viewport scaling
+4. Layout System     - Flexbox, Grid, Absolute, and Relative positioning
+5. Event System      - Mouse/touch events with z-index ordering
+6. Animation System  - Interpolation with easing functions
+7. GUI Manager       - Top-level manager for elements and global state
+
+API CONVENTIONS:
+---------------
+- Constructors:      ClassName.new(props) -> instance
+- Static Methods:    ClassName.methodName(args) -> result
+- Instance Methods:  instance:methodName(args) -> result
+- Getters:           instance:getPropertyName() -> value
+- Internal Fields:   _fieldName (private, do not access directly)
+- Error Handling:    Constructors throw errors, utility functions return nil + error string
+
+NAMING PATTERNS:
+---------------
+- Classes:           PascalCase (Element, Theme, Color)
+- Functions:         camelCase (resolveImagePath, getViewport)
+- Properties:        camelCase (backgroundColor, textColor, cornerRadius)
+- Constants:         UPPER_SNAKE_CASE (TEXT_SIZE_PRESETS, FONT_CACHE_MAX_SIZE)
+- Private:           _prefixedCamelCase (_pressed, _themeState, _borderBoxWidth)
+
+PARAMETER ORDERING:
+------------------
+- Position:          (x, y, width, height) - standard order
+- Units:             (value, unit, viewportW, viewportH, parentSize) - value first
+- Drawing:           (element, position, dimensions, styling, opacity) - element first
+
+RETURN VALUE PATTERNS:
+---------------------
+- Single Success:    return value
+- Success/Failure:   return result, errorMessage (nil on success for error)
+- Multiple Values:   return value1, value2 (documented in @return)
+- Constructors:      Always return instance (never nil)
+
+USAGE EXAMPLE:
+-------------
+```lua
+local FlexLove = require("libs.FlexLove")
+
+-- Initialize with base scaling and theme
+FlexLove.Gui.init({
+  baseScale = { width = 1920, height = 1080 },
+  theme = "space"
+})
+
+-- Create a button with flexbox layout
+local button = FlexLove.Element.new({
+  width = "20vw",
+  height = "10vh",
+  backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.8, 1),
+  text = "Click Me",
+  textSize = "md",
+  themeComponent = "button",
+  callback = function(element, event)
+    print("Button clicked!")
+  end
+})
+
+-- In your love.update and love.draw:
+function love.update(dt)
+  FlexLove.Gui.update(dt)
+end
+
+function love.draw()
+  FlexLove.Gui.draw()
+end
+```
+
+ADDITIONAL EXAMPLES:
+-------------------
+
+1. Creating Colors:
+```lua
+-- From RGB values (0-1 range)
+local red = FlexLove.Color.new(1, 0, 0, 1)
+
+-- From hex string
+local blue = FlexLove.Color.fromHex("#0000FF")
+local semiTransparent = FlexLove.Color.fromHex("#FF000080")
+```
+
+2. Responsive Units:
+```lua
+-- Viewport-relative units
+local container = FlexLove.Element.new({
+  width = "50vw",   -- 50% of viewport width
+  height = "30vh",  -- 30% of viewport height
+  padding = { horizontal = "2vw", vertical = "1vh" }
+})
+
+-- Percentage units (relative to parent)
+local child = FlexLove.Element.new({
+  parent = container,
+  width = "80%",    -- 80% of parent width
+  height = "50%"    -- 50% of parent height
+})
+```
+
+3. Flexbox Layout:
+```lua
+-- Horizontal flex container
+local row = FlexLove.Element.new({
+  positioning = FlexLove.Positioning.FLEX,
+  flexDirection = FlexLove.FlexDirection.HORIZONTAL,
+  justifyContent = FlexLove.JustifyContent.SPACE_BETWEEN,
+  alignItems = FlexLove.AlignItems.CENTER,
+  gap = 10,
+  width = "80vw",
+  height = "10vh"
+})
+
+-- Add children
+for i = 1, 3 do
+  FlexLove.Element.new({
+    parent = row,
+    width = "20vw",
+    height = "8vh",
+    text = "Item " .. i
+  })
+end
+```
+
+4. Grid Layout:
+```lua
+-- 3x3 grid
+local grid = FlexLove.Element.new({
+  positioning = FlexLove.Positioning.GRID,
+  gridRows = 3,
+  gridColumns = 3,
+  columnGap = 10,
+  rowGap = 10,
+  width = "60vw",
+  height = "60vh"
+})
+
+-- Add 9 children (auto-placed in grid)
+for i = 1, 9 do
+  FlexLove.Element.new({
+    parent = grid,
+    text = "Cell " .. i
+  })
+end
+```
+
+5. Theming:
+```lua
+-- Load and activate a theme
+FlexLove.Theme.load("space")
+FlexLove.Theme.setActive("space")
+
+-- Use theme component
+local button = FlexLove.Element.new({
+  themeComponent = "button",
+  text = "Themed Button",
+  callback = function(element, event)
+    print("Clicked!")
+  end
+})
+
+-- Access theme resources
+local primaryColor = FlexLove.Theme.getColor("primary")
+local headingFont = FlexLove.Theme.getFont("heading")
+```
+
+6. Animations:
+```lua
+-- Fade animation
+local fadeIn = FlexLove.Animation.fade(1.0, 0, 1)
+fadeIn:apply(element)
+
+-- Scale animation
+local scaleUp = FlexLove.Animation.scale(0.5, 
+  { width = 100, height = 50 },
+  { width = 200, height = 100 }
+)
+scaleUp:apply(element)
+
+-- Custom animation with easing
+local customAnim = FlexLove.Animation.new({
+  duration = 1.0,
+  start = { opacity = 0, width = 100 },
+  final = { opacity = 1, width = 200 },
+  easing = "easeInOutCubic"
+})
+customAnim:apply(element)
+```
+
+7. Event Handling:
+```lua
+local button = FlexLove.Element.new({
+  text = "Interactive",
+  callback = function(element, event)
+    if event.type == "click" then
+      print("Clicked with button:", event.button)
+      print("Position:", event.x, event.y)
+      print("Modifiers:", event.modifiers.shift, event.modifiers.ctrl)
+    elseif event.type == "press" then
+      print("Button pressed")
+    elseif event.type == "release" then
+      print("Button released")
+    end
+  end
+})
+```
+
+VERSION: 1.0.0
+LICENSE: MIT
+================================================================================
+]]
+
+-- ====================
+-- Error Handling Utilities
+-- ====================
+
+--- Standardized error message formatter
+---@param module string -- Module name (e.g., "Color", "Theme", "Units")
+---@param message string -- Error message
+---@return string -- Formatted error message
+local function formatError(module, message)
+  return string.format("[FlexLove.%s] %s", module, message)
+end
+
+--- Safe function call wrapper with error handling
+---@param fn function -- Function to call
+---@param errorContext string? -- Optional context for error message
+---@return boolean success, any result -- Returns success status and result or error message
+local function safecall(fn, errorContext)
+  local success, result = pcall(fn)
+  if not success and errorContext then
+    print(formatError("Core", errorContext .. ": " .. tostring(result)))
+  end
+  return success, result
+end
+
+-- ====================
+-- Color System
+-- ====================
+
+--- Utility class for color handling
 ---@class Color
 ---@field r number -- Red component (0-1)
 ---@field g number -- Green component (0-1)
@@ -28,8 +280,10 @@ function Color:toRGBA()
 end
 
 --- Convert hex string to color
+--- Supports both 6-digit (#RRGGBB) and 8-digit (#RRGGBBAA) hex formats
 ---@param hexWithTag string -- e.g. "#RRGGBB" or "#RRGGBBAA"
 ---@return Color
+---@throws Error if hex string format is invalid
 function Color.fromHex(hexWithTag)
   local hex = hexWithTag:gsub("#", "")
   if #hex == 6 then
@@ -44,7 +298,7 @@ function Color.fromHex(hexWithTag)
     local a = tonumber("0x" .. hex:sub(7, 8)) / 255
     return Color.new(r, g, b, a)
   else
-    error("Invalid hex string")
+    error(formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag)))
   end
 end
 
@@ -138,10 +392,64 @@ local function resolveImagePath(imagePath)
   return FLEXLOVE_FILESYSTEM_PATH .. "/" .. imagePath
 end
 
+--- Safely load an image with error handling
+---@param imagePath string
+---@return love.Image?, string? -- Returns image or nil, error message
+local function safeLoadImage(imagePath)
+  local success, result = pcall(function()
+    return love.graphics.newImage(imagePath)
+  end)
+  
+  if success then
+    return result, nil
+  else
+    local errorMsg = string.format("[FlexLove] Failed to load image: %s - %s", imagePath, tostring(result))
+    print(errorMsg)
+    return nil, errorMsg
+  end
+end
+
 --- Create a new theme instance
 ---@param definition ThemeDefinition
 ---@return Theme
+--- Validate theme definition structure
+---@param definition ThemeDefinition
+---@return boolean, string? -- Returns true if valid, or false with error message
+local function validateThemeDefinition(definition)
+  if not definition then
+    return false, "Theme definition is nil"
+  end
+  
+  if type(definition) ~= "table" then
+    return false, "Theme definition must be a table"
+  end
+  
+  if not definition.name or type(definition.name) ~= "string" then
+    return false, "Theme must have a 'name' field (string)"
+  end
+  
+  if definition.components and type(definition.components) ~= "table" then
+    return false, "Theme 'components' must be a table"
+  end
+  
+  if definition.colors and type(definition.colors) ~= "table" then
+    return false, "Theme 'colors' must be a table"
+  end
+  
+  if definition.fonts and type(definition.fonts) ~= "table" then
+    return false, "Theme 'fonts' must be a table"
+  end
+  
+  return true, nil
+end
+
 function Theme.new(definition)
+  -- Validate theme definition
+  local valid, err = validateThemeDefinition(definition)
+  if not valid then
+    error("[FlexLove] Invalid theme definition: " .. tostring(err))
+  end
+  
   local self = setmetatable({}, Theme)
   self.name = definition.name
 
@@ -149,7 +457,12 @@ function Theme.new(definition)
   if definition.atlas then
     if type(definition.atlas) == "string" then
       local resolvedPath = resolveImagePath(definition.atlas)
-      self.atlas = love.graphics.newImage(resolvedPath)
+      local image, err = safeLoadImage(resolvedPath)
+      if image then
+        self.atlas = image
+      else
+        print("[FlexLove] Warning: Failed to load global atlas for theme '" .. definition.name .. "'")
+      end
     else
       self.atlas = definition.atlas
     end
@@ -164,7 +477,12 @@ function Theme.new(definition)
     if component.atlas then
       if type(component.atlas) == "string" then
         local resolvedPath = resolveImagePath(component.atlas)
-        component._loadedAtlas = love.graphics.newImage(resolvedPath)
+        local image, err = safeLoadImage(resolvedPath)
+        if image then
+          component._loadedAtlas = image
+        else
+          print("[FlexLove] Warning: Failed to load atlas for component '" .. componentName .. "'")
+        end
       else
         component._loadedAtlas = component.atlas
       end
@@ -249,9 +567,9 @@ function Theme.getActive()
 end
 
 --- Get a component from the active theme
----@param componentName string
----@param state string?
----@return ThemeComponent?
+---@param componentName string -- Name of the component (e.g., "button", "panel")
+---@param state string? -- Optional state (e.g., "hover", "pressed", "disabled")
+---@return ThemeComponent? -- Returns component or nil if not found
 function Theme.getComponent(componentName, state)
   if not activeTheme then
     return nil
@@ -268,6 +586,44 @@ function Theme.getComponent(componentName, state)
   end
 
   return component
+end
+
+--- Get a font from the active theme
+---@param fontName string -- Name of the font family (e.g., "default", "heading")
+---@return string? -- Returns font path or nil if not found
+function Theme.getFont(fontName)
+  if not activeTheme then
+    return nil
+  end
+  
+  return activeTheme.fonts and activeTheme.fonts[fontName]
+end
+
+--- Get a color from the active theme
+---@param colorName string -- Name of the color (e.g., "primary", "secondary")
+---@return Color? -- Returns Color instance or nil if not found
+function Theme.getColor(colorName)
+  if not activeTheme then
+    return nil
+  end
+  
+  return activeTheme.colors and activeTheme.colors[colorName]
+end
+
+--- Check if a theme is currently active
+---@return boolean -- Returns true if a theme is active
+function Theme.hasActive()
+  return activeTheme ~= nil
+end
+
+--- Get all registered theme names
+---@return table<string> -- Array of theme names
+function Theme.getRegisteredThemes()
+  local themeNames = {}
+  for name, _ in pairs(themes) do
+    table.insert(themeNames, name)
+  end
+  return themeNames
 end
 
 -- ====================
@@ -635,18 +991,19 @@ function Units.parse(value)
 end
 
 --- Convert relative units to pixels based on viewport and parent dimensions
----@param value number
----@param unit string
----@param viewportWidth number
----@param viewportHeight number
----@param parentSize number? -- Required for percentage units
----@return number -- Pixel value
+---@param value number -- Numeric value to convert
+---@param unit string -- Unit type ("px", "%", "vw", "vh", "ew", "eh")
+---@param viewportWidth number -- Current viewport width in pixels
+---@param viewportHeight number -- Current viewport height in pixels
+---@param parentSize number? -- Required for percentage units (parent dimension)
+---@return number -- Resolved pixel value
+---@throws Error if unit type is unknown or percentage used without parent size
 function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
   if unit == "px" then
     return value
   elseif unit == "%" then
     if not parentSize then
-      error("Percentage units require parent dimension")
+      error(formatError("Units", "Percentage units require parent dimension"))
     end
     return (value / 100) * parentSize
   elseif unit == "vw" then
@@ -654,18 +1011,22 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
   elseif unit == "vh" then
     return (value / 100) * viewportHeight
   else
-    error("Unknown unit type: " .. unit)
+    error(formatError("Units", string.format("Unknown unit type: '%s'. Valid units: px, %%, vw, vh, ew, eh", unit)))
   end
 end
 
 ---@return number, number -- width, height
 function Units.getViewport()
-  -- Try both functions to be compatible with different love versions and test environments
+  -- Return cached viewport if available (only during resize operations)
+  if Gui and Gui._cachedViewport and Gui._cachedViewport.width > 0 then
+    return Gui._cachedViewport.width, Gui._cachedViewport.height
+  end
+  
+  -- Query viewport dimensions normally
   if love.graphics and love.graphics.getDimensions then
     return love.graphics.getDimensions()
   else
-    local w, h = love.window.getMode()
-    return w, h
+    return love.window.getMode()
   end
 end
 
@@ -735,6 +1096,30 @@ function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
   end
 
   return result
+end
+
+--- Check if a unit string is valid
+---@param unitStr string -- Unit string to validate (e.g., "10px", "50%", "20vw")
+---@return boolean -- Returns true if unit string is valid
+function Units.isValid(unitStr)
+  if type(unitStr) ~= "string" then
+    return false
+  end
+  
+  local value, unit = Units.parse(unitStr)
+  local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
+  return validUnits[unit] == true
+end
+
+--- Parse and resolve a unit value in one call
+---@param value string|number -- Value to parse and resolve
+---@param viewportWidth number -- Current viewport width
+---@param viewportHeight number -- Current viewport height
+---@param parentSize number? -- Parent dimension for percentage units
+---@return number -- Resolved pixel value
+function Units.parseAndResolve(value, viewportWidth, viewportHeight, parentSize)
+  local numValue, unit = Units.parse(value)
+  return Units.resolve(numValue, unit, viewportWidth, viewportHeight, parentSize)
 end
 
 -- ====================
@@ -884,6 +1269,7 @@ local Gui = {
   baseScale = nil,
   scaleFactors = { x = 1.0, y = 1.0 },
   defaultTheme = nil,
+  _cachedViewport = { width = 0, height = 0 },  -- Cached viewport dimensions
 }
 
 --- Initialize FlexLove with configuration
@@ -956,10 +1342,63 @@ function Gui.draw()
   end
 end
 
+--- Find the topmost element at given coordinates (considering z-index)
+---@param x number
+---@param y number
+---@return Element? -- Returns the topmost element or nil
+function Gui.getElementAtPosition(x, y)
+  local candidates = {}
+  
+  -- Recursively collect all elements that contain the point
+  local function collectHits(element)
+    -- Check if point is within element bounds
+    local bx = element.x
+    local by = element.y
+    local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+    local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+    
+    if x >= bx and x <= bx + bw and y >= by and y <= by + bh then
+      -- Only consider elements with callbacks (interactive elements)
+      if element.callback and not element.disabled then
+        table.insert(candidates, element)
+      end
+      
+      -- Check children
+      for _, child in ipairs(element.children) do
+        collectHits(child)
+      end
+    end
+  end
+  
+  -- Collect hits from all top-level elements
+  for _, element in ipairs(Gui.topElements) do
+    collectHits(element)
+  end
+  
+  -- Sort by z-index (highest first)
+  table.sort(candidates, function(a, b)
+    return a.z > b.z
+  end)
+  
+  -- Return the topmost element (highest z-index)
+  return candidates[1]
+end
+
 function Gui.update(dt)
+  -- Reset event handling flags for new frame
+  local mx, my = love.mouse.getPosition()
+  local topElement = Gui.getElementAtPosition(mx, my)
+  
+  -- Mark which element should handle events this frame
+  Gui._activeEventElement = topElement
+  
+  -- Update all elements
   for _, win in ipairs(Gui.topElements) do
     win:update(dt)
   end
+  
+  -- Clear active element for next frame
+  Gui._activeEventElement = nil
 end
 
 --- Destroy all elements and their children
@@ -1033,6 +1472,39 @@ end
 ---@field elapsed number
 ---@field transform table?
 ---@field transition table?
+--- Easing functions for animations
+local Easing = {
+  linear = function(t) return t end,
+  
+  easeInQuad = function(t) return t * t end,
+  easeOutQuad = function(t) return t * (2 - t) end,
+  easeInOutQuad = function(t)
+    return t < 0.5 and 2 * t * t or -1 + (4 - 2 * t) * t
+  end,
+  
+  easeInCubic = function(t) return t * t * t end,
+  easeOutCubic = function(t)
+    local t1 = t - 1
+    return t1 * t1 * t1 + 1
+  end,
+  easeInOutCubic = function(t)
+    return t < 0.5 and 4 * t * t * t or (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
+  end,
+  
+  easeInQuart = function(t) return t * t * t * t end,
+  easeOutQuart = function(t)
+    local t1 = t - 1
+    return 1 - t1 * t1 * t1 * t1
+  end,
+  
+  easeInExpo = function(t)
+    return t == 0 and 0 or math.pow(2, 10 * (t - 1))
+  end,
+  easeOutExpo = function(t)
+    return t == 1 and 1 or 1 - math.pow(2, -10 * t)
+  end,
+}
+
 local Animation = {}
 Animation.__index = Animation
 
@@ -1064,6 +1536,15 @@ function Animation.new(props)
   self.transform = props.transform
   self.transition = props.transition
   self.elapsed = 0
+  
+  -- Set easing function (default to linear)
+  local easingName = props.easing or "linear"
+  self.easing = Easing[easingName] or Easing.linear
+  
+  -- Pre-allocate result table to avoid GC pressure
+  self._cachedResult = {}
+  self._resultDirty = true
+  
   return self
 end
 
@@ -1071,6 +1552,7 @@ end
 ---@return boolean
 function Animation:update(dt)
   self.elapsed = self.elapsed + dt
+  self._resultDirty = true  -- Mark cached result as dirty
   if self.elapsed >= self.duration then
     return true -- finished
   else
@@ -1080,8 +1562,19 @@ end
 
 ---@return table
 function Animation:interpolate()
+  -- Return cached result if not dirty (avoids recalculation)
+  if not self._resultDirty then
+    return self._cachedResult
+  end
+  
   local t = math.min(self.elapsed / self.duration, 1)
-  local result = {}
+  t = self.easing(t)  -- Apply easing function
+  local result = self._cachedResult  -- Reuse existing table
+
+  -- Clear previous values
+  result.width = nil
+  result.height = nil
+  result.opacity = nil
 
   -- Handle width and height if present
   if self.start.width and self.final.width then
@@ -1104,6 +1597,7 @@ function Animation:interpolate()
     end
   end
 
+  self._resultDirty = false  -- Mark as clean
   return result
 end
 
@@ -1149,6 +1643,8 @@ function Animation.scale(duration, fromScale, toScale)
 end
 
 local FONT_CACHE = {}
+local FONT_CACHE_MAX_SIZE = 50  -- Limit cache size to prevent unbounded growth
+local FONT_CACHE_ORDER = {}     -- Track access order for LRU eviction
 
 --- Create or get a font from cache
 ---@param size number
@@ -1174,6 +1670,15 @@ function FONT_CACHE.get(size, fontPath)
     else
       -- Load default font
       FONT_CACHE[cacheKey] = love.graphics.newFont(size)
+    end
+    
+    -- Add to access order for LRU tracking
+    table.insert(FONT_CACHE_ORDER, cacheKey)
+    
+    -- Evict oldest entry if cache is full (LRU eviction)
+    if #FONT_CACHE_ORDER > FONT_CACHE_MAX_SIZE then
+      local oldestKey = table.remove(FONT_CACHE_ORDER, 1)
+      FONT_CACHE[oldestKey] = nil
     end
   end
   return FONT_CACHE[cacheKey]
@@ -1219,6 +1724,33 @@ end
 -- ====================
 -- Element Object
 -- ====================
+
+--[[
+INTERNAL FIELD NAMING CONVENTIONS:
+---------------------------------
+Fields prefixed with underscore (_) are internal/private and should not be accessed directly:
+
+- _pressed: Internal state tracking for mouse button presses
+- _lastClickTime: Internal timestamp for double-click detection
+- _lastClickButton: Internal button tracking for click events
+- _clickCount: Internal counter for multi-click detection
+- _touchPressed: Internal touch state tracking
+- _themeState: Internal current theme state (managed automatically)
+- _borderBoxWidth: Internal cached border-box width (optimization)
+- _borderBoxHeight: Internal cached border-box height (optimization)
+- _explicitlyAbsolute: Internal flag for positioning logic
+- _originalPositioning: Internal original positioning value
+- _cachedResult: Internal animation cache (Animation class)
+- _resultDirty: Internal animation dirty flag (Animation class)
+- _loadedAtlas: Internal cached atlas image (ThemeComponent)
+- _cachedViewport: Internal viewport cache (Gui class)
+
+Public API methods to access internal state:
+- Element:getBorderBoxWidth() - Get border-box width
+- Element:getBorderBoxHeight() - Get border-box height
+- Element:getBounds() - Get element bounds
+]]
+
 ---@class Element
 ---@field id string
 ---@field autosizing {width:boolean, height:boolean} -- Whether the element should automatically size to fit its children
@@ -2488,10 +3020,18 @@ function Element:destroy()
 
   -- Clear animation reference
   self.animation = nil
+  
+  -- Clear callback to prevent closure leaks
+  self.callback = nil
 end
 
 --- Draw element and its children
 function Element:draw()
+  -- Early exit if element is invisible (optimization)
+  if self.opacity <= 0 then
+    return
+  end
+  
   -- Handle opacity during animation
   local drawBackgroundColor = self.backgroundColor
   if self.animation then
@@ -2502,6 +3042,10 @@ function Element:draw()
     end
   end
 
+  -- Cache border box dimensions for this draw call (optimization)
+  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+  
   -- LAYER 1: Draw backgroundColor first (behind everything)
   -- Apply opacity to all drawing operations
   -- (x, y) represents border box, so draw background from (x, y)
@@ -2513,8 +3057,8 @@ function Element:draw()
     "fill",
     self.x,
     self.y,
-    self._borderBoxWidth or (self.width + self.padding.left + self.padding.right),
-    self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom),
+    borderBoxWidth,
+    borderBoxHeight,
     self.cornerRadius
   )
 
@@ -2551,10 +3095,18 @@ function Element:draw()
         -- Use component-specific atlas if available, otherwise use theme atlas
         local atlasToUse = component._loadedAtlas or themeToUse.atlas
 
-        if atlasToUse then
-          NineSlice.draw(component, atlasToUse, self.x, self.y, self.width, self.height, self.padding, self.opacity)
-        else
-          print("[FlexLove] No atlas for component: " .. self.themeComponent)
+        if atlasToUse and component.regions then
+          -- Validate component has required structure
+          local hasAllRegions = component.regions.topLeft and component.regions.topCenter and 
+                                component.regions.topRight and component.regions.middleLeft and
+                                component.regions.middleCenter and component.regions.middleRight and
+                                component.regions.bottomLeft and component.regions.bottomCenter and
+                                component.regions.bottomRight
+          if hasAllRegions then
+            NineSlice.draw(component, atlasToUse, self.x, self.y, self.width, self.height, self.padding, self.opacity)
+          else
+            -- Silently skip drawing if component structure is invalid
+          end
         end
       else
         print("[FlexLove] Component not found: " .. self.themeComponent .. " in theme: " .. themeToUse.name)
@@ -2571,10 +3123,6 @@ function Element:draw()
 
   -- Check if all borders are enabled
   local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
-
-  -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
-  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
   if allBorders then
     -- Draw complete rounded rectangle border
@@ -2774,8 +3322,10 @@ function Element:update(dt)
       end
     end
 
-    -- Only process button events if callback exists and element is not disabled
-    if self.callback and not self.disabled then
+    -- Only process button events if callback exists, element is not disabled,
+    -- and this is the topmost element at the mouse position (z-index ordering)
+    local isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
+    if self.callback and not self.disabled and isActiveElement then
       -- Check all three mouse buttons
       local buttons = { 1, 2, 3 } -- left, right, middle
 

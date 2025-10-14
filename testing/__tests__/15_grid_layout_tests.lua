@@ -269,7 +269,7 @@ function TestGridLayout:test_nested_grids()
   -- Inner grid should be stretched to fill outer grid cell (200x200)
   lu.assertAlmostEquals(innerGrid.width, 200, 1)
   lu.assertAlmostEquals(innerGrid.height, 200, 1)
-  
+
   -- Items in inner grid should be positioned correctly
   -- Each cell in inner grid is 100x100
   lu.assertAlmostEquals(item1.x, 0, 1)
@@ -342,4 +342,4 @@ function TestGridLayout:test_single_cell_grid()
 end
 
 print("Running Simplified Grid Layout Tests...")
-os.exit(lu.LuaUnit.run())
+lu.LuaUnit.run()

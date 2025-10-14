@@ -1,5 +1,7 @@
+package.path = package.path .. ";?.lua"
+
 local lu = require("testing.luaunit")
-require("testing.loveStub")
+require("testing.loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
 
 TestNegativeMargin = {}
@@ -331,4 +333,5 @@ function TestNegativeMargin:testNegativeMarginInNestedElements()
   lu.assertEquals(child.margin.left, -10)
 end
 
-return TestNegativeMargin
+print("Running Negative Margin Tests...")
+lu.LuaUnit.run()

@@ -1,5 +1,7 @@
+package.path = package.path .. ";?.lua"
+
 local lu = require("testing.luaunit")
-require("testing.loveStub")
+require("testing.loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
 
 TestFontFamilyInheritance = {}
@@ -219,4 +221,5 @@ function TestFontFamilyInheritance:testInheritanceDoesNotAffectSiblings()
   lu.assertNotEquals(child2.fontFamily, child1.fontFamily, "Siblings should have independent fontFamily values")
 end
 
-return TestFontFamilyInheritance
+print("Running Font Family Inheritance Tests...")
+lu.LuaUnit.run()

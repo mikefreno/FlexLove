@@ -1,14 +1,13 @@
 -- Test: Sibling Space Reservation in Flex and Grid Layouts
 -- Purpose: Verify that absolutely positioned siblings with explicit positioning
 --          properly reserve space in flex and grid containers
+package.path = package.path .. ";?.lua"
 
 local lu = require("testing.luaunit")
-local FlexLove = require("libs.FlexLove")
+require("testing.loveStub") -- Required to mock LOVE functions
+local FlexLove = require("FlexLove")
 local Gui = FlexLove.GUI
 local Color = FlexLove.Color
-
--- Mock love.graphics and love.window
-_G.love = require("testing.loveStub")
 
 TestSiblingSpaceReservation = {}
 
@@ -106,7 +105,7 @@ function TestSiblingSpaceReservation:test_flex_horizontal_right_positioned_sibli
   -- The flex child (width 100) should fit within this space
   -- Child should start at x = 0
   lu.assertEquals(flexChild.x, 0, "Flex child should start at container left edge")
-  
+
   -- The absolutely positioned sibling should be at the right edge
   -- x = container.x + container.width + padding.left - right - (width + padding)
   -- = 0 + 1000 + 0 - 10 - 50 = 940
@@ -208,7 +207,7 @@ function TestSiblingSpaceReservation:test_flex_horizontal_multiple_positioned_si
   -- Available space: 1000 - 45 - 45 = 910px
   -- First flex child should start at x = 0 + 0 + 45 = 45
   lu.assertEquals(flexChild1.x, 45, "First flex child should start after left sibling")
-  
+
   -- Second flex child should start at x = 45 + 100 + gap = 145 (assuming gap=10)
   lu.assertIsTrue(flexChild2.x >= 145, "Second flex child should be positioned after first")
 end
@@ -434,4 +433,5 @@ function TestSiblingSpaceReservation:test_absolute_without_positioning_offsets_d
   lu.assertEquals(flexChild.x, 0, "Absolute children without positioning offsets should not reserve space")
 end
 
-return TestSiblingSpaceReservation
+print("Running Sibling Space Reservation Tests...")
+lu.LuaUnit.run()

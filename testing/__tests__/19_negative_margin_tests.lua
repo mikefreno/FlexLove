@@ -8,7 +8,7 @@ TestNegativeMargin = {}
 
 function TestNegativeMargin:setUp()
   FlexLove.Gui.destroy()
-  FlexLove.Gui.init({ baseScale = { width = 1920, height = 1080 } })
+  -- Don't call init to use 1:1 scaling (like other tests)
 end
 
 function TestNegativeMargin:tearDown()

@@ -140,6 +140,7 @@ function TestAuxiliaryFunctions:testCalculateAutoWidthWithChildren()
   local parent = Gui.new({
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.HORIZONTAL,
+    gap = 5, -- Add gap to test gap calculation
   })
 
   local child1 = Gui.new({
@@ -172,6 +173,7 @@ function TestAuxiliaryFunctions:testCalculateAutoHeightWithChildren()
   local parent = Gui.new({
     positioning = enums.Positioning.FLEX,
     flexDirection = enums.FlexDirection.VERTICAL,
+    gap = 5, -- Add gap to test gap calculation
   })
 
   local child1 = Gui.new({
@@ -491,18 +493,21 @@ function TestAuxiliaryFunctions:testAnimationInterpolationAtBoundaries()
 
   -- At start (elapsed = 0)
   scaleAnim.elapsed = 0
+  scaleAnim._resultDirty = true  -- Mark dirty after changing elapsed
   local result = scaleAnim:interpolate()
   luaunit.assertEquals(result.width, 100)
   luaunit.assertEquals(result.height, 50)
 
   -- At end (elapsed = duration)
   scaleAnim.elapsed = 1.0
+  scaleAnim._resultDirty = true  -- Mark dirty after changing elapsed
   result = scaleAnim:interpolate()
   luaunit.assertEquals(result.width, 200)
   luaunit.assertEquals(result.height, 100)
 
   -- Beyond end (elapsed > duration) - should clamp to end values
   scaleAnim.elapsed = 1.5
+  scaleAnim._resultDirty = true  -- Mark dirty after changing elapsed
   result = scaleAnim:interpolate()
   luaunit.assertEquals(result.width, 200)
   luaunit.assertEquals(result.height, 100)
@@ -594,11 +599,11 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
   end
 
   -- Test color variations (opacity, brightness adjustments)
+  local opacities = { 0.1, 0.25, 0.5, 0.75, 0.9 }
   for color_name, color_set in pairs(theme_colors) do
     color_variations[color_name] = {}
 
     -- Create opacity variations
-    local opacities = { 0.1, 0.25, 0.5, 0.75, 0.9 }
     for _, opacity in ipairs(opacities) do
       local variant_color = Color.new(color_set.manual.r, color_set.manual.g, color_set.manual.b, opacity)
       color_variations[color_name]["alpha_" .. tostring(opacity)] = variant_color
@@ -678,7 +683,13 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
   ui_container:layoutChildren()
 
   luaunit.assertEquals(#ui_container.children, 5, "Should have 5 themed components")
-  luaunit.assertEquals(#theme_colors, 5, "Should have 5 base theme colors")
+  
+  -- Count theme_colors (it's a table with string keys, not an array)
+  local theme_color_count = 0
+  for _ in pairs(theme_colors) do
+    theme_color_count = theme_color_count + 1
+  end
+  luaunit.assertEquals(theme_color_count, 5, "Should have 5 base theme colors")
 
   local total_variations = 0
   for _, variations in pairs(color_variations) do
@@ -902,6 +913,7 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
   table.insert(main_container.children, nested_container)
 
   -- Create nested structure with auto-sizing children
+  local prev_container = nested_container
   for level = 1, 3 do
     local level_container = Gui.new({
       width = 750 - (level * 50),
@@ -911,12 +923,9 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
       justifyContent = enums.JustifyContent.SPACE_AROUND,
       gap = 5,
     })
-    level_container.parent = level == 1 and nested_container
-      or main_container.children[#main_container.children].children[level - 1]
-    table.insert(
-      (level == 1 and nested_container or main_container.children[#main_container.children].children[level - 1]).children,
-      level_container
-    )
+    level_container.parent = prev_container
+    table.insert(prev_container.children, level_container)
+    prev_container = level_container
 
     for item = 1, 4 do
       local item_text = string.format("L%d-Item%d: %s", level, item, string.rep("Text ", level))
@@ -943,7 +952,13 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
     #text_scenarios + 1,
     "Should have scenario containers plus nested container"
   )
-  luaunit.assertTrue(#content_manager.text_metrics >= #text_scenarios, "Should have metrics for all scenarios")
+  
+  -- Count text_metrics (it's a table with string keys, not an array)
+  local metrics_count = 0
+  for _ in pairs(content_manager.text_metrics) do
+    metrics_count = metrics_count + 1
+  end
+  luaunit.assertTrue(metrics_count >= #text_scenarios, "Should have metrics for all scenarios")
 
   print(
     string.format(
@@ -1607,8 +1622,10 @@ function TestAuxiliaryFunctions:testAdvancedGUIManagementAndCleanup()
   end
 
   -- Test opacity management across hierarchy
-  for i, element_pair in pairs(managed_elements) do
-    if i % 2 == 0 then
+  for element_id, element_pair in pairs(managed_elements) do
+    -- Extract number from "element_N" key
+    local num = tonumber(element_id:match("%d+"))
+    if num and num % 2 == 0 then
       element_pair:updateOpacity(0.5)
       luaunit.assertEquals(element_pair.opacity, 0.5, "Even elements should have 0.5 opacity")
     end

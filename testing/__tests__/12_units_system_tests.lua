@@ -22,6 +22,10 @@ end
 
 function TestUnitsSystem:tearDown()
   Gui.destroy()
+  -- Restore original viewport size
+  love.graphics.getDimensions = function()
+    return 800, 600
+  end
 end
 
 -- ============================================
@@ -245,7 +249,7 @@ function TestUnitsSystem:testMarginUnits()
   })
 
   luaunit.assertEquals(container.margin.top, 8) -- 8px
-  luaunit.assertEquals(container.margin.right, 12) -- 3% of 400
+  luaunit.assertEquals(container.margin.right, 36) -- 3% of viewport width (1200) - CSS spec: % margins relative to containing block
   luaunit.assertEquals(container.margin.bottom, 8) -- 1% of 800
   luaunit.assertEquals(container.margin.left, 24) -- 2% of 1200
 

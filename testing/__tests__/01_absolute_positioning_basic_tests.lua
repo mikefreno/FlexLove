@@ -664,7 +664,7 @@ function TestAbsolutePositioningBasic:testMultiBranchZIndexStacking()
   })
 
   -- Verify stacking order by z-index
-  luaunit.assertEquals(background.z, 1)
+  luaunit.assertEquals(backgroundColor.z, 1)
   luaunit.assertEquals(middleParent.z, 5)
   luaunit.assertEquals(middleChild1.z, 1)
   luaunit.assertEquals(middleChild2.z, 2)

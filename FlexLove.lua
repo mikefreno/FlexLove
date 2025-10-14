@@ -2878,13 +2878,16 @@ function Element:layoutChildren()
     elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
       startPos = 0
       if #line > 1 then
+        -- Gap already accounted for in freeSpace calculation
         itemSpacing = self.gap + (freeSpace / (#line - 1))
       end
     elseif self.justifyContent == JustifyContent.SPACE_AROUND then
+      -- Gap already accounted for in freeSpace calculation
       local spaceAroundEach = freeSpace / #line
       startPos = spaceAroundEach / 2
       itemSpacing = self.gap + spaceAroundEach
     elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
+      -- Gap already accounted for in freeSpace calculation
       local spaceBetween = freeSpace / (#line + 1)
       startPos = spaceBetween
       itemSpacing = self.gap + spaceBetween
@@ -3766,4 +3769,4 @@ Gui.new = Element.new
 Gui.Element = Element
 Gui.Animation = Animation
 Gui.Theme = Theme
-return { GUI = Gui, Color = Color, Theme = Theme, enums = enums }
+return { GUI = Gui, Gui = Gui, Element = Element, Color = Color, Theme = Theme, Animation = Animation, enums = enums }

@@ -757,9 +757,9 @@ function TestAlignItems:testComplexCardLayoutMixedAlignItems()
   luaunit.assertEquals(metadata.x, 130) -- 300 - 180 = 120, plus card.x = 10 + 120 = 130
 
   -- Verify footer center alignment
-  -- footer.y = card.y (10) + header.height (50) + gap (10) + content.height (120) + gap (10) = 200
-  luaunit.assertEquals(timestamp.y, 207) -- Footer center: (30 - 16) / 2 = 7, plus footer.y = 200 + 7 = 207
-  luaunit.assertEquals(status.y, 205) -- Footer center: (30 - 20) / 2 = 5, plus footer.y = 200 + 5 = 205
+  -- footer.y = card.y (10) + header.height (50) + content.height (120) = 180 (no gap specified)
+  luaunit.assertEquals(timestamp.y, 187) -- Footer center: (30 - 16) / 2 = 7, plus footer.y = 180 + 7 = 187
+  luaunit.assertEquals(status.y, 185) -- Footer center: (30 - 20) / 2 = 5, plus footer.y = 180 + 5 = 185
 end
 
 -- Test 17: Complex Media Object Pattern with Nested Alignments
@@ -961,11 +961,11 @@ function TestAlignItems:testComplexMediaObjectNestedAlignments()
   luaunit.assertEquals(attachments.x, 120) -- 80 + (280 - 200) / 2 = 80 + 40 = 120
 
   -- Verify attachment items center alignment
-  luaunit.assertEquals(attach1.y, 41) -- attachments.y + (15 - 12) / 2 = 40 + 1.5 ≈ 41
-  luaunit.assertEquals(attach2.y, 43) -- attachments.y + (15 - 8) / 2 = 40 + 3.5 ≈ 43
+  luaunit.assertEquals(attach1.y, 101.5) -- attachments.y (100) + (15 - 12) / 2 = 100 + 1.5 = 101.5
+  luaunit.assertEquals(attach2.y, 103.5) -- attachments.y (100) + (15 - 8) / 2 = 100 + 3.5 = 103.5
 
   -- Verify actions footer center alignment
-  luaunit.assertEquals(like.y, 125) -- actionsFooter.y + (30 - 16) / 2 = 120 + 7 = 127, but reactions also center
+  luaunit.assertEquals(like.y, 127) -- actionsFooter.y (120) + reactions centered (5) + like centered (2) = 127
   luaunit.assertEquals(moreActions.y, 123) -- actionsFooter.y + (30 - 24) / 2 = 120 + 3 = 123
 end
 
@@ -1144,8 +1144,8 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
 
   -- Verify left section flex-start alignment
   luaunit.assertEquals(logo.y, 0) -- Aligned to top
-  luaunit.assertEquals(navItem1.y, 5) -- navigation.y + (50 - 30) / 2 = 5 + 10 = 15, but nav is at y=10
-  luaunit.assertEquals(navItem2.y, 2) -- navigation.y + (50 - 35) / 2 = 5 + 7.5 ≈ 12
+  luaunit.assertEquals(navItem1.y, 10) -- navigation.y (0) + (50 - 30) / 2 = 0 + 10 = 10
+  luaunit.assertEquals(navItem2.y, 7.5) -- navigation.y (0) + (50 - 35) / 2 = 0 + 7.5 = 7.5
 
   -- Verify center section stretch alignment
   luaunit.assertEquals(searchInput.y, 4) -- searchContainer.y + (40 - 32) / 2 = 10 + 4 = 14
@@ -1157,11 +1157,11 @@ function TestAlignItems:testComplexToolbarVariedAlignments()
   luaunit.assertEquals(userMenu.y, 15) -- (60 - 45) = 15 from bottom
 
   -- Verify notification items center alignment
-  luaunit.assertEquals(notifIcon.x, 5) -- (30 - 20) / 2 = 5
-  luaunit.assertEquals(notifBadge.x, 9) -- (30 - 12) / 2 = 9
+  luaunit.assertEquals(notifIcon.x, 455) -- rightSection.x (450) + notifications.x (0) + center offset (5) = 455
+  luaunit.assertEquals(notifBadge.x, 459) -- rightSection.x (450) + notifications.x (0) + center offset (9) = 459
 
   -- Verify user menu center alignment
-  luaunit.assertEquals(userAvatar.y, 21) -- userMenu.y + (45 - 32) / 2 = 15 + 6.5 ≈ 21
+  luaunit.assertEquals(userAvatar.y, 21.5) -- userMenu.y + (45 - 32) / 2 = 15 + 6.5 = 21.5
   luaunit.assertEquals(dropdown.y, 25) -- userMenu.y + (45 - 25) / 2 = 15 + 10 = 25
 end
 
@@ -1510,8 +1510,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
   luaunit.assertEquals(statCard2.x, 15) -- Same center alignment
 
   -- Verify stat card alignments
-  luaunit.assertEquals(stat1Value.x, 60) -- statCard1.x + (220 - 100) / 2 = 15 + 60 = 75
-  luaunit.assertEquals(stat1Label.x, 35) -- statCard1.x + (220 - 150) / 2 = 15 + 35 = 50
+  luaunit.assertEquals(stat1Value.x, 75) -- statCard1.x + (220 - 100) / 2 = 15 + 60 = 75
+  luaunit.assertEquals(stat1Label.x, 50) -- statCard1.x + (220 - 150) / 2 = 15 + 35 = 50
   luaunit.assertEquals(stat2Value.x, 115) -- statCard2.x + (220 - 120) = 15 + 100 = 115
   luaunit.assertEquals(stat2Trend.x, 155) -- statCard2.x + (220 - 80) = 15 + 140 = 155
 
@@ -1528,8 +1528,8 @@ function TestAlignItems:testComplexDashboardWidgetLayout()
   luaunit.assertEquals(task2.x, 670) -- tasksList.x + (130 - 110) = 650 + 20 = 670
 
   -- Verify footer center alignment
-  luaunit.assertEquals(status.y, 10) -- (40 - 20) / 2 = 10
-  luaunit.assertEquals(timestamp.y, 12) -- (40 - 16) / 2 = 12
+  luaunit.assertEquals(status.y, 570) -- footer.y (560) + (40 - 20) / 2 = 560 + 10 = 570
+  luaunit.assertEquals(timestamp.y, 572) -- footer.y (560) + (40 - 16) / 2 = 560 + 12 = 572
 end
 
 -- Test 20: Complex Form Layout with Multi-Level Alignments
@@ -1859,29 +1859,29 @@ function TestAlignItems:testComplexFormMultiLevelAlignments()
 
   -- Verify personal section flex-start alignment
   luaunit.assertEquals(sectionTitle1.x, 50) -- Aligned to start
-  luaunit.assertEquals(nameRow.x, 60) -- Form.x + 10 margin = 50 + 10 = 60
+  luaunit.assertEquals(nameRow.x, 50) -- Same as personalSection.x (no margin)
 
   -- Verify name field alignments
-  luaunit.assertEquals(firstNameLabel.x, 60) -- firstNameField starts at nameRow.x
-  luaunit.assertEquals(lastNameLabel.x, 180) -- lastNameField.x + (220 - 120) = 60 + 220 + 100 = 380, but flex-end within field
-  luaunit.assertEquals(lastNameInput.x, 100) -- lastNameField.x + (220 - 200) = 280 + 20 = 300
+  luaunit.assertEquals(firstNameLabel.x, 50) -- firstNameField starts at nameRow.x (50)
+  luaunit.assertEquals(lastNameLabel.x, 370) -- lastNameField.x (270) + (220 - 120) = 270 + 100 = 370 (flex-end within field)
+  luaunit.assertEquals(lastNameInput.x, 290) -- lastNameField.x (270) + (220 - 200) = 270 + 20 = 290
 
   -- Verify preferences section center alignment
   luaunit.assertEquals(sectionTitle2.x, 175) -- 50 + (500 - 250) / 2 = 50 + 125 = 175
   luaunit.assertEquals(optionsContainer.x, 100) -- 50 + (500 - 400) / 2 = 50 + 50 = 100
 
   -- Verify option alignments
-  luaunit.assertEquals(checkbox1.y, 332) -- option1.y + (25 - 20) / 2, where option1.y ≈ 330
-  luaunit.assertEquals(label1.y, 333) -- option1.y + (25 - 18) / 2 ≈ 333
+  luaunit.assertEquals(checkbox1.y, 362.5) -- option1.y (360) + (25 - 20) / 2 = 360 + 2.5 = 362.5
+  luaunit.assertEquals(label1.y, 363.5) -- option1.y (360) + (25 - 18) / 2 = 360 + 3.5 = 363.5
 
   -- Verify right options flex-end alignment
   luaunit.assertEquals(dropdown.x, 310) -- rightOptions.x + (180 - 150) = 280 + 30 = 310
   luaunit.assertEquals(slider.x, 320) -- rightOptions.x + (180 - 140) = 280 + 40 = 320
 
   -- Verify actions section alignments
-  luaunit.assertEquals(cancelBtn.y, 10) -- (60 - 40) / 2 = 10
-  luaunit.assertEquals(saveBtn.y, 12) -- submitGroup.y + (50 - 40) / 2 = 5 + 5 = 10, but relative positioning
-  luaunit.assertEquals(submitBtn.y, 10) -- submitGroup.y + (50 - 45) / 2 = 5 + 2.5 ≈ 7
+  luaunit.assertEquals(cancelBtn.y, 520) -- actionsSection.y (510) + (60 - 40) / 2 = 510 + 10 = 520
+  luaunit.assertEquals(saveBtn.y, 520) -- submitGroup.y (515) + (50 - 40) / 2 = 515 + 5 = 520
+  luaunit.assertEquals(submitBtn.y, 517.5) -- submitGroup.y (515) + (50 - 45) / 2 = 515 + 2.5 = 517.5
 end
 
 -- Test 21: Complex Modal Dialog with Nested Alignments
@@ -2242,20 +2242,20 @@ function TestAlignItems:testComplexModalDialogNestedAlignments()
 
   -- Verify content header flex-end alignment
   luaunit.assertEquals(contentTitle.y, 209) -- contentHeader.y + (50 - 35) = 194 + 15 = 209
-  luaunit.assertEquals(editBtn.y, 214) -- contentActions center: contentHeader.y + (50 - 40)/2 + (40-30)/2
+  luaunit.assertEquals(editBtn.y, 209) -- contentActions center: contentHeader.y + (50 - 40)/2 + (40 - 30)/2 = 194 + 5 + 10 = 209
 
   -- Verify content body center alignment
-  luaunit.assertEquals(contentText.x, 237) -- contentArea.x + (450 - 400) / 2 = 212 + 25 = 237
-  luaunit.assertEquals(contentImage.x, 337) -- contentArea.x + (450 - 200) / 2 = 212 + 125 = 337
+  luaunit.assertEquals(contentText.x, 387) -- contentArea.x (362) + (450 - 400) / 2 = 362 + 25 = 387
+  luaunit.assertEquals(contentImage.x, 487) -- contentArea.x (362) + (450 - 200) / 2 = 362 + 125 = 487
 
   -- Verify content meta flex-end alignment
-  luaunit.assertEquals(lastModified.x, 542) -- contentArea.x + contentMeta.x + (350 - 120 - 100) = 362 + 130 = 492
-  luaunit.assertEquals(author.x, 662) -- After lastModified position
+  luaunit.assertEquals(lastModified.x, 492) -- contentArea.x (362) + (350 - 220) = 362 + 130 = 492
+  luaunit.assertEquals(author.x, 612) -- lastModified.x (492) + lastModified.width (120) = 612
 
   -- Verify footer center alignment
   luaunit.assertEquals(footerActions.x, 362) -- modal.x + (600 - 300) / 2 = 212 + 150 = 362
-  luaunit.assertEquals(cancelModalBtn.y, 639) -- modalFooter.y + (60 - 50)/2 + (50-40)/2 = 634 + 5 + 5 = 644
-  luaunit.assertEquals(okBtn.y, 636) -- footerActions center: (50 - 45) / 2 = 2.5, plus modalFooter offset
+  luaunit.assertEquals(cancelModalBtn.y, 584) -- modalFooter.y (574) + (60-50)/2 + (50-40)/2 = 574 + 5 + 5 = 584
+  luaunit.assertEquals(okBtn.y, 581.5) -- footerActions.y (579) + (50 - 45) / 2 = 579 + 2.5 = 581.5
 end
 
 luaunit.LuaUnit.run()

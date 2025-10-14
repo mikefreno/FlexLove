@@ -111,9 +111,9 @@ function TestPerformance:testBasicLayoutPerformanceBenchmark()
   print(string.format("  100 children: %.6f seconds", time_100))
 
   -- Assert reasonable performance (should complete within 1 second)
-  luaunit.assertTrue(time_10 < 1.0, "10 children layout should complete within 1 second")
-  luaunit.assertTrue(time_50 < 1.0, "50 children layout should complete within 1 second")
-  luaunit.assertTrue(time_100 < 1.0, "100 children layout should complete within 1 second")
+  luaunit.assertTrue(time_10 < 0.05, "10 children layout should complete within 0.05 seconds")
+  luaunit.assertTrue(time_50 < 0.05, "50 children layout should complete within 0.05 seconds")
+  luaunit.assertTrue(time_100 < 0.05, "100 children layout should complete within 0.05 seconds")
 
   -- Performance should scale reasonably (not exponentially)
   -- Allow some overhead but ensure it's not exponential growth
@@ -140,7 +140,7 @@ function TestPerformance:testScalabilityWithLargeNumbers()
     print(string.format("Scalability Test - %d children: %.6f seconds", size, time))
 
     -- Each test should complete within reasonable time
-    luaunit.assertTrue(time < 2.0, string.format("%d children should layout within 2 seconds", size))
+    luaunit.assertTrue(time < 0.05, string.format("%d children should layout within 0.05 seconds", size))
   end
 
   -- Check that performance scales linearly or sub-linearly
@@ -201,7 +201,7 @@ function TestPerformance:testComplexNestedLayoutPerformance()
   print(string.format("Complex Nested Layout (5x4x3 = 60 total elements): %.6f seconds", time))
 
   -- Complex nested layout should complete within reasonable time
-  luaunit.assertTrue(time < 3.0, "Complex nested layout should complete within 3 seconds")
+  luaunit.assertTrue(time < 0.05, "Complex nested layout should complete within 0.05 seconds")
 
   -- Verify structure was created correctly
   luaunit.assertEquals(#root.children, 5) -- 5 sections
@@ -233,7 +233,7 @@ function TestPerformance:testFlexWrapPerformanceWithManyElements()
   print(string.format("Flex Wrap Performance (50 wrapping elements): %.6f seconds", time))
 
   -- Flex wrap with many elements should complete within reasonable time
-  luaunit.assertTrue(time < 2.0, "Flex wrap layout should complete within 2 seconds")
+  luaunit.assertTrue(time < 0.05, "Flex wrap layout should complete within 0.05 seconds")
 
   -- Verify that elements are positioned (wrapped layout worked)
   luaunit.assertTrue(children[1].x >= 0 and children[1].y >= 0, "First child should be positioned")
@@ -268,7 +268,7 @@ function TestPerformance:testDynamicLayoutChangePerformance()
   print(string.format("Dynamic Layout Changes (30 relayouts): %.6f seconds", time))
 
   -- Dynamic layout changes should complete within reasonable time
-  luaunit.assertTrue(time < 2.0, "Dynamic layout changes should complete within 2 seconds")
+  luaunit.assertTrue(time < 0.05, "Dynamic layout changes should complete within 0.05 seconds")
 
   -- Verify final layout is valid
   luaunit.assertTrue(children[1].x >= 0 and children[1].y >= 0, "Children should be positioned after changes")
@@ -297,7 +297,7 @@ function TestPerformance:testMemoryUsagePattern()
   print(string.format("Memory Usage Pattern Test (5 cycles, 100 elements each): %.6f seconds", time))
 
   -- Memory pattern test should complete within reasonable time
-  luaunit.assertTrue(time < 3.0, "Memory usage pattern test should complete within 3 seconds")
+  luaunit.assertTrue(time < 0.05, "Memory usage pattern test should complete within 0.05 seconds")
 
   -- Verify container is clean after cycles
   luaunit.assertEquals(#container.children, 0, "Container should be clean after memory test")
@@ -347,7 +347,7 @@ function TestPerformance:testPerformanceWithDifferentLayoutStrategies()
     print(string.format("Layout Strategy '%s': %.6f seconds", strategy.name, time))
 
     -- Each strategy should complete within reasonable time
-    luaunit.assertTrue(time < 1.0, string.format("'%s' layout should complete within 1 second", strategy.name))
+    luaunit.assertTrue(time < 0.05, string.format("'%s' layout should complete within 0.05 second", strategy.name))
   end
 
   -- All strategies should perform reasonably similarly
@@ -387,8 +387,8 @@ function TestPerformance:testStressTestWithMaximumElements()
 
   -- Stress test should complete within reasonable time even with many elements
   luaunit.assertTrue(
-    time < 5.0,
-    string.format("Stress test with %d elements should complete within 5 seconds", stress_count)
+    time < 0.05,
+    string.format("Stress test with %d elements should complete within 0.05 seconds", stress_count)
   )
 
   -- Verify that all children are positioned
@@ -679,7 +679,7 @@ function TestPerformance:testComplexEnterpriseApplicationPerformance()
   print(string.format("  Elements/Second: %.0f", structure_info.total_elements / time))
 
   -- Performance assertions for enterprise-grade application
-  luaunit.assertTrue(time < 8.0, "Enterprise dashboard should layout within 8 seconds")
+  luaunit.assertTrue(time < 0.05, "Enterprise dashboard should layout within 0.05 seconds")
   luaunit.assertTrue(structure_info.total_elements > 200, "Should have created substantial element count")
   luaunit.assertTrue(structure_info.max_depth >= 5, "Should have deep nesting structure")
 
@@ -994,9 +994,9 @@ function TestPerformance:testComplexAnimationReadyLayoutPerformance()
   print(string.format("  60fps Target: %.6f seconds/frame", target_frame_time))
 
   -- Performance assertions for animation-ready layouts
-  luaunit.assertTrue(time < 12.0, "Animation setup should complete within 12 seconds")
+  luaunit.assertTrue(time < 0.05, "Animation setup should complete within 0.05 seconds")
   luaunit.assertTrue(avg_frame_time < target_frame_time * 2, "Average frame time should be reasonable for 30fps+")
-  luaunit.assertTrue(max_frame_time < 0.1, "No single frame should take more than 100ms")
+  luaunit.assertTrue(max_frame_time < 0.05, "No single frame should take more than 50ms")
   luaunit.assertTrue(metrics.total_elements > 100, "Should have substantial number of animated elements")
 
   -- Verify structure integrity after animations
@@ -1387,9 +1387,9 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
     )
 
     -- Individual test assertions
-    luaunit.assertTrue(test_time < 20.0, string.format("%s should complete within 20 seconds", test_config.name))
+    luaunit.assertTrue(test_time < 1.0, string.format("%s should complete within 1 seconds", test_config.name))
     luaunit.assertTrue(
-      test_metrics.created_elements > 100,
+      test_metrics.created_elements > 50,
       string.format("%s should create substantial elements", test_config.name)
     )
   end

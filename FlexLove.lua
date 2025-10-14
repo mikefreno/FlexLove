@@ -644,7 +644,7 @@ function Theme.getColorNames()
   if not activeTheme or not activeTheme.colors then
     return nil
   end
-  
+
   local colorNames = {}
   for name, _ in pairs(activeTheme.colors) do
     table.insert(colorNames, name)
@@ -658,7 +658,7 @@ function Theme.getAllColors()
   if not activeTheme then
     return nil
   end
-  
+
   return activeTheme.colors
 end
 
@@ -671,7 +671,7 @@ function Theme.getColorOrDefault(colorName, fallback)
   if color then
     return color
   end
-  
+
   return fallback or Color.new(1, 1, 1, 1)
 end
 
@@ -2649,28 +2649,37 @@ function Element:applyPositioningOffsets(element)
     return
   end
 
-  -- Apply top offset (distance from parent's content box top edge)
-  if element.top then
-    element.y = parent.y + parent.padding.top + element.top
-  end
+  -- Only apply offsets to explicitly absolute children or children in relative/absolute containers
+  -- Flex/grid children ignore positioning offsets as they participate in layout
+  local isFlexChild = element.positioning == Positioning.FLEX
+    or element.positioning == Positioning.GRID
+    or (element.positioning == Positioning.ABSOLUTE and not element._explicitlyAbsolute)
 
-  -- Apply bottom offset (distance from parent's content box bottom edge)
-  -- BORDER-BOX MODEL: Use border-box dimensions for positioning
-  if element.bottom then
-    local elementBorderBoxHeight = element:getBorderBoxHeight()
-    element.y = parent.y + parent.padding.top + parent.height - element.bottom - elementBorderBoxHeight
-  end
+  if not isFlexChild then
+    -- Apply absolute positioning for explicitly absolute children
+    -- Apply top offset (distance from parent's content box top edge)
+    if element.top then
+      element.y = parent.y + parent.padding.top + element.top
+    end
 
-  -- Apply left offset (distance from parent's content box left edge)
-  if element.left then
-    element.x = parent.x + parent.padding.left + element.left
-  end
+    -- Apply bottom offset (distance from parent's content box bottom edge)
+    -- BORDER-BOX MODEL: Use border-box dimensions for positioning
+    if element.bottom then
+      local elementBorderBoxHeight = element:getBorderBoxHeight()
+      element.y = parent.y + parent.padding.top + parent.height - element.bottom - elementBorderBoxHeight
+    end
 
-  -- Apply right offset (distance from parent's content box right edge)
-  -- BORDER-BOX MODEL: Use border-box dimensions for positioning
-  if element.right then
-    local elementBorderBoxWidth = element:getBorderBoxWidth()
-    element.x = parent.x + parent.padding.left + parent.width - element.right - elementBorderBoxWidth
+    -- Apply left offset (distance from parent's content box left edge)
+    if element.left then
+      element.x = parent.x + parent.padding.left + element.left
+    end
+
+    -- Apply right offset (distance from parent's content box right edge)
+    -- BORDER-BOX MODEL: Use border-box dimensions for positioning
+    if element.right then
+      local elementBorderBoxWidth = element:getBorderBoxWidth()
+      element.x = parent.x + parent.padding.left + parent.width - element.right - elementBorderBoxWidth
+    end
   end
 end
 
@@ -2797,26 +2806,31 @@ function Element:layoutChildren()
 
     for _, child in ipairs(flexChildren) do
       -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
+      -- Include margins in size calculations
       local childMainSize = 0
+      local childMainMargin = 0
       if self.flexDirection == FlexDirection.HORIZONTAL then
         childMainSize = child:getBorderBoxWidth()
+        childMainMargin = child.margin.left + child.margin.right
       else
         childMainSize = child:getBorderBoxHeight()
+        childMainMargin = child.margin.top + child.margin.bottom
       end
+      local childTotalMainSize = childMainSize + childMainMargin
 
       -- Check if adding this child would exceed the available space
       local lineSpacing = #currentLine > 0 and self.gap or 0
-      if #currentLine > 0 and currentLineSize + lineSpacing + childMainSize > availableMainSize then
+      if #currentLine > 0 and currentLineSize + lineSpacing + childTotalMainSize > availableMainSize then
         -- Start a new line
         if #currentLine > 0 then
           table.insert(lines, currentLine)
         end
         currentLine = { child }
-        currentLineSize = childMainSize
+        currentLineSize = childTotalMainSize
       else
         -- Add to current line
         table.insert(currentLine, child)
-        currentLineSize = currentLineSize + lineSpacing + childMainSize
+        currentLineSize = currentLineSize + lineSpacing + childTotalMainSize
       end
     end
 
@@ -2843,13 +2857,18 @@ function Element:layoutChildren()
     local maxCrossSize = 0
     for _, child in ipairs(line) do
       -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
+      -- Include margins in cross-axis size calculations
       local childCrossSize = 0
+      local childCrossMargin = 0
       if self.flexDirection == FlexDirection.HORIZONTAL then
         childCrossSize = child:getBorderBoxHeight()
+        childCrossMargin = child.margin.top + child.margin.bottom
       else
         childCrossSize = child:getBorderBoxWidth()
+        childCrossMargin = child.margin.left + child.margin.right
       end
-      maxCrossSize = math.max(maxCrossSize, childCrossSize)
+      local childTotalCrossSize = childCrossSize + childCrossMargin
+      maxCrossSize = math.max(maxCrossSize, childTotalCrossSize)
     end
     lineHeights[lineIndex] = maxCrossSize
     totalLinesHeight = totalLinesHeight + maxCrossSize
@@ -2913,14 +2932,14 @@ function Element:layoutChildren()
   for lineIndex, line in ipairs(lines) do
     local lineHeight = lineHeights[lineIndex]
 
-    -- Calculate total size of children in this line (including padding)
+    -- Calculate total size of children in this line (including padding and margins)
     -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
     local totalChildrenSize = 0
     for _, child in ipairs(line) do
       if self.flexDirection == FlexDirection.HORIZONTAL then
-        totalChildrenSize = totalChildrenSize + child:getBorderBoxWidth()
+        totalChildrenSize = totalChildrenSize + child:getBorderBoxWidth() + child.margin.left + child.margin.right
       else
-        totalChildrenSize = totalChildrenSize + child:getBorderBoxHeight()
+        totalChildrenSize = totalChildrenSize + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom
       end
     end
 
@@ -2966,30 +2985,39 @@ function Element:layoutChildren()
       if self.flexDirection == FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart to account for absolutely positioned siblings
-        child.x = self.x + self.padding.left + reservedMainStart + currentMainPos
+        -- Add reservedMainStart and left margin to account for absolutely positioned siblings and margins
+        child.x = self.x + self.padding.left + reservedMainStart + currentMainPos + child.margin.left
 
         -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
         local childBorderBoxHeight = child:getBorderBoxHeight()
+        local childTotalCrossSize = childBorderBoxHeight + child.margin.top + child.margin.bottom
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
         elseif effectiveAlign == AlignItems.CENTER then
           child.y = self.y
             + self.padding.top
             + reservedCrossStart
             + currentCrossPos
-            + ((lineHeight - childBorderBoxHeight) / 2)
+            + ((lineHeight - childTotalCrossSize) / 2)
+            + child.margin.top
         elseif effectiveAlign == AlignItems.FLEX_END then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childBorderBoxHeight
+          child.y = self.y
+            + self.padding.top
+            + reservedCrossStart
+            + currentCrossPos
+            + lineHeight
+            - childTotalCrossSize
+            + child.margin.top
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH: Only apply if height was not explicitly set
           if child.autosizing and child.autosizing.height then
-            -- STRETCH: Set border-box height to lineHeight, content area shrinks to fit
-            child._borderBoxHeight = lineHeight
-            child.height = math.max(0, lineHeight - child.padding.top - child.padding.bottom)
+            -- STRETCH: Set border-box height to lineHeight minus margins, content area shrinks to fit
+            local availableHeight = lineHeight - child.margin.top - child.margin.bottom
+            child._borderBoxHeight = availableHeight
+            child.height = math.max(0, availableHeight - child.padding.top - child.padding.bottom)
           end
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -3005,35 +3033,48 @@ function Element:layoutChildren()
           child:layoutChildren()
         end
 
-        -- Advance position by child's border-box width
-        currentMainPos = currentMainPos + child:getBorderBoxWidth() + itemSpacing
+        -- Advance position by child's border-box width plus margins
+        currentMainPos = currentMainPos
+          + child:getBorderBoxWidth()
+          + child.margin.left
+          + child.margin.right
+          + itemSpacing
       else
         -- Vertical layout: main axis is Y, cross axis is X
         -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart to account for absolutely positioned siblings
-        child.y = self.y + self.padding.top + reservedMainStart + currentMainPos
+        -- Add reservedMainStart and top margin to account for absolutely positioned siblings and margins
+        child.y = self.y + self.padding.top + reservedMainStart + currentMainPos + child.margin.top
 
         -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
         local childBorderBoxWidth = child:getBorderBoxWidth()
+        local childTotalCrossSize = childBorderBoxWidth + child.margin.left + child.margin.right
 
         if effectiveAlign == AlignItems.FLEX_START then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
         elseif effectiveAlign == AlignItems.CENTER then
           child.x = self.x
             + self.padding.left
             + reservedCrossStart
             + currentCrossPos
-            + ((lineHeight - childBorderBoxWidth) / 2)
+            + ((lineHeight - childTotalCrossSize) / 2)
+            + child.margin.left
         elseif effectiveAlign == AlignItems.FLEX_END then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childBorderBoxWidth
+          child.x = self.x
+            + self.padding.left
+            + reservedCrossStart
+            + currentCrossPos
+            + lineHeight
+            - childTotalCrossSize
+            + child.margin.left
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH: Only apply if width was not explicitly set
           if child.autosizing and child.autosizing.width then
-            -- STRETCH: Set border-box width to lineHeight, content area shrinks to fit
-            child._borderBoxWidth = lineHeight
-            child.width = math.max(0, lineHeight - child.padding.left - child.padding.right)
+            -- STRETCH: Set border-box width to lineHeight minus margins, content area shrinks to fit
+            local availableWidth = lineHeight - child.margin.left - child.margin.right
+            child._borderBoxWidth = availableWidth
+            child.width = math.max(0, availableWidth - child.padding.left - child.padding.right)
           end
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -3044,13 +3085,30 @@ function Element:layoutChildren()
           child:layoutChildren()
         end
 
-        -- Advance position by child's border-box height
-        currentMainPos = currentMainPos + child:getBorderBoxHeight() + itemSpacing
+        -- Advance position by child's border-box height plus margins
+        currentMainPos = currentMainPos
+          + child:getBorderBoxHeight()
+          + child.margin.top
+          + child.margin.bottom
+          + itemSpacing
       end
     end
 
     -- Move to next line position
     currentCrossPos = currentCrossPos + lineHeight + lineSpacing
+  end
+
+  -- Position explicitly absolute children after flex layout
+  for _, child in ipairs(self.children) do
+    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+      -- Apply positioning offsets (top, right, bottom, left)
+      self:applyPositioningOffsets(child)
+
+      -- If child has children, layout them after position change
+      if #child.children > 0 then
+        child:layoutChildren()
+      end
+    end
   end
 end
 

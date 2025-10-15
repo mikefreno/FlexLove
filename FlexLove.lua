@@ -329,6 +329,7 @@ end
 ---@field regions {topLeft:ThemeRegion, topCenter:ThemeRegion, topRight:ThemeRegion, middleLeft:ThemeRegion, middleCenter:ThemeRegion, middleRight:ThemeRegion, bottomLeft:ThemeRegion, bottomCenter:ThemeRegion, bottomRight:ThemeRegion}
 ---@field stretch {horizontal:table<integer, string>, vertical:table<integer, string>}
 ---@field states table<string, ThemeComponent>?
+---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: multiplier for auto-sized content dimensions
 ---@field _loadedAtlas love.Image? -- Internal: cached loaded atlas image
 
 ---@class FontFamily
@@ -341,6 +342,7 @@ end
 ---@field components table<string, ThemeComponent>
 ---@field colors table<string, Color>?
 ---@field fonts table<string, string>? -- Optional: font family definitions (name -> path)
+---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: default multiplier for auto-sized content dimensions
 
 ---@class Theme
 ---@field name string
@@ -348,6 +350,7 @@ end
 ---@field components table<string, ThemeComponent>
 ---@field colors table<string, Color>
 ---@field fonts table<string, string> -- Font family definitions
+---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: default multiplier for auto-sized content dimensions
 local Theme = {}
 Theme.__index = Theme
 
@@ -483,6 +486,7 @@ function Theme.new(definition)
   self.components = definition.components or {}
   self.colors = definition.colors or {}
   self.fonts = definition.fonts or {}
+  self.contentAutoSizingMultiplier = definition.contentAutoSizingMultiplier or nil
 
   -- Load component-specific atlases
   for componentName, component in pairs(self.components) do
@@ -1865,6 +1869,7 @@ Public API methods to access internal state:
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
+---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions
 local Element = {}
 Element.__index = Element
 
@@ -1915,6 +1920,7 @@ Element.__index = Element
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
+---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions (default: sourced from theme)
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -1952,6 +1958,37 @@ function Element.new(props)
     self.disableHighlight = props.disableHighlight
   else
     self.disableHighlight = self.themeComponent ~= nil
+  end
+
+  -- Initialize contentAutoSizingMultiplier after theme is set
+  -- Priority: element props > theme component > theme default
+  if props.contentAutoSizingMultiplier then
+    -- Explicitly set on element
+    self.contentAutoSizingMultiplier = props.contentAutoSizingMultiplier
+  else
+    -- Try to source from theme
+    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    if themeToUse then
+      -- First check if themeComponent has a multiplier
+      if self.themeComponent then
+        local component = themeToUse.components[self.themeComponent]
+        if component and component.contentAutoSizingMultiplier then
+          self.contentAutoSizingMultiplier = component.contentAutoSizingMultiplier
+        elseif themeToUse.contentAutoSizingMultiplier then
+          -- Fall back to theme default
+          self.contentAutoSizingMultiplier = themeToUse.contentAutoSizingMultiplier
+        else
+          self.contentAutoSizingMultiplier = nil
+        end
+      elseif themeToUse.contentAutoSizingMultiplier then
+        -- No themeComponent, use theme default
+        self.contentAutoSizingMultiplier = themeToUse.contentAutoSizingMultiplier
+      else
+        self.contentAutoSizingMultiplier = nil
+      end
+    else
+      self.contentAutoSizingMultiplier = nil
+    end
   end
 
   -- Set parent first so it's available for size calculations
@@ -3945,11 +3982,19 @@ function Element:calculateTextWidth()
 
     local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local width = tempFont:getWidth(self.text)
+    -- Apply contentAutoSizingMultiplier if set
+    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
+      width = width * self.contentAutoSizingMultiplier.width
+    end
     return width
   end
 
   local font = love.graphics.getFont()
   local width = font:getWidth(self.text)
+  -- Apply contentAutoSizingMultiplier if set
+  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
+    width = width * self.contentAutoSizingMultiplier.width
+  end
   return width
 end
 
@@ -3978,11 +4023,19 @@ function Element:calculateTextHeight()
 
     local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local height = tempFont:getHeight()
+    -- Apply contentAutoSizingMultiplier if set
+    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
+      height = height * self.contentAutoSizingMultiplier.height
+    end
     return height
   end
 
   local font = love.graphics.getFont()
   local height = font:getHeight()
+  -- Apply contentAutoSizingMultiplier if set
+  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
+    height = height * self.contentAutoSizingMultiplier.height
+  end
   return height
 end
 

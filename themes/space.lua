@@ -55,6 +55,24 @@ return {
         vertical = { "middleLeft", "middleCenter", "middleRight" },
       },
     },
+    cardv3 = {
+      atlas = "themes/space/card-v3.png",
+      regions = {
+        topLeft = { x = 0, y = 0, w = 286, h = 100 },
+        topCenter = { x = 286, y = 0, w = 74, h = 100 },
+        topRight = { x = 360, y = 0, w = 286, h = 100 },
+        middleLeft = { x = 0, y = 100, w = 286, h = 101 },
+        middleCenter = { x = 286, y = 100, w = 74, h = 101 },
+        middleRight = { x = 360, y = 100, w = 286, h = 101 },
+        bottomLeft = { x = 0, y = 201, w = 286, h = 100 },
+        bottomCenter = { x = 286, y = 201, w = 74, h = 100 },
+        bottomRight = { x = 360, y = 201, w = 286, h = 100 },
+      },
+      stretch = {
+        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
+        vertical = { "middleLeft", "middleCenter", "middleRight" },
+      },
+    },
     panel = {
       atlas = "themes/space/panel.png",
       regions = {

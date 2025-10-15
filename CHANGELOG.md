@@ -5,6 +5,17 @@ All notable changes to FlexLove will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Android 9-Patch Auto-Parsing**: Automatic parsing of *.9.png files
+  - Automatically detects and parses Android 9-patch files based on .9.png extension
+  - Extracts stretch regions and content padding from 1-pixel border markers
+  - Supports multiple non-contiguous stretch regions on both axes
+  - Manual insets override auto-parsing for backward compatibility
+  - Console logging for transparency ("[FlexLove] Auto-parsed 9-patch: ...")
+  - Added `ImageDataReader` module for pixel data extraction
+  - Added `NinePatchParser` module with `parse()` function
+  - Theme system automatically processes 9-patch files during theme loading
+  - Space theme updated to use button.9.png with auto-parsing
+
 - **Corner Radius Support**: Added `cornerRadius` property for rounded corners
   - Supports uniform radius (single number) or individual corners (table)
   - Automatically clips children to parent's rounded corners using stencil buffer
@@ -82,6 +93,43 @@ All notable changes to FlexLove will be documented in this file.
 - Smooth transitions
 
 ## Migration Guide
+
+### Using Android 9-Patch Files
+
+FlexLove now automatically parses Android 9-patch (*.9.png) files. Simply rename your files to include the `.9.png` extension and remove manual insets:
+
+```lua
+-- Old (manual insets)
+components = {
+  button = {
+    atlas = "themes/space/button.png",
+    insets = { left = 14, top = 14, right = 14, bottom = 14 }
+  }
+}
+
+-- New (auto-parsed from .9.png file)
+components = {
+  button = {
+    atlas = "themes/space/button.9.png"
+    -- insets automatically extracted from 9-patch borders
+  }
+}
+
+-- Manual override still works
+components = {
+  button = {
+    atlas = "themes/space/button.9.png",
+    insets = { left = 20, top = 20, right = 20, bottom = 20 }  -- Overrides auto-parsing
+  }
+}
+```
+
+**9-Patch Format:**
+- Top border (row 0): Horizontal stretch regions (black pixels = stretchable)
+- Left border (column 0): Vertical stretch regions (black pixels = stretchable)
+- Bottom border: Horizontal content padding (optional)
+- Right border: Vertical content padding (optional)
+- Supports multiple non-contiguous stretch regions for complex scaling patterns
 
 ### From `background` to `backgroundColor`
 

@@ -1,225 +1,8 @@
 --[[
-================================================================================
 FlexLove - Flexible UI Library for LÖVE Framework
-================================================================================
-
-A comprehensive UI library providing flexbox/grid layouts, theming, animations,
-and event handling for LÖVE2D games.
-
-ARCHITECTURE OVERVIEW:
----------------------
-1. Color System      - RGBA color utilities with hex conversion
-2. Theme System      - 9-slice theming with state support (normal/hover/pressed/disabled)
-3. Units System      - Responsive units (px, %, vw, vh, ew, eh) with viewport scaling
-4. Layout System     - Flexbox, Grid, Absolute, and Relative positioning
-5. Event System      - Mouse/touch events with z-index ordering
-6. Animation System  - Interpolation with easing functions
-7. GUI Manager       - Top-level manager for elements and global state
-
-API CONVENTIONS:
----------------
-- Constructors:      ClassName.new(props) -> instance
-- Static Methods:    ClassName.methodName(args) -> result
-- Instance Methods:  instance:methodName(args) -> result
-- Getters:           instance:getPropertyName() -> value
-- Internal Fields:   _fieldName (private, do not access directly)
-- Error Handling:    Constructors throw errors, utility functions return nil + error string
-
-NAMING PATTERNS:
----------------
-- Classes:           PascalCase (Element, Theme, Color)
-- Functions:         camelCase (resolveImagePath, getViewport)
-- Properties:        camelCase (backgroundColor, textColor, cornerRadius)
-- Constants:         UPPER_SNAKE_CASE (TEXT_SIZE_PRESETS, FONT_CACHE_MAX_SIZE)
-- Private:           _prefixedCamelCase (_pressed, _themeState, _borderBoxWidth)
-
-PARAMETER ORDERING:
-------------------
-- Position:          (x, y, width, height) - standard order
-- Units:             (value, unit, viewportW, viewportH, parentSize) - value first
-- Drawing:           (element, position, dimensions, styling, opacity) - element first
-
-RETURN VALUE PATTERNS:
----------------------
-- Single Success:    return value
-- Success/Failure:   return result, errorMessage (nil on success for error)
-- Multiple Values:   return value1, value2 (documented in @return)
-- Constructors:      Always return instance (never nil)
-
-USAGE EXAMPLE:
--------------
-```lua
-local FlexLove = require("libs.FlexLove")
-
--- Initialize with base scaling and theme
-FlexLove.Gui.init({
-  baseScale = { width = 1920, height = 1080 },
-  theme = "space"
-})
-
--- Create a button with flexbox layout
-local button = FlexLove.Element.new({
-  width = "20vw",
-  height = "10vh",
-  backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.8, 1),
-  text = "Click Me",
-  textSize = "md",
-  themeComponent = "button",
-  callback = function(element, event)
-    print("Button clicked!")
-  end
-})
-
--- In your love.update and love.draw:
-function love.update(dt)
-  FlexLove.Gui.update(dt)
-end
-
-function love.draw()
-  FlexLove.Gui.draw()
-end
-```
-
-ADDITIONAL EXAMPLES:
--------------------
-
-1. Creating Colors:
-```lua
--- From RGB values (0-1 range)
-local red = FlexLove.Color.new(1, 0, 0, 1)
-
--- From hex string
-local blue = FlexLove.Color.fromHex("#0000FF")
-local semiTransparent = FlexLove.Color.fromHex("#FF000080")
-```
-
-2. Responsive Units:
-```lua
--- Viewport-relative units
-local container = FlexLove.Element.new({
-  width = "50vw",   -- 50% of viewport width
-  height = "30vh",  -- 30% of viewport height
-  padding = { horizontal = "2vw", vertical = "1vh" }
-})
-
--- Percentage units (relative to parent)
-local child = FlexLove.Element.new({
-  parent = container,
-  width = "80%",    -- 80% of parent width
-  height = "50%"    -- 50% of parent height
-})
-```
-
-3. Flexbox Layout:
-```lua
--- Horizontal flex container
-local row = FlexLove.Element.new({
-  positioning = FlexLove.Positioning.FLEX,
-  flexDirection = FlexLove.FlexDirection.HORIZONTAL,
-  justifyContent = FlexLove.JustifyContent.SPACE_BETWEEN,
-  alignItems = FlexLove.AlignItems.CENTER,
-  gap = 10,
-  width = "80vw",
-  height = "10vh"
-})
-
--- Add children
-for i = 1, 3 do
-  FlexLove.Element.new({
-    parent = row,
-    width = "20vw",
-    height = "8vh",
-    text = "Item " .. i
-  })
-end
-```
-
-4. Grid Layout:
-```lua
--- 3x3 grid
-local grid = FlexLove.Element.new({
-  positioning = FlexLove.Positioning.GRID,
-  gridRows = 3,
-  gridColumns = 3,
-  columnGap = 10,
-  rowGap = 10,
-  width = "60vw",
-  height = "60vh"
-})
-
--- Add 9 children (auto-placed in grid)
-for i = 1, 9 do
-  FlexLove.Element.new({
-    parent = grid,
-    text = "Cell " .. i
-  })
-end
-```
-
-5. Theming:
-```lua
--- Load and activate a theme
-FlexLove.Theme.load("space")
-FlexLove.Theme.setActive("space")
-
--- Use theme component
-local button = FlexLove.Element.new({
-  themeComponent = "button",
-  text = "Themed Button",
-  callback = function(element, event)
-    print("Clicked!")
-  end
-})
-
--- Access theme resources
-local primaryColor = FlexLove.Theme.getColor("primary")
-local headingFont = FlexLove.Theme.getFont("heading")
-```
-
-6. Animations:
-```lua
--- Fade animation
-local fadeIn = FlexLove.Animation.fade(1.0, 0, 1)
-fadeIn:apply(element)
-
--- Scale animation
-local scaleUp = FlexLove.Animation.scale(0.5,
-  { width = 100, height = 50 },
-  { width = 200, height = 100 }
-)
-scaleUp:apply(element)
-
--- Custom animation with easing
-local customAnim = FlexLove.Animation.new({
-  duration = 1.0,
-  start = { opacity = 0, width = 100 },
-  final = { opacity = 1, width = 200 },
-  easing = "easeInOutCubic"
-})
-customAnim:apply(element)
-```
-
-7. Event Handling:
-```lua
-local button = FlexLove.Element.new({
-  text = "Interactive",
-  callback = function(element, event)
-    if event.type == "click" then
-      print("Clicked with button:", event.button)
-      print("Position:", event.x, event.y)
-      print("Modifiers:", event.modifiers.shift, event.modifiers.ctrl)
-    elseif event.type == "press" then
-      print("Button pressed")
-    elseif event.type == "release" then
-      print("Button released")
-    end
-  end
-})
-```
-
 VERSION: 1.0.0
 LICENSE: MIT
-================================================================================
+For full documentation, see README.md
 ]]
 
 -- ====================
@@ -315,6 +98,295 @@ function Color.fromHex(hexWithTag)
 end
 
 -- ====================
+-- ImageDataReader
+-- ====================
+
+local ImageDataReader = {}
+
+--- Load ImageData from a file path
+---@param imagePath string
+---@return love.ImageData
+function ImageDataReader.loadImageData(imagePath)
+  if not imagePath then
+    error(formatError("ImageDataReader", "Image path cannot be nil"))
+  end
+
+  local success, result = pcall(function()
+    return love.image.newImageData(imagePath)
+  end)
+
+  if not success then
+    error(formatError("ImageDataReader", "Failed to load image data from '" .. imagePath .. "': " .. tostring(result)))
+  end
+
+  return result
+end
+
+--- Extract all pixels from a specific row
+---@param imageData love.ImageData
+---@param rowIndex number -- 0-based row index
+---@return table -- Array of {r, g, b, a} values (0-255 range)
+function ImageDataReader.getRow(imageData, rowIndex)
+  if not imageData then
+    error(formatError("ImageDataReader", "ImageData cannot be nil"))
+  end
+
+  local width = imageData:getWidth()
+  local height = imageData:getHeight()
+
+  if rowIndex < 0 or rowIndex >= height then
+    error(formatError("ImageDataReader", string.format("Row index %d out of bounds (height: %d)", rowIndex, height)))
+  end
+
+  local pixels = {}
+  for x = 0, width - 1 do
+    local r, g, b, a = imageData:getPixel(x, rowIndex)
+    table.insert(pixels, {
+      r = math.floor(r * 255 + 0.5),
+      g = math.floor(g * 255 + 0.5),
+      b = math.floor(b * 255 + 0.5),
+      a = math.floor(a * 255 + 0.5),
+    })
+  end
+
+  return pixels
+end
+
+--- Extract all pixels from a specific column
+---@param imageData love.ImageData
+---@param colIndex number -- 0-based column index
+---@return table -- Array of {r, g, b, a} values (0-255 range)
+function ImageDataReader.getColumn(imageData, colIndex)
+  if not imageData then
+    error(formatError("ImageDataReader", "ImageData cannot be nil"))
+  end
+
+  local width = imageData:getWidth()
+  local height = imageData:getHeight()
+
+  if colIndex < 0 or colIndex >= width then
+    error(formatError("ImageDataReader", string.format("Column index %d out of bounds (width: %d)", colIndex, width)))
+  end
+
+  local pixels = {}
+  for y = 0, height - 1 do
+    local r, g, b, a = imageData:getPixel(colIndex, y)
+    table.insert(pixels, {
+      r = math.floor(r * 255 + 0.5),
+      g = math.floor(g * 255 + 0.5),
+      b = math.floor(b * 255 + 0.5),
+      a = math.floor(a * 255 + 0.5),
+    })
+  end
+
+  return pixels
+end
+
+--- Check if a pixel is black with full alpha (9-patch marker)
+---@param r number -- Red (0-255)
+---@param g number -- Green (0-255)
+---@param b number -- Blue (0-255)
+---@param a number -- Alpha (0-255)
+---@return boolean
+function ImageDataReader.isBlackPixel(r, g, b, a)
+  return r == 0 and g == 0 and b == 0 and a == 255
+end
+
+-- ====================
+-- NinePatchParser
+-- ====================
+
+local NinePatchParser = {}
+
+--- Find all continuous runs of black pixels in a pixel array
+---@param pixels table -- Array of {r, g, b, a} pixel values
+---@return table -- Array of {start, end} pairs (1-based indices, inclusive)
+local function findBlackPixelRuns(pixels)
+  local runs = {}
+  local inRun = false
+  local runStart = nil
+
+  for i = 1, #pixels do
+    local pixel = pixels[i]
+    local isBlack = ImageDataReader.isBlackPixel(pixel.r, pixel.g, pixel.b, pixel.a)
+
+    if isBlack and not inRun then
+      -- Start of a new run
+      inRun = true
+      runStart = i
+    elseif not isBlack and inRun then
+      -- End of current run
+      table.insert(runs, { start = runStart, ["end"] = i - 1 })
+      inRun = false
+      runStart = nil
+    end
+  end
+
+  -- Handle case where run extends to end of array
+  if inRun then
+    table.insert(runs, { start = runStart, ["end"] = #pixels })
+  end
+
+  return runs
+end
+
+--- Parse a 9-patch PNG image to extract stretch regions and content padding
+---@param imagePath string -- Path to the 9-patch image file
+---@return table|nil, string|nil -- Returns {insets, stretchX, stretchY} or nil, error message
+function NinePatchParser.parse(imagePath)
+  if not imagePath then
+    return nil, "Image path cannot be nil"
+  end
+
+  local success, imageData = pcall(function()
+    return ImageDataReader.loadImageData(imagePath)
+  end)
+
+  if not success then
+    return nil, "Failed to load image data: " .. tostring(imageData)
+  end
+
+  local width = imageData:getWidth()
+  local height = imageData:getHeight()
+
+  -- Validate minimum size (must be at least 3x3 with 1px border)
+  if width < 3 or height < 3 then
+    return nil, string.format("Invalid 9-patch dimensions: %dx%d (minimum 3x3)", width, height)
+  end
+
+  -- Extract border pixels (0-based indexing, but we convert to 1-based for processing)
+  local topBorder = ImageDataReader.getRow(imageData, 0)
+  local leftBorder = ImageDataReader.getColumn(imageData, 0)
+  local bottomBorder = ImageDataReader.getRow(imageData, height - 1)
+  local rightBorder = ImageDataReader.getColumn(imageData, width - 1)
+
+  -- Remove corner pixels from borders (they're not part of the stretch/content markers)
+  -- Top and bottom borders: remove first and last pixel
+  local topStretchPixels = {}
+  local bottomContentPixels = {}
+  for i = 2, #topBorder - 1 do
+    table.insert(topStretchPixels, topBorder[i])
+  end
+  for i = 2, #bottomBorder - 1 do
+    table.insert(bottomContentPixels, bottomBorder[i])
+  end
+
+  -- Left and right borders: remove first and last pixel
+  local leftStretchPixels = {}
+  local rightContentPixels = {}
+  for i = 2, #leftBorder - 1 do
+    table.insert(leftStretchPixels, leftBorder[i])
+  end
+  for i = 2, #rightBorder - 1 do
+    table.insert(rightContentPixels, rightBorder[i])
+  end
+
+  -- Find stretch regions (top and left borders)
+  local stretchX = findBlackPixelRuns(topStretchPixels)
+  local stretchY = findBlackPixelRuns(leftStretchPixels)
+
+  -- Find content padding regions (bottom and right borders)
+  local contentX = findBlackPixelRuns(bottomContentPixels)
+  local contentY = findBlackPixelRuns(rightContentPixels)
+
+  -- Validate that we have at least one stretch region
+  if #stretchX == 0 or #stretchY == 0 then
+    return nil, "No stretch regions found (top or left border has no black pixels)"
+  end
+
+  -- Calculate insets from stretch regions
+  -- Use the first stretch region's start and last stretch region's end
+  local firstStretchX = stretchX[1]
+  local lastStretchX = stretchX[#stretchX]
+  local firstStretchY = stretchY[1]
+  local lastStretchY = stretchY[#stretchY]
+
+  -- If content padding is defined, use it; otherwise use stretch regions
+  local contentLeft, contentRight, contentTop, contentBottom
+
+  if #contentX > 0 then
+    contentLeft = contentX[1].start
+    contentRight = #topStretchPixels - contentX[#contentX]["end"]
+  else
+    contentLeft = firstStretchX.start
+    contentRight = #topStretchPixels - lastStretchX["end"]
+  end
+
+  if #contentY > 0 then
+    contentTop = contentY[1].start
+    contentBottom = #leftStretchPixels - contentY[#contentY]["end"]
+  else
+    contentTop = firstStretchY.start
+    contentBottom = #leftStretchPixels - lastStretchY["end"]
+  end
+
+  return {
+    insets = {
+      left = contentLeft,
+      top = contentTop,
+      right = contentRight,
+      bottom = contentBottom,
+    },
+    stretchX = stretchX,
+    stretchY = stretchY,
+  }
+end
+
+-- ====================
+-- ImageScaler
+-- ====================
+
+local ImageScaler = {}
+
+--- Scale an ImageData region using nearest-neighbor sampling
+--- Produces sharp, pixelated scaling - ideal for pixel art
+---@param sourceImageData love.ImageData -- Source image data
+---@param srcX number -- Source region X (0-based)
+---@param srcY number -- Source region Y (0-based)
+---@param srcW number -- Source region width
+---@param srcH number -- Source region height
+---@param destW number -- Destination width
+---@param destH number -- Destination height
+---@return love.ImageData -- Scaled image data
+function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
+  if not sourceImageData then
+    error(formatError("ImageScaler", "Source ImageData cannot be nil"))
+  end
+  
+  if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
+    error(formatError("ImageScaler", "Dimensions must be positive"))
+  end
+  
+  -- Create destination ImageData
+  local destImageData = love.image.newImageData(destW, destH)
+  
+  -- Calculate scale ratios (cached outside loops for performance)
+  local scaleX = srcW / destW
+  local scaleY = srcH / destH
+  
+  -- Nearest-neighbor sampling
+  for destY = 0, destH - 1 do
+    for destX = 0, destW - 1 do
+      -- Calculate source pixel coordinates using floor (nearest-neighbor)
+      local srcPixelX = math.floor(destX * scaleX) + srcX
+      local srcPixelY = math.floor(destY * scaleY) + srcY
+      
+      -- Clamp to source bounds (safety check)
+      srcPixelX = math.min(srcPixelX, srcX + srcW - 1)
+      srcPixelY = math.min(srcPixelY, srcY + srcH - 1)
+      
+      -- Sample source pixel
+      local r, g, b, a = sourceImageData:getPixel(srcPixelX, srcPixelY)
+      
+      -- Write to destination
+      destImageData:setPixel(destX, destY, r, g, b, a)
+    end
+  end
+  
+  return destImageData
+end
+
+-- ====================
 -- Theme System
 -- ====================
 
@@ -325,12 +397,17 @@ end
 ---@field h number -- Height in atlas
 
 ---@class ThemeComponent
----@field atlas string|love.Image? -- Optional: component-specific atlas (overrides theme atlas)
+---@field atlas string|love.Image? -- Optional: component-specific atlas (overrides theme atlas). Files ending in .9.png are auto-parsed
+---@field insets {left:number, top:number, right:number, bottom:number}? -- Optional: 9-patch insets (auto-extracted from .9.png files or manually defined)
 ---@field regions {topLeft:ThemeRegion, topCenter:ThemeRegion, topRight:ThemeRegion, middleLeft:ThemeRegion, middleCenter:ThemeRegion, middleRight:ThemeRegion, bottomLeft:ThemeRegion, bottomCenter:ThemeRegion, bottomRight:ThemeRegion}
 ---@field stretch {horizontal:table<integer, string>, vertical:table<integer, string>}
 ---@field states table<string, ThemeComponent>?
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: multiplier for auto-sized content dimensions
+---@field scaleCorners boolean? -- Optional: scale non-stretched regions (corners/edges) with window size. Default: false
+---@field scalingAlgorithm "nearest"|"bilinear"? -- Optional: scaling algorithm for non-stretched regions. Default: "bilinear"
 ---@field _loadedAtlas love.Image? -- Internal: cached loaded atlas image
+---@field _ninePatchData {insets:table, stretchX:table, stretchY:table}? -- Internal: parsed 9-patch data with multiple stretch regions
+---@field _scaledRegionCache table<string, love.Image>? -- Internal: cache for scaled corner/edge images
 
 ---@class FontFamily
 ---@field path string -- Path to the font file (relative to FlexLove or absolute)
@@ -424,9 +501,6 @@ local function safeLoadImage(imagePath)
   end
 end
 
---- Create a new theme instance
----@param definition ThemeDefinition
----@return Theme
 --- Validate theme definition structure
 ---@param definition ThemeDefinition
 ---@return boolean, string? -- Returns true if valid, or false with error message
@@ -488,11 +562,28 @@ function Theme.new(definition)
   self.fonts = definition.fonts or {}
   self.contentAutoSizingMultiplier = definition.contentAutoSizingMultiplier or nil
 
-  -- Load component-specific atlases
+  -- Load component-specific atlases and process 9-patch definitions
   for componentName, component in pairs(self.components) do
     if component.atlas then
       if type(component.atlas) == "string" then
         local resolvedPath = resolveImagePath(component.atlas)
+
+        -- Check if this is a 9-patch file that needs parsing
+        local is9Patch = not component.insets and component.atlas:match("%.9%.png$")
+
+        -- Parse 9-patch BEFORE loading the image
+        if is9Patch then
+          local parseResult, parseErr = NinePatchParser.parse(resolvedPath)
+          if parseResult then
+            component.insets = parseResult.insets
+            component._ninePatchData = parseResult -- Store full data including stretch regions
+            print("[FlexLove] Auto-parsed 9-patch: " .. component.atlas)
+          else
+            print("[FlexLove] Warning: Failed to parse 9-patch '" .. component.atlas .. "': " .. tostring(parseErr))
+          end
+        end
+
+        -- Now load the image normally
         local image, err = safeLoadImage(resolvedPath)
         if image then
           component._loadedAtlas = image
@@ -504,15 +595,93 @@ function Theme.new(definition)
       end
     end
 
-    -- Also load atlases for component states
+    -- Process 9-patch insets into regions (new format)
+    if component.insets then
+      local atlasImage = component._loadedAtlas or self.atlas
+      if atlasImage then
+        local imgWidth, imgHeight = atlasImage:getDimensions()
+        local left = component.insets.left or 0
+        local top = component.insets.top or 0
+        local right = component.insets.right or 0
+        local bottom = component.insets.bottom or 0
+
+        -- Calculate center dimensions
+        local centerWidth = imgWidth - left - right
+        local centerHeight = imgHeight - top - bottom
+
+        -- Generate regions from insets
+        component.regions = {
+          topLeft = { x = 0, y = 0, w = left, h = top },
+          topCenter = { x = left, y = 0, w = centerWidth, h = top },
+          topRight = { x = left + centerWidth, y = 0, w = right, h = top },
+          middleLeft = { x = 0, y = top, w = left, h = centerHeight },
+          middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
+          middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
+          bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
+          bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
+          bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
+        }
+      end
+    end
+
+    -- Also load atlases for component states and process their 9-patch definitions
     if component.states then
       for stateName, stateComponent in pairs(component.states) do
         if stateComponent.atlas then
           if type(stateComponent.atlas) == "string" then
             local resolvedPath = resolveImagePath(stateComponent.atlas)
-            stateComponent._loadedAtlas = love.graphics.newImage(resolvedPath)
+
+            -- Check if this is a 9-patch file that needs parsing
+            local is9Patch = not stateComponent.insets and stateComponent.atlas:match("%.9%.png$")
+
+            -- Parse 9-patch BEFORE loading the image
+            if is9Patch then
+              local parseResult, parseErr = NinePatchParser.parse(resolvedPath)
+              if parseResult then
+                stateComponent.insets = parseResult.insets
+                stateComponent._ninePatchData = parseResult
+                print("[FlexLove] Auto-parsed 9-patch state '" .. stateName .. "': " .. stateComponent.atlas)
+              else
+                print("[FlexLove] Warning: Failed to parse 9-patch state '" .. stateName .. "': " .. tostring(parseErr))
+              end
+            end
+
+            -- Now load the image normally
+            local image, imgErr = safeLoadImage(resolvedPath)
+            if image then
+              stateComponent._loadedAtlas = image
+            else
+              print("[FlexLove] Warning: Failed to load state atlas '" .. stateName .. "': " .. tostring(imgErr))
+            end
           else
             stateComponent._loadedAtlas = stateComponent.atlas
+          end
+        end
+
+        -- Process 9-patch insets for state components
+        if stateComponent.insets then
+          local atlasImage = stateComponent._loadedAtlas or component._loadedAtlas or self.atlas
+          if atlasImage then
+            local imgWidth, imgHeight = atlasImage:getDimensions()
+            local left = stateComponent.insets.left or 0
+            local top = stateComponent.insets.top or 0
+            local right = stateComponent.insets.right or 0
+            local bottom = stateComponent.insets.bottom or 0
+
+            local centerWidth = imgWidth - left - right
+            local centerHeight = imgHeight - top - bottom
+
+            stateComponent.regions = {
+              topLeft = { x = 0, y = 0, w = left, h = top },
+              topCenter = { x = left, y = 0, w = centerWidth, h = top },
+              topRight = { x = left + centerWidth, y = 0, w = right, h = top },
+              middleLeft = { x = 0, y = top, w = left, h = centerHeight },
+              middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
+              middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
+              bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
+              bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
+              bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
+            }
           end
         end
       end
@@ -781,16 +950,16 @@ end
 
 local NineSlice = {}
 
---- Draw a 9-slice component with borders in padding area
+--- Draw a 9-patch component using Android-style rendering
+--- Corners are never scaled (1:1 pixels), edges stretch in one dimension only
 ---@param component ThemeComponent
 ---@param atlas love.Image
----@param x number -- X position of border box (top-left corner)
----@param y number -- Y position of border box (top-left corner)
----@param contentWidth number -- Width of content area (excludes padding)
----@param contentHeight number -- Height of content area (excludes padding)
----@param padding {top:number, right:number, bottom:number, left:number} -- Padding defines border thickness
+---@param x number -- X position (top-left corner)
+---@param y number -- Y position (top-left corner)
+---@param width number -- Total width (border-box)
+---@param height number -- Total height (border-box)
 ---@param opacity number?
-function NineSlice.draw(component, atlas, x, y, contentWidth, contentHeight, padding, opacity)
+function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   if not component or not atlas then
     return
   end
@@ -800,102 +969,54 @@ function NineSlice.draw(component, atlas, x, y, contentWidth, contentHeight, pad
 
   local regions = component.regions
 
-  -- Calculate source image border dimensions from regions
-  local sourceBorderLeft = regions.topLeft.w
-  local sourceBorderRight = regions.topRight.w
-  local sourceBorderTop = regions.topLeft.h
-  local sourceBorderBottom = regions.bottomLeft.h
-  local sourceCenterWidth = regions.middleCenter.w
-  local sourceCenterHeight = regions.middleCenter.h
+  -- Extract border dimensions from regions (in pixels)
+  local left = regions.topLeft.w
+  local right = regions.topRight.w
+  local top = regions.topLeft.h
+  local bottom = regions.bottomLeft.h
+  local centerW = regions.middleCenter.w
+  local centerH = regions.middleCenter.h
 
-  -- Calculate scale factors to fit borders within padding
-  -- Borders scale to fit the padding dimensions
-  local scaleLeft = padding.left / sourceBorderLeft
-  local scaleRight = padding.right / sourceBorderRight
-  local scaleTop = padding.top / sourceBorderTop
-  local scaleBottom = padding.bottom / sourceBorderBottom
+  -- Calculate content area (space remaining after borders)
+  local contentWidth = width - left - right
+  local contentHeight = height - top - bottom
+
+  -- Clamp to prevent negative dimensions
+  contentWidth = math.max(0, contentWidth)
+  contentHeight = math.max(0, contentHeight)
+
+  -- Calculate stretch scales for edges and center
+  local scaleX = contentWidth / centerW
+  local scaleY = contentHeight / centerH
 
   -- Create quads for each region
   local atlasWidth, atlasHeight = atlas:getDimensions()
 
-  -- Helper to create quad
   local function makeQuad(region)
     return love.graphics.newQuad(region.x, region.y, region.w, region.h, atlasWidth, atlasHeight)
   end
 
-  -- Top-left corner (scales to fit top-left padding)
-  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y, 0, scaleLeft, scaleTop)
+  -- CORNERS (no scaling - 1:1 pixel perfect)
+  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y)
+  love.graphics.draw(atlas, makeQuad(regions.topRight), x + left + contentWidth, y)
+  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + top + contentHeight)
+  love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + left + contentWidth, y + top + contentHeight)
 
-  -- Top-right corner (scales to fit top-right padding)
-  love.graphics.draw(atlas, makeQuad(regions.topRight), x + padding.left + contentWidth, y, 0, scaleRight, scaleTop)
-
-  -- Bottom-left corner (scales to fit bottom-left padding)
-  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + padding.top + contentHeight, 0, scaleLeft, scaleBottom)
-
-  -- Bottom-right corner (scales to fit bottom-right padding)
-  love.graphics.draw(
-    atlas,
-    makeQuad(regions.bottomRight),
-    x + padding.left + contentWidth,
-    y + padding.top + contentHeight,
-    0,
-    scaleRight,
-    scaleBottom
-  )
-
-  -- Top edge (stretched to content width, scaled to padding.top height)
+  -- TOP/BOTTOM EDGES (stretch horizontally only)
   if contentWidth > 0 then
-    local stretchScaleX = contentWidth / sourceCenterWidth
-    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + padding.left, y, 0, stretchScaleX, scaleTop)
+    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + left, y, 0, scaleX, 1)
+    love.graphics.draw(atlas, makeQuad(regions.bottomCenter), x + left, y + top + contentHeight, 0, scaleX, 1)
   end
 
-  -- Bottom edge (stretched to content width, scaled to padding.bottom height)
-  if contentWidth > 0 then
-    local stretchScaleX = contentWidth / sourceCenterWidth
-    love.graphics.draw(
-      atlas,
-      makeQuad(regions.bottomCenter),
-      x + padding.left,
-      y + padding.top + contentHeight,
-      0,
-      stretchScaleX,
-      scaleBottom
-    )
-  end
-
-  -- Left edge (scaled to padding.left width, stretched to content height)
+  -- LEFT/RIGHT EDGES (stretch vertically only)
   if contentHeight > 0 then
-    local stretchScaleY = contentHeight / sourceCenterHeight
-    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + padding.top, 0, scaleLeft, stretchScaleY)
+    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + top, 0, 1, scaleY)
+    love.graphics.draw(atlas, makeQuad(regions.middleRight), x + left + contentWidth, y + top, 0, 1, scaleY)
   end
 
-  -- Right edge (scaled to padding.right width, stretched to content height)
-  if contentHeight > 0 then
-    local stretchScaleY = contentHeight / sourceCenterHeight
-    love.graphics.draw(
-      atlas,
-      makeQuad(regions.middleRight),
-      x + padding.left + contentWidth,
-      y + padding.top,
-      0,
-      scaleRight,
-      stretchScaleY
-    )
-  end
-
-  -- Center (stretched to fill content area)
+  -- CENTER (stretch both dimensions)
   if contentWidth > 0 and contentHeight > 0 then
-    local stretchScaleX = contentWidth / sourceCenterWidth
-    local stretchScaleY = contentHeight / sourceCenterHeight
-    love.graphics.draw(
-      atlas,
-      makeQuad(regions.middleCenter),
-      x + padding.left,
-      y + padding.top,
-      0,
-      stretchScaleX,
-      stretchScaleY
-    )
+    love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + left, y + top, 0, scaleX, scaleY)
   end
 
   -- Reset color
@@ -3308,8 +3429,10 @@ function Element:draw()
             and component.regions.bottomCenter
             and component.regions.bottomRight
           if hasAllRegions then
-            -- NineSlice.draw expects content dimensions (without padding), not border-box
-            NineSlice.draw(component, atlasToUse, self.x, self.y, self.width, self.height, self.padding, self.opacity)
+            -- Calculate border-box dimensions (content + padding)
+            local borderBoxWidth = self.width + self.padding.left + self.padding.right
+            local borderBoxHeight = self.height + self.padding.top + self.padding.bottom
+            NineSlice.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity)
           else
             -- Silently skip drawing if component structure is invalid
           end
@@ -3776,12 +3899,14 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- - If element has a parent: use parent's border-box dimensions (CSS spec for child elements)
   -- - If element has no parent: use element's own border-box dimensions (CSS spec for root elements)
   local parentBorderBoxWidth = self.parent and self.parent._borderBoxWidth or self._borderBoxWidth or newViewportWidth
-  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight or self._borderBoxHeight or newViewportHeight
+  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight
+    or self._borderBoxHeight
+    or newViewportHeight
 
   -- Handle shorthand properties first (horizontal/vertical)
   local resolvedHorizontalPadding = nil
   local resolvedVerticalPadding = nil
-  
+
   if self.units.padding.horizontal and self.units.padding.horizontal.unit ~= "px" then
     resolvedHorizontalPadding = Units.resolve(
       self.units.padding.horizontal.value,
@@ -3843,7 +3968,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Handle margin shorthand properties
   local resolvedHorizontalMargin = nil
   local resolvedVerticalMargin = nil
-  
+
   if self.units.margin.horizontal and self.units.margin.horizontal.unit ~= "px" then
     resolvedHorizontalMargin = Units.resolve(
       self.units.margin.horizontal.value,
@@ -3914,7 +4039,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     -- Update border-box to include padding
     self._borderBoxWidth = self.width + self.padding.left + self.padding.right
   end
-  
+
   if self.units.height.unit ~= "auto" then
     -- _borderBoxHeight was already set during height recalculation
     -- Calculate content height by subtracting padding
@@ -4135,6 +4260,8 @@ Gui.new = Element.new
 Gui.Element = Element
 Gui.Animation = Animation
 Gui.Theme = Theme
+Gui.ImageDataReader = ImageDataReader
+Gui.NinePatchParser = NinePatchParser
 
 -- Export individual enums for convenience
 return {
@@ -4144,6 +4271,9 @@ return {
   Color = Color,
   Theme = Theme,
   Animation = Animation,
+  ImageScaler = ImageScaler,
+  ImageDataReader = ImageDataReader,
+  NinePatchParser = NinePatchParser,
   enums = enums,
   -- Export individual enums at top level
   Positioning = Positioning,

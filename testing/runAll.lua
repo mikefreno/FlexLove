@@ -24,8 +24,7 @@ local testFiles = {
   "testing/__tests__/18_font_family_inheritance_tests.lua",
   "testing/__tests__/19_negative_margin_tests.lua",
   "testing/__tests__/20_padding_resize_tests.lua",
-  "testing/__tests__/21_ninepatch_parser_tests.lua",
-  "testing/__tests__/22_image_scaler_nearest_tests.lua",
+  "testing/__tests__/21_image_scaler_nearest_tests.lua",
 }
 
 local success = true

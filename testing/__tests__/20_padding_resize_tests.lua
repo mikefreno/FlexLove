@@ -1,4 +1,5 @@
 -- Test padding resize behavior with percentage units
+package.path = package.path .. ";?.lua"
 local luaunit = require("testing.luaunit")
 local FlexLove = require("FlexLove")
 
@@ -7,13 +8,13 @@ TestPaddingResize = {}
 function TestPaddingResize:setUp()
   -- Reset GUI state before each test
   FlexLove.Gui.destroy()
-  
+
   -- Set up a consistent viewport size
   love.window.setMode(1920, 1080)
-  
+
   -- Initialize with base scaling
   FlexLove.Gui.init({
-    baseScale = { width = 1920, height = 1080 }
+    baseScale = { width = 1920, height = 1080 },
   })
 end
 
@@ -237,4 +238,4 @@ function TestPaddingResize:testMixedPaddingUnits()
   luaunit.assertTrue(initialLeft < element.padding.left, "Left padding (vh) should increase")
 end
 
-return TestPaddingResize
+luaunit.LuaUnit.run()

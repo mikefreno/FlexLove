@@ -347,6 +347,57 @@ Gui.new({
 })
 ```
 
+## Corner Scaling
+
+By default, 9-slice corners and non-stretched edges are rendered at their original pixel size (1:1). For pixel-art themes or when you want corners to scale with the window, you can enable corner scaling:
+
+### Enabling Corner Scaling
+
+```lua
+-- themes/my_theme.lua
+return {
+  name = "My Theme",
+  components = {
+    button = {
+      atlas = "themes/button.png",
+      insets = { left = 8, top = 8, right = 8, bottom = 8 },
+      scaleCorners = true,              -- Enable corner scaling
+      scalingAlgorithm = "bilinear"     -- "bilinear" (smooth) or "nearest" (sharp/pixelated)
+    }
+  }
+}
+```
+
+### Scaling Algorithms
+
+- **`bilinear`** (default): Smooth interpolation between pixels. Best for most use cases.
+- **`nearest`**: Nearest-neighbor sampling. Best for pixel art that should maintain sharp edges.
+
+### When to Use Corner Scaling
+
+- **Pixel art themes**: Use `scaleCorners = true` with `scalingAlgorithm = "nearest"` to maintain crisp pixel boundaries
+- **High DPI displays**: Use `scaleCorners = true` with `scalingAlgorithm = "bilinear"` for smooth scaling
+- **Fixed-size UI**: Keep `scaleCorners = false` (default) for pixel-perfect rendering at original size
+
+### Per-State Scaling
+
+You can also set scaling per-state:
+
+```lua
+button = {
+  atlas = "themes/button_normal.png",
+  scaleCorners = true,
+  scalingAlgorithm = "bilinear",
+  states = {
+    hover = {
+      atlas = "themes/button_hover.png",
+      scaleCorners = true,           -- Can override per state
+      scalingAlgorithm = "nearest"   -- Different algorithm for this state
+    }
+  }
+}
+```
+
 ## Tips
 
 1. **Start Simple**: Begin with one component (button) before creating a full theme
@@ -355,6 +406,7 @@ Gui.new({
 4. **State Variations**: For button states, change colors/brightness rather than structure
 5. **Atlas Packing**: Use tools like TexturePacker or Aseprite to create efficient atlases
 6. **Transparency**: Use semi-transparent backgroundColor to tint themed elements
+7. **Corner Scaling**: Enable for pixel art or responsive UIs; disable for pixel-perfect rendering
 
 ## Tools for Creating Atlases
 

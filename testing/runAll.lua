@@ -23,9 +23,11 @@ local testFiles = {
   "testing/__tests__/17_sibling_space_reservation_tests.lua",
   "testing/__tests__/18_font_family_inheritance_tests.lua",
   "testing/__tests__/19_negative_margin_tests.lua",
+  "testing/__tests__/20_padding_resize_tests.lua",
+  "testing/__tests__/21_ninepatch_parser_tests.lua",
+  "testing/__tests__/22_image_scaler_nearest_tests.lua",
 }
 
--- testingun all tests, but don't exit on error
 local success = true
 print("========================================")
 print("Running ALL tests")
@@ -45,6 +47,5 @@ print("========================================")
 print("All tests completed")
 print("========================================")
 
--- Run the tests and exit with appropriate code
 local result = luaunit.LuaUnit.run()
 os.exit(success and result or 1)

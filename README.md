@@ -1,8 +1,19 @@
 # FlexLöve
 
-A Löve GUI library based on Flexbox with theming and animation support
+**A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
 FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system. It provides a simple way to create and manage UI elements with automatic layout calculations, animations, theming, and responsive design.
+
+## Architecture Overview
+
+1. **Color System** - RGBA color utilities with hex conversion
+2. **Theme System** - 9-slice theming with state support (normal/hover/pressed/disabled)
+   - Automatic Android 9-patch (*.9.png) parsing with multi-region support
+3. **Units System** - Responsive units (px, %, vw, vh, ew, eh) with viewport scaling
+4. **Layout System** - Flexbox, Grid, Absolute, and Relative positioning
+5. **Event System** - Mouse/touch events with z-index ordering
+6. **Animation System** - Interpolation with easing functions
+7. **GUI Manager** - Top-level manager for elements and global state
 
 ## ⚠️ Development Status
 
@@ -15,6 +26,7 @@ This library is under active development. While many features are functional, so
 - **Element Management**: Hierarchical element structures with automatic sizing
 - **Interactive Elements**: Buttons with click detection, event system, and callbacks
 - **Theme System**: 9-slice/9-patch theming with state support (normal, hover, pressed, disabled)
+  - **Android 9-Patch Auto-Parsing**: Automatic parsing of *.9.png files with multi-region support
 - **Animations**: Built-in animation support for transitions and effects
 - **Responsive Design**: Automatic resizing with viewport units (vw, vh, %)
 - **Color Handling**: Utility classes for managing colors in various formats
@@ -36,61 +48,51 @@ local Color = FlexLove.Color
 
 ```lua
 local FlexLove = require("FlexLove")
-local Gui = FlexLove.GUI
-local Color = FlexLove.Color
 
-function love.load()
-  -- Initialize GUI system
-  Gui.init({
-    baseScale = { width = 1920, height = 1080 }
-  })
-  
-  -- Create a container
-  local container = Gui.new({
-    x = 100,
-    y = 100,
-    width = 400,
-    height = 300,
-    backgroundColor = Color.new(0.2, 0.2, 0.2, 1),
-    cornerRadius = 10,
-    border = { top = true, bottom = true, left = true, right = true },
-    borderColor = Color.new(0.8, 0.8, 0.8, 1),
-    positioning = "flex",
-    flexDirection = "vertical",
-    gap = 10,
-    padding = { top = 20, right = 20, bottom = 20, left = 20 }
-  })
-  
-  -- Create a button
-  local button = Gui.new({
-    parent = container,
-    width = 200,
-    height = 50,
-    text = "Click Me",
-    textAlign = "center",
-    textColor = Color.new(1, 1, 1, 1),
-    backgroundColor = Color.new(0.2, 0.6, 0.9, 1),
-    cornerRadius = 8,
-    callback = function(element, event)
-      if event.type == "click" then
-        print("Button clicked!")
-      end
-    end
-  })
-end
+-- Initialize with base scaling and theme
+FlexLove.Gui.init({
+  baseScale = { width = 1920, height = 1080 },
+  theme = "space"
+})
 
+-- Create a button with flexbox layout
+local button = FlexLove.Element.new({
+  width = "20vw",
+  height = "10vh",
+  backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.8, 1),
+  text = "Click Me",
+  textSize = "md",
+  themeComponent = "button",
+  callback = function(element, event)
+    print("Button clicked!")
+  end
+})
+
+-- In your love.update and love.draw:
 function love.update(dt)
-  Gui.update(dt)
+  FlexLove.Gui.update(dt)
 end
 
 function love.draw()
-  Gui.draw()
-end
-
-function love.resize(w, h)
-  Gui.resize()
+  FlexLove.Gui.draw()
 end
 ```
+
+## API Conventions
+
+### Method Patterns
+- **Constructors**: `ClassName.new(props)` → instance
+- **Static Methods**: `ClassName.methodName(args)` → result
+- **Instance Methods**: `instance:methodName(args)` → result
+- **Getters**: `instance:getPropertyName()` → value
+- **Internal Fields**: `_fieldName` (private, do not access directly)
+- **Error Handling**: Constructors throw errors, utility functions return nil + error string
+
+### Return Value Patterns
+- **Single Success**: return value
+- **Success/Failure**: return result, errorMessage (nil on success for error)
+- **Multiple Values**: return value1, value2 (documented in @return)
+- **Constructors**: Always return instance (never nil)
 
 ## Core Concepts
 
@@ -227,6 +229,36 @@ local button = Gui.new({
 })
 ```
 
+#### Android 9-Patch Support
+
+FlexLove automatically parses Android 9-patch (*.9.png) files:
+
+```lua
+-- Theme definition with auto-parsed 9-patch
+{
+  name = "My Theme",
+  components = {
+    button = {
+      atlas = "themes/mytheme/button.9.png"
+      -- insets automatically extracted from 9-patch borders
+      -- supports multiple stretch regions for complex scaling
+    },
+    panel = {
+      atlas = "themes/mytheme/panel.png",
+      insets = { left = 20, top = 20, right = 20, bottom = 20 }
+      -- manual insets still supported (overrides auto-parsing)
+    }
+  }
+}
+```
+
+**9-Patch Format:**
+- Files ending in `.9.png` are automatically detected and parsed
+- Top/left borders define stretchable regions (black pixels)
+- Bottom/right borders define content padding (optional)
+- Supports multiple non-contiguous stretch regions
+- Manual insets override auto-parsing when specified
+
 Themes support state-based rendering:
 - `normal` - Default state
 - `hover` - Mouse over element
@@ -273,18 +305,35 @@ Create smooth transitions:
 local Animation = FlexLove.Animation
 
 -- Fade animation
-element.animation = Animation.fade(1.0, 0, 1)
+local fadeIn = FlexLove.Animation.fade(1.0, 0, 1)
+fadeIn:apply(element)
 
 -- Scale animation
-element.animation = Animation.scale(0.5, 1, 1.2)
+local scaleUp = FlexLove.Animation.scale(0.5,
+  { width = 100, height = 50 },
+  { width = 200, height = 100 }
+)
+scaleUp:apply(element)
 
--- Custom animation
-element.animation = Animation.new({
+-- Custom animation with easing
+local customAnim = FlexLove.Animation.new({
   duration = 1.0,
-  from = { width = 100, height = 50 },
-  to = { width = 200, height = 100 },
-  easing = "easeInOut"
+  start = { opacity = 0, width = 100 },
+  final = { opacity = 1, width = 200 },
+  easing = "easeInOutCubic"
 })
+customAnim:apply(element)
+```
+
+### Creating Colors
+
+```lua
+-- From RGB values (0-1 range)
+local red = FlexLove.Color.new(1, 0, 0, 1)
+
+-- From hex string
+local blue = FlexLove.Color.fromHex("#0000FF")
+local semiTransparent = FlexLove.Color.fromHex("#FF000080")
 ```
 
 ## API Reference
@@ -374,6 +423,15 @@ lua testing/runAll.lua
 # or a specific test:
 lua testing/__tests__/<specific_test>
 ```
+
+## Version & Compatibility
+
+**Current Version**: 1.0.0
+
+**Compatibility:**
+- **Lua**: 5.1+
+- **LÖVE**: 11.x (tested)
+- **LuaJIT**: Compatible
 
 ## License
 

@@ -1,8 +1,5 @@
 -- Space Theme
--- Panel is 882x687 with 110px border
--- All other components are 189x189 with 31px/127px regions
 
--- Define Color inline to avoid circular dependency
 local Color = {}
 Color.__index = Color
 
@@ -21,183 +18,43 @@ return {
   components = {
     card = {
       atlas = "themes/space/card.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 100, h = 100 },
-        topCenter = { x = 100, y = 0, w = 205, h = 100 },
-        topRight = { x = 305, y = 0, w = 100, h = 100 },
-        middleLeft = { x = 0, y = 100, w = 100, h = 178 },
-        middleCenter = { x = 100, y = 100, w = 205, h = 178 },
-        middleRight = { x = 305, y = 100, w = 100, h = 178 },
-        bottomLeft = { x = 0, y = 278, w = 100, h = 100 },
-        bottomCenter = { x = 100, y = 278, w = 205, h = 100 },
-        bottomRight = { x = 305, y = 278, w = 100, h = 100 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 66, top = 66, right = 66, bottom = 66 },
     },
     cardv2 = {
       atlas = "themes/space/card-v2.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 100, h = 100 },
-        topCenter = { x = 100, y = 0, w = 205, h = 100 },
-        topRight = { x = 305, y = 0, w = 100, h = 100 },
-        middleLeft = { x = 0, y = 100, w = 100, h = 178 },
-        middleCenter = { x = 100, y = 100, w = 205, h = 178 },
-        middleRight = { x = 305, y = 100, w = 100, h = 178 },
-        bottomLeft = { x = 0, y = 278, w = 100, h = 100 },
-        bottomCenter = { x = 100, y = 278, w = 205, h = 100 },
-        bottomRight = { x = 305, y = 278, w = 100, h = 100 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 66, top = 66, right = 66, bottom = 66 },
     },
     cardv3 = {
       atlas = "themes/space/card-v3.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 286, h = 100 },
-        topCenter = { x = 286, y = 0, w = 74, h = 100 },
-        topRight = { x = 360, y = 0, w = 286, h = 100 },
-        middleLeft = { x = 0, y = 100, w = 286, h = 101 },
-        middleCenter = { x = 286, y = 100, w = 74, h = 101 },
-        middleRight = { x = 360, y = 100, w = 286, h = 101 },
-        bottomLeft = { x = 0, y = 201, w = 286, h = 100 },
-        bottomCenter = { x = 286, y = 201, w = 74, h = 100 },
-        bottomRight = { x = 360, y = 201, w = 286, h = 100 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 286, top = 100, right = 286, bottom = 100 },
     },
     panel = {
       atlas = "themes/space/panel.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 38, h = 30 },
-        topCenter = { x = 38, y = 0, w = 53, h = 30 },
-        topRight = { x = 91, y = 0, w = 22, h = 30 },
-        middleLeft = { x = 0, y = 30, w = 38, h = 5 },
-        middleCenter = { x = 38, y = 30, w = 53, h = 5 },
-        middleRight = { x = 91, y = 30, w = 22, h = 5 },
-        bottomLeft = { x = 0, y = 35, w = 38, h = 30 },
-        bottomCenter = { x = 38, y = 35, w = 53, h = 30 },
-        bottomRight = { x = 91, y = 35, w = 22, h = 30 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 38, top = 30, right = 22, bottom = 30 },
     },
     panelred = {
       atlas = "themes/space/panel-red.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 38, h = 30 },
-        topCenter = { x = 38, y = 0, w = 53, h = 30 },
-        topRight = { x = 91, y = 0, w = 22, h = 30 },
-        middleLeft = { x = 0, y = 30, w = 38, h = 5 },
-        middleCenter = { x = 38, y = 30, w = 53, h = 5 },
-        middleRight = { x = 91, y = 30, w = 22, h = 5 },
-        bottomLeft = { x = 0, y = 35, w = 38, h = 30 },
-        bottomCenter = { x = 38, y = 35, w = 53, h = 30 },
-        bottomRight = { x = 91, y = 35, w = 22, h = 30 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 38, top = 30, right = 22, bottom = 30 },
     },
     panelgreen = {
       atlas = "themes/space/panel-green.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 38, h = 30 },
-        topCenter = { x = 38, y = 0, w = 53, h = 30 },
-        topRight = { x = 91, y = 0, w = 22, h = 30 },
-        middleLeft = { x = 0, y = 30, w = 38, h = 5 },
-        middleCenter = { x = 38, y = 30, w = 53, h = 5 },
-        middleRight = { x = 91, y = 30, w = 22, h = 5 },
-        bottomLeft = { x = 0, y = 35, w = 38, h = 30 },
-        bottomCenter = { x = 38, y = 35, w = 53, h = 30 },
-        bottomRight = { x = 91, y = 35, w = 22, h = 30 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 38, top = 30, right = 22, bottom = 30 },
     },
     button = {
       atlas = "themes/space/button.png",
-      regions = {
-        topLeft = { x = 0, y = 0, w = 14, h = 14 },
-        topCenter = { x = 14, y = 0, w = 86, h = 14 },
-        topRight = { x = 100, y = 0, w = 14, h = 14 },
-        middleLeft = { x = 0, y = 14, w = 14, h = 10 },
-        middleCenter = { x = 14, y = 14, w = 86, h = 10 },
-        middleRight = { x = 100, y = 14, w = 14, h = 10 },
-        bottomLeft = { x = 0, y = 24, w = 14, h = 14 },
-        bottomCenter = { x = 14, y = 24, w = 86, h = 14 },
-        bottomRight = { x = 100, y = 24, w = 14, h = 14 },
-      },
-      stretch = {
-        horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-        vertical = { "middleLeft", "middleCenter", "middleRight" },
-      },
+      insets = { left = 14, top = 14, right = 14, bottom = 14 },
       states = {
         hover = {
           atlas = "themes/space/button-hover.png",
-          regions = {
-            topLeft = { x = 0, y = 0, w = 14, h = 14 },
-            topCenter = { x = 14, y = 0, w = 86, h = 14 },
-            topRight = { x = 100, y = 0, w = 14, h = 14 },
-            middleLeft = { x = 0, y = 14, w = 14, h = 10 },
-            middleCenter = { x = 14, y = 14, w = 86, h = 10 },
-            middleRight = { x = 100, y = 14, w = 14, h = 10 },
-            bottomLeft = { x = 0, y = 24, w = 14, h = 14 },
-            bottomCenter = { x = 14, y = 24, w = 86, h = 14 },
-            bottomRight = { x = 100, y = 24, w = 14, h = 14 },
-          },
-          stretch = {
-            horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-            vertical = { "middleLeft", "middleCenter", "middleRight" },
-          },
+          insets = { left = 14, top = 14, right = 14, bottom = 14 },
         },
         pressed = {
           atlas = "themes/space/button-pressed.png",
-          regions = {
-            topLeft = { x = 0, y = 0, w = 14, h = 14 },
-            topCenter = { x = 14, y = 0, w = 86, h = 14 },
-            topRight = { x = 100, y = 0, w = 14, h = 14 },
-            middleLeft = { x = 0, y = 14, w = 14, h = 10 },
-            middleCenter = { x = 14, y = 14, w = 86, h = 10 },
-            middleRight = { x = 100, y = 14, w = 14, h = 10 },
-            bottomLeft = { x = 0, y = 24, w = 14, h = 14 },
-            bottomCenter = { x = 14, y = 24, w = 86, h = 14 },
-            bottomRight = { x = 100, y = 24, w = 14, h = 14 },
-          },
-          stretch = {
-            horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-            vertical = { "middleLeft", "middleCenter", "middleRight" },
-          },
+          insets = { left = 14, top = 14, right = 14, bottom = 14 },
         },
         disabled = {
           atlas = "themes/space/button-disabled.png",
-          regions = {
-            topLeft = { x = 0, y = 0, w = 14, h = 14 },
-            topCenter = { x = 14, y = 0, w = 86, h = 14 },
-            topRight = { x = 100, y = 0, w = 14, h = 14 },
-            middleLeft = { x = 0, y = 14, w = 14, h = 10 },
-            middleCenter = { x = 14, y = 14, w = 86, h = 10 },
-            middleRight = { x = 100, y = 14, w = 14, h = 10 },
-            bottomLeft = { x = 0, y = 24, w = 14, h = 14 },
-            bottomCenter = { x = 14, y = 24, w = 86, h = 14 },
-            bottomRight = { x = 100, y = 24, w = 14, h = 14 },
-          },
-          stretch = {
-            horizontal = { "topCenter", "middleCenter", "bottomCenter" },
-            vertical = { "middleLeft", "middleCenter", "middleRight" },
-          },
+          insets = { left = 14, top = 14, right = 14, bottom = 14 },
         },
       },
     },

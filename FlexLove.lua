@@ -296,13 +296,20 @@ function NinePatchParser.parse(imagePath)
     return nil, "No stretch regions found (top or left border has no black pixels)"
   end
 
-  -- Calculate insets from stretch regions
+  -- Calculate stretch insets from stretch regions (top/left guides)
   -- Use the first stretch region's start and last stretch region's end
   local firstStretchX = stretchX[1]
   local lastStretchX = stretchX[#stretchX]
   local firstStretchY = stretchY[1]
   local lastStretchY = stretchY[#stretchY]
 
+  -- Stretch insets define the 9-slice regions
+  local stretchLeft = firstStretchX.start
+  local stretchRight = #topStretchPixels - lastStretchX["end"]
+  local stretchTop = firstStretchY.start
+  local stretchBottom = #leftStretchPixels - lastStretchY["end"]
+
+  -- Calculate content padding from content guides (bottom/right guides)
   -- If content padding is defined, use it; otherwise use stretch regions
   local contentLeft, contentRight, contentTop, contentBottom
 
@@ -310,20 +317,26 @@ function NinePatchParser.parse(imagePath)
     contentLeft = contentX[1].start
     contentRight = #topStretchPixels - contentX[#contentX]["end"]
   else
-    contentLeft = firstStretchX.start
-    contentRight = #topStretchPixels - lastStretchX["end"]
+    contentLeft = stretchLeft
+    contentRight = stretchRight
   end
 
   if #contentY > 0 then
     contentTop = contentY[1].start
     contentBottom = #leftStretchPixels - contentY[#contentY]["end"]
   else
-    contentTop = firstStretchY.start
-    contentBottom = #leftStretchPixels - lastStretchY["end"]
+    contentTop = stretchTop
+    contentBottom = stretchBottom
   end
 
   return {
     insets = {
+      left = stretchLeft,
+      top = stretchTop,
+      right = stretchRight,
+      bottom = stretchBottom,
+    },
+    contentPadding = {
       left = contentLeft,
       top = contentTop,
       right = contentRight,
@@ -489,11 +502,11 @@ end
 ---@field stretch {horizontal:table<integer, string>, vertical:table<integer, string>}
 ---@field states table<string, ThemeComponent>?
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: multiplier for auto-sized content dimensions
----@field scaleCorners boolean? -- Optional: scale non-stretched regions (corners/edges) with window size. Default: false
+---@field scaleCorners number? -- Optional: scale multiplier for non-stretched regions (corners/edges). E.g., 2 = 2x size. Default: nil (no scaling)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Optional: scaling algorithm for non-stretched regions. Default: "bilinear"
 ---@field _loadedAtlas string|love.Image? -- Internal: cached loaded atlas image
 ---@field _loadedAtlasData love.ImageData? -- Internal: cached loaded atlas ImageData for pixel access
----@field _ninePatchData {insets:table, stretchX:table, stretchY:table}? -- Internal: parsed 9-patch data with multiple stretch regions
+---@field _ninePatchData {insets:table, contentPadding:table, stretchX:table, stretchY:table}? -- Internal: parsed 9-patch data with stretch regions and content padding
 ---@field _scaledRegionCache table<string, love.Image>? -- Internal: cache for scaled corner/edge images
 
 ---@class FontFamily
@@ -669,6 +682,35 @@ function Theme.new(definition)
   self.fonts = definition.fonts or {}
   self.contentAutoSizingMultiplier = definition.contentAutoSizingMultiplier or nil
 
+  -- Helper function to strip 1-pixel guide border from 9-patch ImageData
+  ---@param sourceImageData love.ImageData
+  ---@return love.ImageData -- New ImageData without guide border
+  local function stripNinePatchBorder(sourceImageData)
+    local srcWidth = sourceImageData:getWidth()
+    local srcHeight = sourceImageData:getHeight()
+
+    -- Content dimensions (excluding 1px border on all sides)
+    local contentWidth = srcWidth - 2
+    local contentHeight = srcHeight - 2
+
+    if contentWidth <= 0 or contentHeight <= 0 then
+      error(formatError("NinePatch", "Image too small to strip border"))
+    end
+
+    -- Create new ImageData for content only
+    local strippedImageData = love.image.newImageData(contentWidth, contentHeight)
+
+    -- Copy pixels from source (1,1) to (width-2, height-2)
+    for y = 0, contentHeight - 1 do
+      for x = 0, contentWidth - 1 do
+        local r, g, b, a = sourceImageData:getPixel(x + 1, y + 1)
+        strippedImageData:setPixel(x, y, r, g, b, a)
+      end
+    end
+
+    return strippedImageData
+  end
+
   -- Helper function to load atlas with 9-patch support
   local function loadAtlasWithNinePatch(comp, atlasPath, errorContext)
     ---@diagnostic disable-next-line
@@ -688,8 +730,16 @@ function Theme.new(definition)
 
     local image, imageData, loaderr = safeLoadImage(resolvedPath)
     if image then
-      comp._loadedAtlas = image
-      comp._loadedAtlasData = imageData
+      -- Strip guide border for 9-patch images
+      if is9Patch and imageData then
+        local strippedImageData = stripNinePatchBorder(imageData)
+        local strippedImage = love.graphics.newImage(strippedImageData)
+        comp._loadedAtlas = strippedImage
+        comp._loadedAtlasData = strippedImageData
+      else
+        comp._loadedAtlas = image
+        comp._loadedAtlasData = imageData
+      end
     else
       print("[FlexLove] Warning: Failed to load atlas " .. errorContext .. ": " .. tostring(loaderr))
     end
@@ -708,24 +758,20 @@ function Theme.new(definition)
     local right = comp.insets.right or 0
     local bottom = comp.insets.bottom or 0
 
-    local is9Patch = comp._ninePatchData ~= nil
-    local offsetX = is9Patch and 1 or 0
-    local offsetY = is9Patch and 1 or 0
-    local borderSize = is9Patch and 2 or 0
-
-    local centerWidth = imgWidth - left - right - borderSize
-    local centerHeight = imgHeight - top - bottom - borderSize
+    -- No offsets needed - guide border has been stripped for 9-patch images
+    local centerWidth = imgWidth - left - right
+    local centerHeight = imgHeight - top - bottom
 
     comp.regions = {
-      topLeft = { x = offsetX, y = offsetY, w = left, h = top },
-      topCenter = { x = left + offsetX, y = offsetY, w = centerWidth, h = top },
-      topRight = { x = left + centerWidth + offsetX, y = offsetY, w = right, h = top },
-      middleLeft = { x = offsetX, y = top + offsetY, w = left, h = centerHeight },
-      middleCenter = { x = left + offsetX, y = top + offsetY, w = centerWidth, h = centerHeight },
-      middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
-      bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
-      bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
-      bottomRight = { x = left + centerWidth + offsetX, y = top + centerHeight + offsetY, w = right, h = bottom },
+      topLeft = { x = 0, y = 0, w = left, h = top },
+      topCenter = { x = left, y = 0, w = centerWidth, h = top },
+      topRight = { x = left + centerWidth, y = 0, w = right, h = top },
+      middleLeft = { x = 0, y = top, w = left, h = centerHeight },
+      middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
+      middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
+      bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
+      bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
+      bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
     }
   end
 
@@ -1025,7 +1071,7 @@ end
 local NineSlice = {}
 
 --- Draw a 9-patch component using Android-style rendering
---- Corners are never scaled (1:1 pixels), edges stretch in one dimension only
+--- Corners are scaled by scaleCorners multiplier, edges stretch in one dimension only
 ---@param component ThemeComponent
 ---@param atlas love.Image
 ---@param x number -- X position (top-left corner)
@@ -1033,7 +1079,7 @@ local NineSlice = {}
 ---@param width number -- Total width (border-box)
 ---@param height number -- Total height (border-box)
 ---@param opacity number?
----@param elementScaleCorners boolean? -- Element-level override for scaleCorners
+---@param elementScaleCorners number? -- Element-level override for scaleCorners (scale multiplier)
 ---@param elementScalingAlgorithm "nearest"|"bilinear"? -- Element-level override for scalingAlgorithm
 function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementScaleCorners, elementScalingAlgorithm)
   if not component or not atlas then
@@ -1072,11 +1118,11 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
     return love.graphics.newQuad(region.x, region.y, region.w, region.h, atlasWidth, atlasHeight)
   end
 
-  -- Check if corner scaling is enabled
-  -- Priority: element-level override > component setting > default (false)
+  -- Get corner scale multiplier
+  -- Priority: element-level override > component setting > default (nil = no scaling)
   local scaleCorners = elementScaleCorners
   if scaleCorners == nil then
-    scaleCorners = component.scaleCorners or false
+    scaleCorners = component.scaleCorners
   end
 
   -- Priority: element-level override > component setting > default ("bilinear")
@@ -1085,16 +1131,14 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
     scalingAlgorithm = component.scalingAlgorithm or "bilinear"
   end
 
-  if scaleCorners and Gui and Gui.scaleFactors then
+  if scaleCorners and type(scaleCorners) == "number" and scaleCorners > 0 then
     -- Initialize cache if needed
     if not component._scaledRegionCache then
       component._scaledRegionCache = {}
     end
 
-    -- Get current scale factors
-    local scaleFactorX = Gui.scaleFactors.x or 1
-    local scaleFactorY = Gui.scaleFactors.y or 1
-    local scaleFactor = math.max(scaleFactorX, scaleFactorY)
+    -- Use the numeric scale multiplier directly
+    local scaleFactor = scaleCorners
 
     -- Helper to get or create scaled region
     local function getScaledRegion(regionName, region, targetWidth, targetHeight)
@@ -2192,7 +2236,7 @@ Public API methods to access internal state:
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions
----@field scaleCorners boolean? -- Whether to scale 9-slice corners/edges with window size (overrides theme setting)
+---@field scaleCorners number? -- Scale multiplier for 9-slice corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
 local Element = {}
 Element.__index = Element
@@ -2247,7 +2291,7 @@ Element.__index = Element
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions (default: sourced from theme)
----@field scaleCorners boolean? -- Whether to scale 9-slice corners/edges with window size (overrides theme setting)
+---@field scaleCorners number? -- Scale multiplier for 9-slice corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
 local ElementProps = {}
 
@@ -2306,16 +2350,15 @@ function Element.new(props)
           -- Fall back to theme default
           self.contentAutoSizingMultiplier = themeToUse.contentAutoSizingMultiplier
         else
-          self.contentAutoSizingMultiplier = nil
+          self.contentAutoSizingMultiplier = { 1, 1 }
         end
       elseif themeToUse.contentAutoSizingMultiplier then
-        -- No themeComponent, use theme default
         self.contentAutoSizingMultiplier = themeToUse.contentAutoSizingMultiplier
       else
-        self.contentAutoSizingMultiplier = nil
+        self.contentAutoSizingMultiplier = { 1, 1 }
       end
     else
-      self.contentAutoSizingMultiplier = nil
+      self.contentAutoSizingMultiplier = { 1, 1 }
     end
   end
 
@@ -2615,6 +2658,37 @@ function Element.new(props)
 
   -- Re-resolve padding based on final border-box dimensions (important for percentage padding)
   self.padding = Units.resolveSpacing(props.padding, self._borderBoxWidth, self._borderBoxHeight)
+
+  -- Apply 9-patch content padding if using a themeComponent with 9-patch data
+  -- This overrides the padding to match the content area defined by the 9-patch guides
+  if self.themeComponent then
+    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    if themeToUse and themeToUse.components[self.themeComponent] then
+      local component = themeToUse.components[self.themeComponent]
+      if component._ninePatchData and component._ninePatchData.contentPadding then
+        local contentPadding = component._ninePatchData.contentPadding
+        -- Only override if no explicit padding was provided
+        if
+          not props.padding
+          or (
+            not props.padding.top
+            and not props.padding.right
+            and not props.padding.bottom
+            and not props.padding.left
+            and not props.padding.horizontal
+            and not props.padding.vertical
+          )
+        then
+          self.padding = {
+            left = contentPadding.left,
+            top = contentPadding.top,
+            right = contentPadding.right,
+            bottom = contentPadding.bottom,
+          }
+        end
+      end
+    end
+  end
 
   -- Calculate final content dimensions by subtracting padding from border-box
   self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)

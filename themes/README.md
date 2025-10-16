@@ -349,9 +349,9 @@ Gui.new({
 
 ## Corner Scaling
 
-By default, 9-slice corners and non-stretched edges are rendered at their original pixel size (1:1). For pixel-art themes or when you want corners to scale with the window, you can enable corner scaling:
+By default, 9-slice corners and non-stretched edges are rendered at their original pixel size (1:1). You can scale corners using a numeric multiplier:
 
-### Enabling Corner Scaling
+### Corner Scaling
 
 ```lua
 -- themes/my_theme.lua
@@ -361,12 +361,19 @@ return {
     button = {
       atlas = "themes/button.png",
       insets = { left = 8, top = 8, right = 8, bottom = 8 },
-      scaleCorners = true,              -- Enable corner scaling
+      scaleCorners = 2,                 -- Scale corners by 2x (numeric multiplier)
       scalingAlgorithm = "bilinear"     -- "bilinear" (smooth) or "nearest" (sharp/pixelated)
     }
   }
 }
 ```
+
+**`scaleCorners` values:**
+- Number (e.g., `2`, `1.5`, `0.5`) - Direct scale multiplier
+  - `2` = double size
+  - `0.5` = half size
+  - `1` = original size
+- `nil` (default) - No scaling, 1:1 pixel perfect
 
 ### Scaling Algorithms
 
@@ -375,9 +382,9 @@ return {
 
 ### When to Use Corner Scaling
 
-- **Pixel art themes**: Use `scaleCorners = true` with `scalingAlgorithm = "nearest"` to maintain crisp pixel boundaries
-- **High DPI displays**: Use `scaleCorners = true` with `scalingAlgorithm = "bilinear"` for smooth scaling
-- **Fixed-size UI**: Keep `scaleCorners = false` (default) for pixel-perfect rendering at original size
+- **Pixel art themes**: Use `scaleCorners = 2` with `scalingAlgorithm = "nearest"` to maintain crisp pixel boundaries
+- **High DPI displays**: Use `scaleCorners = 1.5` or `2` with `scalingAlgorithm = "bilinear"` for smooth scaling
+- **Fixed-size UI**: Keep `scaleCorners = nil` (default) for pixel-perfect rendering at original size
 
 ### Per-State Scaling
 
@@ -386,13 +393,13 @@ You can also set scaling per-state:
 ```lua
 button = {
   atlas = "themes/button_normal.png",
-  scaleCorners = true,
+  scaleCorners = 2,
   scalingAlgorithm = "bilinear",
   states = {
     hover = {
       atlas = "themes/button_hover.png",
-      scaleCorners = true,           -- Can override per state
-      scalingAlgorithm = "nearest"   -- Different algorithm for this state
+      scaleCorners = 2.5,              -- Can override per state
+      scalingAlgorithm = "nearest"     -- Different algorithm for this state
     }
   }
 }

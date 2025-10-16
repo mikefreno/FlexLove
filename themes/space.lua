@@ -1,16 +1,4 @@
--- Space Theme
-
-local Color = {}
-Color.__index = Color
-
-function Color.new(r, g, b, a)
-  local self = setmetatable({}, Color)
-  self.r = r or 0
-  self.g = g or 0
-  self.b = b or 0
-  self.a = a or 1
-  return self
-end
+local Color = require("libs.FlexLove").Color
 
 return {
   name = "Space Theme",

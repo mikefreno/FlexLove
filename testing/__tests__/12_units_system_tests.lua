@@ -15,17 +15,13 @@ function TestUnitsSystem:setUp()
   -- Clear any existing GUI elements and reset viewport
   Gui.destroy()
   -- Set a consistent viewport size for testing
-  love.graphics.getDimensions = function()
-    return 1200, 800
-  end
+  love.window.setMode(1200, 800)
 end
 
 function TestUnitsSystem:tearDown()
   Gui.destroy()
   -- Restore original viewport size
-  love.graphics.getDimensions = function()
-    return 800, 600
-  end
+  love.window.setMode(800, 600)
 end
 
 -- ============================================
@@ -150,14 +146,15 @@ function TestUnitsSystem:testResizeViewportUnits()
   luaunit.assertEquals(container.width, 600) -- 50% of 1200
   luaunit.assertEquals(container.height, 200) -- 25% of 800
 
-  -- Simulate viewport resize
-  love.graphics.getDimensions = function()
-    return 1600, 1000
-  end
+  -- Simulate viewport resize using setMode
+  love.window.setMode(1600, 1000)
   container:resize(1600, 1000)
 
   luaunit.assertEquals(container.width, 800) -- 50% of 1600
   luaunit.assertEquals(container.height, 250) -- 25% of 1000
+  
+  -- Restore viewport
+  love.window.setMode(1200, 800)
 end
 
 function TestUnitsSystem:testResizePercentageUnits()

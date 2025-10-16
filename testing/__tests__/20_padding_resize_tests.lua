@@ -1,6 +1,8 @@
 -- Test padding resize behavior with percentage units
 package.path = package.path .. ";?.lua"
 local luaunit = require("testing.luaunit")
+local loveStub = require("testing.loveStub")
+_G.love = loveStub
 local FlexLove = require("FlexLove")
 
 TestPaddingResize = {}

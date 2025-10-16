@@ -153,5 +153,53 @@ function love_helper.touch.getPosition(id)
   return 0, 0 -- Default touch position
 end
 
+-- Mock image functions
+love_helper.image = {}
+
+-- Mock ImageData object
+local ImageData = {}
+ImageData.__index = ImageData
+
+function ImageData.new(width, height)
+  local self = setmetatable({}, ImageData)
+  self.width = width
+  self.height = height
+  -- Store pixel data as a 2D array [y][x] = {r, g, b, a}
+  self.pixels = {}
+  for y = 0, height - 1 do
+    self.pixels[y] = {}
+    for x = 0, width - 1 do
+      self.pixels[y][x] = {0, 0, 0, 0} -- Default to transparent black
+    end
+  end
+  return self
+end
+
+function ImageData:getWidth()
+  return self.width
+end
+
+function ImageData:getHeight()
+  return self.height
+end
+
+function ImageData:setPixel(x, y, r, g, b, a)
+  if x >= 0 and x < self.width and y >= 0 and y < self.height then
+    self.pixels[y][x] = {r, g, b, a or 1}
+  end
+end
+
+function ImageData:getPixel(x, y)
+  if x >= 0 and x < self.width and y >= 0 and y < self.height then
+    local pixel = self.pixels[y][x]
+    return pixel[1], pixel[2], pixel[3], pixel[4]
+  end
+  return 0, 0, 0, 0
+end
+
+function love_helper.image.newImageData(width, height)
+  return ImageData.new(width, height)
+end
+
 _G.love = love_helper
 return love_helper

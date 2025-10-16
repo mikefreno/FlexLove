@@ -352,37 +352,121 @@ function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW
   if not sourceImageData then
     error(formatError("ImageScaler", "Source ImageData cannot be nil"))
   end
-  
+
   if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
     error(formatError("ImageScaler", "Dimensions must be positive"))
   end
-  
+
   -- Create destination ImageData
   local destImageData = love.image.newImageData(destW, destH)
-  
+
   -- Calculate scale ratios (cached outside loops for performance)
   local scaleX = srcW / destW
   local scaleY = srcH / destH
-  
+
   -- Nearest-neighbor sampling
   for destY = 0, destH - 1 do
     for destX = 0, destW - 1 do
       -- Calculate source pixel coordinates using floor (nearest-neighbor)
       local srcPixelX = math.floor(destX * scaleX) + srcX
       local srcPixelY = math.floor(destY * scaleY) + srcY
-      
+
       -- Clamp to source bounds (safety check)
       srcPixelX = math.min(srcPixelX, srcX + srcW - 1)
       srcPixelY = math.min(srcPixelY, srcY + srcH - 1)
-      
+
       -- Sample source pixel
       local r, g, b, a = sourceImageData:getPixel(srcPixelX, srcPixelY)
-      
+
       -- Write to destination
       destImageData:setPixel(destX, destY, r, g, b, a)
     end
   end
-  
+
+  return destImageData
+end
+
+--- Linear interpolation helper
+--- Blends between two values based on interpolation factor
+---@param a number -- Start value
+---@param b number -- End value
+---@param t number -- Interpolation factor [0, 1]
+---@return number -- Interpolated value
+local function lerp(a, b, t)
+  return a + (b - a) * t
+end
+
+--- Scale an ImageData region using bilinear interpolation
+--- Produces smooth, filtered scaling - ideal for high-quality upscaling
+---@param sourceImageData love.ImageData -- Source image data
+---@param srcX number -- Source region X (0-based)
+---@param srcY number -- Source region Y (0-based)
+---@param srcW number -- Source region width
+---@param srcH number -- Source region height
+---@param destW number -- Destination width
+---@param destH number -- Destination height
+---@return love.ImageData -- Scaled image data
+function ImageScaler.scaleBilinear(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
+  if not sourceImageData then
+    error(formatError("ImageScaler", "Source ImageData cannot be nil"))
+  end
+
+  if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
+    error(formatError("ImageScaler", "Dimensions must be positive"))
+  end
+
+  -- Create destination ImageData
+  local destImageData = love.image.newImageData(destW, destH)
+
+  -- Calculate scale ratios
+  local scaleX = srcW / destW
+  local scaleY = srcH / destH
+
+  -- Bilinear interpolation
+  for destY = 0, destH - 1 do
+    for destX = 0, destW - 1 do
+      -- Calculate fractional source position
+      local srcXf = destX * scaleX
+      local srcYf = destY * scaleY
+
+      -- Get integer coordinates for 2x2 sampling grid
+      local x0 = math.floor(srcXf)
+      local y0 = math.floor(srcYf)
+      local x1 = math.min(x0 + 1, srcW - 1)
+      local y1 = math.min(y0 + 1, srcH - 1)
+
+      -- Get fractional parts for interpolation
+      local fx = srcXf - x0
+      local fy = srcYf - y0
+
+      -- Sample 4 neighboring pixels (with source offset)
+      local r00, g00, b00, a00 = sourceImageData:getPixel(srcX + x0, srcY + y0)
+      local r10, g10, b10, a10 = sourceImageData:getPixel(srcX + x1, srcY + y0)
+      local r01, g01, b01, a01 = sourceImageData:getPixel(srcX + x0, srcY + y1)
+      local r11, g11, b11, a11 = sourceImageData:getPixel(srcX + x1, srcY + y1)
+
+      -- Interpolate horizontally (top and bottom rows)
+      local rTop = lerp(r00, r10, fx)
+      local gTop = lerp(g00, g10, fx)
+      local bTop = lerp(b00, b10, fx)
+      local aTop = lerp(a00, a10, fx)
+
+      local rBottom = lerp(r01, r11, fx)
+      local gBottom = lerp(g01, g11, fx)
+      local bBottom = lerp(b01, b11, fx)
+      local aBottom = lerp(a01, a11, fx)
+
+      -- Interpolate vertically (final result)
+      local r = lerp(rTop, rBottom, fy)
+      local g = lerp(gTop, gBottom, fy)
+      local b = lerp(bTop, bBottom, fy)
+      local a = lerp(aTop, aBottom, fy)
+
+      -- Write to destination
+      destImageData:setPixel(destX, destY, r, g, b, a)
+    end
+  end
+
   return destImageData
 end
 
@@ -996,27 +1080,119 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     return love.graphics.newQuad(region.x, region.y, region.w, region.h, atlasWidth, atlasHeight)
   end
 
-  -- CORNERS (no scaling - 1:1 pixel perfect)
-  love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y)
-  love.graphics.draw(atlas, makeQuad(regions.topRight), x + left + contentWidth, y)
-  love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + top + contentHeight)
-  love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + left + contentWidth, y + top + contentHeight)
+  -- Check if corner scaling is enabled
+  local scaleCorners = component.scaleCorners or false
+  local scalingAlgorithm = component.scalingAlgorithm or "bilinear"
 
-  -- TOP/BOTTOM EDGES (stretch horizontally only)
-  if contentWidth > 0 then
-    love.graphics.draw(atlas, makeQuad(regions.topCenter), x + left, y, 0, scaleX, 1)
-    love.graphics.draw(atlas, makeQuad(regions.bottomCenter), x + left, y + top + contentHeight, 0, scaleX, 1)
-  end
+  if scaleCorners and Gui and Gui.scaleFactors then
+    -- Initialize cache if needed
+    if not component._scaledRegionCache then
+      component._scaledRegionCache = {}
+    end
 
-  -- LEFT/RIGHT EDGES (stretch vertically only)
-  if contentHeight > 0 then
-    love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + top, 0, 1, scaleY)
-    love.graphics.draw(atlas, makeQuad(regions.middleRight), x + left + contentWidth, y + top, 0, 1, scaleY)
-  end
+    -- Get current scale factors
+    local scaleFactorX = Gui.scaleFactors.x or 1
+    local scaleFactorY = Gui.scaleFactors.y or 1
+    local scaleFactor = math.max(scaleFactorX, scaleFactorY)
 
-  -- CENTER (stretch both dimensions)
-  if contentWidth > 0 and contentHeight > 0 then
-    love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + left, y + top, 0, scaleX, scaleY)
+    -- Helper to get or create scaled region
+    local function getScaledRegion(regionName, region, targetWidth, targetHeight)
+      local cacheKey = string.format("%s_%.2f_%s", regionName, scaleFactor, scalingAlgorithm)
+      
+      if component._scaledRegionCache[cacheKey] then
+        return component._scaledRegionCache[cacheKey]
+      end
+
+      -- Extract region from atlas
+      local atlasData = atlas:getData()
+      local scaledData
+      
+      if scalingAlgorithm == "nearest" then
+        scaledData = ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+      else
+        scaledData = ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+      end
+
+      -- Convert to image and cache
+      local scaledImage = love.graphics.newImage(scaledData)
+      component._scaledRegionCache[cacheKey] = scaledImage
+      
+      return scaledImage
+    end
+
+    -- Calculate scaled dimensions for corners
+    local scaledLeft = math.floor(left * scaleFactor + 0.5)
+    local scaledRight = math.floor(right * scaleFactor + 0.5)
+    local scaledTop = math.floor(top * scaleFactor + 0.5)
+    local scaledBottom = math.floor(bottom * scaleFactor + 0.5)
+
+    -- CORNERS (scaled using algorithm)
+    local topLeftScaled = getScaledRegion("topLeft", regions.topLeft, scaledLeft, scaledTop)
+    local topRightScaled = getScaledRegion("topRight", regions.topRight, scaledRight, scaledTop)
+    local bottomLeftScaled = getScaledRegion("bottomLeft", regions.bottomLeft, scaledLeft, scaledBottom)
+    local bottomRightScaled = getScaledRegion("bottomRight", regions.bottomRight, scaledRight, scaledBottom)
+
+    love.graphics.draw(topLeftScaled, x, y)
+    love.graphics.draw(topRightScaled, x + scaledLeft + contentWidth, y)
+    love.graphics.draw(bottomLeftScaled, x, y + scaledTop + contentHeight)
+    love.graphics.draw(bottomRightScaled, x + scaledLeft + contentWidth, y + scaledTop + contentHeight)
+
+    -- Update content dimensions to account for scaled borders
+    local adjustedContentWidth = width - scaledLeft - scaledRight
+    local adjustedContentHeight = height - scaledTop - scaledBottom
+    adjustedContentWidth = math.max(0, adjustedContentWidth)
+    adjustedContentHeight = math.max(0, adjustedContentHeight)
+
+    -- Recalculate stretch scales
+    local adjustedScaleX = adjustedContentWidth / centerW
+    local adjustedScaleY = adjustedContentHeight / centerH
+
+    -- TOP/BOTTOM EDGES (stretch horizontally, scale vertically)
+    if adjustedContentWidth > 0 then
+      local topCenterScaled = getScaledRegion("topCenter", regions.topCenter, regions.topCenter.w, scaledTop)
+      local bottomCenterScaled = getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
+      
+      love.graphics.draw(topCenterScaled, x + scaledLeft, y, 0, adjustedScaleX, 1)
+      love.graphics.draw(bottomCenterScaled, x + scaledLeft, y + scaledTop + adjustedContentHeight, 0, adjustedScaleX, 1)
+    end
+
+    -- LEFT/RIGHT EDGES (stretch vertically, scale horizontally)
+    if adjustedContentHeight > 0 then
+      local middleLeftScaled = getScaledRegion("middleLeft", regions.middleLeft, scaledLeft, regions.middleLeft.h)
+      local middleRightScaled = getScaledRegion("middleRight", regions.middleRight, scaledRight, regions.middleRight.h)
+      
+      love.graphics.draw(middleLeftScaled, x, y + scaledTop, 0, 1, adjustedScaleY)
+      love.graphics.draw(middleRightScaled, x + scaledLeft + adjustedContentWidth, y + scaledTop, 0, 1, adjustedScaleY)
+    end
+
+    -- CENTER (stretch both dimensions, no scaling)
+    if adjustedContentWidth > 0 and adjustedContentHeight > 0 then
+      love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + scaledLeft, y + scaledTop, 0, adjustedScaleX, adjustedScaleY)
+    end
+  else
+    -- Original rendering logic (no scaling)
+    -- CORNERS (no scaling - 1:1 pixel perfect)
+    love.graphics.draw(atlas, makeQuad(regions.topLeft), x, y)
+    love.graphics.draw(atlas, makeQuad(regions.topRight), x + left + contentWidth, y)
+    love.graphics.draw(atlas, makeQuad(regions.bottomLeft), x, y + top + contentHeight)
+    love.graphics.draw(atlas, makeQuad(regions.bottomRight), x + left + contentWidth, y + top + contentHeight)
+
+    -- TOP/BOTTOM EDGES (stretch horizontally only)
+    if contentWidth > 0 then
+      love.graphics.draw(atlas, makeQuad(regions.topCenter), x + left, y, 0, scaleX, 1)
+      love.graphics.draw(atlas, makeQuad(regions.bottomCenter), x + left, y + top + contentHeight, 0, scaleX, 1)
+    end
+
+    -- LEFT/RIGHT EDGES (stretch vertically only)
+    if contentHeight > 0 then
+      love.graphics.draw(atlas, makeQuad(regions.middleLeft), x, y + top, 0, 1, scaleY)
+      love.graphics.draw(atlas, makeQuad(regions.middleRight), x + left + contentWidth, y + top, 0, 1, scaleY)
+    end
+
+    -- CENTER (stretch both dimensions)
+    if contentWidth > 0 and contentHeight > 0 then
+      love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + left, y + top, 0, scaleX, scaleY)
+    end
   end
 
   -- Reset color
@@ -1500,6 +1676,17 @@ function Gui.resize()
     Gui.scaleFactors.y = newHeight / Gui.baseScale.height
   end
 
+  -- Clear scaled region caches for all themes
+  for _, theme in pairs(themes) do
+    if theme.components then
+      for _, component in pairs(theme.components) do
+        if component._scaledRegionCache then
+          component._scaledRegionCache = {}
+        end
+      end
+    end
+  end
+
   for _, win in ipairs(Gui.topElements) do
     win:resize(newWidth, newHeight)
   end
@@ -1584,6 +1771,8 @@ function Gui.destroy()
   -- Reset base scale and scale factors
   Gui.baseScale = nil
   Gui.scaleFactors = { x = 1.0, y = 1.0 }
+  -- Reset cached viewport
+  Gui._cachedViewport = { width = 0, height = 0 }
 end
 
 -- Simple GUI library for LOVE2D
@@ -4030,25 +4219,28 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- BORDER-BOX MODEL: Calculate content dimensions from border-box dimensions
   -- For explicitly-sized elements (non-auto), _borderBoxWidth/_borderBoxHeight were set earlier
   -- Now we calculate content width/height by subtracting padding
-  if self.units.width.unit ~= "auto" then
-    -- _borderBoxWidth was already set during width recalculation
+  -- Only recalculate if using viewport/percentage units (where _borderBoxWidth actually changed)
+  if self.units.width.unit ~= "auto" and self.units.width.unit ~= "px" then
+    -- _borderBoxWidth was recalculated for viewport/percentage units
     -- Calculate content width by subtracting padding
     self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)
-  else
+  elseif self.units.width.unit == "auto" then
     -- For auto-sized elements, width is content width (calculated in resize method)
     -- Update border-box to include padding
     self._borderBoxWidth = self.width + self.padding.left + self.padding.right
   end
+  -- For pixel units, width stays as-is (may have been manually modified)
 
-  if self.units.height.unit ~= "auto" then
-    -- _borderBoxHeight was already set during height recalculation
+  if self.units.height.unit ~= "auto" and self.units.height.unit ~= "px" then
+    -- _borderBoxHeight was recalculated for viewport/percentage units
     -- Calculate content height by subtracting padding
     self.height = math.max(0, self._borderBoxHeight - self.padding.top - self.padding.bottom)
-  else
+  elseif self.units.height.unit == "auto" then
     -- For auto-sized elements, height is content height (calculated in resize method)
     -- Update border-box to include padding
     self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
   end
+  -- For pixel units, height stays as-is (may have been manually modified)
 end
 
 --- Resize element and its children based on game window size change
@@ -4056,6 +4248,14 @@ end
 ---@param newGameHeight number
 function Element:resize(newGameWidth, newGameHeight)
   self:recalculateUnits(newGameWidth, newGameHeight)
+
+  -- For non-auto-sized elements with viewport/percentage units, update content dimensions from border-box
+  if not self.autosizing.width and self._borderBoxWidth and self.units.width.unit ~= "px" then
+    self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)
+  end
+  if not self.autosizing.height and self._borderBoxHeight and self.units.height.unit ~= "px" then
+    self.height = math.max(0, self._borderBoxHeight - self.padding.top - self.padding.bottom)
+  end
 
   -- Update children
   for _, child in ipairs(self.children) do
@@ -4074,6 +4274,48 @@ function Element:resize(newGameWidth, newGameHeight)
     -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
     self._borderBoxHeight = contentHeight + self.padding.top + self.padding.bottom
     self.height = contentHeight
+  end
+
+  -- Re-resolve ew/eh textSize units after all dimensions are finalized
+  -- This ensures textSize updates based on current width/height (whether calculated or manually set)
+  if self.units.textSize.value then
+    local unit = self.units.textSize.unit
+    local value = self.units.textSize.value
+    local scaleX, scaleY = Gui.getScaleFactors()
+
+    if unit == "ew" then
+      -- Element width relative (use current width)
+      self.textSize = (value / 100) * self.width
+
+      -- Apply min/max constraints
+      local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      if minSize and self.textSize < minSize then
+        self.textSize = minSize
+      end
+      if maxSize and self.textSize > maxSize then
+        self.textSize = maxSize
+      end
+      if self.textSize < 1 then
+        self.textSize = 1
+      end
+    elseif unit == "eh" then
+      -- Element height relative (use current height)
+      self.textSize = (value / 100) * self.height
+
+      -- Apply min/max constraints
+      local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      if minSize and self.textSize < minSize then
+        self.textSize = minSize
+      end
+      if maxSize and self.textSize > maxSize then
+        self.textSize = maxSize
+      end
+      if self.textSize < 1 then
+        self.textSize = 1
+      end
+    end
   end
 
   self:layoutChildren()

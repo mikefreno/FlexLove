@@ -11,6 +11,16 @@ local Gui = FlexLove.GUI
 -- Test suite for comprehensive text scaling
 TestTextScaling = {}
 
+function TestTextScaling:setUp()
+  -- Reset viewport to default before each test
+  love.window.setMode(800, 600)
+  Gui.destroy()
+end
+
+function TestTextScaling:tearDown()
+  Gui.destroy()
+end
+
 -- Basic functionality tests
 function TestTextScaling.testFixedTextSize()
   -- Create an element with fixed textSize in pixels (auto-scaling disabled)

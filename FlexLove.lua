@@ -2759,7 +2759,19 @@ function Element.new(props)
 
     self.z = props.z or 0
 
-    self.textColor = props.textColor or Color.new(0, 0, 0, 1)
+    -- Set textColor with priority: props > theme text color > black
+    if props.textColor then
+      self.textColor = props.textColor
+    else
+      -- Try to get text color from theme
+      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      if themeToUse and themeToUse.colors and themeToUse.colors.text then
+        self.textColor = themeToUse.colors.text
+      else
+        -- Fallback to black
+        self.textColor = Color.new(0, 0, 0, 1)
+      end
+    end
 
     -- Track if positioning was explicitly set
     if props.positioning then
@@ -2876,7 +2888,21 @@ function Element.new(props)
       self.z = props.z or self.parent.z or 0
     end
 
-    self.textColor = props.textColor or self.parent.textColor
+    -- Set textColor with priority: props > parent > theme text color > black
+    if props.textColor then
+      self.textColor = props.textColor
+    elseif self.parent.textColor then
+      self.textColor = self.parent.textColor
+    else
+      -- Try to get text color from theme
+      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      if themeToUse and themeToUse.colors and themeToUse.colors.text then
+        self.textColor = themeToUse.colors.text
+      else
+        -- Fallback to black
+        self.textColor = Color.new(0, 0, 0, 1)
+      end
+    end
 
     props.parent:addChild(self)
   end

@@ -1184,9 +1184,9 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
     local bottomRightScaled = getScaledRegion("bottomRight", regions.bottomRight, scaledRight, scaledBottom)
 
     love.graphics.draw(topLeftScaled, x, y)
-    love.graphics.draw(topRightScaled, x + scaledLeft + contentWidth, y)
-    love.graphics.draw(bottomLeftScaled, x, y + scaledTop + contentHeight)
-    love.graphics.draw(bottomRightScaled, x + scaledLeft + contentWidth, y + scaledTop + contentHeight)
+    love.graphics.draw(topRightScaled, x + width - scaledRight, y)
+    love.graphics.draw(bottomLeftScaled, x, y + height - scaledBottom)
+    love.graphics.draw(bottomRightScaled, x + width - scaledRight, y + height - scaledBottom)
 
     -- Update content dimensions to account for scaled borders
     local adjustedContentWidth = width - scaledLeft - scaledRight
@@ -1208,7 +1208,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
       love.graphics.draw(
         bottomCenterScaled,
         x + scaledLeft,
-        y + scaledTop + adjustedContentHeight,
+        y + height - scaledBottom,
         0,
         adjustedScaleX,
         1
@@ -1221,7 +1221,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
       local middleRightScaled = getScaledRegion("middleRight", regions.middleRight, scaledRight, regions.middleRight.h)
 
       love.graphics.draw(middleLeftScaled, x, y + scaledTop, 0, 1, adjustedScaleY)
-      love.graphics.draw(middleRightScaled, x + scaledLeft + adjustedContentWidth, y + scaledTop, 0, 1, adjustedScaleY)
+      love.graphics.draw(middleRightScaled, x + width - scaledRight, y + scaledTop, 0, 1, adjustedScaleY)
     end
 
     -- CENTER (stretch both dimensions, no scaling)
@@ -2632,9 +2632,47 @@ function Element.new(props)
   -- BORDER-BOX MODEL: For auto-sizing, we need to add padding to content dimensions
   -- For explicit sizing, width/height already include padding (border-box)
 
+  -- Check if we should use 9-patch content padding for auto-sizing
+  local use9PatchPadding = false
+  local ninePatchContentPadding = nil
+  if self.themeComponent then
+    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    if themeToUse and themeToUse.components[self.themeComponent] then
+      local component = themeToUse.components[self.themeComponent]
+      if component._ninePatchData and component._ninePatchData.contentPadding then
+        -- Only use 9-patch padding if no explicit padding was provided
+        if
+          not props.padding
+          or (
+            not props.padding.top
+            and not props.padding.right
+            and not props.padding.bottom
+            and not props.padding.left
+            and not props.padding.horizontal
+            and not props.padding.vertical
+          )
+        then
+          use9PatchPadding = true
+          ninePatchContentPadding = component._ninePatchData.contentPadding
+        end
+      end
+    end
+  end
+
   -- First, resolve padding using temporary dimensions
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
-  local tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
+  local tempPadding
+  if use9PatchPadding then
+    -- Use 9-patch content padding directly (no need to resolve, it's already in pixels)
+    tempPadding = {
+      left = ninePatchContentPadding.left,
+      top = ninePatchContentPadding.top,
+      right = ninePatchContentPadding.right,
+      bottom = ninePatchContentPadding.bottom,
+    }
+  else
+    tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
+  end
 
   -- Margin percentages are relative to parent's dimensions (CSS spec)
   local parentWidth = self.parent and self.parent.width or viewportWidth
@@ -2656,38 +2694,18 @@ function Element.new(props)
     self._borderBoxHeight = self.height
   end
 
-  -- Re-resolve padding based on final border-box dimensions (important for percentage padding)
-  self.padding = Units.resolveSpacing(props.padding, self._borderBoxWidth, self._borderBoxHeight)
-
-  -- Apply 9-patch content padding if using a themeComponent with 9-patch data
-  -- This overrides the padding to match the content area defined by the 9-patch guides
-  if self.themeComponent then
-    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
-    if themeToUse and themeToUse.components[self.themeComponent] then
-      local component = themeToUse.components[self.themeComponent]
-      if component._ninePatchData and component._ninePatchData.contentPadding then
-        local contentPadding = component._ninePatchData.contentPadding
-        -- Only override if no explicit padding was provided
-        if
-          not props.padding
-          or (
-            not props.padding.top
-            and not props.padding.right
-            and not props.padding.bottom
-            and not props.padding.left
-            and not props.padding.horizontal
-            and not props.padding.vertical
-          )
-        then
-          self.padding = {
-            left = contentPadding.left,
-            top = contentPadding.top,
-            right = contentPadding.right,
-            bottom = contentPadding.bottom,
-          }
-        end
-      end
-    end
+  -- Set final padding
+  if use9PatchPadding then
+    -- Use 9-patch content padding
+    self.padding = {
+      left = ninePatchContentPadding.left,
+      top = ninePatchContentPadding.top,
+      right = ninePatchContentPadding.right,
+      bottom = ninePatchContentPadding.bottom,
+    }
+  else
+    -- Re-resolve padding based on final border-box dimensions (important for percentage padding)
+    self.padding = Units.resolveSpacing(props.padding, self._borderBoxWidth, self._borderBoxHeight)
   end
 
   -- Calculate final content dimensions by subtracting padding from border-box

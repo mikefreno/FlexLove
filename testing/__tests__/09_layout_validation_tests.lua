@@ -1,7 +1,7 @@
 package.path = package.path .. ";?.lua"
 
-local luaunit = require("testing/luaunit")
-require("testing/loveStub") -- Required to mock LOVE functions
+local luaunit = require("testing.luaunit")
+require("testing.loveStub")
 local FlexLove = require("FlexLove")
 local Gui, enums = FlexLove.GUI, FlexLove.enums
 local Color = FlexLove.Color

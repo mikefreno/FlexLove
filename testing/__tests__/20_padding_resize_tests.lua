@@ -102,8 +102,8 @@ function TestPaddingResize:testNestedPercentagePadding()
     width = "100%",
     height = "100%",
     padding = { horizontal = "10%", vertical = "10%" },
-    positioning = FlexLove.Positioning.FLEX,
-    flexDirection = FlexLove.FlexDirection.VERTICAL,
+    positioning = FlexLove.enums.Positioning.FLEX,
+    flexDirection = FlexLove.enums.FlexDirection.VERTICAL,
   })
 
   -- Create child with percentage padding (relative to parent's content area)

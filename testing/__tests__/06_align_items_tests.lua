@@ -4,8 +4,8 @@
 -- Load test framework and dependencies
 package.path = package.path .. ";?.lua"
 
-local luaunit = require("testing/luaunit")
-require("testing/loveStub") -- Required to mock LOVE functions
+local luaunit = require("testing.luaunit")
+require("testing.loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
 local Gui, enums = FlexLove.GUI, FlexLove.enums
 
@@ -192,8 +192,8 @@ function TestAlignItems:testHorizontalFlexAlignItemsStretch()
   -- Children with explicit heights should NOT be stretched (CSS flexbox behavior)
   luaunit.assertEquals(child1.y, 0)
   luaunit.assertEquals(child2.y, 0)
-  luaunit.assertEquals(child1.height, 30)  -- Keeps explicit height
-  luaunit.assertEquals(child2.height, 40)  -- Keeps explicit height
+  luaunit.assertEquals(child1.height, 30) -- Keeps explicit height
+  luaunit.assertEquals(child2.height, 40) -- Keeps explicit height
 end
 
 -- Test 5: Vertical Flex with AlignItems.FLEX_START
@@ -360,8 +360,8 @@ function TestAlignItems:testVerticalFlexAlignItemsStretch()
   -- Children with explicit widths should NOT be stretched (CSS flexbox behavior)
   luaunit.assertEquals(child1.x, 0)
   luaunit.assertEquals(child2.x, 0)
-  luaunit.assertEquals(child1.width, 50)  -- Keeps explicit width
-  luaunit.assertEquals(child2.width, 80)  -- Keeps explicit width
+  luaunit.assertEquals(child1.width, 50) -- Keeps explicit width
+  luaunit.assertEquals(child2.width, 80) -- Keeps explicit width
 end
 
 -- Test 9: Default AlignItems value (should be STRETCH)

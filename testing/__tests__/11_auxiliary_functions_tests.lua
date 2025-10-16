@@ -1,7 +1,7 @@
 package.path = package.path .. ";?.lua"
 
-local luaunit = require("testing/luaunit")
-require("testing/loveStub") -- Required to mock LOVE functions
+local luaunit = require("testing.luaunit")
+require("testing.loveStub")
 local FlexLove = require("FlexLove")
 local Gui, Color, enums = FlexLove.GUI, FlexLove.Color, FlexLove.enums
 
@@ -493,21 +493,21 @@ function TestAuxiliaryFunctions:testAnimationInterpolationAtBoundaries()
 
   -- At start (elapsed = 0)
   scaleAnim.elapsed = 0
-  scaleAnim._resultDirty = true  -- Mark dirty after changing elapsed
+  scaleAnim._resultDirty = true -- Mark dirty after changing elapsed
   local result = scaleAnim:interpolate()
   luaunit.assertEquals(result.width, 100)
   luaunit.assertEquals(result.height, 50)
 
   -- At end (elapsed = duration)
   scaleAnim.elapsed = 1.0
-  scaleAnim._resultDirty = true  -- Mark dirty after changing elapsed
+  scaleAnim._resultDirty = true -- Mark dirty after changing elapsed
   result = scaleAnim:interpolate()
   luaunit.assertEquals(result.width, 200)
   luaunit.assertEquals(result.height, 100)
 
   -- Beyond end (elapsed > duration) - should clamp to end values
   scaleAnim.elapsed = 1.5
-  scaleAnim._resultDirty = true  -- Mark dirty after changing elapsed
+  scaleAnim._resultDirty = true -- Mark dirty after changing elapsed
   result = scaleAnim:interpolate()
   luaunit.assertEquals(result.width, 200)
   luaunit.assertEquals(result.height, 100)
@@ -683,7 +683,7 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
   ui_container:layoutChildren()
 
   luaunit.assertEquals(#ui_container.children, 5, "Should have 5 themed components")
-  
+
   -- Count theme_colors (it's a table with string keys, not an array)
   local theme_color_count = 0
   for _ in pairs(theme_colors) do
@@ -952,7 +952,7 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
     #text_scenarios + 1,
     "Should have scenario containers plus nested container"
   )
-  
+
   -- Count text_metrics (it's a table with string keys, not an array)
   local metrics_count = 0
   for _ in pairs(content_manager.text_metrics) do

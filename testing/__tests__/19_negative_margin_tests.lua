@@ -1,7 +1,7 @@
 package.path = package.path .. ";?.lua"
 
 local lu = require("testing.luaunit")
-require("testing.loveStub") -- Required to mock LOVE functions
+require("testing.loveStub")
 local FlexLove = require("FlexLove")
 
 TestNegativeMargin = {}
@@ -19,8 +19,8 @@ function TestNegativeMargin:testBasicNegativeMarginTop()
   local parent = FlexLove.Element.new({
     width = 200,
     height = 200,
-    positioning = FlexLove.Positioning.FLEX,
-    flexDirection = FlexLove.FlexDirection.VERTICAL,
+    positioning = FlexLove.enums.Positioning.FLEX,
+    flexDirection = FlexLove.enums.FlexDirection.VERTICAL,
   })
 
   local child1 = FlexLove.Element.new({
@@ -46,8 +46,8 @@ function TestNegativeMargin:testNegativeMarginLeft()
   local parent = FlexLove.Element.new({
     width = 300,
     height = 100,
-    positioning = FlexLove.Positioning.FLEX,
-    flexDirection = FlexLove.FlexDirection.HORIZONTAL,
+    positioning = FlexLove.enums.Positioning.FLEX,
+    flexDirection = FlexLove.enums.FlexDirection.HORIZONTAL,
   })
 
   local child1 = FlexLove.Element.new({
@@ -72,8 +72,8 @@ function TestNegativeMargin:testNegativeMarginRight()
   local parent = FlexLove.Element.new({
     width = 300,
     height = 100,
-    positioning = FlexLove.Positioning.FLEX,
-    flexDirection = FlexLove.FlexDirection.HORIZONTAL,
+    positioning = FlexLove.enums.Positioning.FLEX,
+    flexDirection = FlexLove.enums.FlexDirection.HORIZONTAL,
   })
 
   local child = FlexLove.Element.new({
@@ -92,8 +92,8 @@ function TestNegativeMargin:testNegativeMarginBottom()
   local parent = FlexLove.Element.new({
     width = 200,
     height = 200,
-    positioning = FlexLove.Positioning.FLEX,
-    flexDirection = FlexLove.FlexDirection.VERTICAL,
+    positioning = FlexLove.enums.Positioning.FLEX,
+    flexDirection = FlexLove.enums.FlexDirection.VERTICAL,
   })
 
   local child = FlexLove.Element.new({
@@ -181,7 +181,7 @@ function TestNegativeMargin:testNegativeMarginInGridLayout()
   local gridParent = FlexLove.Element.new({
     width = 300,
     height = 300,
-    positioning = FlexLove.Positioning.GRID,
+    positioning = FlexLove.enums.Positioning.GRID,
     gridRows = 2,
     gridColumns = 2,
   })
@@ -258,7 +258,7 @@ function TestNegativeMargin:testNegativeMarginWithAbsolutePositioning()
 
   local child = FlexLove.Element.new({
     parent = parent,
-    positioning = FlexLove.Positioning.ABSOLUTE,
+    positioning = FlexLove.enums.Positioning.ABSOLUTE,
     x = 50,
     y = 50,
     width = 100,

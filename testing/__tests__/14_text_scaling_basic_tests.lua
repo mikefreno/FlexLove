@@ -3,8 +3,8 @@
 
 package.path = package.path .. ";?.lua"
 
-local luaunit = require("testing/luaunit")
-require("testing/loveStub") -- Required to mock LOVE functions
+local luaunit = require("testing.luaunit")
+require("testing.loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
 local Gui = FlexLove.GUI
 
@@ -135,7 +135,7 @@ function TestTextScaling.testNoTextSize()
   -- Resize should scale the text
   element:resize(1600, 1200)
   luaunit.assertEquals(element.textSize, 18.0) -- 1.5% of 1200px
-  
+
   -- Test with auto-scaling disabled
   local elementNoScale = Gui.new({
     id = "testElementNoScale",
@@ -144,11 +144,11 @@ function TestTextScaling.testNoTextSize()
     text = "Hello World",
     autoScaleText = false,
   })
-  
+
   luaunit.assertEquals(elementNoScale.autoScaleText, false)
   luaunit.assertEquals(elementNoScale.units.textSize.value, nil)
   luaunit.assertEquals(elementNoScale.textSize, 12) -- Fixed 12px
-  
+
   -- Resize should not affect textSize when auto-scaling is disabled
   elementNoScale:resize(1600, 1200)
   luaunit.assertEquals(elementNoScale.textSize, 12)

@@ -661,7 +661,6 @@ function Theme.new(definition)
           if parseResult then
             component.insets = parseResult.insets
             component._ninePatchData = parseResult -- Store full data including stretch regions
-            print("[FlexLove] Auto-parsed 9-patch: " .. component.atlas)
           else
             print("[FlexLove] Warning: Failed to parse 9-patch '" .. component.atlas .. "': " .. tostring(parseErr))
           end
@@ -730,7 +729,6 @@ function Theme.new(definition)
               if parseResult then
                 stateComponent.insets = parseResult.insets
                 stateComponent._ninePatchData = parseResult
-                print("[FlexLove] Auto-parsed 9-patch state '" .. stateName .. "': " .. stateComponent.atlas)
               else
                 print("[FlexLove] Warning: Failed to parse 9-patch state '" .. stateName .. "': " .. tostring(parseErr))
               end
@@ -1657,13 +1655,11 @@ function Gui.init(config)
         Theme.load(config.theme)
         Theme.setActive(config.theme)
         Gui.defaultTheme = config.theme
-        print("[FlexLove] Theme loaded: " .. config.theme)
       elseif type(config.theme) == "table" then
         -- Load theme from definition
         local theme = Theme.new(config.theme)
         Theme.setActive(theme)
         Gui.defaultTheme = theme.name
-        print("[FlexLove] Theme loaded: " .. theme.name)
       end
     end)
 
@@ -3425,11 +3421,6 @@ function Element:layoutChildren()
 
         -- Apply positioning offsets (top, right, bottom, left)
         self:applyPositioningOffsets(child)
-
-        -- Final position DEBUG for elements with debugId
-        if child.debugId then
-          print(string.format("DEBUG [%s]: Final Y position: %.2f", child.debugId, child.y))
-        end
 
         -- If child has children, re-layout them after position change
         if #child.children > 0 then

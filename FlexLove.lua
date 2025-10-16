@@ -17,6 +17,20 @@ local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
 end
 
+--- Top level GUI manager
+---@class Gui
+---@field topElements table<integer, Element>
+---@field baseScale {width:number, height:number}?
+---@field scaleFactors {x:number, y:number}
+---@field defaultTheme string? -- Default theme name to use for elements
+local Gui = {
+  topElements = {},
+  baseScale = nil,
+  scaleFactors = { x = 1.0, y = 1.0 },
+  defaultTheme = nil,
+  _cachedViewport = { width = 0, height = 0 }, -- Cached viewport dimensions
+}
+
 -- ====================
 -- Color System
 -- ====================
@@ -478,6 +492,7 @@ end
 ---@field scaleCorners boolean? -- Optional: scale non-stretched regions (corners/edges) with window size. Default: false
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Optional: scaling algorithm for non-stretched regions. Default: "bilinear"
 ---@field _loadedAtlas string|love.Image? -- Internal: cached loaded atlas image
+---@field _loadedAtlasData love.ImageData? -- Internal: cached loaded atlas ImageData for pixel access
 ---@field _ninePatchData {insets:table, stretchX:table, stretchY:table}? -- Internal: parsed 9-patch data with multiple stretch regions
 ---@field _scaledRegionCache table<string, love.Image>? -- Internal: cache for scaled corner/edge images
 
@@ -496,6 +511,7 @@ end
 ---@class Theme
 ---@field name string
 ---@field atlas love.Image? -- Optional: global atlas
+---@field atlasData love.ImageData?
 ---@field components table<string, ThemeComponent>
 ---@field colors table<string, Color>
 ---@field fonts table<string, string> -- Font family definitions
@@ -557,19 +573,30 @@ local function resolveImagePath(imagePath)
 end
 
 --- Safely load an image with error handling
+--- Returns both Image and ImageData to avoid deprecated getData() API
 ---@param imagePath string
----@return love.Image?, string? -- Returns image or nil, error message
+---@return love.Image?, love.ImageData?, string? -- Returns image, imageData, or nil with error message
 local function safeLoadImage(imagePath)
-  local success, result = pcall(function()
-    return love.graphics.newImage(imagePath)
+  local success, imageData = pcall(function()
+    return love.image.newImageData(imagePath)
   end)
 
-  if success then
-    return result, nil
-  else
-    local errorMsg = string.format("[FlexLove] Failed to load image: %s - %s", imagePath, tostring(result))
+  if not success then
+    local errorMsg = string.format("[FlexLove] Failed to load image data: %s - %s", imagePath, tostring(imageData))
     print(errorMsg)
-    return nil, errorMsg
+    return nil, nil, errorMsg
+  end
+
+  local imageSuccess, image = pcall(function()
+    return love.graphics.newImage(imageData)
+  end)
+
+  if imageSuccess then
+    return image, imageData, nil
+  else
+    local errorMsg = string.format("[FlexLove] Failed to create image: %s - %s", imagePath, tostring(image))
+    print(errorMsg)
+    return nil, nil, errorMsg
   end
 end
 
@@ -618,9 +645,10 @@ function Theme.new(definition)
   if definition.atlas then
     if type(definition.atlas) == "string" then
       local resolvedPath = resolveImagePath(definition.atlas)
-      local image, loaderr = safeLoadImage(resolvedPath)
+      local image, imageData, loaderr = safeLoadImage(resolvedPath)
       if image then
         self.atlas = image
+        self.atlasData = imageData
       else
         print(
           "[FlexLove] Warning: Failed to load global atlas for theme '"
@@ -658,9 +686,10 @@ function Theme.new(definition)
       end
     end
 
-    local image, loaderr = safeLoadImage(resolvedPath)
+    local image, imageData, loaderr = safeLoadImage(resolvedPath)
     if image then
       comp._loadedAtlas = image
+      comp._loadedAtlasData = imageData
     else
       print("[FlexLove] Warning: Failed to load atlas " .. errorContext .. ": " .. tostring(loaderr))
     end
@@ -706,6 +735,7 @@ function Theme.new(definition)
       if type(component.atlas) == "string" then
         loadAtlasWithNinePatch(component, component.atlas, "for component '" .. componentName .. "'")
       else
+        -- Direct Image object (no ImageData available - scaleCorners won't work)
         component._loadedAtlas = component.atlas
       end
     end
@@ -720,6 +750,7 @@ function Theme.new(definition)
           if type(stateComponent.atlas) == "string" then
             loadAtlasWithNinePatch(stateComponent, stateComponent.atlas, "for state '" .. stateName .. "'")
           else
+            -- Direct Image object (no ImageData available - scaleCorners won't work)
             stateComponent._loadedAtlas = stateComponent.atlas
           end
         end
@@ -1062,8 +1093,12 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
         return component._scaledRegionCache[cacheKey]
       end
 
-      -- Extract region from atlas (regions already account for 9-patch borders)
-      local atlasData = atlas:getData()
+      -- Get ImageData from component (stored during theme loading)
+      local atlasData = component._loadedAtlasData
+      if not atlasData then
+        error(formatError("NineSlice", "No ImageData available for atlas. Image must be loaded with safeLoadImage."))
+      end
+
       local scaledData
 
       if scalingAlgorithm == "nearest" then
@@ -1259,7 +1294,7 @@ local TEXT_SIZE_PRESETS = {
   ["4xl"] = 7.0, -- 7vh
 }
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap, TextSize =
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
   enums.Positioning,
   enums.FlexDirection,
   enums.JustifyContent,
@@ -1268,8 +1303,7 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
   enums.TextAlign,
   enums.AlignSelf,
   enums.JustifySelf,
-  enums.FlexWrap,
-  enums.TextSize
+  enums.FlexWrap
 
 -- ====================
 -- Units System
@@ -1353,7 +1387,8 @@ function Units.getViewport()
   if love.graphics and love.graphics.getDimensions then
     return love.graphics.getDimensions()
   else
-    return love.window.getMode()
+    local w, h = love.window.getMode()
+    return w, h
   end
 end
 
@@ -1433,7 +1468,7 @@ function Units.isValid(unitStr)
     return false
   end
 
-  local value, unit = Units.parse(unitStr)
+  local _, unit = Units.parse(unitStr)
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   return validUnits[unit] == true
 end
@@ -1584,20 +1619,6 @@ function Grid.layoutGridItems(element)
     end
   end
 end
-
---- Top level GUI manager
----@class Gui
----@field topElements table<integer, Element>
----@field baseScale {width:number, height:number}?
----@field scaleFactors {x:number, y:number}
----@field defaultTheme string? -- Default theme name to use for elements
-local Gui = {
-  topElements = {},
-  baseScale = nil,
-  scaleFactors = { x = 1.0, y = 1.0 },
-  defaultTheme = nil,
-  _cachedViewport = { width = 0, height = 0 }, -- Cached viewport dimensions
-}
 
 --- Initialize FlexLove with configuration
 ---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition} --Default: {width: 1920, height: 1080}
@@ -1799,7 +1820,8 @@ local function getModifiers()
     shift = love.keyboard.isDown("lshift", "rshift"),
     ctrl = love.keyboard.isDown("lctrl", "rctrl"),
     alt = love.keyboard.isDown("lalt", "ralt"),
-    cmd = love.keyboard.isDown("lgui", "rgui"), -- Mac Command key
+    ---@diagnostic disable-next-line
+    cmd = love.keyboard.isDown("lgui", "rgui"), -- Super key
   }
 end
 
@@ -2050,7 +2072,7 @@ end
 
 --- Resolve text size preset to viewport units
 ---@param sizeValue string|number
----@return number, string -- Returns value and unit ("vh" for presets, original unit otherwise)
+---@return number?, string? -- Returns value and unit ("vh" for presets, original unit otherwise)
 local function resolveTextSizePreset(sizeValue)
   if type(sizeValue) == "string" then
     -- Check if it's a preset
@@ -2134,6 +2156,8 @@ Public API methods to access internal state:
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field textSize number? -- Resolved font size for text content in pixels
+---@field minTextSize number
+---@field maxTextSize number
 ---@field fontFamily string? -- Font family name from theme or path to font file
 ---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
@@ -2145,11 +2169,13 @@ Public API methods to access internal state:
 ---@field _lastClickButton number? -- Button of last click
 ---@field _clickCount number -- Current click count for multi-click detection
 ---@field _touchPressed table<any, boolean> -- Track touch pressed state
+---@field _explicitlyAbsolute boolean?
 ---@field gridRows number? -- Number of rows in the grid
 ---@field gridColumns number? -- Number of columns in the grid
 ---@field columnGap number|string? -- Gap between grid columns
 ---@field rowGap number|string? -- Gap between grid rows
----@field theme string|{component:string, state:string?}? -- Theme component to use for rendering
+---@field theme string -- Theme component to use for rendering
+---@field themeComponent string?
 ---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
@@ -2183,6 +2209,8 @@ Element.__index = Element
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
 ---@field textColor Color? -- Color of the text content (default: black)
 ---@field textSize number|string? -- Font size: number (px), string with units ("2vh", "10%"), or preset ("xxs"|"xs"|"sm"|"md"|"lg"|"xl"|"xxl"|"3xl"|"4xl") (default: "md")
+---@field minTextSize number
+---@field maxTextSize number
 ---@field fontFamily string? -- Font family name from theme or path to font file (default: theme default or system default)
 ---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
 ---@field positioning Positioning? -- Layout positioning mode (default: RELATIVE)
@@ -2230,7 +2258,7 @@ function Element.new(props)
   -- - theme: which theme to use (defaults to Gui.defaultTheme if not specified)
   -- - themeComponent: which component from the theme (e.g., "panel", "button", "input")
   -- If themeComponent is nil, no theme is applied (manual styling)
-  self.theme = props.theme or Gui.defaultTheme
+  self.theme = props.theme or Gui.defaultTheme or ""
   self.themeComponent = props.themeComponent or nil
 
   -- Initialize state properties
@@ -4251,7 +4279,7 @@ function Element:resize(newGameWidth, newGameHeight)
   if self.units.textSize.value then
     local unit = self.units.textSize.unit
     local value = self.units.textSize.value
-    local scaleX, scaleY = Gui.getScaleFactors()
+    local _, scaleY = Gui.getScaleFactors()
 
     if unit == "ew" then
       -- Element width relative (use current width)

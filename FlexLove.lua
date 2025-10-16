@@ -689,21 +689,27 @@ function Theme.new(definition)
         local right = component.insets.right or 0
         local bottom = component.insets.bottom or 0
 
-        -- Calculate center dimensions
-        local centerWidth = imgWidth - left - right
-        local centerHeight = imgHeight - top - bottom
+        -- Check if this is a 9-patch image (has border pixels to skip)
+        local is9Patch = component._ninePatchData ~= nil
+        local offsetX = is9Patch and 1 or 0
+        local offsetY = is9Patch and 1 or 0
+        local borderSize = is9Patch and 2 or 0 -- 1 pixel on each side
 
-        -- Generate regions from insets
+        -- Calculate center dimensions (accounting for 9-patch borders)
+        local centerWidth = imgWidth - left - right - borderSize
+        local centerHeight = imgHeight - top - bottom - borderSize
+
+        -- Generate regions from insets (offset by 1 pixel for 9-patch to skip border)
         component.regions = {
-          topLeft = { x = 0, y = 0, w = left, h = top },
-          topCenter = { x = left, y = 0, w = centerWidth, h = top },
-          topRight = { x = left + centerWidth, y = 0, w = right, h = top },
-          middleLeft = { x = 0, y = top, w = left, h = centerHeight },
-          middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
-          middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
-          bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
-          bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
-          bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
+          topLeft = { x = offsetX, y = offsetY, w = left, h = top },
+          topCenter = { x = left + offsetX, y = offsetY, w = centerWidth, h = top },
+          topRight = { x = left + centerWidth + offsetX, y = offsetY, w = right, h = top },
+          middleLeft = { x = offsetX, y = top + offsetY, w = left, h = centerHeight },
+          middleCenter = { x = left + offsetX, y = top + offsetY, w = centerWidth, h = centerHeight },
+          middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
+          bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
+          bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
+          bottomRight = { x = left + centerWidth + offsetX, y = top + centerHeight + offsetY, w = right, h = bottom },
         }
       end
     end
@@ -752,19 +758,25 @@ function Theme.new(definition)
             local right = stateComponent.insets.right or 0
             local bottom = stateComponent.insets.bottom or 0
 
-            local centerWidth = imgWidth - left - right
-            local centerHeight = imgHeight - top - bottom
+            -- Check if this is a 9-patch image (has border pixels to skip)
+            local is9Patch = stateComponent._ninePatchData ~= nil
+            local offsetX = is9Patch and 1 or 0
+            local offsetY = is9Patch and 1 or 0
+            local borderSize = is9Patch and 2 or 0
+
+            local centerWidth = imgWidth - left - right - borderSize
+            local centerHeight = imgHeight - top - bottom - borderSize
 
             stateComponent.regions = {
-              topLeft = { x = 0, y = 0, w = left, h = top },
-              topCenter = { x = left, y = 0, w = centerWidth, h = top },
-              topRight = { x = left + centerWidth, y = 0, w = right, h = top },
-              middleLeft = { x = 0, y = top, w = left, h = centerHeight },
-              middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
-              middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
-              bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
-              bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
-              bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
+              topLeft = { x = offsetX, y = offsetY, w = left, h = top },
+              topCenter = { x = left + offsetX, y = offsetY, w = centerWidth, h = top },
+              topRight = { x = left + centerWidth + offsetX, y = offsetY, w = right, h = top },
+              middleLeft = { x = offsetX, y = top + offsetY, w = left, h = centerHeight },
+              middleCenter = { x = left + offsetX, y = top + offsetY, w = centerWidth, h = centerHeight },
+              middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
+              bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
+              bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
+              bottomRight = { x = left + centerWidth + offsetX, y = top + centerHeight + offsetY, w = right, h = bottom },
             }
           end
         end
@@ -1103,7 +1115,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
         return component._scaledRegionCache[cacheKey]
       end
 
-      -- Extract region from atlas
+      -- Extract region from atlas (regions already account for 9-patch borders)
       local atlasData = atlas:getData()
       local scaledData
       

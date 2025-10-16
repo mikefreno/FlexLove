@@ -254,10 +254,24 @@ FlexLove automatically parses Android 9-patch (*.9.png) files:
 
 **9-Patch Format:**
 - Files ending in `.9.png` are automatically detected and parsed
+- **Guide pixels are automatically removed** - the 1px border is stripped during loading
 - Top/left borders define stretchable regions (black pixels)
-- Bottom/right borders define content padding (optional)
+- Bottom/right borders define content padding (optional) - **automatically applied to child positioning**
 - Supports multiple non-contiguous stretch regions
 - Manual insets override auto-parsing when specified
+
+**Scaling Corners:**
+```lua
+{
+  button = {
+    atlas = "themes/mytheme/button.9.png",
+    scaleCorners = 2  -- Scale corners by 2x (number = direct multiplier)
+  }
+}
+```
+- `scaleCorners` accepts a number (e.g., 2 = 2x size, 0.5 = half size)
+- Default: `nil` (no scaling, 1:1 pixel perfect)
+- Corners scale uniformly while edges stretch as defined by guides
 
 Themes support state-based rendering:
 - `normal` - Default state

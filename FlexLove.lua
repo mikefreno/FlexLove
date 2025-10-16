@@ -1,5 +1,5 @@
 --[[
-FlexLove - Flexible UI Library for LÖVE Framework
+FlexLove - UI Library for LÖVE Framework 'based' on flexbox
 VERSION: 1.0.0
 LICENSE: MIT
 For full documentation, see README.md
@@ -15,18 +15,6 @@ For full documentation, see README.md
 ---@return string -- Formatted error message
 local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
-end
-
---- Safe function call wrapper with error handling
----@param fn function -- Function to call
----@param errorContext string? -- Optional context for error message
----@return boolean success, any result -- Returns success status and result or error message
-local function safecall(fn, errorContext)
-  local success, result = pcall(fn)
-  if not success and errorContext then
-    print(formatError("Core", errorContext .. ": " .. tostring(result)))
-  end
-  return success, result
 end
 
 -- ====================
@@ -774,7 +762,12 @@ function Theme.new(definition)
               middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
               bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
               bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
-              bottomRight = { x = left + centerWidth + offsetX, y = top + centerHeight + offsetY, w = right, h = bottom },
+              bottomRight = {
+                x = left + centerWidth + offsetX,
+                y = top + centerHeight + offsetY,
+                w = right,
+                h = bottom,
+              },
             }
           end
         end
@@ -1108,7 +1101,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     -- Helper to get or create scaled region
     local function getScaledRegion(regionName, region, targetWidth, targetHeight)
       local cacheKey = string.format("%s_%.2f_%s", regionName, scaleFactor, scalingAlgorithm)
-      
+
       if component._scaledRegionCache[cacheKey] then
         return component._scaledRegionCache[cacheKey]
       end
@@ -1116,17 +1109,19 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
       -- Extract region from atlas (regions already account for 9-patch borders)
       local atlasData = atlas:getData()
       local scaledData
-      
+
       if scalingAlgorithm == "nearest" then
-        scaledData = ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+        scaledData =
+          ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
       else
-        scaledData = ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+        scaledData =
+          ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
       end
 
       -- Convert to image and cache
       local scaledImage = love.graphics.newImage(scaledData)
       component._scaledRegionCache[cacheKey] = scaledImage
-      
+
       return scaledImage
     end
 
@@ -1160,24 +1155,40 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
     -- TOP/BOTTOM EDGES (stretch horizontally, scale vertically)
     if adjustedContentWidth > 0 then
       local topCenterScaled = getScaledRegion("topCenter", regions.topCenter, regions.topCenter.w, scaledTop)
-      local bottomCenterScaled = getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
-      
+      local bottomCenterScaled =
+        getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
+
       love.graphics.draw(topCenterScaled, x + scaledLeft, y, 0, adjustedScaleX, 1)
-      love.graphics.draw(bottomCenterScaled, x + scaledLeft, y + scaledTop + adjustedContentHeight, 0, adjustedScaleX, 1)
+      love.graphics.draw(
+        bottomCenterScaled,
+        x + scaledLeft,
+        y + scaledTop + adjustedContentHeight,
+        0,
+        adjustedScaleX,
+        1
+      )
     end
 
     -- LEFT/RIGHT EDGES (stretch vertically, scale horizontally)
     if adjustedContentHeight > 0 then
       local middleLeftScaled = getScaledRegion("middleLeft", regions.middleLeft, scaledLeft, regions.middleLeft.h)
       local middleRightScaled = getScaledRegion("middleRight", regions.middleRight, scaledRight, regions.middleRight.h)
-      
+
       love.graphics.draw(middleLeftScaled, x, y + scaledTop, 0, 1, adjustedScaleY)
       love.graphics.draw(middleRightScaled, x + scaledLeft + adjustedContentWidth, y + scaledTop, 0, 1, adjustedScaleY)
     end
 
     -- CENTER (stretch both dimensions, no scaling)
     if adjustedContentWidth > 0 and adjustedContentHeight > 0 then
-      love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + scaledLeft, y + scaledTop, 0, adjustedScaleX, adjustedScaleY)
+      love.graphics.draw(
+        atlas,
+        makeQuad(regions.middleCenter),
+        x + scaledLeft,
+        y + scaledTop,
+        0,
+        adjustedScaleX,
+        adjustedScaleY
+      )
     end
   else
     -- Original rendering logic (no scaling)
@@ -4508,7 +4519,6 @@ Gui.Theme = Theme
 Gui.ImageDataReader = ImageDataReader
 Gui.NinePatchParser = NinePatchParser
 
--- Export individual enums for convenience
 return {
   GUI = Gui,
   Gui = Gui,
@@ -4520,13 +4530,4 @@ return {
   ImageDataReader = ImageDataReader,
   NinePatchParser = NinePatchParser,
   enums = enums,
-  -- Export individual enums at top level
-  Positioning = Positioning,
-  FlexDirection = FlexDirection,
-  JustifyContent = JustifyContent,
-  AlignItems = AlignItems,
-  AlignSelf = AlignSelf,
-  AlignContent = AlignContent,
-  FlexWrap = FlexWrap,
-  TextAlign = TextAlign,
 }

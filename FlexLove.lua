@@ -1033,7 +1033,9 @@ local NineSlice = {}
 ---@param width number -- Total width (border-box)
 ---@param height number -- Total height (border-box)
 ---@param opacity number?
-function NineSlice.draw(component, atlas, x, y, width, height, opacity)
+---@param elementScaleCorners boolean? -- Element-level override for scaleCorners
+---@param elementScalingAlgorithm "nearest"|"bilinear"? -- Element-level override for scalingAlgorithm
+function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementScaleCorners, elementScalingAlgorithm)
   if not component or not atlas then
     return
   end
@@ -1071,8 +1073,17 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity)
   end
 
   -- Check if corner scaling is enabled
-  local scaleCorners = component.scaleCorners or false
-  local scalingAlgorithm = component.scalingAlgorithm or "bilinear"
+  -- Priority: element-level override > component setting > default (false)
+  local scaleCorners = elementScaleCorners
+  if scaleCorners == nil then
+    scaleCorners = component.scaleCorners or false
+  end
+
+  -- Priority: element-level override > component setting > default ("bilinear")
+  local scalingAlgorithm = elementScalingAlgorithm
+  if scalingAlgorithm == nil then
+    scalingAlgorithm = component.scalingAlgorithm or "bilinear"
+  end
 
   if scaleCorners and Gui and Gui.scaleFactors then
     -- Initialize cache if needed
@@ -2156,8 +2167,8 @@ Public API methods to access internal state:
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field textSize number? -- Resolved font size for text content in pixels
----@field minTextSize number
----@field maxTextSize number
+---@field minTextSize number?
+---@field maxTextSize number?
 ---@field fontFamily string? -- Font family name from theme or path to font file
 ---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
@@ -2174,13 +2185,15 @@ Public API methods to access internal state:
 ---@field gridColumns number? -- Number of columns in the grid
 ---@field columnGap number|string? -- Gap between grid columns
 ---@field rowGap number|string? -- Gap between grid rows
----@field theme string -- Theme component to use for rendering
+---@field theme string? -- Theme component to use for rendering
 ---@field themeComponent string?
 ---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions
+---@field scaleCorners boolean? -- Whether to scale 9-slice corners/edges with window size (overrides theme setting)
+---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
 local Element = {}
 Element.__index = Element
 
@@ -2209,8 +2222,8 @@ Element.__index = Element
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
 ---@field textColor Color? -- Color of the text content (default: black)
 ---@field textSize number|string? -- Font size: number (px), string with units ("2vh", "10%"), or preset ("xxs"|"xs"|"sm"|"md"|"lg"|"xl"|"xxl"|"3xl"|"4xl") (default: "md")
----@field minTextSize number
----@field maxTextSize number
+---@field minTextSize number?
+---@field maxTextSize number?
 ---@field fontFamily string? -- Font family name from theme or path to font file (default: theme default or system default)
 ---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
 ---@field positioning Positioning? -- Layout positioning mode (default: RELATIVE)
@@ -2234,6 +2247,8 @@ Element.__index = Element
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions (default: sourced from theme)
+---@field scaleCorners boolean? -- Whether to scale 9-slice corners/edges with window size (overrides theme setting)
+---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -2258,7 +2273,7 @@ function Element.new(props)
   -- - theme: which theme to use (defaults to Gui.defaultTheme if not specified)
   -- - themeComponent: which component from the theme (e.g., "panel", "button", "input")
   -- If themeComponent is nil, no theme is applied (manual styling)
-  self.theme = props.theme or Gui.defaultTheme or ""
+  self.theme = props.theme or Gui.defaultTheme
   self.themeComponent = props.themeComponent or nil
 
   -- Initialize state properties
@@ -2303,6 +2318,11 @@ function Element.new(props)
       self.contentAutoSizingMultiplier = nil
     end
   end
+
+  -- Initialize 9-slice corner scaling properties
+  -- These override theme component settings when specified
+  self.scaleCorners = props.scaleCorners
+  self.scalingAlgorithm = props.scalingAlgorithm
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
@@ -3619,7 +3639,18 @@ function Element:draw()
             -- Calculate border-box dimensions (content + padding)
             local borderBoxWidth = self.width + self.padding.left + self.padding.right
             local borderBoxHeight = self.height + self.padding.top + self.padding.bottom
-            NineSlice.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity)
+            -- Pass element-level overrides for scaleCorners and scalingAlgorithm
+            NineSlice.draw(
+              component,
+              atlasToUse,
+              self.x,
+              self.y,
+              borderBoxWidth,
+              borderBoxHeight,
+              self.opacity,
+              self.scaleCorners,
+              self.scalingAlgorithm
+            )
           else
             -- Silently skip drawing if component structure is invalid
           end

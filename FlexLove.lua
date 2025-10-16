@@ -477,7 +477,7 @@ end
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: multiplier for auto-sized content dimensions
 ---@field scaleCorners boolean? -- Optional: scale non-stretched regions (corners/edges) with window size. Default: false
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Optional: scaling algorithm for non-stretched regions. Default: "bilinear"
----@field _loadedAtlas love.Image? -- Internal: cached loaded atlas image
+---@field _loadedAtlas string|love.Image? -- Internal: cached loaded atlas image
 ---@field _ninePatchData {insets:table, stretchX:table, stretchY:table}? -- Internal: parsed 9-patch data with multiple stretch regions
 ---@field _scaledRegionCache table<string, love.Image>? -- Internal: cache for scaled corner/edge images
 
@@ -618,11 +618,18 @@ function Theme.new(definition)
   if definition.atlas then
     if type(definition.atlas) == "string" then
       local resolvedPath = resolveImagePath(definition.atlas)
-      local image, err = safeLoadImage(resolvedPath)
+      local image, loaderr = safeLoadImage(resolvedPath)
       if image then
         self.atlas = image
       else
-        print("[FlexLove] Warning: Failed to load global atlas for theme '" .. definition.name .. "'")
+        print(
+          "[FlexLove] Warning: Failed to load global atlas for theme '"
+            .. definition.name
+            .. "'"
+            .. "("
+            .. loaderr
+            .. ")"
+        )
       end
     else
       self.atlas = definition.atlas
@@ -634,142 +641,91 @@ function Theme.new(definition)
   self.fonts = definition.fonts or {}
   self.contentAutoSizingMultiplier = definition.contentAutoSizingMultiplier or nil
 
+  -- Helper function to load atlas with 9-patch support
+  local function loadAtlasWithNinePatch(comp, atlasPath, errorContext)
+    ---@diagnostic disable-next-line
+    local resolvedPath = resolveImagePath(atlasPath)
+    ---@diagnostic disable-next-line
+    local is9Patch = not comp.insets and atlasPath:match("%.9%.png$")
+
+    if is9Patch then
+      local parseResult, parseErr = NinePatchParser.parse(resolvedPath)
+      if parseResult then
+        comp.insets = parseResult.insets
+        comp._ninePatchData = parseResult
+      else
+        print("[FlexLove] Warning: Failed to parse 9-patch " .. errorContext .. ": " .. tostring(parseErr))
+      end
+    end
+
+    local image, loaderr = safeLoadImage(resolvedPath)
+    if image then
+      comp._loadedAtlas = image
+    else
+      print("[FlexLove] Warning: Failed to load atlas " .. errorContext .. ": " .. tostring(loaderr))
+    end
+  end
+
+  -- Helper function to create regions from insets
+  local function createRegionsFromInsets(comp, fallbackAtlas)
+    local atlasImage = comp._loadedAtlas or fallbackAtlas
+    if not atlasImage or type(atlasImage) == "string" then
+      return
+    end
+
+    local imgWidth, imgHeight = atlasImage:getDimensions()
+    local left = comp.insets.left or 0
+    local top = comp.insets.top or 0
+    local right = comp.insets.right or 0
+    local bottom = comp.insets.bottom or 0
+
+    local is9Patch = comp._ninePatchData ~= nil
+    local offsetX = is9Patch and 1 or 0
+    local offsetY = is9Patch and 1 or 0
+    local borderSize = is9Patch and 2 or 0
+
+    local centerWidth = imgWidth - left - right - borderSize
+    local centerHeight = imgHeight - top - bottom - borderSize
+
+    comp.regions = {
+      topLeft = { x = offsetX, y = offsetY, w = left, h = top },
+      topCenter = { x = left + offsetX, y = offsetY, w = centerWidth, h = top },
+      topRight = { x = left + centerWidth + offsetX, y = offsetY, w = right, h = top },
+      middleLeft = { x = offsetX, y = top + offsetY, w = left, h = centerHeight },
+      middleCenter = { x = left + offsetX, y = top + offsetY, w = centerWidth, h = centerHeight },
+      middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
+      bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
+      bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
+      bottomRight = { x = left + centerWidth + offsetX, y = top + centerHeight + offsetY, w = right, h = bottom },
+    }
+  end
+
   -- Load component-specific atlases and process 9-patch definitions
   for componentName, component in pairs(self.components) do
     if component.atlas then
       if type(component.atlas) == "string" then
-        local resolvedPath = resolveImagePath(component.atlas)
-
-        -- Check if this is a 9-patch file that needs parsing
-        local is9Patch = not component.insets and component.atlas:match("%.9%.png$")
-
-        -- Parse 9-patch BEFORE loading the image
-        if is9Patch then
-          local parseResult, parseErr = NinePatchParser.parse(resolvedPath)
-          if parseResult then
-            component.insets = parseResult.insets
-            component._ninePatchData = parseResult -- Store full data including stretch regions
-          else
-            print("[FlexLove] Warning: Failed to parse 9-patch '" .. component.atlas .. "': " .. tostring(parseErr))
-          end
-        end
-
-        -- Now load the image normally
-        local image, err = safeLoadImage(resolvedPath)
-        if image then
-          component._loadedAtlas = image
-        else
-          print("[FlexLove] Warning: Failed to load atlas for component '" .. componentName .. "'")
-        end
+        loadAtlasWithNinePatch(component, component.atlas, "for component '" .. componentName .. "'")
       else
         component._loadedAtlas = component.atlas
       end
     end
 
-    -- Process 9-patch insets into regions (new format)
     if component.insets then
-      local atlasImage = component._loadedAtlas or self.atlas
-      if atlasImage then
-        local imgWidth, imgHeight = atlasImage:getDimensions()
-        local left = component.insets.left or 0
-        local top = component.insets.top or 0
-        local right = component.insets.right or 0
-        local bottom = component.insets.bottom or 0
-
-        -- Check if this is a 9-patch image (has border pixels to skip)
-        local is9Patch = component._ninePatchData ~= nil
-        local offsetX = is9Patch and 1 or 0
-        local offsetY = is9Patch and 1 or 0
-        local borderSize = is9Patch and 2 or 0 -- 1 pixel on each side
-
-        -- Calculate center dimensions (accounting for 9-patch borders)
-        local centerWidth = imgWidth - left - right - borderSize
-        local centerHeight = imgHeight - top - bottom - borderSize
-
-        -- Generate regions from insets (offset by 1 pixel for 9-patch to skip border)
-        component.regions = {
-          topLeft = { x = offsetX, y = offsetY, w = left, h = top },
-          topCenter = { x = left + offsetX, y = offsetY, w = centerWidth, h = top },
-          topRight = { x = left + centerWidth + offsetX, y = offsetY, w = right, h = top },
-          middleLeft = { x = offsetX, y = top + offsetY, w = left, h = centerHeight },
-          middleCenter = { x = left + offsetX, y = top + offsetY, w = centerWidth, h = centerHeight },
-          middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
-          bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
-          bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
-          bottomRight = { x = left + centerWidth + offsetX, y = top + centerHeight + offsetY, w = right, h = bottom },
-        }
-      end
+      createRegionsFromInsets(component, self.atlas)
     end
 
-    -- Also load atlases for component states and process their 9-patch definitions
     if component.states then
       for stateName, stateComponent in pairs(component.states) do
         if stateComponent.atlas then
           if type(stateComponent.atlas) == "string" then
-            local resolvedPath = resolveImagePath(stateComponent.atlas)
-
-            -- Check if this is a 9-patch file that needs parsing
-            local is9Patch = not stateComponent.insets and stateComponent.atlas:match("%.9%.png$")
-
-            -- Parse 9-patch BEFORE loading the image
-            if is9Patch then
-              local parseResult, parseErr = NinePatchParser.parse(resolvedPath)
-              if parseResult then
-                stateComponent.insets = parseResult.insets
-                stateComponent._ninePatchData = parseResult
-              else
-                print("[FlexLove] Warning: Failed to parse 9-patch state '" .. stateName .. "': " .. tostring(parseErr))
-              end
-            end
-
-            -- Now load the image normally
-            local image, imgErr = safeLoadImage(resolvedPath)
-            if image then
-              stateComponent._loadedAtlas = image
-            else
-              print("[FlexLove] Warning: Failed to load state atlas '" .. stateName .. "': " .. tostring(imgErr))
-            end
+            loadAtlasWithNinePatch(stateComponent, stateComponent.atlas, "for state '" .. stateName .. "'")
           else
             stateComponent._loadedAtlas = stateComponent.atlas
           end
         end
 
-        -- Process 9-patch insets for state components
         if stateComponent.insets then
-          local atlasImage = stateComponent._loadedAtlas or component._loadedAtlas or self.atlas
-          if atlasImage then
-            local imgWidth, imgHeight = atlasImage:getDimensions()
-            local left = stateComponent.insets.left or 0
-            local top = stateComponent.insets.top or 0
-            local right = stateComponent.insets.right or 0
-            local bottom = stateComponent.insets.bottom or 0
-
-            -- Check if this is a 9-patch image (has border pixels to skip)
-            local is9Patch = stateComponent._ninePatchData ~= nil
-            local offsetX = is9Patch and 1 or 0
-            local offsetY = is9Patch and 1 or 0
-            local borderSize = is9Patch and 2 or 0
-
-            local centerWidth = imgWidth - left - right - borderSize
-            local centerHeight = imgHeight - top - bottom - borderSize
-
-            stateComponent.regions = {
-              topLeft = { x = offsetX, y = offsetY, w = left, h = top },
-              topCenter = { x = left + offsetX, y = offsetY, w = centerWidth, h = top },
-              topRight = { x = left + centerWidth + offsetX, y = offsetY, w = right, h = top },
-              middleLeft = { x = offsetX, y = top + offsetY, w = left, h = centerHeight },
-              middleCenter = { x = left + offsetX, y = top + offsetY, w = centerWidth, h = centerHeight },
-              middleRight = { x = left + centerWidth + offsetX, y = top + offsetY, w = right, h = centerHeight },
-              bottomLeft = { x = offsetX, y = top + centerHeight + offsetY, w = left, h = bottom },
-              bottomCenter = { x = left + offsetX, y = top + centerHeight + offsetY, w = centerWidth, h = bottom },
-              bottomRight = {
-                x = left + centerWidth + offsetX,
-                y = top + centerHeight + offsetY,
-                w = right,
-                h = bottom,
-              },
-            }
-          end
+          createRegionsFromInsets(stateComponent, component._loadedAtlas or self.atlas)
         end
       end
     end

@@ -1,7 +1,7 @@
 package.path = package.path .. ";?.lua"
 
-local luaunit = require("testing/luaunit")
-require("testing/loveStub") -- Required to mock LOVE functions
+local luaunit = require("testing.luaunit")
+require("testing.loveStub")
 local FlexLove = require("FlexLove")
 local Gui, enums = FlexLove.GUI, FlexLove.enums
 
@@ -152,7 +152,7 @@ function TestUnitsSystem:testResizeViewportUnits()
 
   luaunit.assertEquals(container.width, 800) -- 50% of 1600
   luaunit.assertEquals(container.height, 250) -- 25% of 1000
-  
+
   -- Restore viewport
   love.window.setMode(1200, 800)
 end

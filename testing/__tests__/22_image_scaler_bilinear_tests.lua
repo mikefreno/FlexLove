@@ -275,14 +275,17 @@ function TestImageScalerBilinear:testComparison_SmootherThanNearest()
   end
 
   local bilinearCount = 0
-  for _ in pairs(bilinearValues) do bilinearCount = bilinearCount + 1 end
-  
+  for _ in pairs(bilinearValues) do
+    bilinearCount = bilinearCount + 1
+  end
+
   local nearestCount = 0
-  for _ in pairs(nearestValues) do nearestCount = nearestCount + 1 end
+  for _ in pairs(nearestValues) do
+    nearestCount = nearestCount + 1
+  end
 
   -- Bilinear should have more unique values (smoother gradient)
-  luaunit.assertTrue(bilinearCount >= nearestCount, 
-    "Bilinear should produce smoother gradient with more unique values")
+  luaunit.assertTrue(bilinearCount >= nearestCount, "Bilinear should produce smoother gradient with more unique values")
 end
 
 luaunit.LuaUnit.run()

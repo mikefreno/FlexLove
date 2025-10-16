@@ -1,8 +1,8 @@
 -- Test relative positioning functionality
 package.path = package.path .. ";?.lua"
-require("testing/loveStub")
+require("testing.loveStub")
 local FlexLove = require("FlexLove")
-local luaunit = require("testing/luaunit")
+local luaunit = require("testing.luaunit")
 
 local Gui, enums = FlexLove.GUI, FlexLove.enums
 local Color = FlexLove.Color

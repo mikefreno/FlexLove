@@ -56,7 +56,7 @@ return {
   colors = {
     primary = Color.new(),
     secondary = Color.new(),
-    text = Color.new(),
+    text = Color.new(0.1, 0.1, 0.1),
     textDark = Color.new(),
   },
 

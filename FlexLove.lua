@@ -2656,13 +2656,46 @@ function Element.new(props)
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
   local tempPadding
   if use9PatchPadding then
-    -- Use 9-patch content padding directly (no need to resolve, it's already in pixels)
-    tempPadding = {
-      left = ninePatchContentPadding.left,
-      top = ninePatchContentPadding.top,
-      right = ninePatchContentPadding.right,
-      bottom = ninePatchContentPadding.bottom,
-    }
+    -- Scale 9-patch content padding to match the actual rendered size
+    -- The contentPadding values are in the original image's pixel coordinates,
+    -- but we need to scale them proportionally to the element's actual size
+    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    if themeToUse and themeToUse.components[self.themeComponent] then
+      local component = themeToUse.components[self.themeComponent]
+      local atlasImage = component._loadedAtlas or themeToUse.atlas
+
+      if atlasImage and type(atlasImage) ~= "string" then
+        local originalWidth, originalHeight = atlasImage:getDimensions()
+
+        -- Calculate the scale factor based on the element's border-box size vs original image size
+        -- For explicit sizing, tempWidth/tempHeight represent the border-box dimensions
+        local scaleX = tempWidth / originalWidth
+        local scaleY = tempHeight / originalHeight
+
+        tempPadding = {
+          left = ninePatchContentPadding.left * scaleX,
+          top = ninePatchContentPadding.top * scaleY,
+          right = ninePatchContentPadding.right * scaleX,
+          bottom = ninePatchContentPadding.bottom * scaleY,
+        }
+      else
+        -- Fallback if atlas image not available
+        tempPadding = {
+          left = ninePatchContentPadding.left,
+          top = ninePatchContentPadding.top,
+          right = ninePatchContentPadding.right,
+          bottom = ninePatchContentPadding.bottom,
+        }
+      end
+    else
+      -- Fallback if theme not found
+      tempPadding = {
+        left = ninePatchContentPadding.left,
+        top = ninePatchContentPadding.top,
+        right = ninePatchContentPadding.right,
+        bottom = ninePatchContentPadding.bottom,
+      }
+    end
   else
     tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
   end
@@ -3117,6 +3150,109 @@ end
 ---@return number
 function Element:getBorderBoxHeight()
   return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+end
+
+--- Get the current state's scaled content padding
+--- Returns the contentPadding for the current theme state, scaled to the element's size
+---@return table|nil -- {left, top, right, bottom} or nil if no contentPadding
+function Element:getScaledContentPadding()
+  if not self.themeComponent then
+    return nil
+  end
+
+  local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+  if not themeToUse or not themeToUse.components[self.themeComponent] then
+    return nil
+  end
+
+  local component = themeToUse.components[self.themeComponent]
+
+  -- Check for state-specific override
+  local state = self._themeState or "normal"
+  if state and state ~= "normal" and component.states and component.states[state] then
+    component = component.states[state]
+  end
+
+  if not component._ninePatchData or not component._ninePatchData.contentPadding then
+    return nil
+  end
+
+  local contentPadding = component._ninePatchData.contentPadding
+
+  -- Scale contentPadding to match the actual rendered size
+  local atlasImage = component._loadedAtlas or themeToUse.atlas
+  if atlasImage and type(atlasImage) ~= "string" then
+    local originalWidth, originalHeight = atlasImage:getDimensions()
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+    local scaleX = borderBoxWidth / originalWidth
+    local scaleY = borderBoxHeight / originalHeight
+
+    return {
+      left = contentPadding.left * scaleX,
+      top = contentPadding.top * scaleY,
+      right = contentPadding.right * scaleX,
+      bottom = contentPadding.bottom * scaleY,
+    }
+  else
+    -- Return unscaled values as fallback
+    return {
+      left = contentPadding.left,
+      top = contentPadding.top,
+      right = contentPadding.right,
+      bottom = contentPadding.bottom,
+    }
+  end
+end
+
+--- Get available content width for children (accounting for 9-slice content padding)
+--- This is the width that children should use when calculating percentage widths
+---@return number
+function Element:getAvailableContentWidth()
+  local availableWidth = self.width
+
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    -- Check if the element is using the scaled 9-patch contentPadding as its padding
+    -- Allow small floating point differences (within 0.1 pixels)
+    local usingContentPaddingAsPadding = (
+      math.abs(self.padding.left - scaledContentPadding.left) < 0.1
+      and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
+    )
+
+    if not usingContentPaddingAsPadding then
+      -- Element has explicit padding different from contentPadding
+      -- Subtract scaled contentPadding to get the area children should use
+      availableWidth = availableWidth - scaledContentPadding.left - scaledContentPadding.right
+    end
+  end
+
+  return math.max(0, availableWidth)
+end
+
+--- Get available content height for children (accounting for 9-slice content padding)
+--- This is the height that children should use when calculating percentage heights
+---@return number
+function Element:getAvailableContentHeight()
+  local availableHeight = self.height
+
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    -- Check if the element is using the scaled 9-patch contentPadding as its padding
+    -- Allow small floating point differences (within 0.1 pixels)
+    local usingContentPaddingAsPadding = (
+      math.abs(self.padding.top - scaledContentPadding.top) < 0.1
+      and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
+    )
+
+    if not usingContentPaddingAsPadding then
+      -- Element has explicit padding different from contentPadding
+      -- Subtract scaled contentPadding to get the area children should use
+      availableHeight = availableHeight - scaledContentPadding.top - scaledContentPadding.bottom
+    end
+  end
+
+  return math.max(0, availableHeight)
 end
 
 --- Add child to element
@@ -3836,18 +3972,38 @@ function Element:draw()
     local textWidth = font:getWidth(self.text)
     local textHeight = font:getHeight()
     local tx, ty
+
     -- Text is drawn in the content box (inside padding)
-    local contentX = self.x + self.padding.left
-    local contentY = self.y + self.padding.top
+    -- For 9-slice components, use contentPadding if available
+    local textPaddingLeft = self.padding.left
+    local textPaddingTop = self.padding.top
+    local textAreaWidth = self.width
+    local textAreaHeight = self.height
+
+    -- Check if we should use 9-slice contentPadding for text positioning
+    local scaledContentPadding = self:getScaledContentPadding()
+    if scaledContentPadding then
+      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+
+      textPaddingLeft = scaledContentPadding.left
+      textPaddingTop = scaledContentPadding.top
+      textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
+      textAreaHeight = borderBoxHeight - scaledContentPadding.top - scaledContentPadding.bottom
+    end
+
+    local contentX = self.x + textPaddingLeft
+    local contentY = self.y + textPaddingTop
+
     if self.textAlign == TextAlign.START then
       tx = contentX
       ty = contentY
     elseif self.textAlign == TextAlign.CENTER then
-      tx = contentX + (self.width - textWidth) / 2
-      ty = contentY + (self.height - textHeight) / 2
+      tx = contentX + (textAreaWidth - textWidth) / 2
+      ty = contentY + (textAreaHeight - textHeight) / 2
     elseif self.textAlign == TextAlign.END then
-      tx = contentX + self.width - textWidth - 10
-      ty = contentY + self.height - textHeight - 10
+      tx = contentX + textAreaWidth - textWidth - 10
+      ty = contentY + textAreaHeight - textHeight - 10
     elseif self.textAlign == TextAlign.JUSTIFY then
       --- need to figure out spreading
       tx = contentX

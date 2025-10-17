@@ -1205,14 +1205,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
         getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
 
       love.graphics.draw(topCenterScaled, x + scaledLeft, y, 0, adjustedScaleX, 1)
-      love.graphics.draw(
-        bottomCenterScaled,
-        x + scaledLeft,
-        y + height - scaledBottom,
-        0,
-        adjustedScaleX,
-        1
-      )
+      love.graphics.draw(bottomCenterScaled, x + scaledLeft, y + height - scaledBottom, 0, adjustedScaleX, 1)
     end
 
     -- LEFT/RIGHT EDGES (stretch vertically, scale horizontally)
@@ -1838,7 +1831,7 @@ end
 ---@field button number -- Mouse button: 1 (left), 2 (right), 3 (middle)
 ---@field x number -- Mouse X position
 ---@field y number -- Mouse Y position
----@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, cmd:boolean}
+---@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, super:boolean}
 ---@field clickCount number -- Number of clicks (for double/triple click detection)
 ---@field timestamp number -- Time when event occurred
 local InputEvent = {}
@@ -1849,7 +1842,7 @@ InputEvent.__index = InputEvent
 ---@field button number
 ---@field x number
 ---@field y number
----@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, cmd:boolean}
+---@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, super:boolean}
 ---@field clickCount number?
 ---@field timestamp number?
 
@@ -1869,14 +1862,14 @@ function InputEvent.new(props)
 end
 
 --- Get current keyboard modifiers state
----@return {shift:boolean, ctrl:boolean, alt:boolean, cmd:boolean}
+---@return {shift:boolean, ctrl:boolean, alt:boolean, super:boolean}
 local function getModifiers()
   return {
     shift = love.keyboard.isDown("lshift", "rshift"),
     ctrl = love.keyboard.isDown("lctrl", "rctrl"),
     alt = love.keyboard.isDown("lalt", "ralt"),
     ---@diagnostic disable-next-line
-    cmd = love.keyboard.isDown("lgui", "rgui"), -- Super key
+    super = love.keyboard.isDown("lgui", "rgui"), -- cmd/windows key
   }
 end
 
@@ -3111,7 +3104,7 @@ end
 --- Get element bounds (content box)
 ---@return { x:number, y:number, width:number, height:number }
 function Element:getBounds()
-  return { x = self.x, y = self.y, width = self.width, height = self.height }
+  return { x = self.x, y = self.y, width = self:getBorderBoxWidth(), height = self:getBorderBoxHeight() }
 end
 
 --- Get border-box width (including padding)

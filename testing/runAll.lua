@@ -26,6 +26,7 @@ local testFiles = {
   "testing/__tests__/20_padding_resize_tests.lua",
   "testing/__tests__/21_image_scaler_nearest_tests.lua",
   "testing/__tests__/22_image_scaler_bilinear_tests.lua",
+  "testing/__tests__/23_blur_effects_tests.lua",
 }
 
 local success = true

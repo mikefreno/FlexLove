@@ -6,6 +6,306 @@ For full documentation, see README.md
 ]]
 
 -- ====================
+-- fast Gaussian blur
+-- ====================
+
+local Blur = {}
+
+-- Canvas cache to avoid recreating canvases every frame
+local canvasCache = {}
+local MAX_CACHE_SIZE = 20
+
+--- Build Gaussian blur shader with given parameters
+---@param taps number -- Number of samples (must be odd, >= 3)
+---@param offset number -- Offset multiplier for sampling
+---@param offset_type string -- "weighted" or "center"
+---@param sigma number -- Gaussian sigma value
+---@return love.Shader
+local function buildShader(taps, offset, offset_type, sigma)
+  taps = math.floor(taps)
+  sigma = sigma >= 1 and sigma or (taps - 1) * offset / 6
+  sigma = math.max(sigma, 1)
+
+  local steps = (taps + 1) / 2
+
+  -- Calculate gaussian function
+  local g_offsets = {}
+  local g_weights = {}
+  for i = 1, steps, 1 do
+    g_offsets[i] = offset * (i - 1)
+    g_weights[i] = math.exp(-0.5 * (g_offsets[i] - 0) ^ 2 * 1 / sigma ^ 2)
+  end
+
+  -- Calculate offsets and weights for sub-pixel samples
+  local offsets = {}
+  local weights = {}
+  for i = #g_weights, 2, -2 do
+    local oA, oB = g_offsets[i], g_offsets[i - 1]
+    local wA, wB = g_weights[i], g_weights[i - 1]
+    wB = oB == 0 and wB / 2 or wB
+    local weight = wA + wB
+    offsets[#offsets + 1] = offset_type == "center" and (oA + oB) / 2 or (oA * wA + oB * wB) / weight
+    weights[#weights + 1] = weight
+  end
+
+  local code = { [[
+    extern vec2 direction;
+    vec4 effect(vec4 color, Image tex, vec2 tc, vec2 sc) {]] }
+
+  local norm = 0
+  if #g_weights % 2 == 0 then
+    code[#code + 1] = "vec4 c = vec4( 0.0 );"
+  else
+    local weight = g_weights[1]
+    norm = norm + weight
+    code[#code + 1] = ("vec4 c = %f * texture2D(tex, tc);"):format(weight)
+  end
+
+  local tmpl = "c += %f * ( texture2D(tex, tc + %f * direction)+ texture2D(tex, tc - %f * direction));\n"
+  for i = 1, #offsets, 1 do
+    local offset = offsets[i]
+    local weight = weights[i]
+    norm = norm + weight * 2
+    code[#code + 1] = tmpl:format(weight, offset, offset)
+  end
+  code[#code + 1] = ("return c * vec4(%f) * color; }"):format(1 / norm)
+
+  local shader = table.concat(code)
+  return love.graphics.newShader(shader)
+end
+
+--- Get or create a canvas from cache
+---@param width number
+---@param height number
+---@return love.Canvas
+local function getCanvas(width, height)
+  local key = string.format("%dx%d", width, height)
+
+  if not canvasCache[key] then
+    canvasCache[key] = {}
+  end
+
+  local cache = canvasCache[key]
+
+  -- Try to reuse existing canvas
+  for i, canvas in ipairs(cache) do
+    if not canvas.inUse then
+      canvas.inUse = true
+      return canvas.canvas
+    end
+  end
+
+  -- Create new canvas if none available
+  local canvas = love.graphics.newCanvas(width, height)
+  table.insert(cache, { canvas = canvas, inUse = true })
+
+  -- Limit cache size
+  if #cache > MAX_CACHE_SIZE then
+    table.remove(cache, 1)
+  end
+
+  return canvas
+end
+
+--- Release a canvas back to the cache
+---@param canvas love.Canvas
+local function releaseCanvas(canvas)
+  for _, sizeCache in pairs(canvasCache) do
+    for _, entry in ipairs(sizeCache) do
+      if entry.canvas == canvas then
+        entry.inUse = false
+        return
+      end
+    end
+  end
+end
+
+--- Create a blur effect instance
+---@param quality number -- Quality level (1-10, higher = better quality but slower)
+---@return table -- Blur effect instance
+function Blur.new(quality)
+  quality = math.max(1, math.min(10, quality or 5))
+
+  -- Map quality to shader parameters
+  -- Quality 1: 3 taps (fastest, lowest quality)
+  -- Quality 5: 7 taps (balanced)
+  -- Quality 10: 15 taps (slowest, highest quality)
+  local taps = 3 + (quality - 1) * 1.5
+  taps = math.floor(taps)
+  if taps % 2 == 0 then
+    taps = taps + 1 -- Ensure odd number
+  end
+
+  local offset = 1.0
+  local offset_type = "weighted"
+  local sigma = -1
+
+  local shader = buildShader(taps, offset, offset_type, sigma)
+
+  local instance = {
+    shader = shader,
+    quality = quality,
+    taps = taps,
+  }
+
+  return instance
+end
+
+--- Apply blur to a region of the screen
+---@param blurInstance table -- Blur effect instance from Blur.new()
+---@param intensity number -- Blur intensity (0-100)
+---@param x number -- X position
+---@param y number -- Y position
+---@param width number -- Width
+---@param height number -- Height
+---@param drawFunc function -- Function to draw content to be blurred
+function Blur.applyToRegion(blurInstance, intensity, x, y, width, height, drawFunc)
+  if intensity <= 0 or width <= 0 or height <= 0 then
+    -- No blur, just draw normally
+    drawFunc()
+    return
+  end
+
+  -- Clamp intensity
+  intensity = math.max(0, math.min(100, intensity))
+
+  -- Calculate blur passes based on intensity
+  -- Intensity 0-100 maps to 0-5 passes
+  local passes = math.ceil(intensity / 20)
+  passes = math.max(1, math.min(5, passes))
+
+  -- Get canvases for ping-pong rendering
+  local canvas1 = getCanvas(width, height)
+  local canvas2 = getCanvas(width, height)
+
+  -- Save graphics state
+  local prevCanvas = love.graphics.getCanvas()
+  local prevShader = love.graphics.getShader()
+  local prevColor = { love.graphics.getColor() }
+  local prevBlendMode = love.graphics.getBlendMode()
+
+  -- Render content to first canvas
+  love.graphics.setCanvas(canvas1)
+  love.graphics.clear()
+  love.graphics.push()
+  love.graphics.origin()
+  love.graphics.translate(-x, -y)
+  drawFunc()
+  love.graphics.pop()
+
+  -- Apply blur passes
+  love.graphics.setShader(blurInstance.shader)
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setBlendMode("alpha", "premultiplied")
+
+  for i = 1, passes do
+    -- Horizontal pass
+    love.graphics.setCanvas(canvas2)
+    love.graphics.clear()
+    blurInstance.shader:send("direction", { 1 / width, 0 })
+    love.graphics.draw(canvas1, 0, 0)
+
+    -- Vertical pass
+    love.graphics.setCanvas(canvas1)
+    love.graphics.clear()
+    blurInstance.shader:send("direction", { 0, 1 / height })
+    love.graphics.draw(canvas2, 0, 0)
+  end
+
+  -- Draw blurred result to screen
+  love.graphics.setCanvas(prevCanvas)
+  love.graphics.setShader()
+  love.graphics.setBlendMode(prevBlendMode)
+  love.graphics.draw(canvas1, x, y)
+
+  -- Restore graphics state
+  love.graphics.setShader(prevShader)
+  love.graphics.setColor(unpack(prevColor))
+
+  -- Release canvases back to cache
+  releaseCanvas(canvas1)
+  releaseCanvas(canvas2)
+end
+
+--- Apply backdrop blur effect (blur content behind a region)
+---@param blurInstance table -- Blur effect instance from Blur.new()
+---@param intensity number -- Blur intensity (0-100)
+---@param x number -- X position
+---@param y number -- Y position
+---@param width number -- Width
+---@param height number -- Height
+---@param backdropCanvas love.Canvas -- Canvas containing the backdrop content
+function Blur.applyBackdrop(blurInstance, intensity, x, y, width, height, backdropCanvas)
+  if intensity <= 0 or width <= 0 or height <= 0 then
+    return
+  end
+
+  -- Clamp intensity
+  intensity = math.max(0, math.min(100, intensity))
+
+  -- Calculate blur passes based on intensity
+  local passes = math.ceil(intensity / 20)
+  passes = math.max(1, math.min(5, passes))
+
+  -- Get canvases for ping-pong rendering
+  local canvas1 = getCanvas(width, height)
+  local canvas2 = getCanvas(width, height)
+
+  -- Save graphics state
+  local prevCanvas = love.graphics.getCanvas()
+  local prevShader = love.graphics.getShader()
+  local prevColor = { love.graphics.getColor() }
+  local prevBlendMode = love.graphics.getBlendMode()
+
+  -- Extract the region from backdrop
+  love.graphics.setCanvas(canvas1)
+  love.graphics.clear()
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setBlendMode("alpha", "premultiplied")
+
+  -- Create a quad for the region
+  local backdropWidth, backdropHeight = backdropCanvas:getDimensions()
+  local quad = love.graphics.newQuad(x, y, width, height, backdropWidth, backdropHeight)
+  love.graphics.draw(backdropCanvas, quad, 0, 0)
+
+  -- Apply blur passes
+  love.graphics.setShader(blurInstance.shader)
+
+  for i = 1, passes do
+    -- Horizontal pass
+    love.graphics.setCanvas(canvas2)
+    love.graphics.clear()
+    blurInstance.shader:send("direction", { 1 / width, 0 })
+    love.graphics.draw(canvas1, 0, 0)
+
+    -- Vertical pass
+    love.graphics.setCanvas(canvas1)
+    love.graphics.clear()
+    blurInstance.shader:send("direction", { 0, 1 / height })
+    love.graphics.draw(canvas2, 0, 0)
+  end
+
+  -- Draw blurred result to screen
+  love.graphics.setCanvas(prevCanvas)
+  love.graphics.setShader()
+  love.graphics.setBlendMode(prevBlendMode)
+  love.graphics.draw(canvas1, x, y)
+
+  -- Restore graphics state
+  love.graphics.setShader(prevShader)
+  love.graphics.setColor(unpack(prevColor))
+
+  -- Release canvases back to cache
+  releaseCanvas(canvas1)
+  releaseCanvas(canvas2)
+end
+
+--- Clear canvas cache (call on window resize)
+function Blur.clearCache()
+  canvasCache = {}
+end
+
+-- ====================
 -- Error Handling Utilities
 -- ====================
 
@@ -1731,20 +2031,104 @@ function Gui.resize()
     end
   end
 
+  -- Clear blur canvas cache on resize
+  Blur.clearCache()
+
   for _, win in ipairs(Gui.topElements) do
     win:resize(newWidth, newHeight)
   end
 end
 
-function Gui.draw()
+Gui._backdropCanvas = nil
+
+---@param gameDrawFunc function|nil -- Function to draw game content, needed for backdrop blur
+---function love.draw()
+---  FlexLove.Gui.draw(function()
+---    --Game rendering logic
+---    RenderSystem:update()
+---  end)
+--- -- Layers on top of GUI - blurs will not extend to this
+--- overlayStats.draw()
+---end
+function Gui.draw(gameDrawFunc)
+  local gameCanvas = nil
+
+  -- Render game content to a canvas if function provided
+  if type(gameDrawFunc) == "function" then
+    local width, height = love.graphics.getDimensions()
+    gameCanvas = love.graphics.newCanvas(width, height)
+    love.graphics.setCanvas(gameCanvas)
+    love.graphics.clear()
+    gameDrawFunc() -- Call the drawing function
+    love.graphics.setCanvas()
+
+    -- Draw game canvas to screen
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(gameCanvas, 0, 0)
+  end
+
   -- Sort elements by z-index before drawing
   table.sort(Gui.topElements, function(a, b)
     return a.z < b.z
   end)
 
-  for _, win in ipairs(Gui.topElements) do
-    win:draw()
+  -- Check if any element (recursively) needs backdrop blur
+  local function hasBackdropBlur(element)
+    if element.backdropBlur and element.backdropBlur.intensity > 0 then
+      return true
+    end
+    for _, child in ipairs(element.children) do
+      if hasBackdropBlur(child) then
+        return true
+      end
+    end
+    return false
   end
+
+  local needsBackdropCanvas = false
+  for _, win in ipairs(Gui.topElements) do
+    if hasBackdropBlur(win) then
+      needsBackdropCanvas = true
+      break
+    end
+  end
+
+  -- If backdrop blur is needed, render to a progressive canvas
+  if needsBackdropCanvas and gameCanvas then
+    local width, height = love.graphics.getDimensions()
+    local backdropCanvas = love.graphics.newCanvas(width, height)
+    local prevColor = { love.graphics.getColor() }
+
+    -- Initialize backdrop canvas with game content
+    love.graphics.setCanvas(backdropCanvas)
+    love.graphics.clear()
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(gameCanvas, 0, 0)
+
+    -- Reset to screen
+    love.graphics.setCanvas()
+    love.graphics.setColor(unpack(prevColor))
+
+    -- Draw each element, updating backdrop canvas progressively
+    for _, win in ipairs(Gui.topElements) do
+      -- Draw element with current backdrop state
+      win:draw(backdropCanvas)
+
+      -- Update backdrop canvas to include this element (for next elements)
+      love.graphics.setCanvas(backdropCanvas)
+      love.graphics.setColor(1, 1, 1, 1)
+      win:draw(nil) -- Draw without backdrop blur to the backdrop canvas
+      love.graphics.setCanvas() -- Always reset to screen
+    end
+  else
+    -- No backdrop blur needed, draw normally
+    for _, win in ipairs(Gui.topElements) do
+      win:draw(nil)
+    end
+  end
+
+  -- Ensure canvas is reset to screen at the end
+  love.graphics.setCanvas()
 end
 
 --- Find the topmost element at given coordinates (considering z-index)
@@ -2231,6 +2615,9 @@ Public API methods to access internal state:
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions
 ---@field scaleCorners number? -- Scale multiplier for 9-slice corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
+---@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10)
+---@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10)
+---@field _blurInstance table? -- Internal: cached blur effect instance
 local Element = {}
 Element.__index = Element
 
@@ -2286,6 +2673,8 @@ Element.__index = Element
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions (default: sourced from theme)
 ---@field scaleCorners number? -- Scale multiplier for 9-slice corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
+---@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10, default: nil)
+---@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10, default: nil)
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -2359,6 +2748,11 @@ function Element.new(props)
   -- These override theme component settings when specified
   self.scaleCorners = props.scaleCorners
   self.scalingAlgorithm = props.scalingAlgorithm
+
+  -- Initialize blur properties
+  self.contentBlur = props.contentBlur
+  self.backdropBlur = props.backdropBlur
+  self._blurInstance = nil
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
@@ -3205,6 +3599,25 @@ function Element:getScaledContentPadding()
   end
 end
 
+--- Get or create blur instance for this element
+---@return table? -- Blur instance or nil if no blur configured
+function Element:getBlurInstance()
+  -- Determine quality from contentBlur or backdropBlur
+  local quality = 5 -- Default quality
+  if self.contentBlur and self.contentBlur.quality then
+    quality = self.contentBlur.quality
+  elseif self.backdropBlur and self.backdropBlur.quality then
+    quality = self.backdropBlur.quality
+  end
+
+  -- Create blur instance if needed
+  if not self._blurInstance or self._blurInstance.quality ~= quality then
+    self._blurInstance = Blur.new(quality)
+  end
+
+  return self._blurInstance
+end
+
 --- Get available content width for children (accounting for 9-slice content padding)
 --- This is the width that children should use when calculating percentage widths
 ---@return number
@@ -3809,7 +4222,7 @@ function Element:destroy()
 end
 
 --- Draw element and its children
-function Element:draw()
+function Element:draw(backdropCanvas)
   -- Early exit if element is invisible (optimization)
   if self.opacity <= 0 then
     return
@@ -3828,6 +4241,22 @@ function Element:draw()
   -- Cache border box dimensions for this draw call (optimization)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+
+  -- LAYER 0.5: Draw backdrop blur if configured (before background)
+  if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
+    local blurInstance = self:getBlurInstance()
+    if blurInstance then
+      Blur.applyBackdrop(
+        blurInstance,
+        self.backdropBlur.intensity,
+        self.x,
+        self.y,
+        borderBoxWidth,
+        borderBoxHeight,
+        backdropCanvas
+      )
+    end
+  end
 
   -- LAYER 1: Draw backgroundColor first (behind everything)
   -- Apply opacity to all drawing operations
@@ -4049,26 +4478,50 @@ function Element:draw()
     or self.cornerRadius.bottomLeft > 0
     or self.cornerRadius.bottomRight > 0
 
-  if hasRoundedCorners and #sortedChildren > 0 then
-    -- Use stencil to clip children to rounded rectangle
-    -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-    local stencilFunc = RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+  -- Helper function to draw children (with or without clipping)
+  local function drawChildren()
+    if hasRoundedCorners and #sortedChildren > 0 then
+      -- Use stencil to clip children to rounded rectangle
+      -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
+      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+      local stencilFunc =
+        RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
-    love.graphics.stencil(stencilFunc, "replace", 1)
-    love.graphics.setStencilTest("greater", 0)
+      love.graphics.stencil(stencilFunc, "replace", 1)
+      love.graphics.setStencilTest("greater", 0)
 
-    for _, child in ipairs(sortedChildren) do
-      child:draw()
+      for _, child in ipairs(sortedChildren) do
+        child:draw(backdropCanvas)
+      end
+
+      love.graphics.setStencilTest()
+    else
+      -- No clipping needed
+      for _, child in ipairs(sortedChildren) do
+        child:draw(backdropCanvas)
+      end
     end
+  end
 
-    love.graphics.setStencilTest()
+  -- Apply content blur if configured
+  if self.contentBlur and self.contentBlur.intensity > 0 and #sortedChildren > 0 then
+    local blurInstance = self:getBlurInstance()
+    if blurInstance then
+      Blur.applyToRegion(
+        blurInstance,
+        self.contentBlur.intensity,
+        self.x,
+        self.y,
+        borderBoxWidth,
+        borderBoxHeight,
+        drawChildren
+      )
+    else
+      drawChildren()
+    end
   else
-    -- No clipping needed
-    for _, child in ipairs(sortedChildren) do
-      child:draw()
-    end
+    drawChildren()
   end
 end
 

@@ -86,6 +86,92 @@ function love_helper.graphics.print(text, x, y)
   -- Mock text printing
 end
 
+function love_helper.graphics.newShader(shaderCode)
+  -- Mock shader creation - return a mock shader object
+  return {
+    send = function(self, name, value)
+      -- Mock shader uniform setting
+    end,
+  }
+end
+
+function love_helper.graphics.newCanvas(width, height)
+  -- Mock canvas creation
+  return {
+    getDimensions = function()
+      return width or mockWindowWidth, height or mockWindowHeight
+    end,
+  }
+end
+
+function love_helper.graphics.setCanvas(canvas)
+  -- Mock canvas setting
+end
+
+function love_helper.graphics.getCanvas()
+  -- Mock getting current canvas
+  return nil
+end
+
+function love_helper.graphics.clear()
+  -- Mock clear
+end
+
+function love_helper.graphics.draw(drawable, x, y, r, sx, sy)
+  -- Mock draw
+end
+
+function love_helper.graphics.setShader(shader)
+  -- Mock shader setting
+end
+
+function love_helper.graphics.getShader()
+  -- Mock getting current shader
+  return nil
+end
+
+function love_helper.graphics.setBlendMode(mode, alphamode)
+  -- Mock blend mode setting
+end
+
+function love_helper.graphics.getBlendMode()
+  -- Mock getting blend mode
+  return "alpha", "alphamultiply"
+end
+
+function love_helper.graphics.getColor()
+  -- Mock getting color
+  return 1, 1, 1, 1
+end
+
+function love_helper.graphics.push()
+  -- Mock graphics state push
+end
+
+function love_helper.graphics.pop()
+  -- Mock graphics state pop
+end
+
+function love_helper.graphics.origin()
+  -- Mock origin reset
+end
+
+function love_helper.graphics.translate(x, y)
+  -- Mock translate
+end
+
+function love_helper.graphics.newQuad(x, y, width, height, sw, sh)
+  -- Mock quad creation
+  return {
+    x = x,
+    y = y,
+    width = width,
+    height = height,
+    sw = sw,
+    sh = sh,
+  }
+end
+
 -- Mock mouse functions
 love_helper.mouse = {}
 

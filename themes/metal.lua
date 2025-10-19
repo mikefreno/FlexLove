@@ -54,8 +54,8 @@ return {
 
   -- Optional: Theme colors
   colors = {
-    primary = Color.new(),
-    secondary = Color.new(),
+    primary = Color.new(0.23, 0.28, 0.38),
+    secondary = Color.new(0.77, 0.83, 0.92),
     text = Color.new(0.9, 0.9, 0.9),
     textDark = Color.new(0.1, 0.1, 0.1),
   },

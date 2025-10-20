@@ -4,17 +4,6 @@
 
 FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system. It provides a simple way to create and manage UI elements with automatic layout calculations, animations, theming, and responsive design.
 
-## Architecture Overview
-
-1. **Color System** - RGBA color utilities with hex conversion
-2. **Theme System** - 9-slice theming with state support (normal/hover/pressed/disabled)
-   - Automatic Android 9-patch (*.9.png) parsing with multi-region support
-3. **Units System** - Responsive units (px, %, vw, vh, ew, eh) with viewport scaling
-4. **Layout System** - Flexbox, Grid, Absolute, and Relative positioning
-5. **Event System** - Mouse/touch events with z-index ordering
-6. **Animation System** - Interpolation with easing functions
-7. **GUI Manager** - Top-level manager for elements and global state
-
 ## ⚠️ Development Status
 
 This library is under active development. While many features are functional, some aspects may change or have incomplete/broken implementations.

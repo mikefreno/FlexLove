@@ -2033,13 +2033,21 @@ function Gui.resize()
 
   -- Clear blur canvas cache on resize
   Blur.clearCache()
+  
+  -- Clear game/backdrop canvas cache on resize (will be recreated with new dimensions)
+  Gui._gameCanvas = nil
+  Gui._backdropCanvas = nil
+  Gui._canvasDimensions = { width = 0, height = 0 }
 
   for _, win in ipairs(Gui.topElements) do
     win:resize(newWidth, newHeight)
   end
 end
 
+-- Canvas cache for game rendering (reused across frames)
+Gui._gameCanvas = nil
 Gui._backdropCanvas = nil
+Gui._canvasDimensions = { width = 0, height = 0 }
 
 ---@param gameDrawFunc function|nil -- Function to draw game content, needed for backdrop blur
 ---function love.draw()
@@ -2056,7 +2064,17 @@ function Gui.draw(gameDrawFunc)
   -- Render game content to a canvas if function provided
   if type(gameDrawFunc) == "function" then
     local width, height = love.graphics.getDimensions()
-    gameCanvas = love.graphics.newCanvas(width, height)
+    
+    -- Recreate canvases only if dimensions changed or canvas doesn't exist
+    if not Gui._gameCanvas or Gui._canvasDimensions.width ~= width or Gui._canvasDimensions.height ~= height then
+      Gui._gameCanvas = love.graphics.newCanvas(width, height)
+      Gui._backdropCanvas = love.graphics.newCanvas(width, height)
+      Gui._canvasDimensions.width = width
+      Gui._canvasDimensions.height = height
+    end
+    
+    gameCanvas = Gui._gameCanvas
+    
     love.graphics.setCanvas(gameCanvas)
     love.graphics.clear()
     gameDrawFunc() -- Call the drawing function
@@ -2095,8 +2113,7 @@ function Gui.draw(gameDrawFunc)
 
   -- If backdrop blur is needed, render to a progressive canvas
   if needsBackdropCanvas and gameCanvas then
-    local width, height = love.graphics.getDimensions()
-    local backdropCanvas = love.graphics.newCanvas(width, height)
+    local backdropCanvas = Gui._backdropCanvas
     local prevColor = { love.graphics.getColor() }
 
     -- Initialize backdrop canvas with game content
@@ -2201,6 +2218,10 @@ function Gui.destroy()
   Gui.scaleFactors = { x = 1.0, y = 1.0 }
   -- Reset cached viewport
   Gui._cachedViewport = { width = 0, height = 0 }
+  -- Clear game/backdrop canvas cache
+  Gui._gameCanvas = nil
+  Gui._backdropCanvas = nil
+  Gui._canvasDimensions = { width = 0, height = 0 }
 end
 
 -- Simple GUI library for LOVE2D

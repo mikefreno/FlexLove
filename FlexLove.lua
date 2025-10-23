@@ -329,6 +329,7 @@ local Gui = {
   scaleFactors = { x = 1.0, y = 1.0 },
   defaultTheme = nil,
   _cachedViewport = { width = 0, height = 0 }, -- Cached viewport dimensions
+  _focusedElement = nil, -- Currently focused element for keyboard input
 }
 
 -- ====================
@@ -2207,6 +2208,24 @@ function Gui.update(dt)
   Gui._activeEventElement = nil
 end
 
+--- Forward text input to focused element
+---@param text string -- Character input
+function Gui.textinput(text)
+  if Gui._focusedElement then
+    Gui._focusedElement:textinput(text)
+  end
+end
+
+--- Forward key press to focused element
+---@param key string -- Key name
+---@param scancode string -- Scancode
+---@param isrepeat boolean -- Whether this is a key repeat
+function Gui.keypressed(key, scancode, isrepeat)
+  if Gui._focusedElement then
+    Gui._focusedElement:keypressed(key, scancode, isrepeat)
+  end
+end
+
 --- Destroy all elements and their children
 function Gui.destroy()
   for _, win in ipairs(Gui.topElements) do
@@ -2222,6 +2241,8 @@ function Gui.destroy()
   Gui._gameCanvas = nil
   Gui._backdropCanvas = nil
   Gui._canvasDimensions = { width = 0, height = 0 }
+  -- Clear focused element
+  Gui._focusedElement = nil
 end
 
 -- Simple GUI library for LOVE2D
@@ -2639,6 +2660,34 @@ Public API methods to access internal state:
 ---@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10)
 ---@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10)
 ---@field _blurInstance table? -- Internal: cached blur effect instance
+---@field editable boolean -- Whether the element is editable (default: false)
+---@field multiline boolean -- Whether the element supports multiple lines (default: false)
+---@field textWrap boolean|"word"|"char" -- Text wrapping mode (default: false for single-line, "word" for multi-line)
+---@field maxLines number? -- Maximum number of lines (default: nil)
+---@field maxLength number? -- Maximum text length in characters (default: nil)
+---@field placeholder string? -- Placeholder text when empty (default: nil)
+---@field passwordMode boolean -- Whether to display text as password (default: false)
+---@field inputType "text"|"number"|"email"|"url" -- Input type for validation (default: "text")
+---@field textOverflow "clip"|"ellipsis"|"scroll" -- Text overflow behavior (default: "clip")
+---@field scrollable boolean -- Whether text is scrollable (default: false for single-line, true for multi-line)
+---@field autoGrow boolean -- Whether element auto-grows with text (default: false)
+---@field selectOnFocus boolean -- Whether to select all text on focus (default: false)
+---@field cursorColor Color? -- Cursor color (default: nil, uses textColor)
+---@field selectionColor Color? -- Selection background color (default: nil, uses theme or default)
+---@field cursorBlinkRate number -- Cursor blink rate in seconds (default: 0.5)
+---@field _cursorPosition number? -- Internal: cursor character position (0-based)
+---@field _cursorLine number? -- Internal: cursor line number (1-based)
+---@field _cursorColumn number? -- Internal: cursor column within line
+---@field _cursorBlinkTimer number? -- Internal: cursor blink timer
+---@field _cursorVisible boolean? -- Internal: cursor visibility state
+---@field _selectionStart number? -- Internal: selection start position
+---@field _selectionEnd number? -- Internal: selection end position
+---@field _selectionAnchor number? -- Internal: selection anchor point
+---@field _focused boolean? -- Internal: focus state
+---@field _textBuffer string? -- Internal: text buffer for editable elements
+---@field _lines table? -- Internal: split lines for multi-line text
+---@field _wrappedLines table? -- Internal: wrapped line data
+---@field _textDirty boolean? -- Internal: flag to recalculate lines/wrapping
 local Element = {}
 Element.__index = Element
 
@@ -2696,6 +2745,21 @@ Element.__index = Element
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
 ---@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10, default: nil)
 ---@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10, default: nil)
+---@field editable boolean? -- Whether the element is editable (default: false)
+---@field multiline boolean? -- Whether the element supports multiple lines (default: false)
+---@field textWrap boolean|"word"|"char"? -- Text wrapping mode (default: false for single-line, "word" for multi-line)
+---@field maxLines number? -- Maximum number of lines (default: nil)
+---@field maxLength number? -- Maximum text length in characters (default: nil)
+---@field placeholder string? -- Placeholder text when empty (default: nil)
+---@field passwordMode boolean? -- Whether to display text as password (default: false)
+---@field inputType "text"|"number"|"email"|"url"? -- Input type for validation (default: "text")
+---@field textOverflow "clip"|"ellipsis"|"scroll"? -- Text overflow behavior (default: "clip")
+---@field scrollable boolean? -- Whether text is scrollable (default: false for single-line, true for multi-line)
+---@field autoGrow boolean? -- Whether element auto-grows with text (default: false)
+---@field selectOnFocus boolean? -- Whether to select all text on focus (default: false)
+---@field cursorColor Color? -- Cursor color (default: nil, uses textColor)
+---@field selectionColor Color? -- Selection background color (default: nil, uses theme or default)
+---@field cursorBlinkRate number? -- Cursor blink rate in seconds (default: 0.5)
 local ElementProps = {}
 
 ---@param props ElementProps
@@ -2705,6 +2769,13 @@ function Element.new(props)
   self.children = {}
   self.callback = props.callback
   self.id = props.id or ""
+  
+  -- Input event callbacks
+  self.onFocus = props.onFocus
+  self.onBlur = props.onBlur
+  self.onTextInput = props.onTextInput
+  self.onTextChange = props.onTextChange
+  self.onEnter = props.onEnter
 
   -- Initialize click tracking for event system
   self._pressed = {} -- Track pressed state per mouse button
@@ -2774,6 +2845,63 @@ function Element.new(props)
   self.contentBlur = props.contentBlur
   self.backdropBlur = props.backdropBlur
   self._blurInstance = nil
+
+  -- Initialize input control properties
+  self.editable = props.editable or false
+  self.multiline = props.multiline or false
+  self.passwordMode = props.passwordMode or false
+  
+  -- Validate property combinations: passwordMode disables multiline
+  if self.passwordMode then
+    self.multiline = false
+  end
+  
+  self.textWrap = props.textWrap
+  if self.textWrap == nil then
+    self.textWrap = self.multiline and "word" or false
+  end
+  
+  self.maxLines = props.maxLines
+  self.maxLength = props.maxLength
+  self.placeholder = props.placeholder
+  self.inputType = props.inputType or "text"
+  
+  -- Text behavior properties
+  self.textOverflow = props.textOverflow or "clip"
+  self.scrollable = props.scrollable
+  if self.scrollable == nil then
+    self.scrollable = self.multiline
+  end
+  self.autoGrow = props.autoGrow or false
+  self.selectOnFocus = props.selectOnFocus or false
+  
+  -- Cursor and selection properties
+  self.cursorColor = props.cursorColor
+  self.selectionColor = props.selectionColor
+  self.cursorBlinkRate = props.cursorBlinkRate or 0.5
+  
+  -- Initialize cursor and selection state (only if editable)
+  if self.editable then
+    self._cursorPosition = 0  -- Character index (0 = before first char)
+    self._cursorLine = 1      -- Current line number (1-based)
+    self._cursorColumn = 0    -- Column within current line
+    self._cursorBlinkTimer = 0
+    self._cursorVisible = true
+    
+    -- Selection state
+    self._selectionStart = nil  -- nil = no selection
+    self._selectionEnd = nil
+    self._selectionAnchor = nil -- Anchor point for shift+arrow selection
+    
+    -- Focus state
+    self._focused = false
+    
+    -- Text buffer state (initialized after self.text is set below)
+    self._textBuffer = props.text or ""  -- Actual text content
+    self._lines = nil                   -- Split lines (for multiline)
+    self._wrappedLines = nil            -- Wrapped line data
+    self._textDirty = true              -- Flag to recalculate lines/wrapping
+  end
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
@@ -4553,6 +4681,15 @@ function Element:update(dt)
     child:update(dt)
   end
 
+  -- Update cursor blink timer (only if editable and focused)
+  if self.editable and self._focused then
+    self._cursorBlinkTimer = self._cursorBlinkTimer + dt
+    if self._cursorBlinkTimer >= self.cursorBlinkRate then
+      self._cursorBlinkTimer = 0
+      self._cursorVisible = not self._cursorVisible
+    end
+  end
+
   -- Update animation if exists
   if self.animation then
     local finished = self.animation:update(dt)
@@ -4677,6 +4814,11 @@ function Element:update(dt)
 
             self.callback(self, clickEvent)
             self._pressed[button] = false
+            
+            -- Focus editable elements on left click
+            if button == 1 and self.editable then
+              self:focus()
+            end
 
             -- Fire release event
             local releaseEvent = InputEvent.new({
@@ -5265,6 +5407,639 @@ function Element:updateOpacity(newOpacity)
   self.opacity = newOpacity
   for _, child in ipairs(self.children) do
     child:updateOpacity(newOpacity)
+  end
+end
+
+-- ====================
+-- Input Handling - Cursor Management
+-- ====================
+
+--- Set cursor position
+---@param position number -- Character index (0-based)
+function Element:setCursorPosition(position)
+  if not self.editable then return end
+  self._cursorPosition = position
+  self:_validateCursorPosition()
+  self:_resetCursorBlink()
+end
+
+--- Get cursor position
+---@return number -- Character index (0-based)
+function Element:getCursorPosition()
+  if not self.editable then return 0 end
+  return self._cursorPosition
+end
+
+--- Move cursor by delta characters
+---@param delta number -- Number of characters to move (positive or negative)
+function Element:moveCursorBy(delta)
+  if not self.editable then return end
+  self._cursorPosition = self._cursorPosition + delta
+  self:_validateCursorPosition()
+  self:_resetCursorBlink()
+end
+
+--- Move cursor to start of text
+function Element:moveCursorToStart()
+  if not self.editable then return end
+  self._cursorPosition = 0
+  self:_resetCursorBlink()
+end
+
+--- Move cursor to end of text
+function Element:moveCursorToEnd()
+  if not self.editable then return end
+  local textLength = utf8.len(self._textBuffer or "")
+  self._cursorPosition = textLength
+  self:_resetCursorBlink()
+end
+
+--- Move cursor to start of current line
+function Element:moveCursorToLineStart()
+  if not self.editable then return end
+  -- For now, just move to start (will be enhanced for multi-line)
+  self:moveCursorToStart()
+end
+
+--- Move cursor to end of current line
+function Element:moveCursorToLineEnd()
+  if not self.editable then return end
+  -- For now, just move to end (will be enhanced for multi-line)
+  self:moveCursorToEnd()
+end
+
+--- Validate cursor position (ensure it's within text bounds)
+function Element:_validateCursorPosition()
+  if not self.editable then return end
+  local textLength = utf8.len(self._textBuffer or "")
+  self._cursorPosition = math.max(0, math.min(self._cursorPosition, textLength))
+end
+
+--- Reset cursor blink (show cursor immediately)
+function Element:_resetCursorBlink()
+  if not self.editable then return end
+  self._cursorBlinkTimer = 0
+  self._cursorVisible = true
+end
+
+-- ====================
+-- Input Handling - Selection Management
+-- ====================
+
+--- Set selection range
+---@param startPos number -- Start position (inclusive)
+---@param endPos number -- End position (inclusive)
+function Element:setSelection(startPos, endPos)
+  if not self.editable then return end
+  local textLength = utf8.len(self._textBuffer or "")
+  self._selectionStart = math.max(0, math.min(startPos, textLength))
+  self._selectionEnd = math.max(0, math.min(endPos, textLength))
+  
+  -- Ensure start <= end
+  if self._selectionStart > self._selectionEnd then
+    self._selectionStart, self._selectionEnd = self._selectionEnd, self._selectionStart
+  end
+  
+  self:_resetCursorBlink()
+end
+
+--- Get selection range
+---@return number?, number? -- Start and end positions, or nil if no selection
+function Element:getSelection()
+  if not self.editable then return nil, nil end
+  if not self:hasSelection() then return nil, nil end
+  return self._selectionStart, self._selectionEnd
+end
+
+--- Check if there is an active selection
+---@return boolean
+function Element:hasSelection()
+  if not self.editable then return false end
+  return self._selectionStart ~= nil and self._selectionEnd ~= nil and self._selectionStart ~= self._selectionEnd
+end
+
+--- Clear selection
+function Element:clearSelection()
+  if not self.editable then return end
+  self._selectionStart = nil
+  self._selectionEnd = nil
+  self._selectionAnchor = nil
+end
+
+--- Select all text
+function Element:selectAll()
+  if not self.editable then return end
+  local textLength = utf8.len(self._textBuffer or "")
+  self._selectionStart = 0
+  self._selectionEnd = textLength
+  self:_resetCursorBlink()
+end
+
+--- Get selected text
+---@return string? -- Selected text or nil if no selection
+function Element:getSelectedText()
+  if not self.editable or not self:hasSelection() then return nil end
+  local startPos, endPos = self:getSelection()
+  if not startPos or not endPos then return nil end
+  
+  -- Convert character indices to byte offsets for utf8.sub
+  local text = self._textBuffer or ""
+  return utf8.sub(text, startPos + 1, endPos)
+end
+
+--- Delete selected text
+---@return boolean -- True if text was deleted
+function Element:deleteSelection()
+  if not self.editable or not self:hasSelection() then return false end
+  local startPos, endPos = self:getSelection()
+  if not startPos or not endPos then return false end
+  
+  self:deleteText(startPos, endPos)
+  self:clearSelection()
+  self._cursorPosition = startPos
+  self:_validateCursorPosition()
+  return true
+end
+
+-- ====================
+-- Input Handling - Focus Management
+-- ====================
+
+--- Focus this element for keyboard input
+function Element:focus()
+  if not self.editable then return end
+  
+  -- Blur previously focused element
+  if Gui._focusedElement and Gui._focusedElement ~= self then
+    Gui._focusedElement:blur()
+  end
+  
+  -- Set focus state
+  self._focused = true
+  Gui._focusedElement = self
+  
+  -- Reset cursor blink
+  self:_resetCursorBlink()
+  
+  -- Select all text if selectOnFocus is enabled
+  if self.selectOnFocus then
+    self:selectAll()
+  else
+    -- Move cursor to end of text
+    self:moveCursorToEnd()
+  end
+  
+  -- Trigger onFocus callback if defined
+  if self.onFocus then
+    self.onFocus(self)
+  end
+end
+
+--- Remove focus from this element
+function Element:blur()
+  if not self.editable then return end
+  
+  self._focused = false
+  
+  -- Clear global focused element if it's this element
+  if Gui._focusedElement == self then
+    Gui._focusedElement = nil
+  end
+  
+  -- Trigger onBlur callback if defined
+  if self.onBlur then
+    self.onBlur(self)
+  end
+end
+
+--- Check if this element is focused
+---@return boolean
+function Element:isFocused()
+  if not self.editable then return false end
+  return self._focused == true
+end
+
+-- ====================
+-- Input Handling - Text Buffer Management
+-- ====================
+
+--- Get current text buffer
+---@return string
+function Element:getText()
+  if not self.editable then return self.text or "" end
+  return self._textBuffer or ""
+end
+
+--- Set text buffer and mark dirty
+---@param text string
+function Element:setText(text)
+  if not self.editable then
+    self.text = text
+    return
+  end
+  
+  self._textBuffer = text or ""
+  self.text = self._textBuffer  -- Sync display text
+  self:_markTextDirty()
+  self:_validateCursorPosition()
+end
+
+--- Insert text at position
+---@param text string -- Text to insert
+---@param position number? -- Position to insert at (default: cursor position)
+function Element:insertText(text, position)
+  if not self.editable then return end
+  
+  position = position or self._cursorPosition
+  local buffer = self._textBuffer or ""
+  
+  -- Convert character position to byte offset
+  local byteOffset = utf8.offset(buffer, position + 1) or (#buffer + 1)
+  
+  -- Insert text
+  local before = buffer:sub(1, byteOffset - 1)
+  local after = buffer:sub(byteOffset)
+  self._textBuffer = before .. text .. after
+  self.text = self._textBuffer  -- Sync display text
+  
+  -- Update cursor position
+  self._cursorPosition = position + utf8.len(text)
+  
+  self:_markTextDirty()
+  self:_validateCursorPosition()
+end
+
+--- Delete text in range
+---@param startPos number -- Start position (inclusive)
+---@param endPos number -- End position (inclusive)
+function Element:deleteText(startPos, endPos)
+  if not self.editable then return end
+  
+  local buffer = self._textBuffer or ""
+  
+  -- Ensure valid range
+  local textLength = utf8.len(buffer)
+  startPos = math.max(0, math.min(startPos, textLength))
+  endPos = math.max(0, math.min(endPos, textLength))
+  
+  if startPos > endPos then
+    startPos, endPos = endPos, startPos
+  end
+  
+  -- Convert character positions to byte offsets
+  local startByte = utf8.offset(buffer, startPos + 1) or 1
+  local endByte = utf8.offset(buffer, endPos + 1) or (#buffer + 1)
+  
+  -- Delete text
+  local before = buffer:sub(1, startByte - 1)
+  local after = buffer:sub(endByte)
+  self._textBuffer = before .. after
+  self.text = self._textBuffer  -- Sync display text
+  
+  self:_markTextDirty()
+end
+
+--- Replace text in range
+---@param startPos number -- Start position (inclusive)
+---@param endPos number -- End position (inclusive)
+---@param newText string -- Replacement text
+function Element:replaceText(startPos, endPos, newText)
+  if not self.editable then return end
+  
+  self:deleteText(startPos, endPos)
+  self:insertText(newText, startPos)
+end
+
+--- Mark text as dirty (needs recalculation)
+function Element:_markTextDirty()
+  if not self.editable then return end
+  self._textDirty = true
+end
+
+--- Update text if dirty (recalculate lines and wrapping)
+function Element:_updateTextIfDirty()
+  if not self.editable or not self._textDirty then return end
+  
+  self:_splitLines()
+  self:_calculateWrapping()
+  self:_validateCursorPosition()
+  self._textDirty = false
+end
+
+--- Split text into lines (for multi-line text)
+function Element:_splitLines()
+  if not self.editable then return end
+  
+  if not self.multiline then
+    self._lines = {self._textBuffer or ""}
+    return
+  end
+  
+  self._lines = {}
+  local text = self._textBuffer or ""
+  
+  -- Split on newlines
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+    table.insert(self._lines, line)
+  end
+  
+  -- Ensure at least one line
+  if #self._lines == 0 then
+    self._lines = {""}
+  end
+end
+
+--- Calculate text wrapping
+function Element:_calculateWrapping()
+  if not self.editable or not self.textWrap then
+    self._wrappedLines = nil
+    return
+  end
+  
+  self._wrappedLines = {}
+  local availableWidth = self.width - self.padding.left - self.padding.right
+  
+  for lineNum, line in ipairs(self._lines or {}) do
+    if line == "" then
+      table.insert(self._wrappedLines, {
+        text = "",
+        startIdx = 0,
+        endIdx = 0,
+        lineNum = lineNum
+      })
+    else
+      local wrappedParts = self:_wrapLine(line, availableWidth)
+      for _, part in ipairs(wrappedParts) do
+        part.lineNum = lineNum
+        table.insert(self._wrappedLines, part)
+      end
+    end
+  end
+end
+
+--- Wrap a single line of text
+---@param line string -- Line to wrap
+---@param maxWidth number -- Maximum width in pixels
+---@return table -- Array of wrapped line parts
+function Element:_wrapLine(line, maxWidth)
+  if not self.editable then return {{text = line, startIdx = 0, endIdx = utf8.len(line)}} end
+  
+  local font = self:_getFont()
+  local wrappedParts = {}
+  local currentLine = ""
+  local startIdx = 0
+  
+  if self.textWrap == "word" then
+    -- Word wrapping
+    local words = {}
+    for word in line:gmatch("%S+") do
+      table.insert(words, word)
+    end
+    
+    for i, word in ipairs(words) do
+      local testLine = currentLine == "" and word or (currentLine .. " " .. word)
+      local width = font:getWidth(testLine)
+      
+      if width > maxWidth and currentLine ~= "" then
+        -- Current line is full, start new line
+        table.insert(wrappedParts, {
+          text = currentLine,
+          startIdx = startIdx,
+          endIdx = startIdx + utf8.len(currentLine)
+        })
+        currentLine = word
+        startIdx = startIdx + utf8.len(currentLine) + 1
+      else
+        currentLine = testLine
+      end
+    end
+  else
+    -- Character wrapping
+    local lineLength = utf8.len(line)
+    for i = 1, lineLength do
+      local char = utf8.sub(line, i, i)
+      local testLine = currentLine .. char
+      local width = font:getWidth(testLine)
+      
+      if width > maxWidth and currentLine ~= "" then
+        table.insert(wrappedParts, {
+          text = currentLine,
+          startIdx = startIdx,
+          endIdx = startIdx + utf8.len(currentLine)
+        })
+        currentLine = char
+        startIdx = i - 1
+      else
+        currentLine = testLine
+      end
+    end
+  end
+  
+  -- Add remaining text
+  if currentLine ~= "" then
+    table.insert(wrappedParts, {
+      text = currentLine,
+      startIdx = startIdx,
+      endIdx = startIdx + utf8.len(currentLine)
+    })
+  end
+  
+  -- Ensure at least one part
+  if #wrappedParts == 0 then
+    table.insert(wrappedParts, {
+      text = "",
+      startIdx = 0,
+      endIdx = 0
+    })
+  end
+  
+  return wrappedParts
+end
+
+--- Get font for text rendering
+---@return love.Font
+function Element:_getFont()
+  -- Get font path from theme or element
+  local fontPath = nil
+  if self.fontFamily then
+    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+      fontPath = themeToUse.fonts[self.fontFamily]
+    else
+      -- Assume fontFamily is a direct path
+      fontPath = self.fontFamily
+    end
+  end
+  
+  return FONT_CACHE.getFont(self.textSize, fontPath)
+end
+
+-- ====================
+-- Input Handling - Keyboard Input
+-- ====================
+
+--- Handle text input (character input)
+---@param text string -- Character(s) to insert
+function Element:textinput(text)
+  if not self.editable or not self._focused then return end
+  
+  -- Trigger onTextInput callback if defined
+  if self.onTextInput then
+    local result = self.onTextInput(self, text)
+    -- If callback returns false, cancel the input
+    if result == false then return end
+  end
+  
+  -- Capture old text for callback
+  local oldText = self._textBuffer
+  
+  -- Delete selection if exists
+  local hadSelection = self:hasSelection()
+  if hadSelection then
+    self:deleteSelection()
+  end
+  
+  -- Insert text at cursor position
+  self:insertText(text)
+  
+  -- Trigger onTextChange callback if text changed
+  if self.onTextChange and self._textBuffer ~= oldText then
+    self.onTextChange(self, self._textBuffer, oldText)
+  end
+end
+
+--- Handle key press (special keys)
+---@param key string -- Key name
+---@param scancode string -- Scancode
+---@param isrepeat boolean -- Whether this is a key repeat
+function Element:keypressed(key, scancode, isrepeat)
+  if not self.editable or not self._focused then return end
+  
+  local modifiers = getModifiers()
+  local ctrl = modifiers.ctrl or modifiers.super -- Support both Ctrl and Cmd
+  
+  -- Handle cursor movement
+  if key == "left" then
+    if self:hasSelection() and not modifiers.shift then
+      -- Move to start of selection
+      local startPos, _ = self:getSelection()
+      self._cursorPosition = startPos
+      self:clearSelection()
+    else
+      self:moveCursorBy(-1)
+    end
+    self:_resetCursorBlink()
+    
+  elseif key == "right" then
+    if self:hasSelection() and not modifiers.shift then
+      -- Move to end of selection
+      local _, endPos = self:getSelection()
+      self._cursorPosition = endPos
+      self:clearSelection()
+    else
+      self:moveCursorBy(1)
+    end
+    self:_resetCursorBlink()
+    
+  elseif key == "home" or (ctrl and key == "a" and not self.multiline) then
+    -- Move to line start (or document start for single-line)
+    if ctrl or not self.multiline then
+      self:moveCursorToStart()
+    else
+      self:moveCursorToLineStart()
+    end
+    if key == "home" then
+      self:clearSelection()
+    end
+    self:_resetCursorBlink()
+    
+  elseif key == "end" or (ctrl and key == "e" and not self.multiline) then
+    -- Move to line end (or document end for single-line)
+    if ctrl or not self.multiline then
+      self:moveCursorToEnd()
+    else
+      self:moveCursorToLineEnd()
+    end
+    if key == "end" then
+      self:clearSelection()
+    end
+    self:_resetCursorBlink()
+    
+  -- Handle backspace and delete
+  elseif key == "backspace" then
+    local oldText = self._textBuffer
+    if self:hasSelection() then
+      -- Delete selection
+      self:deleteSelection()
+    elseif self._cursorPosition > 0 then
+      -- Delete character before cursor
+      self:deleteText(self._cursorPosition - 1, self._cursorPosition)
+      self._cursorPosition = self._cursorPosition - 1
+      self:_validateCursorPosition()
+    end
+    
+    -- Trigger onTextChange callback
+    if self.onTextChange and self._textBuffer ~= oldText then
+      self.onTextChange(self, self._textBuffer, oldText)
+    end
+    self:_resetCursorBlink()
+    
+  elseif key == "delete" then
+    local oldText = self._textBuffer
+    if self:hasSelection() then
+      -- Delete selection
+      self:deleteSelection()
+    else
+      -- Delete character after cursor
+      local textLength = utf8.len(self._textBuffer or "")
+      if self._cursorPosition < textLength then
+        self:deleteText(self._cursorPosition, self._cursorPosition + 1)
+      end
+    end
+    
+    -- Trigger onTextChange callback
+    if self.onTextChange and self._textBuffer ~= oldText then
+      self.onTextChange(self, self._textBuffer, oldText)
+    end
+    self:_resetCursorBlink()
+    
+  -- Handle return/enter
+  elseif key == "return" or key == "kpenter" then
+    if self.multiline then
+      -- Insert newline
+      local oldText = self._textBuffer
+      if self:hasSelection() then
+        self:deleteSelection()
+      end
+      self:insertText("\n")
+      
+      -- Trigger onTextChange callback
+      if self.onTextChange and self._textBuffer ~= oldText then
+        self.onTextChange(self, self._textBuffer, oldText)
+      end
+    else
+      -- Trigger onEnter callback for single-line
+      if self.onEnter then
+        self.onEnter(self)
+      end
+    end
+    self:_resetCursorBlink()
+    
+  -- Handle Ctrl/Cmd+A (select all)
+  elseif ctrl and key == "a" then
+    self:selectAll()
+    self:_resetCursorBlink()
+    
+  -- Handle Escape
+  elseif key == "escape" then
+    if self:hasSelection() then
+      -- Clear selection
+      self:clearSelection()
+    else
+      -- Blur element
+      self:blur()
+    end
+    self:_resetCursorBlink()
   end
 end
 

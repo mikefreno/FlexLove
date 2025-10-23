@@ -105,7 +105,7 @@ function TestBlurEffects:test_blur_instance_quality_change()
   })
 
   local instance1 = element:getBlurInstance()
-  
+
   -- Change quality
   element.contentBlur.quality = 8
   local instance2 = element:getBlurInstance()
@@ -204,7 +204,7 @@ function TestBlurEffects:test_draw_accepts_backdrop_canvas()
     -- Create a mock canvas (will fail in test environment, but that's ok)
     -- element:draw(nil)
   end)
-  
+
   -- Test passes if we get here without syntax errors
   lu.assertTrue(true, "Draw method should accept backdrop canvas parameter")
 end
@@ -221,7 +221,7 @@ function TestBlurEffects:test_quality_affects_taps()
     height = 200,
     contentBlur = { intensity = 50, quality = 1 },
   })
-  
+
   local element2 = FlexLove.Element.new({
     width = 200,
     height = 200,
@@ -235,4 +235,4 @@ function TestBlurEffects:test_quality_affects_taps()
   lu.assertTrue(instance2.taps > instance1.taps, "Higher quality should result in more blur taps")
 end
 
-return TestBlurEffects
+lu.LuaUnit.run()

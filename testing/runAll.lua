@@ -28,6 +28,10 @@ local testFiles = {
   "testing/__tests__/22_image_scaler_bilinear_tests.lua",
   "testing/__tests__/23_blur_effects_tests.lua",
   "testing/__tests__/24_keyboard_input_tests.lua",
+  "testing/__tests__/25_image_cache_tests.lua",
+  "testing/__tests__/26_object_fit_modes_tests.lua",
+  "testing/__tests__/27_object_position_tests.lua",
+  "testing/__tests__/28_element_image_integration_tests.lua",
 }
 
 local success = true

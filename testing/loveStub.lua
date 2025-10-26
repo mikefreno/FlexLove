@@ -283,8 +283,127 @@ function ImageData:getPixel(x, y)
   return 0, 0, 0, 0
 end
 
+function ImageData:encode(format, filename)
+  -- Mock encode - just return success
+  return true
+end
+
+function ImageData:release()
+  -- Mock release
+end
+
 function love_helper.image.newImageData(width, height)
   return ImageData.new(width, height)
+end
+
+-- Mock Image object
+local Image = {}
+Image.__index = Image
+
+function Image.new(imageData)
+  local self = setmetatable({}, Image)
+  self.imageData = imageData
+  self.width = imageData and imageData.width or 100
+  self.height = imageData and imageData.height or 100
+  return self
+end
+
+function Image:getDimensions()
+  return self.width, self.height
+end
+
+function Image:getWidth()
+  return self.width
+end
+
+function Image:getHeight()
+  return self.height
+end
+
+function Image:release()
+  -- Mock release
+end
+
+function love_helper.graphics.newImage(source)
+  -- If source is ImageData, create Image from it
+  if type(source) == "table" and source.width and source.height then
+    return Image.new(source)
+  end
+  -- If source is a string (path), check if file exists in mock filesystem
+  if type(source) == "string" then
+    local fileInfo = love_helper.filesystem.getInfo(source)
+    if fileInfo then
+      -- File exists in mock filesystem, create image with default dimensions
+      return Image.new(ImageData.new(100, 100))
+    else
+      -- File doesn't exist, throw error like real LÖVE would
+      error("Could not open file " .. source)
+    end
+  end
+  -- Default
+  return Image.new(ImageData.new(100, 100))
+end
+
+function love_helper.graphics.stencil(func, action, value)
+  -- Mock stencil function - just call the function
+  if func then
+    func()
+  end
+end
+
+function love_helper.graphics.setStencilTest(comparemode, comparevalue)
+  -- Mock stencil test setting
+end
+
+-- Mock filesystem functions
+love_helper.filesystem = {}
+
+-- Mock filesystem state
+local mockFiles = {}
+
+function love_helper.filesystem.getInfo(path)
+  -- Check if file exists in mock filesystem
+  if mockFiles[path] then
+    return {
+      type = "file",
+      size = mockFiles[path].size or 0,
+    }
+  end
+  return nil
+end
+
+function love_helper.filesystem.write(path, data)
+  -- Mock write to filesystem
+  mockFiles[path] = {
+    data = data,
+    size = #data,
+  }
+  return true
+end
+
+function love_helper.filesystem.read(path)
+  -- Mock read from filesystem
+  if mockFiles[path] then
+    return mockFiles[path].data, nil
+  end
+  return nil, "File not found"
+end
+
+function love_helper.filesystem.remove(path)
+  -- Mock remove from filesystem
+  if mockFiles[path] then
+    mockFiles[path] = nil
+    return true
+  end
+  return false
+end
+
+-- Helper to add mock files for testing
+function love_helper.filesystem.addMockFile(path, data)
+  mockFiles[path] = {
+    data = data or "",
+    size = data and #data or 0,
+  }
 end
 
 _G.love = love_helper

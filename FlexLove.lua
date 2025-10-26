@@ -377,9 +377,7 @@ function Color.fromHex(hexWithTag)
     local g = tonumber("0x" .. hex:sub(3, 4))
     local b = tonumber("0x" .. hex:sub(5, 6))
     if not r or not g or not b then
-      error(
-        formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag))
-      )
+      error(formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag)))
     end
     return Color.new(r, g, b, 1)
   elseif #hex == 8 then
@@ -388,15 +386,11 @@ function Color.fromHex(hexWithTag)
     local b = tonumber("0x" .. hex:sub(5, 6))
     local a = tonumber("0x" .. hex:sub(7, 8))
     if not r or not g or not b or not a then
-      error(
-        formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag))
-      )
+      error(formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag)))
     end
     return Color.new(r, g, b, a / 255)
   else
-    error(
-      formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag))
-    )
+    error(formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag)))
   end
 end
 
@@ -787,6 +781,375 @@ function ImageScaler.scaleBilinear(sourceImageData, srcX, srcY, srcW, srcH, dest
 end
 
 -- ====================
+-- ImageCache
+-- ====================
+
+---@class ImageCache
+---@field _cache table<string, {image: love.Image, imageData: love.ImageData?}>
+local ImageCache = {}
+ImageCache._cache = {}
+
+--- Normalize a file path for consistent cache keys
+---@param path string -- File path to normalize
+---@return string -- Normalized path
+local function normalizePath(path)
+  -- Remove leading/trailing whitespace
+  path = path:match("^%s*(.-)%s*$")
+  -- Convert backslashes to forward slashes
+  path = path:gsub("\\", "/")
+  -- Remove redundant slashes
+  path = path:gsub("/+", "/")
+  return path
+end
+
+--- Load an image from file path with caching
+--- Returns cached image if already loaded, otherwise loads and caches it
+---@param imagePath string -- Path to image file
+---@param loadImageData boolean? -- Optional: also load ImageData for pixel access (default: false)
+---@return love.Image|nil -- Image object or nil on error
+---@return string|nil -- Error message if loading failed
+function ImageCache.load(imagePath, loadImageData)
+  if not imagePath or type(imagePath) ~= "string" or imagePath == "" then
+    return nil, "Invalid image path: path must be a non-empty string"
+  end
+
+  local normalizedPath = normalizePath(imagePath)
+  
+  -- Check if already cached
+  if ImageCache._cache[normalizedPath] then
+    return ImageCache._cache[normalizedPath].image, nil
+  end
+
+  -- Try to load the image
+  local success, imageOrError = pcall(love.graphics.newImage, normalizedPath)
+  if not success then
+    return nil, string.format("Failed to load image '%s': %s", imagePath, tostring(imageOrError))
+  end
+
+  local image = imageOrError
+  local imgData = nil
+
+  -- Load ImageData if requested
+  if loadImageData then
+    local dataSuccess, dataOrError = pcall(love.image.newImageData, normalizedPath)
+    if dataSuccess then
+      imgData = dataOrError
+    end
+  end
+
+  -- Cache the image
+  ImageCache._cache[normalizedPath] = {
+    image = image,
+    imageData = imgData
+  }
+
+  return image, nil
+end
+
+--- Get a cached image without loading
+---@param imagePath string -- Path to image file
+---@return love.Image|nil -- Cached image or nil if not found
+function ImageCache.get(imagePath)
+  if not imagePath or type(imagePath) ~= "string" then
+    return nil
+  end
+
+  local normalizedPath = normalizePath(imagePath)
+  local cached = ImageCache._cache[normalizedPath]
+  return cached and cached.image or nil
+end
+
+--- Get cached ImageData for an image
+---@param imagePath string -- Path to image file
+---@return love.ImageData|nil -- Cached ImageData or nil if not found
+function ImageCache.getImageData(imagePath)
+  if not imagePath or type(imagePath) ~= "string" then
+    return nil
+  end
+
+  local normalizedPath = normalizePath(imagePath)
+  local cached = ImageCache._cache[normalizedPath]
+  return cached and cached.imageData or nil
+end
+
+--- Remove a specific image from cache
+---@param imagePath string -- Path to image file to remove
+---@return boolean -- True if image was removed, false if not found
+function ImageCache.remove(imagePath)
+  if not imagePath or type(imagePath) ~= "string" then
+    return false
+  end
+
+  local normalizedPath = normalizePath(imagePath)
+  if ImageCache._cache[normalizedPath] then
+    -- Release the image
+    local cached = ImageCache._cache[normalizedPath]
+    if cached.image then
+      cached.image:release()
+    end
+    if cached.imageData then
+      cached.imageData:release()
+    end
+    ImageCache._cache[normalizedPath] = nil
+    return true
+  end
+  return false
+end
+
+--- Clear all cached images
+function ImageCache.clear()
+  -- Release all images
+  for path, cached in pairs(ImageCache._cache) do
+    if cached.image then
+      cached.image:release()
+    end
+    if cached.imageData then
+      cached.imageData:release()
+    end
+  end
+  ImageCache._cache = {}
+end
+
+--- Get cache statistics
+---@return {count: number, memoryEstimate: number} -- Cache stats
+function ImageCache.getStats()
+  local count = 0
+  local memoryEstimate = 0
+
+  for path, cached in pairs(ImageCache._cache) do
+    count = count + 1
+    if cached.image then
+      local w, h = cached.image:getDimensions()
+      -- Estimate: 4 bytes per pixel (RGBA)
+      memoryEstimate = memoryEstimate + (w * h * 4)
+    end
+  end
+
+  return {
+    count = count,
+    memoryEstimate = memoryEstimate
+  }
+end
+
+-- ====================
+-- ImageRenderer
+-- ====================
+
+---@class ImageRenderer
+local ImageRenderer = {}
+
+--- Calculate rendering parameters for object-fit modes
+--- Returns source and destination rectangles for rendering
+---@param imageWidth number -- Natural width of the image
+---@param imageHeight number -- Natural height of the image
+---@param boundsWidth number -- Width of the bounds to fit within
+---@param boundsHeight number -- Height of the bounds to fit within
+---@param fitMode string? -- One of: "fill", "contain", "cover", "scale-down", "none" (default: "fill")
+---@param objectPosition string? -- Position like "center center", "top left", "50% 50%" (default: "center center")
+---@return {sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number, scaleX: number, scaleY: number}
+function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, fitMode, objectPosition)
+  fitMode = fitMode or "fill"
+  objectPosition = objectPosition or "center center"
+
+  -- Validate inputs
+  if imageWidth <= 0 or imageHeight <= 0 or boundsWidth <= 0 or boundsHeight <= 0 then
+    error(formatError("ImageRenderer", "Dimensions must be positive"))
+  end
+
+  local result = {
+    sx = 0,        -- Source X
+    sy = 0,        -- Source Y
+    sw = imageWidth,   -- Source width
+    sh = imageHeight,  -- Source height
+    dx = 0,        -- Destination X
+    dy = 0,        -- Destination Y
+    dw = boundsWidth,  -- Destination width
+    dh = boundsHeight, -- Destination height
+    scaleX = 1,    -- Scale factor X
+    scaleY = 1     -- Scale factor Y
+  }
+
+  -- Calculate based on fit mode
+  if fitMode == "fill" then
+    -- Stretch to fill bounds (may distort)
+    result.scaleX = boundsWidth / imageWidth
+    result.scaleY = boundsHeight / imageHeight
+    result.dw = boundsWidth
+    result.dh = boundsHeight
+
+  elseif fitMode == "contain" then
+    -- Scale to fit within bounds (preserves aspect ratio)
+    local scale = math.min(boundsWidth / imageWidth, boundsHeight / imageHeight)
+    result.scaleX = scale
+    result.scaleY = scale
+    result.dw = imageWidth * scale
+    result.dh = imageHeight * scale
+
+    -- Apply object-position for letterbox alignment
+    local posX, posY = ImageRenderer._parsePosition(objectPosition)
+    result.dx = (boundsWidth - result.dw) * posX
+    result.dy = (boundsHeight - result.dh) * posY
+
+  elseif fitMode == "cover" then
+    -- Scale to cover bounds (preserves aspect ratio, may crop)
+    local scale = math.max(boundsWidth / imageWidth, boundsHeight / imageHeight)
+    result.scaleX = scale
+    result.scaleY = scale
+    
+    local scaledWidth = imageWidth * scale
+    local scaledHeight = imageHeight * scale
+
+    -- Apply object-position for crop alignment
+    local posX, posY = ImageRenderer._parsePosition(objectPosition)
+    
+    -- Calculate which part of the scaled image to show
+    local cropX = (scaledWidth - boundsWidth) * posX
+    local cropY = (scaledHeight - boundsHeight) * posY
+
+    -- Convert back to source coordinates
+    result.sx = cropX / scale
+    result.sy = cropY / scale
+    result.sw = boundsWidth / scale
+    result.sh = boundsHeight / scale
+    
+    result.dx = 0
+    result.dy = 0
+    result.dw = boundsWidth
+    result.dh = boundsHeight
+
+  elseif fitMode == "none" then
+    -- Use natural size (no scaling)
+    result.scaleX = 1
+    result.scaleY = 1
+    result.dw = imageWidth
+    result.dh = imageHeight
+
+    -- Apply object-position
+    local posX, posY = ImageRenderer._parsePosition(objectPosition)
+    result.dx = (boundsWidth - imageWidth) * posX
+    result.dy = (boundsHeight - imageHeight) * posY
+
+  elseif fitMode == "scale-down" then
+    -- Use none or contain, whichever is smaller
+    if imageWidth <= boundsWidth and imageHeight <= boundsHeight then
+      -- Image fits naturally, use "none"
+      return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "none", objectPosition)
+    else
+      -- Image too large, use "contain"
+      return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "contain", objectPosition)
+    end
+
+  else
+    error(formatError("ImageRenderer", string.format("Invalid fit mode: '%s'. Must be one of: fill, contain, cover, scale-down, none", tostring(fitMode))))
+  end
+
+  return result
+end
+
+--- Parse object-position string into normalized coordinates (0-1)
+--- Supports keywords (center, top, bottom, left, right) and percentages
+---@param position string -- Position string like "center center", "top left", "50% 50%"
+---@return number, number -- Normalized X and Y positions (0-1)
+function ImageRenderer._parsePosition(position)
+  if not position or type(position) ~= "string" then
+    return 0.5, 0.5 -- Default to center
+  end
+
+  -- Split into X and Y components
+  local parts = {}
+  for part in position:gmatch("%S+") do
+    table.insert(parts, part:lower())
+  end
+
+  -- If only one value, use it for both axes (with special handling)
+  if #parts == 1 then
+    local val = parts[1]
+    if val == "left" or val == "right" then
+      parts = {val, "center"}
+    elseif val == "top" or val == "bottom" then
+      parts = {"center", val}
+    else
+      parts = {val, val}
+    end
+  elseif #parts == 0 then
+    return 0.5, 0.5 -- Default to center
+  end
+
+  local function parseValue(val)
+    -- Handle keywords
+    if val == "center" then return 0.5
+    elseif val == "left" or val == "top" then return 0
+    elseif val == "right" or val == "bottom" then return 1
+    end
+
+    -- Handle percentages
+    local percent = val:match("^([%d%.]+)%%$")
+    if percent then
+      return tonumber(percent) / 100
+    end
+
+    -- Handle plain numbers (treat as percentage)
+    local num = tonumber(val)
+    if num then
+      return num / 100
+    end
+
+    -- Invalid value, default to center
+    return 0.5
+  end
+
+  local x = parseValue(parts[1])
+  local y = parseValue(parts[2] or parts[1])
+
+  -- Clamp to 0-1 range
+  x = math.max(0, math.min(1, x))
+  y = math.max(0, math.min(1, y))
+
+  return x, y
+end
+
+--- Draw an image with specified object-fit mode
+---@param image love.Image -- Image to draw
+---@param x number -- X position of bounds
+---@param y number -- Y position of bounds
+---@param width number -- Width of bounds
+---@param height number -- Height of bounds
+---@param fitMode string? -- Object-fit mode (default: "fill")
+---@param objectPosition string? -- Object-position (default: "center center")
+---@param opacity number? -- Opacity 0-1 (default: 1)
+function ImageRenderer.draw(image, x, y, width, height, fitMode, objectPosition, opacity)
+  if not image then
+    return -- Nothing to draw
+  end
+
+  opacity = opacity or 1
+  fitMode = fitMode or "fill"
+  objectPosition = objectPosition or "center center"
+
+  local imgWidth, imgHeight = image:getDimensions()
+  local params = ImageRenderer.calculateFit(imgWidth, imgHeight, width, height, fitMode, objectPosition)
+
+  -- Save current color
+  local r, g, b, a = love.graphics.getColor()
+
+  -- Apply opacity
+  love.graphics.setColor(1, 1, 1, opacity)
+
+  -- Draw image
+  if params.sx ~= 0 or params.sy ~= 0 or params.sw ~= imgWidth or params.sh ~= imgHeight then
+    -- Need to use a quad for cropping
+    local quad = love.graphics.newQuad(params.sx, params.sy, params.sw, params.sh, imgWidth, imgHeight)
+    love.graphics.draw(image, quad, x + params.dx, y + params.dy, 0, params.dw / params.sw, params.dh / params.sh)
+  else
+    -- Simple draw with scaling
+    love.graphics.draw(image, x + params.dx, y + params.dy, 0, params.scaleX, params.scaleY)
+  end
+
+  -- Restore color
+  love.graphics.setColor(r, g, b, a)
+end
+
+-- ====================
 -- Theme System
 -- ====================
 
@@ -964,14 +1327,7 @@ function Theme.new(definition)
         self.atlas = image
         self.atlasData = imageData
       else
-        print(
-          "[FlexLove] Warning: Failed to load global atlas for theme '"
-            .. definition.name
-            .. "'"
-            .. "("
-            .. loaderr
-            .. ")"
-        )
+        print("[FlexLove] Warning: Failed to load global atlas for theme '" .. definition.name .. "'" .. "(" .. loaderr .. ")")
       end
     else
       self.atlas = definition.atlas
@@ -1331,10 +1687,7 @@ end
 ---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
 function RoundedRect.draw(mode, x, y, width, height, cornerRadius)
   -- Check if any corners are rounded
-  local hasRoundedCorners = cornerRadius.topLeft > 0
-    or cornerRadius.topRight > 0
-    or cornerRadius.bottomLeft > 0
-    or cornerRadius.bottomRight > 0
+  local hasRoundedCorners = cornerRadius.topLeft > 0 or cornerRadius.topRight > 0 or cornerRadius.bottomLeft > 0 or cornerRadius.bottomRight > 0
 
   if not hasRoundedCorners then
     -- No rounded corners, use regular rectangle
@@ -1458,11 +1811,9 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
       local scaledData
 
       if scalingAlgorithm == "nearest" then
-        scaledData =
-          ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+        scaledData = ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
       else
-        scaledData =
-          ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+        scaledData = ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
       end
 
       -- Convert to image and cache
@@ -1502,8 +1853,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
     -- TOP/BOTTOM EDGES (stretch horizontally, scale vertically)
     if adjustedContentWidth > 0 then
       local topCenterScaled = getScaledRegion("topCenter", regions.topCenter, regions.topCenter.w, scaledTop)
-      local bottomCenterScaled =
-        getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
+      local bottomCenterScaled = getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
 
       love.graphics.draw(topCenterScaled, x + scaledLeft, y, 0, adjustedScaleX, 1)
       love.graphics.draw(bottomCenterScaled, x + scaledLeft, y + height - scaledBottom, 0, adjustedScaleX, 1)
@@ -1520,15 +1870,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
 
     -- CENTER (stretch both dimensions, no scaling)
     if adjustedContentWidth > 0 and adjustedContentHeight > 0 then
-      love.graphics.draw(
-        atlas,
-        makeQuad(regions.middleCenter),
-        x + scaledLeft,
-        y + scaledTop,
-        0,
-        adjustedScaleX,
-        adjustedScaleY
-      )
+      love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + scaledLeft, y + scaledTop, 0, adjustedScaleX, adjustedScaleY)
     end
   else
     -- Original rendering logic (no scaling)
@@ -1933,18 +2275,10 @@ function Grid.layoutGridItems(element)
       local childBorderBoxHeight = child:getBorderBoxHeight()
       child.x = cellX + (cellWidth - childBorderBoxWidth) / 2
       child.y = cellY + (cellHeight - childBorderBoxHeight) / 2
-    elseif
-      effectiveAlignItems == AlignItems.FLEX_START
-      or effectiveAlignItems == "flex-start"
-      or effectiveAlignItems == "start"
-    then
+    elseif effectiveAlignItems == AlignItems.FLEX_START or effectiveAlignItems == "flex-start" or effectiveAlignItems == "start" then
       child.x = cellX
       child.y = cellY
-    elseif
-      effectiveAlignItems == AlignItems.FLEX_END
-      or effectiveAlignItems == "flex-end"
-      or effectiveAlignItems == "end"
-    then
+    elseif effectiveAlignItems == AlignItems.FLEX_END or effectiveAlignItems == "flex-end" or effectiveAlignItems == "end" then
       local childBorderBoxWidth = child:getBorderBoxWidth()
       local childBorderBoxHeight = child:getBorderBoxHeight()
       child.x = cellX + cellWidth - childBorderBoxWidth
@@ -2034,7 +2368,7 @@ function Gui.resize()
 
   -- Clear blur canvas cache on resize
   Blur.clearCache()
-  
+
   -- Clear game/backdrop canvas cache on resize (will be recreated with new dimensions)
   Gui._gameCanvas = nil
   Gui._backdropCanvas = nil
@@ -2065,7 +2399,7 @@ function Gui.draw(gameDrawFunc)
   -- Render game content to a canvas if function provided
   if type(gameDrawFunc) == "function" then
     local width, height = love.graphics.getDimensions()
-    
+
     -- Recreate canvases only if dimensions changed or canvas doesn't exist
     if not Gui._gameCanvas or Gui._canvasDimensions.width ~= width or Gui._canvasDimensions.height ~= height then
       Gui._gameCanvas = love.graphics.newCanvas(width, height)
@@ -2073,9 +2407,9 @@ function Gui.draw(gameDrawFunc)
       Gui._canvasDimensions.width = width
       Gui._canvasDimensions.height = height
     end
-    
+
     gameCanvas = Gui._gameCanvas
-    
+
     love.graphics.setCanvas(gameCanvas)
     love.graphics.clear()
     gameDrawFunc() -- Call the drawing function
@@ -2688,6 +3022,12 @@ Public API methods to access internal state:
 ---@field _lines table? -- Internal: split lines for multi-line text
 ---@field _wrappedLines table? -- Internal: wrapped line data
 ---@field _textDirty boolean? -- Internal: flag to recalculate lines/wrapping
+---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
+---@field image love.Image? -- Image object to display
+---@field objectFit "fill"|"contain"|"cover"|"scale-down"|"none"? -- Image fit mode (default: "fill")
+---@field objectPosition string? -- Image position like "center center", "top left", "50% 50%" (default: "center center")
+---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
+---@field _loadedImage love.Image? -- Internal: cached loaded image
 local Element = {}
 Element.__index = Element
 
@@ -2769,7 +3109,7 @@ function Element.new(props)
   self.children = {}
   self.callback = props.callback
   self.id = props.id or ""
-  
+
   -- Input event callbacks
   self.onFocus = props.onFocus
   self.onBlur = props.onBlur
@@ -2850,22 +3190,22 @@ function Element.new(props)
   self.editable = props.editable or false
   self.multiline = props.multiline or false
   self.passwordMode = props.passwordMode or false
-  
+
   -- Validate property combinations: passwordMode disables multiline
   if self.passwordMode then
     self.multiline = false
   end
-  
+
   self.textWrap = props.textWrap
   if self.textWrap == nil then
     self.textWrap = self.multiline and "word" or false
   end
-  
+
   self.maxLines = props.maxLines
   self.maxLength = props.maxLength
   self.placeholder = props.placeholder
   self.inputType = props.inputType or "text"
-  
+
   -- Text behavior properties
   self.textOverflow = props.textOverflow or "clip"
   self.scrollable = props.scrollable
@@ -2874,33 +3214,33 @@ function Element.new(props)
   end
   self.autoGrow = props.autoGrow or false
   self.selectOnFocus = props.selectOnFocus or false
-  
+
   -- Cursor and selection properties
   self.cursorColor = props.cursorColor
   self.selectionColor = props.selectionColor
   self.cursorBlinkRate = props.cursorBlinkRate or 0.5
-  
+
   -- Initialize cursor and selection state (only if editable)
   if self.editable then
-    self._cursorPosition = 0  -- Character index (0 = before first char)
-    self._cursorLine = 1      -- Current line number (1-based)
-    self._cursorColumn = 0    -- Column within current line
+    self._cursorPosition = 0 -- Character index (0 = before first char)
+    self._cursorLine = 1 -- Current line number (1-based)
+    self._cursorColumn = 0 -- Column within current line
     self._cursorBlinkTimer = 0
     self._cursorVisible = true
-    
+
     -- Selection state
-    self._selectionStart = nil  -- nil = no selection
+    self._selectionStart = nil -- nil = no selection
     self._selectionEnd = nil
     self._selectionAnchor = nil -- Anchor point for shift+arrow selection
-    
+
     -- Focus state
     self._focused = false
-    
+
     -- Text buffer state (initialized after self.text is set below)
-    self._textBuffer = props.text or ""  -- Actual text content
-    self._lines = nil                   -- Split lines (for multiline)
-    self._wrappedLines = nil            -- Wrapped line data
-    self._textDirty = true              -- Flag to recalculate lines/wrapping
+    self._textBuffer = props.text or "" -- Actual text content
+    self._lines = nil -- Split lines (for multiline)
+    self._wrappedLines = nil -- Wrapped line data
+    self._textDirty = true -- Flag to recalculate lines/wrapping
   end
 
   -- Set parent first so it's available for size calculations
@@ -2953,6 +3293,28 @@ function Element.new(props)
 
   self.text = props.text
   self.textAlign = props.textAlign or TextAlign.START
+
+  -- Image properties
+  self.imagePath = props.imagePath
+  self.image = props.image
+  self.objectFit = props.objectFit or "fill"
+  self.objectPosition = props.objectPosition or "center center"
+  self.imageOpacity = props.imageOpacity or 1
+  
+  -- Auto-load image if imagePath is provided
+  if self.imagePath and not self.image then
+    local loadedImage, err = ImageCache.load(self.imagePath)
+    if loadedImage then
+      self._loadedImage = loadedImage
+    else
+      -- Silently fail - image will just not render
+      self._loadedImage = nil
+    end
+  elseif self.image then
+    self._loadedImage = self.image
+  else
+    self._loadedImage = nil
+  end
 
   --- self positioning ---
   local viewportWidth, viewportHeight = Units.getViewport()
@@ -3778,8 +4140,7 @@ function Element:getAvailableContentWidth()
     -- Check if the element is using the scaled 9-patch contentPadding as its padding
     -- Allow small floating point differences (within 0.1 pixels)
     local usingContentPaddingAsPadding = (
-      math.abs(self.padding.left - scaledContentPadding.left) < 0.1
-      and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
+      math.abs(self.padding.left - scaledContentPadding.left) < 0.1 and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
     )
 
     if not usingContentPaddingAsPadding then
@@ -3803,8 +4164,7 @@ function Element:getAvailableContentHeight()
     -- Check if the element is using the scaled 9-patch contentPadding as its padding
     -- Allow small floating point differences (within 0.1 pixels)
     local usingContentPaddingAsPadding = (
-      math.abs(self.padding.top - scaledContentPadding.top) < 0.1
-      and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
+      math.abs(self.padding.top - scaledContentPadding.top) < 0.1 and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
     )
 
     if not usingContentPaddingAsPadding then
@@ -4103,11 +4463,7 @@ function Element:layoutChildren()
 
   -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
   if #lines == 1 then
-    if
-      self.alignItems == AlignItems.STRETCH
-      or self.alignItems == AlignItems.CENTER
-      or self.alignItems == AlignItems.FLEX_END
-    then
+    if self.alignItems == AlignItems.STRETCH or self.alignItems == AlignItems.CENTER or self.alignItems == AlignItems.FLEX_END then
       -- STRETCH, CENTER, and FLEX_END should use full available cross size
       lineHeights[1] = availableCrossSize
       totalLinesHeight = availableCrossSize
@@ -4218,20 +4574,9 @@ function Element:layoutChildren()
         if effectiveAlign == AlignItems.FLEX_START then
           child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
         elseif effectiveAlign == AlignItems.CENTER then
-          child.y = self.y
-            + self.padding.top
-            + reservedCrossStart
-            + currentCrossPos
-            + ((lineHeight - childTotalCrossSize) / 2)
-            + child.margin.top
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.top
         elseif effectiveAlign == AlignItems.FLEX_END then
-          child.y = self.y
-            + self.padding.top
-            + reservedCrossStart
-            + currentCrossPos
-            + lineHeight
-            - childTotalCrossSize
-            + child.margin.top
+          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.top
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH: Only apply if height was not explicitly set
           if child.autosizing and child.autosizing.height then
@@ -4252,11 +4597,7 @@ function Element:layoutChildren()
         end
 
         -- Advance position by child's border-box width plus margins
-        currentMainPos = currentMainPos
-          + child:getBorderBoxWidth()
-          + child.margin.left
-          + child.margin.right
-          + itemSpacing
+        currentMainPos = currentMainPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + itemSpacing
       else
         -- Vertical layout: main axis is Y, cross axis is X
         -- Position child at border box (x, y represents top-left including padding)
@@ -4270,20 +4611,9 @@ function Element:layoutChildren()
         if effectiveAlign == AlignItems.FLEX_START then
           child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
         elseif effectiveAlign == AlignItems.CENTER then
-          child.x = self.x
-            + self.padding.left
-            + reservedCrossStart
-            + currentCrossPos
-            + ((lineHeight - childTotalCrossSize) / 2)
-            + child.margin.left
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.left
         elseif effectiveAlign == AlignItems.FLEX_END then
-          child.x = self.x
-            + self.padding.left
-            + reservedCrossStart
-            + currentCrossPos
-            + lineHeight
-            - childTotalCrossSize
-            + child.margin.left
+          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.left
         elseif effectiveAlign == AlignItems.STRETCH then
           -- STRETCH: Only apply if width was not explicitly set
           if child.autosizing and child.autosizing.width then
@@ -4304,11 +4634,7 @@ function Element:layoutChildren()
         end
 
         -- Advance position by child's border-box height plus margins
-        currentMainPos = currentMainPos
-          + child:getBorderBoxHeight()
-          + child.margin.top
-          + child.margin.bottom
-          + itemSpacing
+        currentMainPos = currentMainPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + itemSpacing
       end
     end
 
@@ -4382,8 +4708,7 @@ function Element:draw(backdropCanvas)
   if self.animation then
     local anim = self.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor =
-        Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor = Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
@@ -4395,15 +4720,7 @@ function Element:draw(backdropCanvas)
   if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Blur.applyBackdrop(
-        blurInstance,
-        self.backdropBlur.intensity,
-        self.x,
-        self.y,
-        borderBoxWidth,
-        borderBoxHeight,
-        backdropCanvas
-      )
+      Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
     end
   end
 
@@ -4411,10 +4728,50 @@ function Element:draw(backdropCanvas)
   -- Apply opacity to all drawing operations
   -- (x, y) represents border box, so draw background from (x, y)
   -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
-  local backgroundWithOpacity =
-    Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
+  local backgroundWithOpacity = Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
   RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+
+  -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
+  if self._loadedImage then
+    -- Calculate image bounds (content area - respects padding)
+    local imageX = self.x + self.padding.left
+    local imageY = self.y + self.padding.top
+    local imageWidth = self.width
+    local imageHeight = self.height
+    
+    -- Combine element opacity with imageOpacity
+    local finalOpacity = self.opacity * self.imageOpacity
+    
+    -- Apply cornerRadius clipping if set
+    local hasCornerRadius = self.cornerRadius.topLeft > 0 or self.cornerRadius.topRight > 0 
+                         or self.cornerRadius.bottomLeft > 0 or self.cornerRadius.bottomRight > 0
+    
+    if hasCornerRadius then
+      -- Use stencil to clip image to rounded corners
+      love.graphics.stencil(function()
+        RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      end, "replace", 1)
+      love.graphics.setStencilTest("greater", 0)
+    end
+    
+    -- Draw the image
+    ImageRenderer.draw(
+      self._loadedImage,
+      imageX,
+      imageY,
+      imageWidth,
+      imageHeight,
+      self.objectFit,
+      self.objectPosition,
+      finalOpacity
+    )
+    
+    -- Clear stencil if it was used
+    if hasCornerRadius then
+      love.graphics.setStencilTest()
+    end
+  end
 
   -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
   if self.themeComponent then
@@ -4465,17 +4822,7 @@ function Element:draw(backdropCanvas)
             local borderBoxWidth = self.width + self.padding.left + self.padding.right
             local borderBoxHeight = self.height + self.padding.top + self.padding.bottom
             -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-            NineSlice.draw(
-              component,
-              atlasToUse,
-              self.x,
-              self.y,
-              borderBoxWidth,
-              borderBoxHeight,
-              self.opacity,
-              self.scaleCorners,
-              self.scalingAlgorithm
-            )
+            NineSlice.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.scaleCorners, self.scalingAlgorithm)
           else
             -- Silently skip drawing if component structure is invalid
           end
@@ -4489,8 +4836,7 @@ function Element:draw(backdropCanvas)
   end
 
   -- LAYER 3: Draw borders on top of theme (always render if specified)
-  local borderColorWithOpacity =
-    Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  local borderColorWithOpacity = Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
 
   -- Check if all borders are enabled
@@ -4517,8 +4863,7 @@ function Element:draw(backdropCanvas)
 
   -- Draw element text if present
   if self.text then
-    local textColorWithOpacity =
-      Color.new(self.textColor.r, self.textColor.g, self.textColor.b, self.textColor.a * self.opacity)
+    local textColorWithOpacity = Color.new(self.textColor.r, self.textColor.g, self.textColor.b, self.textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()
@@ -4634,8 +4979,7 @@ function Element:draw(backdropCanvas)
       -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      local stencilFunc =
-        RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      local stencilFunc = RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
       love.graphics.stencil(stencilFunc, "replace", 1)
       love.graphics.setStencilTest("greater", 0)
@@ -4657,15 +5001,7 @@ function Element:draw(backdropCanvas)
   if self.contentBlur and self.contentBlur.intensity > 0 and #sortedChildren > 0 then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Blur.applyToRegion(
-        blurInstance,
-        self.contentBlur.intensity,
-        self.x,
-        self.y,
-        borderBoxWidth,
-        borderBoxHeight,
-        drawChildren
-      )
+      Blur.applyToRegion(blurInstance, self.contentBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
     else
       drawChildren()
     end
@@ -4781,11 +5117,7 @@ function Element:update(dt)
             local clickCount = 1
             local doubleClickThreshold = 0.3 -- 300ms for double-click
 
-            if
-              self._lastClickTime
-              and self._lastClickButton == button
-              and (currentTime - self._lastClickTime) < doubleClickThreshold
-            then
+            if self._lastClickTime and self._lastClickButton == button and (currentTime - self._lastClickTime) < doubleClickThreshold then
               clickCount = self._clickCount + 1
             else
               clickCount = 1
@@ -4814,7 +5146,7 @@ function Element:update(dt)
 
             self.callback(self, clickEvent)
             self._pressed[button] = false
-            
+
             -- Focus editable elements on left click
             if button == 1 and self.editable then
               self:focus()
@@ -4874,8 +5206,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Store in _borderBoxWidth temporarily, will calculate content width after padding is resolved
   if self.units.width.unit ~= "px" and self.units.width.unit ~= "auto" then
     local parentWidth = self.parent and self.parent.width or newViewportWidth
-    self._borderBoxWidth =
-      Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
+    self._borderBoxWidth = Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
   elseif self.units.width.unit == "px" and self.units.width.value and Gui.baseScale then
     -- Reapply base scaling to pixel widths (border-box)
     self._borderBoxWidth = self.units.width.value * scaleX
@@ -4885,8 +5216,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Store in _borderBoxHeight temporarily, will calculate content height after padding is resolved
   if self.units.height.unit ~= "px" and self.units.height.unit ~= "auto" then
     local parentHeight = self.parent and self.parent.height or newViewportHeight
-    self._borderBoxHeight =
-      Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
+    self._borderBoxHeight = Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
   elseif self.units.height.unit == "px" and self.units.height.value and Gui.baseScale then
     -- Reapply base scaling to pixel heights (border-box)
     self._borderBoxHeight = self.units.height.value * scaleY
@@ -4896,8 +5226,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   if self.units.x.unit ~= "px" then
     local parentWidth = self.parent and self.parent.width or newViewportWidth
     local baseX = self.parent and self.parent.x or 0
-    local offsetX =
-      Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
+    local offsetX = Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
     self.x = baseX + offsetX
   else
     -- For pixel units, update position relative to parent's new position (with base scaling)
@@ -4914,8 +5243,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   if self.units.y.unit ~= "px" then
     local parentHeight = self.parent and self.parent.height or newViewportHeight
     local baseY = self.parent and self.parent.y or 0
-    local offsetY =
-      Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
+    local offsetY = Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
     self.y = baseY + offsetY
   else
     -- For pixel units, update position relative to parent's new position (with base scaling)
@@ -4988,11 +5316,9 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
 
   -- Recalculate gap if using viewport or percentage units
   if self.units.gap.unit ~= "px" then
-    local containerSize = (self.flexDirection == FlexDirection.HORIZONTAL)
-        and (self.parent and self.parent.width or newViewportWidth)
+    local containerSize = (self.flexDirection == FlexDirection.HORIZONTAL) and (self.parent and self.parent.width or newViewportWidth)
       or (self.parent and self.parent.height or newViewportHeight)
-    self.gap =
-      Units.resolve(self.units.gap.value, self.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
+    self.gap = Units.resolve(self.units.gap.value, self.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
   end
 
   -- Recalculate spacing (padding/margin) if using viewport or percentage units
@@ -5000,34 +5326,22 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- - If element has a parent: use parent's border-box dimensions (CSS spec for child elements)
   -- - If element has no parent: use element's own border-box dimensions (CSS spec for root elements)
   local parentBorderBoxWidth = self.parent and self.parent._borderBoxWidth or self._borderBoxWidth or newViewportWidth
-  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight
-    or self._borderBoxHeight
-    or newViewportHeight
+  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight or self._borderBoxHeight or newViewportHeight
 
   -- Handle shorthand properties first (horizontal/vertical)
   local resolvedHorizontalPadding = nil
   local resolvedVerticalPadding = nil
 
   if self.units.padding.horizontal and self.units.padding.horizontal.unit ~= "px" then
-    resolvedHorizontalPadding = Units.resolve(
-      self.units.padding.horizontal.value,
-      self.units.padding.horizontal.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxWidth
-    )
+    resolvedHorizontalPadding =
+      Units.resolve(self.units.padding.horizontal.value, self.units.padding.horizontal.unit, newViewportWidth, newViewportHeight, parentBorderBoxWidth)
   elseif self.units.padding.horizontal and self.units.padding.horizontal.value then
     resolvedHorizontalPadding = self.units.padding.horizontal.value
   end
 
   if self.units.padding.vertical and self.units.padding.vertical.unit ~= "px" then
-    resolvedVerticalPadding = Units.resolve(
-      self.units.padding.vertical.value,
-      self.units.padding.vertical.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxHeight
-    )
+    resolvedVerticalPadding =
+      Units.resolve(self.units.padding.vertical.value, self.units.padding.vertical.unit, newViewportWidth, newViewportHeight, parentBorderBoxHeight)
   elseif self.units.padding.vertical and self.units.padding.vertical.value then
     resolvedVerticalPadding = self.units.padding.vertical.value
   end
@@ -5055,13 +5369,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     elseif self.units.padding[side].unit ~= "px" then
       -- Recalculate non-pixel units
       local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      self.padding[side] = Units.resolve(
-        self.units.padding[side].value,
-        self.units.padding[side].unit,
-        newViewportWidth,
-        newViewportHeight,
-        parentSize
-      )
+      self.padding[side] = Units.resolve(self.units.padding[side].value, self.units.padding[side].unit, newViewportWidth, newViewportHeight, parentSize)
     end
     -- If unit is "px" and not using shorthand, value stays the same
   end
@@ -5071,25 +5379,15 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   local resolvedVerticalMargin = nil
 
   if self.units.margin.horizontal and self.units.margin.horizontal.unit ~= "px" then
-    resolvedHorizontalMargin = Units.resolve(
-      self.units.margin.horizontal.value,
-      self.units.margin.horizontal.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxWidth
-    )
+    resolvedHorizontalMargin =
+      Units.resolve(self.units.margin.horizontal.value, self.units.margin.horizontal.unit, newViewportWidth, newViewportHeight, parentBorderBoxWidth)
   elseif self.units.margin.horizontal and self.units.margin.horizontal.value then
     resolvedHorizontalMargin = self.units.margin.horizontal.value
   end
 
   if self.units.margin.vertical and self.units.margin.vertical.unit ~= "px" then
-    resolvedVerticalMargin = Units.resolve(
-      self.units.margin.vertical.value,
-      self.units.margin.vertical.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxHeight
-    )
+    resolvedVerticalMargin =
+      Units.resolve(self.units.margin.vertical.value, self.units.margin.vertical.unit, newViewportWidth, newViewportHeight, parentBorderBoxHeight)
   elseif self.units.margin.vertical and self.units.margin.vertical.value then
     resolvedVerticalMargin = self.units.margin.vertical.value
   end
@@ -5117,13 +5415,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     elseif self.units.margin[side].unit ~= "px" then
       -- Recalculate non-pixel units
       local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      self.margin[side] = Units.resolve(
-        self.units.margin[side].value,
-        self.units.margin[side].unit,
-        newViewportWidth,
-        newViewportHeight,
-        parentSize
-      )
+      self.margin[side] = Units.resolve(self.units.margin[side].value, self.units.margin[side].unit, newViewportWidth, newViewportHeight, parentSize)
     end
     -- If unit is "px" and not using shorthand, value stays the same
   end
@@ -5410,6 +5702,16 @@ function Element:updateOpacity(newOpacity)
   end
 end
 
+--- same as calling updateOpacity(0)
+function Element:hide()
+  self:updateOpacity(0)
+end
+
+--- same as calling updateOpacity(1)
+function Element:show()
+  self:updateOpacity(1)
+end
+
 -- ====================
 -- Input Handling - Cursor Management
 -- ====================
@@ -5417,7 +5719,9 @@ end
 --- Set cursor position
 ---@param position number -- Character index (0-based)
 function Element:setCursorPosition(position)
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   self._cursorPosition = position
   self:_validateCursorPosition()
   self:_resetCursorBlink()
@@ -5426,14 +5730,18 @@ end
 --- Get cursor position
 ---@return number -- Character index (0-based)
 function Element:getCursorPosition()
-  if not self.editable then return 0 end
+  if not self.editable then
+    return 0
+  end
   return self._cursorPosition
 end
 
 --- Move cursor by delta characters
 ---@param delta number -- Number of characters to move (positive or negative)
 function Element:moveCursorBy(delta)
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   self._cursorPosition = self._cursorPosition + delta
   self:_validateCursorPosition()
   self:_resetCursorBlink()
@@ -5441,14 +5749,18 @@ end
 
 --- Move cursor to start of text
 function Element:moveCursorToStart()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   self._cursorPosition = 0
   self:_resetCursorBlink()
 end
 
 --- Move cursor to end of text
 function Element:moveCursorToEnd()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   local textLength = utf8.len(self._textBuffer or "")
   self._cursorPosition = textLength
   self:_resetCursorBlink()
@@ -5456,28 +5768,36 @@ end
 
 --- Move cursor to start of current line
 function Element:moveCursorToLineStart()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   -- For now, just move to start (will be enhanced for multi-line)
   self:moveCursorToStart()
 end
 
 --- Move cursor to end of current line
 function Element:moveCursorToLineEnd()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   -- For now, just move to end (will be enhanced for multi-line)
   self:moveCursorToEnd()
 end
 
 --- Validate cursor position (ensure it's within text bounds)
 function Element:_validateCursorPosition()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   local textLength = utf8.len(self._textBuffer or "")
   self._cursorPosition = math.max(0, math.min(self._cursorPosition, textLength))
 end
 
 --- Reset cursor blink (show cursor immediately)
 function Element:_resetCursorBlink()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   self._cursorBlinkTimer = 0
   self._cursorVisible = true
 end
@@ -5490,37 +5810,47 @@ end
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:setSelection(startPos, endPos)
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   local textLength = utf8.len(self._textBuffer or "")
   self._selectionStart = math.max(0, math.min(startPos, textLength))
   self._selectionEnd = math.max(0, math.min(endPos, textLength))
-  
+
   -- Ensure start <= end
   if self._selectionStart > self._selectionEnd then
     self._selectionStart, self._selectionEnd = self._selectionEnd, self._selectionStart
   end
-  
+
   self:_resetCursorBlink()
 end
 
 --- Get selection range
 ---@return number?, number? -- Start and end positions, or nil if no selection
 function Element:getSelection()
-  if not self.editable then return nil, nil end
-  if not self:hasSelection() then return nil, nil end
+  if not self.editable then
+    return nil, nil
+  end
+  if not self:hasSelection() then
+    return nil, nil
+  end
   return self._selectionStart, self._selectionEnd
 end
 
 --- Check if there is an active selection
 ---@return boolean
 function Element:hasSelection()
-  if not self.editable then return false end
+  if not self.editable then
+    return false
+  end
   return self._selectionStart ~= nil and self._selectionEnd ~= nil and self._selectionStart ~= self._selectionEnd
 end
 
 --- Clear selection
 function Element:clearSelection()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   self._selectionStart = nil
   self._selectionEnd = nil
   self._selectionAnchor = nil
@@ -5528,7 +5858,9 @@ end
 
 --- Select all text
 function Element:selectAll()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   local textLength = utf8.len(self._textBuffer or "")
   self._selectionStart = 0
   self._selectionEnd = textLength
@@ -5538,10 +5870,14 @@ end
 --- Get selected text
 ---@return string? -- Selected text or nil if no selection
 function Element:getSelectedText()
-  if not self.editable or not self:hasSelection() then return nil end
+  if not self.editable or not self:hasSelection() then
+    return nil
+  end
   local startPos, endPos = self:getSelection()
-  if not startPos or not endPos then return nil end
-  
+  if not startPos or not endPos then
+    return nil
+  end
+
   -- Convert character indices to byte offsets for utf8.sub
   local text = self._textBuffer or ""
   return utf8.sub(text, startPos + 1, endPos)
@@ -5550,10 +5886,14 @@ end
 --- Delete selected text
 ---@return boolean -- True if text was deleted
 function Element:deleteSelection()
-  if not self.editable or not self:hasSelection() then return false end
+  if not self.editable or not self:hasSelection() then
+    return false
+  end
   local startPos, endPos = self:getSelection()
-  if not startPos or not endPos then return false end
-  
+  if not startPos or not endPos then
+    return false
+  end
+
   self:deleteText(startPos, endPos)
   self:clearSelection()
   self._cursorPosition = startPos
@@ -5567,20 +5907,22 @@ end
 
 --- Focus this element for keyboard input
 function Element:focus()
-  if not self.editable then return end
-  
+  if not self.editable then
+    return
+  end
+
   -- Blur previously focused element
   if Gui._focusedElement and Gui._focusedElement ~= self then
     Gui._focusedElement:blur()
   end
-  
+
   -- Set focus state
   self._focused = true
   Gui._focusedElement = self
-  
+
   -- Reset cursor blink
   self:_resetCursorBlink()
-  
+
   -- Select all text if selectOnFocus is enabled
   if self.selectOnFocus then
     self:selectAll()
@@ -5588,7 +5930,7 @@ function Element:focus()
     -- Move cursor to end of text
     self:moveCursorToEnd()
   end
-  
+
   -- Trigger onFocus callback if defined
   if self.onFocus then
     self.onFocus(self)
@@ -5597,15 +5939,17 @@ end
 
 --- Remove focus from this element
 function Element:blur()
-  if not self.editable then return end
-  
+  if not self.editable then
+    return
+  end
+
   self._focused = false
-  
+
   -- Clear global focused element if it's this element
   if Gui._focusedElement == self then
     Gui._focusedElement = nil
   end
-  
+
   -- Trigger onBlur callback if defined
   if self.onBlur then
     self.onBlur(self)
@@ -5615,7 +5959,9 @@ end
 --- Check if this element is focused
 ---@return boolean
 function Element:isFocused()
-  if not self.editable then return false end
+  if not self.editable then
+    return false
+  end
   return self._focused == true
 end
 
@@ -5626,7 +5972,9 @@ end
 --- Get current text buffer
 ---@return string
 function Element:getText()
-  if not self.editable then return self.text or "" end
+  if not self.editable then
+    return self.text or ""
+  end
   return self._textBuffer or ""
 end
 
@@ -5637,9 +5985,9 @@ function Element:setText(text)
     self.text = text
     return
   end
-  
+
   self._textBuffer = text or ""
-  self.text = self._textBuffer  -- Sync display text
+  self.text = self._textBuffer -- Sync display text
   self:_markTextDirty()
   self:_validateCursorPosition()
 end
@@ -5648,23 +5996,25 @@ end
 ---@param text string -- Text to insert
 ---@param position number? -- Position to insert at (default: cursor position)
 function Element:insertText(text, position)
-  if not self.editable then return end
-  
+  if not self.editable then
+    return
+  end
+
   position = position or self._cursorPosition
   local buffer = self._textBuffer or ""
-  
+
   -- Convert character position to byte offset
   local byteOffset = utf8.offset(buffer, position + 1) or (#buffer + 1)
-  
+
   -- Insert text
   local before = buffer:sub(1, byteOffset - 1)
   local after = buffer:sub(byteOffset)
   self._textBuffer = before .. text .. after
-  self.text = self._textBuffer  -- Sync display text
-  
+  self.text = self._textBuffer -- Sync display text
+
   -- Update cursor position
   self._cursorPosition = position + utf8.len(text)
-  
+
   self:_markTextDirty()
   self:_validateCursorPosition()
 end
@@ -5673,29 +6023,31 @@ end
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:deleteText(startPos, endPos)
-  if not self.editable then return end
-  
+  if not self.editable then
+    return
+  end
+
   local buffer = self._textBuffer or ""
-  
+
   -- Ensure valid range
   local textLength = utf8.len(buffer)
   startPos = math.max(0, math.min(startPos, textLength))
   endPos = math.max(0, math.min(endPos, textLength))
-  
+
   if startPos > endPos then
     startPos, endPos = endPos, startPos
   end
-  
+
   -- Convert character positions to byte offsets
   local startByte = utf8.offset(buffer, startPos + 1) or 1
   local endByte = utf8.offset(buffer, endPos + 1) or (#buffer + 1)
-  
+
   -- Delete text
   local before = buffer:sub(1, startByte - 1)
   local after = buffer:sub(endByte)
   self._textBuffer = before .. after
-  self.text = self._textBuffer  -- Sync display text
-  
+  self.text = self._textBuffer -- Sync display text
+
   self:_markTextDirty()
 end
 
@@ -5704,22 +6056,28 @@ end
 ---@param endPos number -- End position (inclusive)
 ---@param newText string -- Replacement text
 function Element:replaceText(startPos, endPos, newText)
-  if not self.editable then return end
-  
+  if not self.editable then
+    return
+  end
+
   self:deleteText(startPos, endPos)
   self:insertText(newText, startPos)
 end
 
 --- Mark text as dirty (needs recalculation)
 function Element:_markTextDirty()
-  if not self.editable then return end
+  if not self.editable then
+    return
+  end
   self._textDirty = true
 end
 
 --- Update text if dirty (recalculate lines and wrapping)
 function Element:_updateTextIfDirty()
-  if not self.editable or not self._textDirty then return end
-  
+  if not self.editable or not self._textDirty then
+    return
+  end
+
   self:_splitLines()
   self:_calculateWrapping()
   self:_validateCursorPosition()
@@ -5728,24 +6086,26 @@ end
 
 --- Split text into lines (for multi-line text)
 function Element:_splitLines()
-  if not self.editable then return end
-  
-  if not self.multiline then
-    self._lines = {self._textBuffer or ""}
+  if not self.editable then
     return
   end
-  
+
+  if not self.multiline then
+    self._lines = { self._textBuffer or "" }
+    return
+  end
+
   self._lines = {}
   local text = self._textBuffer or ""
-  
+
   -- Split on newlines
   for line in (text .. "\n"):gmatch("([^\n]*)\n") do
     table.insert(self._lines, line)
   end
-  
+
   -- Ensure at least one line
   if #self._lines == 0 then
-    self._lines = {""}
+    self._lines = { "" }
   end
 end
 
@@ -5755,17 +6115,17 @@ function Element:_calculateWrapping()
     self._wrappedLines = nil
     return
   end
-  
+
   self._wrappedLines = {}
   local availableWidth = self.width - self.padding.left - self.padding.right
-  
+
   for lineNum, line in ipairs(self._lines or {}) do
     if line == "" then
       table.insert(self._wrappedLines, {
         text = "",
         startIdx = 0,
         endIdx = 0,
-        lineNum = lineNum
+        lineNum = lineNum,
       })
     else
       local wrappedParts = self:_wrapLine(line, availableWidth)
@@ -5782,30 +6142,32 @@ end
 ---@param maxWidth number -- Maximum width in pixels
 ---@return table -- Array of wrapped line parts
 function Element:_wrapLine(line, maxWidth)
-  if not self.editable then return {{text = line, startIdx = 0, endIdx = utf8.len(line)}} end
-  
+  if not self.editable then
+    return { { text = line, startIdx = 0, endIdx = utf8.len(line) } }
+  end
+
   local font = self:_getFont()
   local wrappedParts = {}
   local currentLine = ""
   local startIdx = 0
-  
+
   if self.textWrap == "word" then
     -- Word wrapping
     local words = {}
     for word in line:gmatch("%S+") do
       table.insert(words, word)
     end
-    
+
     for i, word in ipairs(words) do
       local testLine = currentLine == "" and word or (currentLine .. " " .. word)
       local width = font:getWidth(testLine)
-      
+
       if width > maxWidth and currentLine ~= "" then
         -- Current line is full, start new line
         table.insert(wrappedParts, {
           text = currentLine,
           startIdx = startIdx,
-          endIdx = startIdx + utf8.len(currentLine)
+          endIdx = startIdx + utf8.len(currentLine),
         })
         currentLine = word
         startIdx = startIdx + utf8.len(currentLine) + 1
@@ -5820,12 +6182,12 @@ function Element:_wrapLine(line, maxWidth)
       local char = utf8.sub(line, i, i)
       local testLine = currentLine .. char
       local width = font:getWidth(testLine)
-      
+
       if width > maxWidth and currentLine ~= "" then
         table.insert(wrappedParts, {
           text = currentLine,
           startIdx = startIdx,
-          endIdx = startIdx + utf8.len(currentLine)
+          endIdx = startIdx + utf8.len(currentLine),
         })
         currentLine = char
         startIdx = i - 1
@@ -5834,25 +6196,25 @@ function Element:_wrapLine(line, maxWidth)
       end
     end
   end
-  
+
   -- Add remaining text
   if currentLine ~= "" then
     table.insert(wrappedParts, {
       text = currentLine,
       startIdx = startIdx,
-      endIdx = startIdx + utf8.len(currentLine)
+      endIdx = startIdx + utf8.len(currentLine),
     })
   end
-  
+
   -- Ensure at least one part
   if #wrappedParts == 0 then
     table.insert(wrappedParts, {
       text = "",
       startIdx = 0,
-      endIdx = 0
+      endIdx = 0,
     })
   end
-  
+
   return wrappedParts
 end
 
@@ -5870,7 +6232,7 @@ function Element:_getFont()
       fontPath = self.fontFamily
     end
   end
-  
+
   return FONT_CACHE.getFont(self.textSize, fontPath)
 end
 
@@ -5881,27 +6243,31 @@ end
 --- Handle text input (character input)
 ---@param text string -- Character(s) to insert
 function Element:textinput(text)
-  if not self.editable or not self._focused then return end
-  
+  if not self.editable or not self._focused then
+    return
+  end
+
   -- Trigger onTextInput callback if defined
   if self.onTextInput then
     local result = self.onTextInput(self, text)
     -- If callback returns false, cancel the input
-    if result == false then return end
+    if result == false then
+      return
+    end
   end
-  
+
   -- Capture old text for callback
   local oldText = self._textBuffer
-  
+
   -- Delete selection if exists
   local hadSelection = self:hasSelection()
   if hadSelection then
     self:deleteSelection()
   end
-  
+
   -- Insert text at cursor position
   self:insertText(text)
-  
+
   -- Trigger onTextChange callback if text changed
   if self.onTextChange and self._textBuffer ~= oldText then
     self.onTextChange(self, self._textBuffer, oldText)
@@ -5913,11 +6279,13 @@ end
 ---@param scancode string -- Scancode
 ---@param isrepeat boolean -- Whether this is a key repeat
 function Element:keypressed(key, scancode, isrepeat)
-  if not self.editable or not self._focused then return end
-  
+  if not self.editable or not self._focused then
+    return
+  end
+
   local modifiers = getModifiers()
   local ctrl = modifiers.ctrl or modifiers.super -- Support both Ctrl and Cmd
-  
+
   -- Handle cursor movement
   if key == "left" then
     if self:hasSelection() and not modifiers.shift then
@@ -5929,7 +6297,6 @@ function Element:keypressed(key, scancode, isrepeat)
       self:moveCursorBy(-1)
     end
     self:_resetCursorBlink()
-    
   elseif key == "right" then
     if self:hasSelection() and not modifiers.shift then
       -- Move to end of selection
@@ -5940,7 +6307,6 @@ function Element:keypressed(key, scancode, isrepeat)
       self:moveCursorBy(1)
     end
     self:_resetCursorBlink()
-    
   elseif key == "home" or (ctrl and key == "a" and not self.multiline) then
     -- Move to line start (or document start for single-line)
     if ctrl or not self.multiline then
@@ -5952,7 +6318,6 @@ function Element:keypressed(key, scancode, isrepeat)
       self:clearSelection()
     end
     self:_resetCursorBlink()
-    
   elseif key == "end" or (ctrl and key == "e" and not self.multiline) then
     -- Move to line end (or document end for single-line)
     if ctrl or not self.multiline then
@@ -5964,7 +6329,7 @@ function Element:keypressed(key, scancode, isrepeat)
       self:clearSelection()
     end
     self:_resetCursorBlink()
-    
+
   -- Handle backspace and delete
   elseif key == "backspace" then
     local oldText = self._textBuffer
@@ -5977,13 +6342,12 @@ function Element:keypressed(key, scancode, isrepeat)
       self._cursorPosition = self._cursorPosition - 1
       self:_validateCursorPosition()
     end
-    
+
     -- Trigger onTextChange callback
     if self.onTextChange and self._textBuffer ~= oldText then
       self.onTextChange(self, self._textBuffer, oldText)
     end
     self:_resetCursorBlink()
-    
   elseif key == "delete" then
     local oldText = self._textBuffer
     if self:hasSelection() then
@@ -5996,13 +6360,13 @@ function Element:keypressed(key, scancode, isrepeat)
         self:deleteText(self._cursorPosition, self._cursorPosition + 1)
       end
     end
-    
+
     -- Trigger onTextChange callback
     if self.onTextChange and self._textBuffer ~= oldText then
       self.onTextChange(self, self._textBuffer, oldText)
     end
     self:_resetCursorBlink()
-    
+
   -- Handle return/enter
   elseif key == "return" or key == "kpenter" then
     if self.multiline then
@@ -6012,7 +6376,7 @@ function Element:keypressed(key, scancode, isrepeat)
         self:deleteSelection()
       end
       self:insertText("\n")
-      
+
       -- Trigger onTextChange callback
       if self.onTextChange and self._textBuffer ~= oldText then
         self.onTextChange(self, self._textBuffer, oldText)
@@ -6024,12 +6388,12 @@ function Element:keypressed(key, scancode, isrepeat)
       end
     end
     self:_resetCursorBlink()
-    
+
   -- Handle Ctrl/Cmd+A (select all)
   elseif ctrl and key == "a" then
     self:selectAll()
     self:_resetCursorBlink()
-    
+
   -- Handle Escape
   elseif key == "escape" then
     if self:hasSelection() then
@@ -6058,6 +6422,8 @@ return {
   Theme = Theme,
   Animation = Animation,
   ImageScaler = ImageScaler,
+  ImageCache = ImageCache,
+  ImageRenderer = ImageRenderer,
   ImageDataReader = ImageDataReader,
   NinePatchParser = NinePatchParser,
   enums = enums,

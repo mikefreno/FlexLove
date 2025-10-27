@@ -4918,21 +4918,41 @@ function Element:draw(backdropCanvas)
     local contentX = self.x + textPaddingLeft
     local contentY = self.y + textPaddingTop
 
-    if self.textAlign == TextAlign.START then
+    -- Check if text wrapping is enabled
+    if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
+      -- Use printf for wrapped text
+      local align = "left"
+      if self.textAlign == TextAlign.CENTER then
+        align = "center"
+      elseif self.textAlign == TextAlign.END then
+        align = "right"
+      elseif self.textAlign == TextAlign.JUSTIFY then
+        align = "justify"
+      end
+      
       tx = contentX
       ty = contentY
-    elseif self.textAlign == TextAlign.CENTER then
-      tx = contentX + (textAreaWidth - textWidth) / 2
-      ty = contentY + (textAreaHeight - textHeight) / 2
-    elseif self.textAlign == TextAlign.END then
-      tx = contentX + textAreaWidth - textWidth - 10
-      ty = contentY + textAreaHeight - textHeight - 10
-    elseif self.textAlign == TextAlign.JUSTIFY then
-      --- need to figure out spreading
-      tx = contentX
-      ty = contentY
+      
+      -- Use printf with the available width for wrapping
+      love.graphics.printf(self.text, tx, ty, textAreaWidth, align)
+    else
+      -- Use regular print for non-wrapped text
+      if self.textAlign == TextAlign.START then
+        tx = contentX
+        ty = contentY
+      elseif self.textAlign == TextAlign.CENTER then
+        tx = contentX + (textAreaWidth - textWidth) / 2
+        ty = contentY + (textAreaHeight - textHeight) / 2
+      elseif self.textAlign == TextAlign.END then
+        tx = contentX + textAreaWidth - textWidth - 10
+        ty = contentY + textAreaHeight - textHeight - 10
+      elseif self.textAlign == TextAlign.JUSTIFY then
+        --- need to figure out spreading
+        tx = contentX
+        ty = contentY
+      end
+      love.graphics.print(self.text, tx, ty)
     end
-    love.graphics.print(self.text, tx, ty)
     if self.textSize then
       love.graphics.setFont(origFont)
     end
@@ -5575,6 +5595,8 @@ function Element:calculateTextHeight()
     return 0
   end
 
+  -- Get the font
+  local font
   if self.textSize then
     -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
@@ -5591,22 +5613,30 @@ function Element:calculateTextHeight()
         fontPath = themeToUse.fonts.default
       end
     end
-
-    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
-    local height = tempFont:getHeight()
-    -- Apply contentAutoSizingMultiplier if set
-    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
-      height = height * self.contentAutoSizingMultiplier.height
-    end
-    return height
+    font = FONT_CACHE.get(self.textSize, fontPath)
+  else
+    font = love.graphics.getFont()
   end
 
-  local font = love.graphics.getFont()
   local height = font:getHeight()
+
+  -- If text wrapping is enabled, calculate height based on wrapped lines
+  if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
+    -- Calculate available width for wrapping
+    local availableWidth = self.width
+    if availableWidth and availableWidth > 0 then
+      -- Get the wrapped text lines using getWrap (returns width and table of lines)
+      local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
+      -- Height is line height * number of lines
+      height = height * #wrappedLines
+    end
+  end
+
   -- Apply contentAutoSizingMultiplier if set
   if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
     height = height * self.contentAutoSizingMultiplier.height
   end
+  
   return height
 end
 

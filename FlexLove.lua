@@ -2410,12 +2410,15 @@ function Gui.draw(gameDrawFunc)
 
     gameCanvas = Gui._gameCanvas
 
+    -- Save the current canvas so we can restore it
+    local previousCanvas = love.graphics.getCanvas()
+    
     love.graphics.setCanvas(gameCanvas)
     love.graphics.clear()
     gameDrawFunc() -- Call the drawing function
-    love.graphics.setCanvas()
+    love.graphics.setCanvas(previousCanvas)
 
-    -- Draw game canvas to screen
+    -- Draw game canvas to the previous canvas (or screen if none)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(gameCanvas, 0, 0)
   end

@@ -2590,10 +2590,12 @@ end
 -- ====================
 
 ---@class InputEvent
----@field type "click"|"press"|"release"|"rightclick"|"middleclick"
+---@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"
 ---@field button number -- Mouse button: 1 (left), 2 (right), 3 (middle)
 ---@field x number -- Mouse X position
 ---@field y number -- Mouse Y position
+---@field dx number? -- Delta X from drag start (only for drag events)
+---@field dy number? -- Delta Y from drag start (only for drag events)
 ---@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, super:boolean}
 ---@field clickCount number -- Number of clicks (for double/triple click detection)
 ---@field timestamp number -- Time when event occurred
@@ -2601,10 +2603,12 @@ local InputEvent = {}
 InputEvent.__index = InputEvent
 
 ---@class InputEventProps
----@field type "click"|"press"|"release"|"rightclick"|"middleclick"
+---@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"
 ---@field button number
 ---@field x number
 ---@field y number
+---@field dx number?
+---@field dy number?
 ---@field modifiers {shift:boolean, ctrl:boolean, alt:boolean, super:boolean}
 ---@field clickCount number?
 ---@field timestamp number?
@@ -2618,6 +2622,8 @@ function InputEvent.new(props)
   self.button = props.button
   self.x = props.x
   self.y = props.y
+  self.dx = props.dx
+  self.dy = props.dy
   self.modifiers = props.modifiers
   self.clickCount = props.clickCount or 1
   self.timestamp = props.timestamp or love.timer.getTime()
@@ -2980,6 +2986,10 @@ Public API methods to access internal state:
 ---@field _lastClickButton number? -- Button of last click
 ---@field _clickCount number -- Current click count for multi-click detection
 ---@field _touchPressed table<any, boolean> -- Track touch pressed state
+---@field _dragStartX table<number, number>? -- Track drag start X position per mouse button
+---@field _dragStartY table<number, number>? -- Track drag start Y position per mouse button
+---@field _lastMouseX table<number, number>? -- Last known mouse X position per button for drag tracking
+---@field _lastMouseY table<number, number>? -- Last known mouse Y position per button for drag tracking
 ---@field _explicitlyAbsolute boolean?
 ---@field gridRows number? -- Number of rows in the grid
 ---@field gridColumns number? -- Number of columns in the grid
@@ -3126,6 +3136,12 @@ function Element.new(props)
   self._lastClickButton = nil
   self._clickCount = 0
   self._touchPressed = {}
+  
+  -- Initialize drag tracking for event system
+  self._dragStartX = {} -- Track drag start X position per mouse button
+  self._dragStartY = {} -- Track drag start Y position per mouse button
+  self._lastMouseX = {} -- Track last mouse X position per button
+  self._lastMouseY = {} -- Track last mouse Y position per button
 
   -- Initialize theme
   self._themeState = "normal"
@@ -5118,7 +5134,7 @@ function Element:update(dt)
           if love.mouse.isDown(button) then
             -- Button is pressed down
             if not self._pressed[button] then
-              -- Just pressed - fire press event
+              -- Just pressed - fire press event and record drag start position
               local modifiers = getModifiers()
               local pressEvent = InputEvent.new({
                 type = "press",
@@ -5130,6 +5146,39 @@ function Element:update(dt)
               })
               self.callback(self, pressEvent)
               self._pressed[button] = true
+              
+              -- Record drag start position per button
+              self._dragStartX[button] = mx
+              self._dragStartY[button] = my
+              self._lastMouseX[button] = mx
+              self._lastMouseY[button] = my
+            else
+              -- Button is still pressed - check for mouse movement (drag)
+              local lastX = self._lastMouseX[button] or mx
+              local lastY = self._lastMouseY[button] or my
+              
+              if lastX ~= mx or lastY ~= my then
+                -- Mouse has moved - fire drag event
+                local modifiers = getModifiers()
+                local dx = mx - self._dragStartX[button]
+                local dy = my - self._dragStartY[button]
+                
+                local dragEvent = InputEvent.new({
+                  type = "drag",
+                  button = button,
+                  x = mx,
+                  y = my,
+                  dx = dx,
+                  dy = dy,
+                  modifiers = modifiers,
+                  clickCount = 1,
+                })
+                self.callback(self, dragEvent)
+                
+                -- Update last known position for this button
+                self._lastMouseX[button] = mx
+                self._lastMouseY[button] = my
+              end
             end
           elseif self._pressed[button] then
             -- Button was just released - fire click event
@@ -5169,6 +5218,10 @@ function Element:update(dt)
 
             self.callback(self, clickEvent)
             self._pressed[button] = false
+            
+            -- Clean up drag tracking
+            self._dragStartX[button] = nil
+            self._dragStartY[button] = nil
 
             -- Focus editable elements on left click
             if button == 1 and self.editable then
@@ -5187,8 +5240,12 @@ function Element:update(dt)
             self.callback(self, releaseEvent)
           end
         else
-          -- Mouse left the element - reset pressed state
-          self._pressed[button] = false
+          -- Mouse left the element - reset pressed state and drag tracking
+          if self._pressed[button] then
+            self._pressed[button] = false
+            self._dragStartX[button] = nil
+            self._dragStartY[button] = nil
+          end
         end
       end
     end -- end if self.callback

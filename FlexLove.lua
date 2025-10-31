@@ -814,7 +814,7 @@ function ImageCache.load(imagePath, loadImageData)
   end
 
   local normalizedPath = normalizePath(imagePath)
-  
+
   -- Check if already cached
   if ImageCache._cache[normalizedPath] then
     return ImageCache._cache[normalizedPath].image, nil
@@ -840,7 +840,7 @@ function ImageCache.load(imagePath, loadImageData)
   -- Cache the image
   ImageCache._cache[normalizedPath] = {
     image = image,
-    imageData = imgData
+    imageData = imgData,
   }
 
   return image, nil
@@ -927,7 +927,7 @@ function ImageCache.getStats()
 
   return {
     count = count,
-    memoryEstimate = memoryEstimate
+    memoryEstimate = memoryEstimate,
   }
 end
 
@@ -957,16 +957,16 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
   end
 
   local result = {
-    sx = 0,        -- Source X
-    sy = 0,        -- Source Y
-    sw = imageWidth,   -- Source width
-    sh = imageHeight,  -- Source height
-    dx = 0,        -- Destination X
-    dy = 0,        -- Destination Y
-    dw = boundsWidth,  -- Destination width
+    sx = 0, -- Source X
+    sy = 0, -- Source Y
+    sw = imageWidth, -- Source width
+    sh = imageHeight, -- Source height
+    dx = 0, -- Destination X
+    dy = 0, -- Destination Y
+    dw = boundsWidth, -- Destination width
     dh = boundsHeight, -- Destination height
-    scaleX = 1,    -- Scale factor X
-    scaleY = 1     -- Scale factor Y
+    scaleX = 1, -- Scale factor X
+    scaleY = 1, -- Scale factor Y
   }
 
   -- Calculate based on fit mode
@@ -976,7 +976,6 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
     result.scaleY = boundsHeight / imageHeight
     result.dw = boundsWidth
     result.dh = boundsHeight
-
   elseif fitMode == "contain" then
     -- Scale to fit within bounds (preserves aspect ratio)
     local scale = math.min(boundsWidth / imageWidth, boundsHeight / imageHeight)
@@ -989,19 +988,18 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
     local posX, posY = ImageRenderer._parsePosition(objectPosition)
     result.dx = (boundsWidth - result.dw) * posX
     result.dy = (boundsHeight - result.dh) * posY
-
   elseif fitMode == "cover" then
     -- Scale to cover bounds (preserves aspect ratio, may crop)
     local scale = math.max(boundsWidth / imageWidth, boundsHeight / imageHeight)
     result.scaleX = scale
     result.scaleY = scale
-    
+
     local scaledWidth = imageWidth * scale
     local scaledHeight = imageHeight * scale
 
     -- Apply object-position for crop alignment
     local posX, posY = ImageRenderer._parsePosition(objectPosition)
-    
+
     -- Calculate which part of the scaled image to show
     local cropX = (scaledWidth - boundsWidth) * posX
     local cropY = (scaledHeight - boundsHeight) * posY
@@ -1011,12 +1009,11 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
     result.sy = cropY / scale
     result.sw = boundsWidth / scale
     result.sh = boundsHeight / scale
-    
+
     result.dx = 0
     result.dy = 0
     result.dw = boundsWidth
     result.dh = boundsHeight
-
   elseif fitMode == "none" then
     -- Use natural size (no scaling)
     result.scaleX = 1
@@ -1028,7 +1025,6 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
     local posX, posY = ImageRenderer._parsePosition(objectPosition)
     result.dx = (boundsWidth - imageWidth) * posX
     result.dy = (boundsHeight - imageHeight) * posY
-
   elseif fitMode == "scale-down" then
     -- Use none or contain, whichever is smaller
     if imageWidth <= boundsWidth and imageHeight <= boundsHeight then
@@ -1038,7 +1034,6 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
       -- Image too large, use "contain"
       return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "contain", objectPosition)
     end
-
   else
     error(formatError("ImageRenderer", string.format("Invalid fit mode: '%s'. Must be one of: fill, contain, cover, scale-down, none", tostring(fitMode))))
   end
@@ -1065,11 +1060,11 @@ function ImageRenderer._parsePosition(position)
   if #parts == 1 then
     local val = parts[1]
     if val == "left" or val == "right" then
-      parts = {val, "center"}
+      parts = { val, "center" }
     elseif val == "top" or val == "bottom" then
-      parts = {"center", val}
+      parts = { "center", val }
     else
-      parts = {val, val}
+      parts = { val, val }
     end
   elseif #parts == 0 then
     return 0.5, 0.5 -- Default to center
@@ -1077,9 +1072,12 @@ function ImageRenderer._parsePosition(position)
 
   local function parseValue(val)
     -- Handle keywords
-    if val == "center" then return 0.5
-    elseif val == "left" or val == "top" then return 0
-    elseif val == "right" or val == "bottom" then return 1
+    if val == "center" then
+      return 0.5
+    elseif val == "left" or val == "top" then
+      return 0
+    elseif val == "right" or val == "bottom" then
+      return 1
     end
 
     -- Handle percentages
@@ -2340,6 +2338,29 @@ function Gui.init(config)
   end
 end
 
+--- Check for Z-index coverage (occlusion)
+---@param elem Element
+---@param clickX number
+---@param clickY number
+---@return boolean
+function Gui.isOccluded(elem, clickX, clickY)
+  for _, element in ipairs(Gui.topElements) do
+    if element.z > elem.z and element:contains(clickX, clickY) then
+      return true
+    end
+    --TODO: check if walking the children tree is necessary here - might only need to check for absolute positioned
+    --children
+    for _, child in ipairs(element.children) do
+      if child.positioning == "absolute" then
+        if child.z > elem.z and child:contains(clickX, clickY) then
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
 --- Get current scale factors
 ---@return number, number -- scaleX, scaleY
 function Gui.getScaleFactors()
@@ -2398,7 +2419,7 @@ Gui._canvasDimensions = { width = 0, height = 0 }
 function Gui.draw(gameDrawFunc, postDrawFunc)
   -- Save the current canvas state to support nested rendering
   local outerCanvas = love.graphics.getCanvas()
-  
+
   local gameCanvas = nil
 
   -- Render game content to a canvas if function provided
@@ -2414,7 +2435,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
     end
 
     gameCanvas = Gui._gameCanvas
-    
+
     love.graphics.setCanvas(gameCanvas)
     love.graphics.clear()
     gameDrawFunc() -- Call the drawing function
@@ -2574,39 +2595,40 @@ end
 function Gui.wheelmoved(x, y)
   -- Get mouse position
   local mx, my = love.mouse.getPosition()
-  
+
   -- Find the deepest scrollable element at mouse position
   local function findScrollableAtPosition(elements, mx, my)
     -- Check in reverse z-order (top to bottom)
     for i = #elements, 1, -1 do
       local element = elements[i]
-      
+
       -- Check if mouse is over element
       local bx = element.x
       local by = element.y
       local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
       local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-      
+
       if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
         -- Check children first (depth-first)
         if #element.children > 0 then
           local childResult = findScrollableAtPosition(element.children, mx, my)
-          if childResult then return childResult end
+          if childResult then
+            return childResult
+          end
         end
-        
+
         -- Check if this element is scrollable
         local overflowX = element.overflowX or element.overflow
         local overflowY = element.overflowY or element.overflow
-        if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and
-           (element._overflowX or element._overflowY) then
+        if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
           return element
         end
       end
     end
-    
+
     return nil
   end
-  
+
   local scrollableElement = findScrollableAtPosition(Gui.topElements, mx, my)
   if scrollableElement then
     scrollableElement:_handleWheelScroll(x, y)
@@ -3195,7 +3217,7 @@ function Element.new(props)
   self._lastClickButton = nil
   self._clickCount = 0
   self._touchPressed = {}
-  
+
   -- Initialize drag tracking for event system
   self._dragStartX = {} -- Track drag start X position per mouse button
   self._dragStartY = {} -- Track drag start Y position per mouse button
@@ -3378,7 +3400,7 @@ function Element.new(props)
   self.objectFit = props.objectFit or "fill"
   self.objectPosition = props.objectPosition or "center center"
   self.imageOpacity = props.imageOpacity or 1
-  
+
   -- Auto-load image if imagePath is provided
   if self.imagePath and not self.image then
     local loadedImage, err = ImageCache.load(self.imagePath)
@@ -4118,7 +4140,7 @@ function Element.new(props)
   self.overflow = props.overflow or "visible"
   self.overflowX = props.overflowX
   self.overflowY = props.overflowY
-  
+
   -- Scrollbar configuration
   self.scrollbarWidth = props.scrollbarWidth or 12
   self.scrollbarColor = props.scrollbarColor or Color.new(0.5, 0.5, 0.5, 0.8)
@@ -4126,24 +4148,24 @@ function Element.new(props)
   self.scrollbarRadius = props.scrollbarRadius or 6
   self.scrollbarPadding = props.scrollbarPadding or 2
   self.scrollSpeed = props.scrollSpeed or 20
-  
+
   -- Internal overflow state
   self._overflowX = false
   self._overflowY = false
   self._contentWidth = 0
   self._contentHeight = 0
-  
+
   -- Scroll state
   self._scrollX = 0
   self._scrollY = 0
   self._maxScrollX = 0
   self._maxScrollY = 0
-  
+
   -- Scrollbar interaction state
   self._scrollbarHovered = false
   self._scrollbarDragging = false
-  self._hoveredScrollbar = nil  -- "vertical" or "horizontal"
-  self._scrollbarDragOffset = 0  -- Offset from thumb top when drag started
+  self._hoveredScrollbar = nil -- "vertical" or "horizontal"
+  self._scrollbarDragOffset = 0 -- Offset from thumb top when drag started
 
   return self
 end
@@ -4152,6 +4174,15 @@ end
 ---@return { x:number, y:number, width:number, height:number }
 function Element:getBounds()
   return { x = self.x, y = self.y, width = self:getBorderBoxWidth(), height = self:getBorderBoxHeight() }
+end
+
+--- Check if point is inside element bounds
+--- @param x number
+--- @param y number
+--- @return boolean
+function Element:contains(x, y)
+  local bounds = self:getBounds()
+  return bounds.x <= x and bounds.y <= y and bounds.x + bounds.width >= x and bounds.y + bounds.height >= y
 end
 
 --- Get border-box width (including padding)
@@ -4173,22 +4204,22 @@ function Element:_detectOverflow()
   self._overflowY = false
   self._contentWidth = self.width
   self._contentHeight = self.height
-  
+
   -- Skip detection if overflow is visible (no clipping needed)
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
   if overflowX == "visible" and overflowY == "visible" then
     return
   end
-  
+
   -- Calculate content bounds based on children
   if #self.children == 0 then
     return -- No children, no overflow
   end
-  
+
   local minX, minY = math.huge, math.huge
   local maxX, maxY = -math.huge, -math.huge
-  
+
   for _, child in ipairs(self.children) do
     -- Skip absolutely positioned children (they don't contribute to overflow)
     if not child._explicitlyAbsolute then
@@ -4196,34 +4227,34 @@ function Element:_detectOverflow()
       local childTop = child.y - self.y
       local childRight = childLeft + child:getBorderBoxWidth() + child.margin.left + child.margin.right
       local childBottom = childTop + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom
-      
+
       minX = math.min(minX, childLeft)
       minY = math.min(minY, childTop)
       maxX = math.max(maxX, childRight)
       maxY = math.max(maxY, childBottom)
     end
   end
-  
+
   -- If no non-absolute children, no overflow
   if minX == math.huge then
     return
   end
-  
+
   -- Calculate content dimensions
   self._contentWidth = math.max(0, maxX - minX)
   self._contentHeight = math.max(0, maxY - minY)
-  
+
   -- Detect overflow
   local containerWidth = self.width
   local containerHeight = self.height
-  
+
   self._overflowX = self._contentWidth > containerWidth
   self._overflowY = self._contentHeight > containerHeight
-  
+
   -- Calculate maximum scroll bounds
   self._maxScrollX = math.max(0, self._contentWidth - containerWidth)
   self._maxScrollY = math.max(0, self._contentHeight - containerHeight)
-  
+
   -- Clamp current scroll position to new bounds
   self._scrollX = math.max(0, math.min(self._scrollX, self._maxScrollX))
   self._scrollY = math.max(0, math.min(self._scrollY, self._maxScrollY))
@@ -4246,21 +4277,21 @@ end
 function Element:_calculateScrollbarDimensions()
   local result = {
     vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
-    horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 }
+    horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
   }
-  
+
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
-  
+
   -- Vertical scrollbar
   if self._overflowY and (overflowY == "scroll" or overflowY == "auto") then
     result.vertical.visible = true
     result.vertical.trackHeight = self.height - (self.scrollbarPadding * 2)
-    
+
     -- Calculate thumb height based on content ratio
     local contentRatio = self.height / math.max(self._contentHeight, self.height)
     result.vertical.thumbHeight = math.max(20, result.vertical.trackHeight * contentRatio)
-    
+
     -- Calculate thumb position based on scroll ratio
     local scrollRatio = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
     local maxThumbY = result.vertical.trackHeight - result.vertical.thumbHeight
@@ -4272,16 +4303,16 @@ function Element:_calculateScrollbarDimensions()
     result.vertical.thumbHeight = result.vertical.trackHeight
     result.vertical.thumbY = 0
   end
-  
+
   -- Horizontal scrollbar
   if self._overflowX and (overflowX == "scroll" or overflowX == "auto") then
     result.horizontal.visible = true
     result.horizontal.trackWidth = self.width - (self.scrollbarPadding * 2)
-    
+
     -- Calculate thumb width based on content ratio
     local contentRatio = self.width / math.max(self._contentWidth, self.width)
     result.horizontal.thumbWidth = math.max(20, result.horizontal.trackWidth * contentRatio)
-    
+
     -- Calculate thumb position based on scroll ratio
     local scrollRatio = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
     local maxThumbX = result.horizontal.trackWidth - result.horizontal.thumbWidth
@@ -4293,7 +4324,7 @@ function Element:_calculateScrollbarDimensions()
     result.horizontal.thumbWidth = result.horizontal.trackWidth
     result.horizontal.thumbX = 0
   end
-  
+
   return result
 end
 
@@ -4302,59 +4333,45 @@ end
 function Element:_drawScrollbars(dims)
   local x, y = self.x, self.y
   local w, h = self.width, self.height
-  
+
   -- Determine thumb color based on state
   local thumbColor = self.scrollbarColor
   if self._scrollbarDragging then
     -- Active state: brighter
-    thumbColor = Color.new(
-      math.min(1, thumbColor.r * 1.4),
-      math.min(1, thumbColor.g * 1.4),
-      math.min(1, thumbColor.b * 1.4),
-      thumbColor.a
-    )
+    thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
   elseif self._scrollbarHovered then
     -- Hover state: slightly brighter
-    thumbColor = Color.new(
-      math.min(1, thumbColor.r * 1.2),
-      math.min(1, thumbColor.g * 1.2),
-      math.min(1, thumbColor.b * 1.2),
-      thumbColor.a
-    )
+    thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
   end
-  
+
   -- Vertical scrollbar
   if dims.vertical.visible then
     local trackX = x + w - self.scrollbarWidth - self.scrollbarPadding + self.padding.left
     local trackY = y + self.scrollbarPadding + self.padding.top
-    
+
     -- Draw track
     love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, 
-      self.scrollbarWidth, dims.vertical.trackHeight, self.scrollbarRadius)
-    
+    love.graphics.rectangle("fill", trackX, trackY, self.scrollbarWidth, dims.vertical.trackHeight, self.scrollbarRadius)
+
     -- Draw thumb with state-based color
     love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY,
-      self.scrollbarWidth, dims.vertical.thumbHeight, self.scrollbarRadius)
+    love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY, self.scrollbarWidth, dims.vertical.thumbHeight, self.scrollbarRadius)
   end
-  
+
   -- Horizontal scrollbar
   if dims.horizontal.visible then
     local trackX = x + self.scrollbarPadding + self.padding.left
     local trackY = y + h - self.scrollbarWidth - self.scrollbarPadding + self.padding.top
-    
+
     -- Draw track
     love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY,
-      dims.horizontal.trackWidth, self.scrollbarWidth, self.scrollbarRadius)
-    
+    love.graphics.rectangle("fill", trackX, trackY, dims.horizontal.trackWidth, self.scrollbarWidth, self.scrollbarRadius)
+
     -- Draw thumb with state-based color
     love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY,
-      dims.horizontal.thumbWidth, self.scrollbarWidth, self.scrollbarRadius)
+    love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY, dims.horizontal.thumbWidth, self.scrollbarWidth, self.scrollbarRadius)
   end
-  
+
   -- Reset color
   love.graphics.setColor(1, 1, 1, 1)
 end
@@ -4366,24 +4383,23 @@ end
 function Element:_getScrollbarAtPosition(mouseX, mouseY)
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
-  
+
   if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
     return nil
   end
-  
+
   local dims = self:_calculateScrollbarDimensions()
   local x, y = self.x, self.y
   local w, h = self.width, self.height
-  
+
   -- Check vertical scrollbar
   if dims.vertical.visible then
     local trackX = x + w - self.scrollbarWidth - self.scrollbarPadding + self.padding.left
     local trackY = y + self.scrollbarPadding + self.padding.top
     local trackW = self.scrollbarWidth
     local trackH = dims.vertical.trackHeight
-    
-    if mouseX >= trackX and mouseX <= trackX + trackW and
-       mouseY >= trackY and mouseY <= trackY + trackH then
+
+    if mouseX >= trackX and mouseX <= trackX + trackW and mouseY >= trackY and mouseY <= trackY + trackH then
       -- Check if over thumb
       local thumbY = trackY + dims.vertical.thumbY
       local thumbH = dims.vertical.thumbHeight
@@ -4394,16 +4410,15 @@ function Element:_getScrollbarAtPosition(mouseX, mouseY)
       end
     end
   end
-  
+
   -- Check horizontal scrollbar
   if dims.horizontal.visible then
     local trackX = x + self.scrollbarPadding + self.padding.left
     local trackY = y + h - self.scrollbarWidth - self.scrollbarPadding + self.padding.top
     local trackW = dims.horizontal.trackWidth
     local trackH = self.scrollbarWidth
-    
-    if mouseX >= trackX and mouseX <= trackX + trackW and
-       mouseY >= trackY and mouseY <= trackY + trackH then
+
+    if mouseX >= trackX and mouseX <= trackX + trackW and mouseY >= trackY and mouseY <= trackY + trackH then
       -- Check if over thumb
       local thumbX = trackX + dims.horizontal.thumbX
       local thumbW = dims.horizontal.thumbWidth
@@ -4414,7 +4429,7 @@ function Element:_getScrollbarAtPosition(mouseX, mouseY)
       end
     end
   end
-  
+
   return nil
 end
 
@@ -4424,17 +4439,21 @@ end
 ---@param button number
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarPress(mouseX, mouseY, button)
-  if button ~= 1 then return false end  -- Only left click
-  
+  if button ~= 1 then
+    return false
+  end -- Only left click
+
   local scrollbar = self:_getScrollbarAtPosition(mouseX, mouseY)
-  if not scrollbar then return false end
-  
+  if not scrollbar then
+    return false
+  end
+
   if scrollbar.region == "thumb" then
     -- Start dragging thumb
     self._scrollbarDragging = true
     self._hoveredScrollbar = scrollbar.component
     local dims = self:_calculateScrollbarDimensions()
-    
+
     if scrollbar.component == "vertical" then
       local trackY = self.y + self.scrollbarPadding + self.padding.top
       local thumbY = trackY + dims.vertical.thumbY
@@ -4444,15 +4463,14 @@ function Element:_handleScrollbarPress(mouseX, mouseY, button)
       local thumbX = trackX + dims.horizontal.thumbX
       self._scrollbarDragOffset = mouseX - thumbX
     end
-    
-    return true  -- Event consumed
-    
+
+    return true -- Event consumed
   elseif scrollbar.region == "track" then
     -- Click on track - jump to position
     self:_scrollToTrackPosition(mouseX, mouseY, scrollbar.component)
     return true
   end
-  
+
   return false
 end
 
@@ -4461,43 +4479,44 @@ end
 ---@param mouseY number
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarDrag(mouseX, mouseY)
-  if not self._scrollbarDragging then return false end
-  
+  if not self._scrollbarDragging then
+    return false
+  end
+
   local dims = self:_calculateScrollbarDimensions()
-  
+
   if self._hoveredScrollbar == "vertical" then
     local trackY = self.y + self.scrollbarPadding + self.padding.top
     local trackH = dims.vertical.trackHeight
     local thumbH = dims.vertical.thumbHeight
-    
+
     -- Calculate new thumb position
     local newThumbY = mouseY - self._scrollbarDragOffset - trackY
     newThumbY = math.max(0, math.min(newThumbY, trackH - thumbH))
-    
+
     -- Convert thumb position to scroll position
     local scrollRatio = (trackH - thumbH) > 0 and (newThumbY / (trackH - thumbH)) or 0
     local newScrollY = scrollRatio * self._maxScrollY
-    
+
     self:setScrollPosition(nil, newScrollY)
     return true
-    
   elseif self._hoveredScrollbar == "horizontal" then
     local trackX = self.x + self.scrollbarPadding + self.padding.left
     local trackW = dims.horizontal.trackWidth
     local thumbW = dims.horizontal.thumbWidth
-    
+
     -- Calculate new thumb position
     local newThumbX = mouseX - self._scrollbarDragOffset - trackX
     newThumbX = math.max(0, math.min(newThumbX, trackW - thumbW))
-    
+
     -- Convert thumb position to scroll position
     local scrollRatio = (trackW - thumbW) > 0 and (newThumbX / (trackW - thumbW)) or 0
     local newScrollX = scrollRatio * self._maxScrollX
-    
+
     self:setScrollPosition(newScrollX, nil)
     return true
   end
-  
+
   return false
 end
 
@@ -4505,13 +4524,15 @@ end
 ---@param button number
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarRelease(button)
-  if button ~= 1 then return false end
-  
+  if button ~= 1 then
+    return false
+  end
+
   if self._scrollbarDragging then
     self._scrollbarDragging = false
     return true
   end
-  
+
   return false
 end
 
@@ -4521,35 +4542,34 @@ end
 ---@param component string -- "vertical" or "horizontal"
 function Element:_scrollToTrackPosition(mouseX, mouseY, component)
   local dims = self:_calculateScrollbarDimensions()
-  
+
   if component == "vertical" then
     local trackY = self.y + self.scrollbarPadding + self.padding.top
     local trackH = dims.vertical.trackHeight
     local thumbH = dims.vertical.thumbHeight
-    
+
     -- Calculate target thumb position (centered on click)
     local targetThumbY = mouseY - trackY - (thumbH / 2)
     targetThumbY = math.max(0, math.min(targetThumbY, trackH - thumbH))
-    
+
     -- Convert to scroll position
     local scrollRatio = (trackH - thumbH) > 0 and (targetThumbY / (trackH - thumbH)) or 0
     local newScrollY = scrollRatio * self._maxScrollY
-    
+
     self:setScrollPosition(nil, newScrollY)
-    
   elseif component == "horizontal" then
     local trackX = self.x + self.scrollbarPadding + self.padding.left
     local trackW = dims.horizontal.trackWidth
     local thumbW = dims.horizontal.thumbWidth
-    
+
     -- Calculate target thumb position (centered on click)
     local targetThumbX = mouseX - trackX - (thumbW / 2)
     targetThumbX = math.max(0, math.min(targetThumbX, trackW - thumbW))
-    
+
     -- Convert to scroll position
     local scrollRatio = (trackW - thumbW) > 0 and (targetThumbX / (trackW - thumbW)) or 0
     local newScrollX = scrollRatio * self._maxScrollX
-    
+
     self:setScrollPosition(newScrollX, nil)
   end
 end
@@ -4561,24 +4581,24 @@ end
 function Element:_handleWheelScroll(x, y)
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
-  
+
   if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
     return false
   end
-  
+
   local hasVerticalOverflow = self._overflowY and self._maxScrollY > 0
   local hasHorizontalOverflow = self._overflowX and self._maxScrollX > 0
-  
+
   local scrolled = false
-  
+
   -- Vertical scrolling
   if y ~= 0 and hasVerticalOverflow then
-    local delta = -y * self.scrollSpeed  -- Negative because wheel up = scroll up
+    local delta = -y * self.scrollSpeed -- Negative because wheel up = scroll up
     local newScrollY = self._scrollY + delta
     self:setScrollPosition(nil, newScrollY)
     scrolled = true
   end
-  
+
   -- Horizontal scrolling
   if x ~= 0 and hasHorizontalOverflow then
     local delta = -x * self.scrollSpeed
@@ -4586,7 +4606,7 @@ function Element:_handleWheelScroll(x, y)
     self:setScrollPosition(newScrollX, nil)
     scrolled = true
   end
-  
+
   return scrolled
 end
 
@@ -5251,7 +5271,7 @@ function Element:layoutChildren()
       end
     end
   end
-  
+
   -- Detect overflow after children are laid out
   self:_detectOverflow()
 end
@@ -5339,14 +5359,16 @@ function Element:draw(backdropCanvas)
     local imageY = self.y + self.padding.top
     local imageWidth = self.width
     local imageHeight = self.height
-    
+
     -- Combine element opacity with imageOpacity
     local finalOpacity = self.opacity * self.imageOpacity
-    
+
     -- Apply cornerRadius clipping if set
-    local hasCornerRadius = self.cornerRadius.topLeft > 0 or self.cornerRadius.topRight > 0 
-                         or self.cornerRadius.bottomLeft > 0 or self.cornerRadius.bottomRight > 0
-    
+    local hasCornerRadius = self.cornerRadius.topLeft > 0
+      or self.cornerRadius.topRight > 0
+      or self.cornerRadius.bottomLeft > 0
+      or self.cornerRadius.bottomRight > 0
+
     if hasCornerRadius then
       -- Use stencil to clip image to rounded corners
       love.graphics.stencil(function()
@@ -5354,19 +5376,10 @@ function Element:draw(backdropCanvas)
       end, "replace", 1)
       love.graphics.setStencilTest("greater", 0)
     end
-    
+
     -- Draw the image
-    ImageRenderer.draw(
-      self._loadedImage,
-      imageX,
-      imageY,
-      imageWidth,
-      imageHeight,
-      self.objectFit,
-      self.objectPosition,
-      finalOpacity
-    )
-    
+    ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
+
     -- Clear stencil if it was used
     if hasCornerRadius then
       love.graphics.setStencilTest()
@@ -5529,10 +5542,10 @@ function Element:draw(backdropCanvas)
       elseif self.textAlign == TextAlign.JUSTIFY then
         align = "justify"
       end
-      
+
       tx = contentX
       ty = contentY
-      
+
       -- Use printf with the available width for wrapping
       love.graphics.printf(self.text, tx, ty, textAreaWidth, align)
     else
@@ -5598,15 +5611,15 @@ function Element:draw(backdropCanvas)
     local overflowX = self.overflowX or self.overflow
     local overflowY = self.overflowY or self.overflow
     local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible") and (overflowX ~= nil or overflowY ~= nil)
-    
+
     -- Apply scroll offset if overflow is not visible
     local hasScrollOffset = needsOverflowClipping and (self._scrollX ~= 0 or self._scrollY ~= 0)
-    
+
     if hasScrollOffset then
       love.graphics.push()
       love.graphics.translate(-self._scrollX, -self._scrollY)
     end
-    
+
     if hasRoundedCorners and #sortedChildren > 0 then
       -- Use stencil to clip children to rounded rectangle
       -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
@@ -5628,13 +5641,13 @@ function Element:draw(backdropCanvas)
       local contentY = self.y + self.padding.top
       local contentWidth = self.width
       local contentHeight = self.height
-      
+
       love.graphics.setScissor(contentX, contentY, contentWidth, contentHeight)
-      
+
       for _, child in ipairs(sortedChildren) do
         child:draw(backdropCanvas)
       end
-      
+
       love.graphics.setScissor()
     else
       -- No clipping needed
@@ -5642,7 +5655,7 @@ function Element:draw(backdropCanvas)
         child:draw(backdropCanvas)
       end
     end
-    
+
     if hasScrollOffset then
       love.graphics.pop()
     end
@@ -5659,7 +5672,7 @@ function Element:draw(backdropCanvas)
   else
     drawChildren()
   end
-  
+
   -- Draw scrollbars if overflow is scroll or auto
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
@@ -5718,7 +5731,7 @@ function Element:update(dt)
       self._hoveredScrollbar = nil
     end
   end
-  
+
   -- Handle scrollbar dragging
   if self._scrollbarDragging and love.mouse.isDown(1) then
     self:_handleScrollbarDrag(mx, my)
@@ -5795,7 +5808,7 @@ function Element:update(dt)
                 self.callback(self, pressEvent)
                 self._pressed[button] = true
               end
-              
+
               -- Record drag start position per button
               self._dragStartX[button] = mx
               self._dragStartY[button] = my
@@ -5805,13 +5818,13 @@ function Element:update(dt)
               -- Button is still pressed - check for mouse movement (drag)
               local lastX = self._lastMouseX[button] or mx
               local lastY = self._lastMouseY[button] or my
-              
+
               if lastX ~= mx or lastY ~= my then
                 -- Mouse has moved - fire drag event
                 local modifiers = getModifiers()
                 local dx = mx - self._dragStartX[button]
                 local dy = my - self._dragStartY[button]
-                
+
                 local dragEvent = InputEvent.new({
                   type = "drag",
                   button = button,
@@ -5823,7 +5836,7 @@ function Element:update(dt)
                   clickCount = 1,
                 })
                 self.callback(self, dragEvent)
-                
+
                 -- Update last known position for this button
                 self._lastMouseX[button] = mx
                 self._lastMouseY[button] = my
@@ -5867,7 +5880,7 @@ function Element:update(dt)
 
             self.callback(self, clickEvent)
             self._pressed[button] = false
-            
+
             -- Clean up drag tracking
             self._dragStartX[button] = nil
             self._dragStartY[button] = nil
@@ -6174,7 +6187,7 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
     self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
   end
   -- For pixel units, height stays as-is (may have been manually modified)
-  
+
   -- Detect overflow after layout calculations
   self:_detectOverflow()
 end
@@ -6348,7 +6361,7 @@ function Element:calculateTextHeight()
   if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
     height = height * self.contentAutoSizingMultiplier.height
   end
-  
+
   return height
 end
 

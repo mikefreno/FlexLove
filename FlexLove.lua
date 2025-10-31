@@ -2385,15 +2385,20 @@ Gui._backdropCanvas = nil
 Gui._canvasDimensions = { width = 0, height = 0 }
 
 ---@param gameDrawFunc function|nil -- Function to draw game content, needed for backdrop blur
+---@param postDrawFunc function|nil -- Optional function to draw after GUI (for top-level shaders/effects)
 ---function love.draw()
 ---  FlexLove.Gui.draw(function()
 ---    --Game rendering logic
 ---    RenderSystem:update()
+---  end, function()
+---    -- Layers on top of GUI - blurs will not extend to this
+---    overlayStats.draw()
 ---  end)
---- -- Layers on top of GUI - blurs will not extend to this
---- overlayStats.draw()
 ---end
-function Gui.draw(gameDrawFunc)
+function Gui.draw(gameDrawFunc, postDrawFunc)
+  -- Save the current canvas state to support nested rendering
+  local outerCanvas = love.graphics.getCanvas()
+  
   local gameCanvas = nil
 
   -- Render game content to a canvas if function provided
@@ -2409,16 +2414,13 @@ function Gui.draw(gameDrawFunc)
     end
 
     gameCanvas = Gui._gameCanvas
-
-    -- Save the current canvas so we can restore it
-    local previousCanvas = love.graphics.getCanvas()
     
     love.graphics.setCanvas(gameCanvas)
     love.graphics.clear()
     gameDrawFunc() -- Call the drawing function
-    love.graphics.setCanvas(previousCanvas)
+    love.graphics.setCanvas(outerCanvas)
 
-    -- Draw game canvas to the previous canvas (or screen if none)
+    -- Draw game canvas to the outer canvas (or screen if none)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(gameCanvas, 0, 0)
   end
@@ -2460,20 +2462,20 @@ function Gui.draw(gameDrawFunc)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(gameCanvas, 0, 0)
 
-    -- Reset to screen
-    love.graphics.setCanvas()
+    -- Reset to outer canvas (screen or parent canvas)
+    love.graphics.setCanvas(outerCanvas)
     love.graphics.setColor(unpack(prevColor))
 
     -- Draw each element, updating backdrop canvas progressively
     for _, win in ipairs(Gui.topElements) do
-      -- Draw element with current backdrop state
+      -- Draw element with current backdrop state to outer canvas
       win:draw(backdropCanvas)
 
       -- Update backdrop canvas to include this element (for next elements)
       love.graphics.setCanvas(backdropCanvas)
       love.graphics.setColor(1, 1, 1, 1)
       win:draw(nil) -- Draw without backdrop blur to the backdrop canvas
-      love.graphics.setCanvas() -- Always reset to screen
+      love.graphics.setCanvas(outerCanvas) -- Reset to outer canvas
     end
   else
     -- No backdrop blur needed, draw normally
@@ -2482,8 +2484,13 @@ function Gui.draw(gameDrawFunc)
     end
   end
 
-  -- Ensure canvas is reset to screen at the end
-  love.graphics.setCanvas()
+  -- Call post-draw function if provided (for top-level shaders/effects)
+  if type(postDrawFunc) == "function" then
+    postDrawFunc()
+  end
+
+  -- Restore the original canvas state
+  love.graphics.setCanvas(outerCanvas)
 end
 
 --- Find the topmost element at given coordinates (considering z-index)

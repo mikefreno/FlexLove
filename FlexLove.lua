@@ -24,7 +24,6 @@ local Theme = req("flexlove.Theme")
 local RoundedRect = req("flexlove.RoundedRect")
 local NineSlice = req("flexlove.NineSlice")
 local utils = req("flexlove.utils")
-local constants = req("flexlove.constants")
 local Units = req("flexlove.Units")
 local Animation = req("flexlove.Animation")
 local GuiState = req("flexlove.GuiState")
@@ -34,7 +33,6 @@ local Element = req("flexlove.Element")
 
 -- Extract from utils
 local enums = utils.enums
-local getModifiers = utils.getModifiers
 
 local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
   enums.Positioning,

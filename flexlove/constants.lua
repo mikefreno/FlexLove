@@ -13,4 +13,6 @@ local TEXT_SIZE_PRESETS = {
   ["4xl"] = 7.0, -- 7vh
 }
 
-return { TEXT_SIZE_PRESETS }
+return {
+  TEXT_SIZE_PRESETS = TEXT_SIZE_PRESETS
+}

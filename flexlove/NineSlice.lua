@@ -4,7 +4,8 @@ Handles rendering of 9-patch components with Android-style scaling.
 Corners can be scaled independently while edges stretch in one dimension.
 ]]
 
-local ImageScaler = require("flexlove.ImageScaler")
+local modulePath = (...):match("(.-)[^%.]+$")
+local ImageScaler = require(modulePath .. "ImageScaler")
 
 --- Standardized error message formatter
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")

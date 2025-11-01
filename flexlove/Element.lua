@@ -2,6 +2,47 @@
 -- Element Object
 -- ====================
 
+-- Module dependencies (using relative paths)
+local modulePath = (...):match("(.-)[^%.]+$")
+local function req(name)
+  return require(modulePath .. name)
+end
+
+local GuiState = req("GuiState")
+local Theme = req("Theme")
+local Color = req("Color")
+local Units = req("Units")
+local Blur = req("Blur")
+local ImageRenderer = req("ImageRenderer")
+local NineSlice = req("NineSlice")
+local RoundedRect = req("RoundedRect")
+local Animation = req("Animation")
+local ImageCache = req("ImageCache")
+local utils = req("utils")
+local constants = req("constants")
+local Grid = req("Grid")
+local InputEvent = req("InputEvent")
+
+-- Extract utilities
+local enums = utils.enums
+local FONT_CACHE = utils.FONT_CACHE
+local resolveTextSizePreset = utils.resolveTextSizePreset
+local getModifiers = utils.getModifiers
+
+-- Extract enum values
+local Positioning = enums.Positioning
+local FlexDirection = enums.FlexDirection
+local JustifyContent = enums.JustifyContent
+local AlignContent = enums.AlignContent
+local AlignItems = enums.AlignItems
+local TextAlign = enums.TextAlign
+local AlignSelf = enums.AlignSelf
+local JustifySelf = enums.JustifySelf
+local FlexWrap = enums.FlexWrap
+
+-- Reference to Gui (via GuiState)
+local Gui = GuiState
+
 --[[
 INTERNAL FIELD NAMING CONVENTIONS:
 ---------------------------------
@@ -191,7 +232,7 @@ function Element.new(props)
     self.contentAutoSizingMultiplier = props.contentAutoSizingMultiplier
   else
     -- Try to source from theme
-    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
     if themeToUse then
       -- First check if themeComponent has a multiplier
       if self.themeComponent then
@@ -412,7 +453,7 @@ function Element.new(props)
     self.fontFamily = self.parent.fontFamily
   elseif props.themeComponent then
     -- If using themeComponent, try to get default from theme
-    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
     if themeToUse and themeToUse.fonts and themeToUse.fonts["default"] then
       self.fontFamily = "default"
     else
@@ -572,7 +613,7 @@ function Element.new(props)
   local use9PatchPadding = false
   local ninePatchContentPadding = nil
   if self.themeComponent then
-    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
     if themeToUse and themeToUse.components[self.themeComponent] then
       local component = themeToUse.components[self.themeComponent]
       if component._ninePatchData and component._ninePatchData.contentPadding then
@@ -602,7 +643,7 @@ function Element.new(props)
     -- Scale 9-patch content padding to match the actual rendered size
     -- The contentPadding values are in the original image's pixel coordinates,
     -- but we need to scale them proportionally to the element's actual size
-    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
     if themeToUse and themeToUse.components[self.themeComponent] then
       local component = themeToUse.components[self.themeComponent]
       local atlasImage = component._loadedAtlas or themeToUse.atlas
@@ -825,7 +866,7 @@ function Element.new(props)
       self.textColor = props.textColor
     else
       -- Try to get text color from theme
-      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
       if themeToUse and themeToUse.colors and themeToUse.colors.text then
         self.textColor = themeToUse.colors.text
       else
@@ -956,7 +997,7 @@ function Element.new(props)
       self.textColor = self.parent.textColor
     else
       -- Try to get text color from theme
-      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
       if themeToUse and themeToUse.colors and themeToUse.colors.text then
         self.textColor = themeToUse.colors.text
       else
@@ -1620,7 +1661,7 @@ function Element:getScaledContentPadding()
     return nil
   end
 
-  local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+  local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
   if not themeToUse or not themeToUse.components[self.themeComponent] then
     return nil
   end
@@ -2330,14 +2371,14 @@ function Element:draw(backdropCanvas)
     local themeToUse = nil
     if self.theme then
       -- Element specifies a specific theme - load it if needed
-      if themes[self.theme] then
-        themeToUse = themes[self.theme]
+      if Theme.get(self.theme) then
+        themeToUse = Theme.get(self.theme)
       else
         -- Try to load the theme
         pcall(function()
           Theme.load(self.theme)
         end)
-        themeToUse = themes[self.theme]
+        themeToUse = Theme.get(self.theme)
       end
     else
       -- Use active theme
@@ -2423,7 +2464,7 @@ function Element:draw(backdropCanvas)
       local fontPath = nil
       if self.fontFamily then
         -- Check if fontFamily is a theme font name
-        local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
         if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
           fontPath = themeToUse.fonts[self.fontFamily]
         else
@@ -2432,7 +2473,7 @@ function Element:draw(backdropCanvas)
         end
       elseif self.themeComponent then
         -- If using themeComponent but no fontFamily specified, check for default font in theme
-        local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
         if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
           fontPath = themeToUse.fonts.default
         end
@@ -3221,14 +3262,14 @@ function Element:calculateTextWidth()
     -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
     if self.fontFamily then
-      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
       if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
         fontPath = themeToUse.fonts[self.fontFamily]
       else
         fontPath = self.fontFamily
       end
     elseif self.themeComponent then
-      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
       if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
         fontPath = themeToUse.fonts.default
       end
@@ -3264,14 +3305,14 @@ function Element:calculateTextHeight()
     -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
     if self.fontFamily then
-      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
       if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
         fontPath = themeToUse.fonts[self.fontFamily]
       else
         fontPath = self.fontFamily
       end
     elseif self.themeComponent then
-      local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
       if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
         fontPath = themeToUse.fonts.default
       end
@@ -3917,7 +3958,7 @@ function Element:_getFont()
   -- Get font path from theme or element
   local fontPath = nil
   if self.fontFamily then
-    local themeToUse = self.theme and themes[self.theme] or Theme.getActive()
+    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
     if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
       fontPath = themeToUse.fonts[self.fontFamily]
     else

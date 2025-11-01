@@ -4,9 +4,11 @@ Manages theme loading, registration, and component/color/font access.
 Supports 9-patch images, component states, and dynamic theme switching.
 ]]
 
-local Color = require("flexlove.Color")
-local NinePatchParser = require("flexlove.NinePatchParser")
-local ImageScaler = require("flexlove.ImageScaler")
+local modulePath = (...):match("(.-)[^%.]+$")
+local function req(name) return require(modulePath .. name) end
+
+local NinePatchParser = req("NinePatchParser")
+local ImageScaler = req("ImageScaler")
 
 --- Standardized error message formatter
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")
@@ -488,6 +490,13 @@ function Theme.getColorOrDefault(colorName, fallback)
   end
 
   return fallback or Color.new(1, 1, 1, 1)
+end
+
+--- Get a theme by name
+---@param themeName string -- Name of the theme
+---@return Theme|nil -- Returns theme or nil if not found
+function Theme.get(themeName)
+  return themes[themeName]
 end
 
 return Theme

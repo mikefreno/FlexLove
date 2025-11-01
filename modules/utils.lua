@@ -213,7 +213,7 @@ local function getFlexLoveBasePath()
       local fsPath = filesystemPath
       fsPath = fsPath:gsub("^%./", "")
       fsPath = fsPath:gsub("/$", "")
-      fsPath = fsPath:gsub("/flexlove$", "")
+      fsPath = fsPath:gsub("/modules$", "")
       return fsPath
     end
   end

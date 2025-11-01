@@ -25,7 +25,7 @@ This library is under active development. While many features are functional, so
 
 ## Installation
 
-Copy the `FlexLove.lua` file into your project and require it:
+Add the `modules` directory and `FlexLove.lua` into your project and require it:
 
 ```lua
 local FlexLove = require("FlexLove")

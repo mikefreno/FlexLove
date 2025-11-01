@@ -5,7 +5,9 @@ Supports 9-patch images, component states, and dynamic theme switching.
 ]]
 
 local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name) return require(modulePath .. name) end
+local function req(name)
+  return require(modulePath .. name)
+end
 
 local NinePatchParser = req("NinePatchParser")
 local ImageScaler = req("ImageScaler")
@@ -30,7 +32,7 @@ local function getFlexLoveBasePath()
       source = source:sub(2)
     end
 
-    -- Extract the directory path (remove Theme.lua and flexlove/)
+    -- Extract the directory path (remove Theme.lua and modules/)
     local filesystemPath = source:match("(.*/)")
     if filesystemPath then
       -- Store the original filesystem path for loading assets
@@ -40,7 +42,7 @@ local function getFlexLoveBasePath()
       -- Remove trailing /
       fsPath = fsPath:gsub("/$", "")
       -- Remove the flexlove subdirectory to get back to base
-      fsPath = fsPath:gsub("/flexlove$", "")
+      fsPath = fsPath:gsub("/modules$", "")
 
       -- Convert filesystem path to Lua module path
       local modulePath = fsPath:gsub("/", ".")

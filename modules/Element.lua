@@ -171,6 +171,7 @@ Public API methods to access internal state:
 ---@field objectPosition string? -- Image position like "center center", "top left", "50% 50%" (default: "center center")
 ---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
 ---@field _loadedImage love.Image? -- Internal: cached loaded image
+---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
 local Element = {}
 Element.__index = Element
 
@@ -1126,6 +1127,22 @@ function Element.new(props)
   self.scrollbarRadius = props.scrollbarRadius or 6
   self.scrollbarPadding = props.scrollbarPadding or 2
   self.scrollSpeed = props.scrollSpeed or 20
+  
+  -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
+  if props.hideScrollbars ~= nil then
+    if type(props.hideScrollbars) == "boolean" then
+      self.hideScrollbars = { vertical = props.hideScrollbars, horizontal = props.hideScrollbars }
+    elseif type(props.hideScrollbars) == "table" then
+      self.hideScrollbars = {
+        vertical = props.hideScrollbars.vertical ~= nil and props.hideScrollbars.vertical or false,
+        horizontal = props.hideScrollbars.horizontal ~= nil and props.hideScrollbars.horizontal or false,
+      }
+    else
+      self.hideScrollbars = { vertical = false, horizontal = false }
+    end
+  else
+    self.hideScrollbars = { vertical = false, horizontal = false }
+  end
 
   -- Internal overflow state
   self._overflowX = false
@@ -1140,10 +1157,12 @@ function Element.new(props)
   self._maxScrollY = 0
 
   -- Scrollbar interaction state
-  self._scrollbarHovered = false
+  self._scrollbarHoveredVertical = false
+  self._scrollbarHoveredHorizontal = false
   self._scrollbarDragging = false
   self._hoveredScrollbar = nil -- "vertical" or "horizontal"
   self._scrollbarDragOffset = 0 -- Offset from thumb top when drag started
+  self._scrollbarPressHandled = false -- Track if scrollbar press was handled this frame
 
   return self
 end
@@ -1312,20 +1331,20 @@ function Element:_drawScrollbars(dims)
   local x, y = self.x, self.y
   local w, h = self.width, self.height
 
-  -- Determine thumb color based on state
-  local thumbColor = self.scrollbarColor
-  if self._scrollbarDragging then
-    -- Active state: brighter
-    thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
-  elseif self._scrollbarHovered then
-    -- Hover state: slightly brighter
-    thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
-  end
-
   -- Vertical scrollbar
-  if dims.vertical.visible then
+  if dims.vertical.visible and not self.hideScrollbars.vertical then
     local trackX = x + w - self.scrollbarWidth - self.scrollbarPadding + self.padding.left
     local trackY = y + self.scrollbarPadding + self.padding.top
+
+    -- Determine thumb color based on state (independent for vertical)
+    local thumbColor = self.scrollbarColor
+    if self._scrollbarDragging and self._hoveredScrollbar == "vertical" then
+      -- Active state: brighter
+      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
+    elseif self._scrollbarHoveredVertical then
+      -- Hover state: slightly brighter
+      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
+    end
 
     -- Draw track
     love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
@@ -1337,9 +1356,19 @@ function Element:_drawScrollbars(dims)
   end
 
   -- Horizontal scrollbar
-  if dims.horizontal.visible then
+  if dims.horizontal.visible and not self.hideScrollbars.horizontal then
     local trackX = x + self.scrollbarPadding + self.padding.left
     local trackY = y + h - self.scrollbarWidth - self.scrollbarPadding + self.padding.top
+
+    -- Determine thumb color based on state (independent for horizontal)
+    local thumbColor = self.scrollbarColor
+    if self._scrollbarDragging and self._hoveredScrollbar == "horizontal" then
+      -- Active state: brighter
+      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
+    elseif self._scrollbarHoveredHorizontal then
+      -- Hover state: slightly brighter
+      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
+    end
 
     -- Draw track
     love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
@@ -1370,8 +1399,8 @@ function Element:_getScrollbarAtPosition(mouseX, mouseY)
   local x, y = self.x, self.y
   local w, h = self.width, self.height
 
-  -- Check vertical scrollbar
-  if dims.vertical.visible then
+  -- Check vertical scrollbar (only if not hidden)
+  if dims.vertical.visible and not self.hideScrollbars.vertical then
     local trackX = x + w - self.scrollbarWidth - self.scrollbarPadding + self.padding.left
     local trackY = y + self.scrollbarPadding + self.padding.top
     local trackW = self.scrollbarWidth
@@ -1389,8 +1418,8 @@ function Element:_getScrollbarAtPosition(mouseX, mouseY)
     end
   end
 
-  -- Check horizontal scrollbar
-  if dims.horizontal.visible then
+  -- Check horizontal scrollbar (only if not hidden)
+  if dims.horizontal.visible and not self.hideScrollbars.horizontal then
     local trackX = x + self.scrollbarPadding + self.padding.left
     local trackY = y + h - self.scrollbarWidth - self.scrollbarPadding + self.padding.top
     local trackW = dims.horizontal.trackWidth
@@ -2699,15 +2728,29 @@ function Element:update(dt)
   -- Handle scrollbar hover detection
   local mx, my = love.mouse.getPosition()
   local scrollbar = self:_getScrollbarAtPosition(mx, my)
-  local wasHovered = self._scrollbarHovered
-  if scrollbar then
-    self._scrollbarHovered = true
-    self._hoveredScrollbar = scrollbar.component
+  
+  -- Update independent hover states for vertical and horizontal scrollbars
+  if scrollbar and scrollbar.component == "vertical" then
+    self._scrollbarHoveredVertical = true
+    self._hoveredScrollbar = "vertical"
   else
-    if not self._scrollbarDragging then
-      self._scrollbarHovered = false
-      self._hoveredScrollbar = nil
+    if not (self._scrollbarDragging and self._hoveredScrollbar == "vertical") then
+      self._scrollbarHoveredVertical = false
     end
+  end
+  
+  if scrollbar and scrollbar.component == "horizontal" then
+    self._scrollbarHoveredHorizontal = true
+    self._hoveredScrollbar = "horizontal"
+  else
+    if not (self._scrollbarDragging and self._hoveredScrollbar == "horizontal") then
+      self._scrollbarHoveredHorizontal = false
+    end
+  end
+  
+  -- Clear hoveredScrollbar if neither is hovered
+  if not scrollbar and not self._scrollbarDragging then
+    self._hoveredScrollbar = nil
   end
 
   -- Handle scrollbar dragging
@@ -2716,6 +2759,25 @@ function Element:update(dt)
   elseif self._scrollbarDragging then
     -- Mouse button released
     self._scrollbarDragging = false
+  end
+
+  -- Handle scrollbar click/press (independent of callback)
+  -- Check if we should handle scrollbar press for elements with overflow
+  local overflowX = self.overflowX or self.overflow
+  local overflowY = self.overflowY or self.overflow
+  local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
+  
+  if hasScrollableOverflow and not self._scrollbarDragging then
+    -- Check for scrollbar press on left mouse button
+    if love.mouse.isDown(1) and not self._scrollbarPressHandled then
+      local scrollbarPressed = self:_handleScrollbarPress(mx, my, 1)
+      if scrollbarPressed then
+        self._scrollbarPressHandled = true
+      end
+    elseif not love.mouse.isDown(1) then
+      -- Reset press handled flag when button is released
+      self._scrollbarPressHandled = false
+    end
   end
 
   -- Handle click detection for element with enhanced event system
@@ -2768,10 +2830,11 @@ function Element:update(dt)
           if love.mouse.isDown(button) then
             -- Button is pressed down
             if not self._pressed[button] then
-              -- Check if press is on scrollbar first
-              if button == 1 and self:_handleScrollbarPress(mx, my, button) then
+              -- Check if press is on scrollbar first (skip if already handled)
+              if button == 1 and not self._scrollbarPressHandled and self:_handleScrollbarPress(mx, my, button) then
                 -- Scrollbar consumed the event, mark as pressed to prevent callback
                 self._pressed[button] = true
+                self._scrollbarPressHandled = true
               else
                 -- Just pressed - fire press event and record drag start position
                 local modifiers = getModifiers()

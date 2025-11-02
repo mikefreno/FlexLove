@@ -1,5 +1,7 @@
 Cartographer.lua
 OverlayStats.lua
+lume.lua
+lurker.lua
 themes/metal/
 themes/space/
 .DS_STORE

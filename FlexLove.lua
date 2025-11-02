@@ -216,13 +216,20 @@ function Gui.getElementAtPosition(x, y)
   local candidates = {}
   local blockingElements = {}
 
-  local function collectHits(element)
+  local function collectHits(element, scrollOffsetX, scrollOffsetY)
+    scrollOffsetX = scrollOffsetX or 0
+    scrollOffsetY = scrollOffsetY or 0
+
     local bx = element.x
     local by = element.y
     local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
-    if x >= bx and x <= bx + bw and y >= by and y <= by + bh then
+    -- Adjust mouse position by accumulated scroll offset for hit testing
+    local adjustedX = x + scrollOffsetX
+    local adjustedY = y + scrollOffsetY
+
+    if adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh then
       -- Collect interactive elements (those with callbacks)
       if element.callback and not element.disabled then
         table.insert(candidates, element)
@@ -234,8 +241,22 @@ function Gui.getElementAtPosition(x, y)
         table.insert(blockingElements, element)
       end
 
+      -- Check if this element has scrollable overflow
+      local overflowX = element.overflowX or element.overflow
+      local overflowY = element.overflowY or element.overflow
+      local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" or
+                                     overflowX == "hidden" or overflowY == "hidden")
+
+      -- Accumulate scroll offset for children if this element has overflow clipping
+      local childScrollOffsetX = scrollOffsetX
+      local childScrollOffsetY = scrollOffsetY
+      if hasScrollableOverflow then
+        childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
+        childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
+      end
+
       for _, child in ipairs(element.children) do
-        collectHits(child)
+        collectHits(child, childScrollOffsetX, childScrollOffsetY)
       end
     end
   end

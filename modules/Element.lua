@@ -2848,7 +2848,28 @@ function Element:update(dt)
     local by = self.y
     local bw = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
     local bh = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-    local isHovering = mx >= bx and mx <= bx + bw and my >= by and my <= by + bh
+    
+    -- Account for scroll offsets from parent containers
+    -- Walk up the parent chain and accumulate scroll offsets
+    local scrollOffsetX = 0
+    local scrollOffsetY = 0
+    local current = self.parent
+    while current do
+      local overflowX = current.overflowX or current.overflow
+      local overflowY = current.overflowY or current.overflow
+      local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" or
+                                     overflowX == "hidden" or overflowY == "hidden")
+      if hasScrollableOverflow then
+        scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
+        scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
+      end
+      current = current.parent
+    end
+    
+    -- Adjust mouse position by accumulated scroll offset for hit testing
+    local adjustedMx = mx + scrollOffsetX
+    local adjustedMy = my + scrollOffsetY
+    local isHovering = adjustedMx >= bx and adjustedMx <= bx + bw and adjustedMy >= by and adjustedMy <= by + bh
 
     -- Check if this is the topmost element at the mouse position (z-index ordering)
     -- This prevents blocked elements from receiving interactions or visual feedback

@@ -1,16 +1,3 @@
-local TEXT_SIZE_PRESETS = {
-  ["2xs"] = 0.75, -- 0.75vh
-  xxs = 0.75, -- 0.75vh
-  xs = 1.25, -- 1.25vh
-  sm = 1.75, -- 1.75vh
-  md = 2.25, -- 2.25vh (default)
-  lg = 2.75, -- 2.75vh
-  xl = 3.5, -- 3.5vh
-  xxl = 4.5, -- 4.5vh
-  ["2xl"] = 4.5, -- 4.5vh
-  ["3xl"] = 5.0, -- 5vh
-  ["4xl"] = 7.0, -- 7vh
-}
 ---@class ElementProps
 ---@field id string?
 ---@field parent Element? -- Parent element for hierarchical structure
@@ -49,6 +36,11 @@ local TEXT_SIZE_PRESETS = {
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field callback fun(element:Element, event:InputEvent)? -- Callback function for interaction events
+---@field onFocus fun(element:Element, event:InputEvent)? -- Callback when element receives focus
+---@field onBlur fun(element:Element, event:InputEvent)? -- Callback when element loses focus
+---@field onTextInput fun(element:Element, text:string)? -- Callback when text is input
+---@field onTextChange fun(element:Element, text:string)? -- Callback when text content changes
+---@field onEnter fun(element:Element)? -- Callback when Enter key is pressed
 ---@field transform table? -- Transform properties for animations and styling
 ---@field transition table? -- Transition settings for animations
 ---@field gridRows number? -- Number of rows in the grid (default: 1)
@@ -80,7 +72,7 @@ local TEXT_SIZE_PRESETS = {
 ---@field cursorColor Color? -- Cursor color (default: nil, uses textColor)
 ---@field selectionColor Color? -- Selection background color (default: nil, uses theme or default)
 ---@field cursorBlinkRate number? -- Cursor blink rate in seconds (default: 0.5)
----@field overflow "visible"|"hidden"|"scroll"|"auto"? -- Overflow behavior (default: "visible")
+---@field overflow "visible"|"hidden"|"scroll"|"auto"? -- Overflow behavior (default: "hidden")
 ---@field overflowX "visible"|"hidden"|"scroll"|"auto"? -- X-axis overflow (overrides overflow)
 ---@field overflowY "visible"|"hidden"|"scroll"|"auto"? -- Y-axis overflow (overrides overflow)
 ---@field scrollbarWidth number? -- Width of scrollbar track in pixels (default: 12)
@@ -89,7 +81,20 @@ local TEXT_SIZE_PRESETS = {
 ---@field scrollbarRadius number? -- Corner radius for scrollbar (default: 6)
 ---@field scrollbarPadding number? -- Padding between scrollbar and edge (default: 2)
 ---@field scrollSpeed number? -- Pixels per wheel notch (default: 20)
+---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
+---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
+---@field image love.Image? -- Image object to display
+---@field objectFit "fill"|"contain"|"cover"|"scale-down"|"none"? -- Image fit mode (default: "fill")
+---@field objectPosition string? -- Image position like "center center", "top left", "50% 50%" (default: "center center")
+---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
 local ElementProps = {}
+
+---@class Border
+---@field top boolean
+---@field right boolean
+---@field bottom boolean
+---@field left boolean
+local Border = {}
 
 local enums = {
   ---@enum TextAlign

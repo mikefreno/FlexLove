@@ -2786,8 +2786,8 @@ function Element:update(dt)
     end
   end
 
-  -- Handle scrollbar hover detection
   local mx, my = love.mouse.getPosition()
+
   local scrollbar = self:_getScrollbarAtPosition(mx, my)
 
   -- Update independent hover states for vertical and horizontal scrollbars
@@ -2841,7 +2841,6 @@ function Element:update(dt)
     end
   end
 
-  -- Handle click detection for element with enhanced event system
   if self.callback or self.themeComponent then
     -- Clickable area is the border box (x, y already includes padding)
     -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection
@@ -2851,6 +2850,10 @@ function Element:update(dt)
     local bh = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
     local isHovering = mx >= bx and mx <= bx + bw and my >= by and my <= by + bh
 
+    -- Check if this is the topmost element at the mouse position (z-index ordering)
+    -- This prevents blocked elements from receiving interactions or visual feedback
+    local isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
+
     -- Update theme state based on interaction
     if self.themeComponent then
       -- Disabled state takes priority
@@ -2859,7 +2862,8 @@ function Element:update(dt)
       -- Active state (for inputs when focused/typing)
       elseif self.active then
         self._themeState = "active"
-      elseif isHovering then
+      -- Only show hover/pressed states if this element is active (not blocked)
+      elseif isHovering and isActiveElement then
         -- Check if any button is pressed
         local anyPressed = false
         for _, pressed in pairs(self._pressed) do
@@ -2881,7 +2885,6 @@ function Element:update(dt)
 
     -- Only process button events if callback exists, element is not disabled,
     -- and this is the topmost element at the mouse position (z-index ordering)
-    local isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
     if self.callback and not self.disabled and isActiveElement then
       -- Check all three mouse buttons
       local buttons = { 1, 2, 3 } -- left, right, middle

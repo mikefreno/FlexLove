@@ -85,27 +85,6 @@ function Gui.init(config)
   end
 end
 
---- Check for Z-index coverage (occlusion)
----@param elem Element
----@param clickX number
----@param clickY number
----@return boolean
-function Gui.isOccluded(elem, clickX, clickY)
-  for _, element in ipairs(Gui.topElements) do
-    if element.z > elem.z and element:contains(clickX, clickY) then
-      return true
-    end
-    for _, child in ipairs(element.children) do
-      if child.positioning == "absolute" then
-        if child.z > elem.z and child:contains(clickX, clickY) then
-          return true
-        end
-      end
-    end
-  end
-  return false
-end
-
 function Gui.resize()
   local newWidth, newHeight = love.window.getMode()
 
@@ -214,12 +193,28 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
   love.graphics.setCanvas(outerCanvas)
 end
 
+--- Check if element is an ancestor of target
+---@param element Element
+---@param target Element
+---@return boolean
+local function isAncestor(element, target)
+  local current = target.parent
+  while current do
+    if current == element then
+      return true
+    end
+    current = current.parent
+  end
+  return false
+end
+
 --- Find the topmost element at given coordinates
 ---@param x number
 ---@param y number
 ---@return Element?
 function Gui.getElementAtPosition(x, y)
   local candidates = {}
+  local blockingElements = {}
 
   local function collectHits(element)
     local bx = element.x
@@ -228,8 +223,15 @@ function Gui.getElementAtPosition(x, y)
     local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
     if x >= bx and x <= bx + bw and y >= by and y <= by + bh then
+      -- Collect interactive elements (those with callbacks)
       if element.callback and not element.disabled then
         table.insert(candidates, element)
+      end
+
+      -- Collect all visible elements for input blocking
+      -- Elements with opacity > 0 block input to elements below them
+      if element.opacity > 0 then
+        table.insert(blockingElements, element)
       end
 
       for _, child in ipairs(element.children) do
@@ -242,11 +244,37 @@ function Gui.getElementAtPosition(x, y)
     collectHits(element)
   end
 
+  -- Sort both lists by z-index (highest first)
   table.sort(candidates, function(a, b)
     return a.z > b.z
   end)
 
-  return candidates[1]
+  table.sort(blockingElements, function(a, b)
+    return a.z > b.z
+  end)
+
+  -- If we have interactive elements, return the topmost one
+  -- But only if there's no blocking element with higher z-index (that isn't an ancestor)
+  if #candidates > 0 then
+    local topCandidate = candidates[1]
+
+    -- Check if any blocking element would prevent this interaction
+    if #blockingElements > 0 then
+      local topBlocker = blockingElements[1]
+      -- If the top blocker has higher z-index than the top candidate,
+      -- and the blocker is NOT an ancestor of the candidate,
+      -- return the blocker (even though it has no callback, it blocks input)
+      if topBlocker.z > topCandidate.z and not isAncestor(topBlocker, topCandidate) then
+        return topBlocker
+      end
+    end
+
+    return topCandidate
+  end
+
+  -- No interactive elements, but return topmost blocking element if any
+  -- This prevents clicks from passing through non-interactive overlays
+  return blockingElements[1]
 end
 
 function Gui.update(dt)

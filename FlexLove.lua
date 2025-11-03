@@ -7,25 +7,26 @@ For full documentation, see README.md
 
 local modulePath = (...):match("(.-)[^%.]+$") -- Get the module path prefix (e.g., "libs." or "")
 local function req(name)
-  return require(modulePath .. name)
+  return require(modulePath .. "modules." .. name)
 end
 
 -- internals
-local Blur = req("modules.Blur")
-local ImageDataReader = req("modules.ImageDataReader")
-local NinePatchParser = req("modules.NinePatchParser")
-local Theme = req("modules.Theme")
-local utils = req("modules.utils")
-local Units = req("modules.Units")
-local GuiState = req("modules.GuiState")
+local Blur = req("Blur")
+local ImageDataReader = req("ImageDataReader")
+local NinePatchParser = req("NinePatchParser")
+local utils = req("utils")
+local Units = req("Units")
+local GuiState = req("GuiState")
 
 -- externals
+---@type Theme
+local Theme = req("Theme")
 ---@type Animation
-local Animation = req("modules.Animation")
+local Animation = req("Animation")
 ---@type Color
-local Color = req("modules.Color")
+local Color = req("Color")
 ---@type Element
-local Element = req("modules.Element")
+local Element = req("Element")
 
 local enums = utils.enums
 
@@ -394,6 +395,7 @@ return {
   Gui = Gui,
   Element = Element,
   Color = Color,
+  Theme = Theme,
   Positioning = Positioning,
   FlexDirection = FlexDirection,
   JustifyContent = JustifyContent,

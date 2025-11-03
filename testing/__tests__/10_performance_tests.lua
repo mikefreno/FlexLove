@@ -3,7 +3,7 @@ package.path = package.path .. ";?.lua"
 local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 local FlexLove = require("FlexLove")
-local Gui, enums = FlexLove.GUI, FlexLove.enums
+local Gui, enums = FlexLove.Gui, FlexLove.enums
 local Positioning = enums.Positioning
 local FlexDirection = enums.FlexDirection
 local JustifyContent = enums.JustifyContent
@@ -386,10 +386,7 @@ function TestPerformance:testStressTestWithMaximumElements()
   print(string.format("Stress Test (%d elements): %.6f seconds", stress_count, time))
 
   -- Stress test should complete within reasonable time even with many elements
-  luaunit.assertTrue(
-    time < 0.05,
-    string.format("Stress test with %d elements should complete within 0.05 seconds", stress_count)
-  )
+  luaunit.assertTrue(time < 0.05, string.format("Stress test with %d elements should complete within 0.05 seconds", stress_count))
 
   -- Verify that all children are positioned
   local positioned_count = 0
@@ -760,8 +757,7 @@ function TestPerformance:testHighFrequencyDynamicLayoutUpdates()
           section:layoutChildren()
         elseif scenario.name == "Justify Content Cycling" then
           local section = sections[(i % #sections) + 1]
-          local justifies =
-            { JustifyContent.FLEX_START, JustifyContent.CENTER, JustifyContent.FLEX_END, JustifyContent.SPACE_BETWEEN }
+          local justifies = { JustifyContent.FLEX_START, JustifyContent.CENTER, JustifyContent.FLEX_END, JustifyContent.SPACE_BETWEEN }
           section.justifyContent = justifies[(i % #justifies) + 1]
           section:layoutChildren()
         elseif scenario.name == "Gap Modifications" then
@@ -1264,8 +1260,7 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
             elements_used = elements_used + 1
 
             if current_depth < max_depth - 1 then
-              elements_used = elements_used
-                + createBranching(branch, remaining_elements - elements_used, current_depth + 1, max_depth)
+              elements_used = elements_used + createBranching(branch, remaining_elements - elements_used, current_depth + 1, max_depth)
             end
 
             if elements_used >= remaining_elements then
@@ -1376,22 +1371,11 @@ function TestPerformance:testExtremeScalePerformanceBenchmark()
       depth = test_metrics.max_depth,
     }
 
-    print(
-      string.format(
-        "    %s: %d elements, %.6f seconds (%.0f elem/sec)",
-        test_config.name,
-        test_metrics.created_elements,
-        test_time,
-        elements_per_second
-      )
-    )
+    print(string.format("    %s: %d elements, %.6f seconds (%.0f elem/sec)", test_config.name, test_metrics.created_elements, test_time, elements_per_second))
 
     -- Individual test assertions
     luaunit.assertTrue(test_time < 1.0, string.format("%s should complete within 1 seconds", test_config.name))
-    luaunit.assertTrue(
-      test_metrics.created_elements > 50,
-      string.format("%s should create substantial elements", test_config.name)
-    )
+    luaunit.assertTrue(test_metrics.created_elements > 50, string.format("%s should create substantial elements", test_config.name))
   end
 
   -- Overall benchmark analysis

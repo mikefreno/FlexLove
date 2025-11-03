@@ -3,7 +3,7 @@ package.path = package.path .. ";?.lua"
 local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 local FlexLove = require("FlexLove")
-local Gui, Color, enums = FlexLove.GUI, FlexLove.Color, FlexLove.enums
+local Gui, Color, enums = FlexLove.Gui, FlexLove.Color, FlexLove.enums
 
 TestAuxiliaryFunctions = {}
 
@@ -578,24 +578,9 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
     }
 
     -- Verify hex parsing (FlexLove uses 0-255 range)
-    luaunit.assertAlmostEquals(
-      hex_color.r / 255,
-      color_def.r,
-      0.01,
-      string.format("%s hex red component mismatch", color_def.name)
-    )
-    luaunit.assertAlmostEquals(
-      hex_color.g / 255,
-      color_def.g,
-      0.01,
-      string.format("%s hex green component mismatch", color_def.name)
-    )
-    luaunit.assertAlmostEquals(
-      hex_color.b / 255,
-      color_def.b,
-      0.01,
-      string.format("%s hex blue component mismatch", color_def.name)
-    )
+    luaunit.assertAlmostEquals(hex_color.r / 255, color_def.r, 0.01, string.format("%s hex red component mismatch", color_def.name))
+    luaunit.assertAlmostEquals(hex_color.g / 255, color_def.g, 0.01, string.format("%s hex green component mismatch", color_def.name))
+    luaunit.assertAlmostEquals(hex_color.b / 255, color_def.b, 0.01, string.format("%s hex blue component mismatch", color_def.name))
   end
 
   -- Test color variations (opacity, brightness adjustments)
@@ -608,11 +593,7 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
       local variant_color = Color.new(color_set.manual.r, color_set.manual.g, color_set.manual.b, opacity)
       color_variations[color_name]["alpha_" .. tostring(opacity)] = variant_color
 
-      luaunit.assertEquals(
-        variant_color.a,
-        opacity,
-        string.format("%s opacity variant should have correct alpha", color_name)
-      )
+      luaunit.assertEquals(variant_color.a, opacity, string.format("%s opacity variant should have correct alpha", color_name))
     end
 
     -- Create brightness variations
@@ -625,10 +606,7 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
       local bright_color = Color.new(bright_r, bright_g, bright_b, 1.0)
       color_variations[color_name]["bright_" .. tostring(factor)] = bright_color
 
-      luaunit.assertTrue(
-        bright_r <= 1.0 and bright_g <= 1.0 and bright_b <= 1.0,
-        "Brightness variations should not exceed 1.0"
-      )
+      luaunit.assertTrue(bright_r <= 1.0 and bright_g <= 1.0 and bright_b <= 1.0, "Brightness variations should not exceed 1.0")
     end
   end
 
@@ -699,14 +677,7 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
   end
   luaunit.assertTrue(total_variations >= 50, "Should have created numerous color variations")
 
-  print(
-    string.format(
-      "Color Management System: %d base colors, %d variations, %d UI components",
-      #base_colors,
-      total_variations,
-      #ui_container.children
-    )
-  )
+  print(string.format("Color Management System: %d base colors, %d variations, %d UI components", #base_colors, total_variations, #ui_container.children))
 end
 
 -- ============================================
@@ -887,16 +858,8 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
         end
       else
         -- Without autoresize, dimensions should remain the same
-        luaunit.assertEquals(
-          element.w,
-          original_width,
-          string.format("%s: Width should not change without autoresize", update.target)
-        )
-        luaunit.assertEquals(
-          element.h,
-          original_height,
-          string.format("%s: Height should not change without autoresize", update.target)
-        )
+        luaunit.assertEquals(element.w, original_width, string.format("%s: Width should not change without autoresize", update.target))
+        luaunit.assertEquals(element.h, original_height, string.format("%s: Height should not change without autoresize", update.target))
       end
     end
   end
@@ -947,11 +910,7 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
   -- Perform layout and verify
   main_container:layoutChildren()
 
-  luaunit.assertEquals(
-    #main_container.children,
-    #text_scenarios + 1,
-    "Should have scenario containers plus nested container"
-  )
+  luaunit.assertEquals(#main_container.children, #text_scenarios + 1, "Should have scenario containers plus nested container")
 
   -- Count text_metrics (it's a table with string keys, not an array)
   local metrics_count = 0
@@ -960,14 +919,7 @@ function TestAuxiliaryFunctions:testAdvancedTextAndAutoSizingSystem()
   end
   luaunit.assertTrue(metrics_count >= #text_scenarios, "Should have metrics for all scenarios")
 
-  print(
-    string.format(
-      "Text Management System: %d scenarios, %d metrics, %d updates",
-      #text_scenarios,
-      #content_manager.text_metrics,
-      #dynamic_updates
-    )
-  )
+  print(string.format("Text Management System: %d scenarios, %d metrics, %d updates", #text_scenarios, #content_manager.text_metrics, #dynamic_updates))
 end
 
 -- ============================================
@@ -1052,8 +1004,7 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
       table.insert(case_container.children, element)
 
       -- Create animation based on type
-      local duration = test_case.duration_range[1]
-        + (math.random() * (test_case.duration_range[2] - test_case.duration_range[1]))
+      local duration = test_case.duration_range[1] + (math.random() * (test_case.duration_range[2] - test_case.duration_range[1]))
 
       local animation
       if test_case.animation_type == "fade" then
@@ -1192,10 +1143,7 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
           local progress = anim_data.animation.elapsed / anim_data.animation.duration
           local interpolated = anim_data.animation:interpolate()
 
-          luaunit.assertTrue(
-            progress >= 0 and progress <= 1,
-            string.format("Animation progress should be 0-1, got %.3f", progress)
-          )
+          luaunit.assertTrue(progress >= 0 and progress <= 1, string.format("Animation progress should be 0-1, got %.3f", progress))
           luaunit.assertNotNil(interpolated, "Interpolation should return values")
         end
       end
@@ -1225,10 +1173,7 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
   -- Verify animation system functionality
   luaunit.assertTrue(total_animations > 20, "Should have created substantial number of animations")
   luaunit.assertTrue(total_completed > 0, "Some animations should have completed")
-  luaunit.assertTrue(
-    animation_system.performance_metrics.completion_rate > 0.5,
-    "Majority of animations should complete within simulation time"
-  )
+  luaunit.assertTrue(animation_system.performance_metrics.completion_rate > 0.5, "Majority of animations should complete within simulation time")
 
   -- Test animation chaining and sequencing
   local chain_element = Gui.new({ width = 100, height = 50, opacity = 1.0 })
@@ -1260,11 +1205,7 @@ function TestAuxiliaryFunctions:testComprehensiveAnimationEngine()
   -- Perform final layout
   animation_container:layoutChildren()
 
-  luaunit.assertEquals(
-    #animation_container.children,
-    #animation_test_cases + 1,
-    "Should have containers for each test case plus chain element"
-  )
+  luaunit.assertEquals(#animation_container.children, #animation_test_cases + 1, "Should have containers for each test case plus chain element")
 
   print(
     string.format(
@@ -1529,11 +1470,7 @@ function TestAuxiliaryFunctions:testAdvancedGUIManagementAndCleanup()
     luaunit.assertEquals(#sidebar_element.children, 0, "Destroyed element should have no children")
 
     if sidebar_parent then
-      luaunit.assertEquals(
-        #sidebar_parent.children,
-        original_parent_children - 1,
-        "Parent should have one fewer child after destruction"
-      )
+      luaunit.assertEquals(#sidebar_parent.children, original_parent_children - 1, "Parent should have one fewer child after destruction")
     end
   end
 
@@ -1922,14 +1859,7 @@ function TestAuxiliaryFunctions:testExtremeEdgeCasesAndErrorResilience()
     end
   end
 
-  print(
-    string.format(
-      "Edge Case Testing: %d/%d tests handled gracefully (%.1f%%)",
-      successful_tests,
-      total_tests,
-      (successful_tests / total_tests) * 100
-    )
-  )
+  print(string.format("Edge Case Testing: %d/%d tests handled gracefully (%.1f%%)", successful_tests, total_tests, (successful_tests / total_tests) * 100))
 
   luaunit.assertTrue(successful_tests / total_tests > 0.8, "Should handle majority of edge cases gracefully")
 end

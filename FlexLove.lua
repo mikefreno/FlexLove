@@ -5,33 +5,28 @@ LICENSE: MIT
 For full documentation, see README.md
 ]]
 
--- ====================
--- Module Imports (using relative paths)
--- ====================
 local modulePath = (...):match("(.-)[^%.]+$") -- Get the module path prefix (e.g., "libs." or "")
 local function req(name)
   return require(modulePath .. name)
 end
 
+-- internals
 local Blur = req("modules.Blur")
-local Color = req("modules.Color")
 local ImageDataReader = req("modules.ImageDataReader")
 local NinePatchParser = req("modules.NinePatchParser")
-local ImageScaler = req("modules.ImageScaler")
-local ImageCache = req("modules.ImageCache")
-local ImageRenderer = req("modules.ImageRenderer")
 local Theme = req("modules.Theme")
-local RoundedRect = req("modules.RoundedRect")
-local NineSlice = req("modules.NineSlice")
 local utils = req("modules.utils")
 local Units = req("modules.Units")
-local Animation = req("modules.Animation")
 local GuiState = req("modules.GuiState")
-local Grid = req("modules.Grid")
-local InputEvent = req("modules.InputEvent")
+
+-- externals
+---@type Animation
+local Animation = req("modules.Animation")
+---@type Color
+local Color = req("modules.Color")
+---@type Element
 local Element = req("modules.Element")
 
--- Extract from utils
 local enums = utils.enums
 
 local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
@@ -244,8 +239,14 @@ function Gui.getElementAtPosition(x, y)
       -- Check if this element has scrollable overflow
       local overflowX = element.overflowX or element.overflow
       local overflowY = element.overflowY or element.overflow
-      local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" or
-                                     overflowX == "hidden" or overflowY == "hidden")
+      local hasScrollableOverflow = (
+        overflowX == "scroll"
+        or overflowX == "auto"
+        or overflowY == "scroll"
+        or overflowY == "auto"
+        or overflowX == "hidden"
+        or overflowY == "hidden"
+      )
 
       -- Accumulate scroll offset for children if this element has overflow clipping
       local childScrollOffsetX = scrollOffsetX
@@ -390,26 +391,9 @@ Gui.ImageDataReader = ImageDataReader
 Gui.NinePatchParser = NinePatchParser
 
 return {
-  -- Core
   Gui = Gui,
-  GUI = Gui, -- Backward compatibility alias
   Element = Element,
-
-  -- Submodules (exposed for direct access)
-  Blur = Blur,
   Color = Color,
-  ImageDataReader = ImageDataReader,
-  NinePatchParser = NinePatchParser,
-  ImageScaler = ImageScaler,
-  ImageCache = ImageCache,
-  ImageRenderer = ImageRenderer,
-  Theme = Theme,
-  RoundedRect = RoundedRect,
-  NineSlice = NineSlice,
-  Grid = Grid,
-  InputEvent = InputEvent,
-
-  -- Enums (individual)
   Positioning = Positioning,
   FlexDirection = FlexDirection,
   JustifyContent = JustifyContent,
@@ -419,7 +403,5 @@ return {
   AlignSelf = AlignSelf,
   JustifySelf = JustifySelf,
   FlexWrap = FlexWrap,
-
-  -- Enums (backward compatibility - grouped)
   enums = enums,
 }

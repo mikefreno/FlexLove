@@ -29,7 +29,7 @@ Add the `modules` directory and `FlexLove.lua` into your project and require it:
 
 ```lua
 local FlexLove = require("FlexLove")
-local Gui = FlexLove.GUI
+local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 ```
 

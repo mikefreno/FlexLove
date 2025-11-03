@@ -172,6 +172,7 @@ Public API methods to access internal state:
 ---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
 ---@field _loadedImage love.Image? -- Internal: cached loaded image
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
+---@field userdata table?
 local Element = {}
 Element.__index = Element
 
@@ -182,6 +183,7 @@ function Element.new(props)
   self.children = {}
   self.callback = props.callback
   self.id = props.id or ""
+  self.userdata = props.userdata
 
   -- Input event callbacks
   self.onFocus = props.onFocus
@@ -2848,7 +2850,7 @@ function Element:update(dt)
     local by = self.y
     local bw = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
     local bh = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-    
+
     -- Account for scroll offsets from parent containers
     -- Walk up the parent chain and accumulate scroll offsets
     local scrollOffsetX = 0
@@ -2857,15 +2859,21 @@ function Element:update(dt)
     while current do
       local overflowX = current.overflowX or current.overflow
       local overflowY = current.overflowY or current.overflow
-      local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" or
-                                     overflowX == "hidden" or overflowY == "hidden")
+      local hasScrollableOverflow = (
+        overflowX == "scroll"
+        or overflowX == "auto"
+        or overflowY == "scroll"
+        or overflowY == "auto"
+        or overflowX == "hidden"
+        or overflowY == "hidden"
+      )
       if hasScrollableOverflow then
         scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
         scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
       end
       current = current.parent
     end
-    
+
     -- Adjust mouse position by accumulated scroll offset for hit testing
     local adjustedMx = mx + scrollOffsetX
     local adjustedMy = my + scrollOffsetY

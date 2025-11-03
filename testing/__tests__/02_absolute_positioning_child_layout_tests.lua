@@ -7,7 +7,7 @@ package.path = package.path .. ";?.lua"
 local luaunit = require("testing.luaunit")
 require("testing.loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
-local Gui, enums = FlexLove.GUI, FlexLove.enums
+local Gui, enums = FlexLove.Gui, FlexLove.enums
 
 local Positioning = enums.Positioning
 local FlexDirection = enums.FlexDirection
@@ -615,11 +615,7 @@ function TestAbsolutePositioningChildLayout:testDeepHierarchyMixedPositioning()
   luaunit.assertEquals(absoluteRoot.children[1], flexLevel1)
 
   luaunit.assertEquals(#flexLevel1.children, 3)
-  luaunit.assertTrue(
-    flexLevel1.children[1] == absoluteChild1
-      or flexLevel1.children[2] == absoluteChild1
-      or flexLevel1.children[3] == absoluteChild1
-  )
+  luaunit.assertTrue(flexLevel1.children[1] == absoluteChild1 or flexLevel1.children[2] == absoluteChild1 or flexLevel1.children[3] == absoluteChild1)
 
   luaunit.assertEquals(#flexChild1.children, 1)
   luaunit.assertEquals(flexChild1.children[1], absoluteGrandchild)

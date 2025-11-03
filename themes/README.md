@@ -173,7 +173,7 @@ Legend:
 ```lua
 local FlexLove = require("FlexLove")
 local Theme = FlexLove.Theme
-local Gui = FlexLove.GUI
+local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 
 -- Load theme

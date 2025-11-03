@@ -6,7 +6,7 @@ package.path = package.path .. ";?.lua"
 local lu = require("testing.luaunit")
 require("testing.loveStub")
 local FlexLove = require("FlexLove")
-local Gui = FlexLove.GUI
+local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 
 TestSiblingSpaceReservation = {}

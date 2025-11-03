@@ -6,7 +6,7 @@ package.path = package.path .. ";?.lua"
 local luaunit = require("testing.luaunit")
 require("testing.loveStub") -- Required to mock LOVE functions
 local FlexLove = require("FlexLove")
-local Gui = FlexLove.GUI
+local Gui = FlexLove.Gui
 
 -- Test suite for comprehensive text scaling
 TestTextScaling = {}

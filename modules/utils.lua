@@ -87,6 +87,7 @@
 ---@field objectFit "fill"|"contain"|"cover"|"scale-down"|"none"? -- Image fit mode (default: "fill")
 ---@field objectPosition string? -- Image position like "center center", "top left", "50% 50%" (default: "center center")
 ---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
+---@field userdata table? -- put whatever here
 local ElementProps = {}
 
 ---@class Border

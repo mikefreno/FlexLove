@@ -3,7 +3,7 @@ package.path = package.path .. ";./?.lua;./game/?.lua;./game/utils/?.lua;./game/
 local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 local FlexLove = require("FlexLove")
-local Gui, enums = FlexLove.GUI, FlexLove.enums
+local Gui, enums = FlexLove.Gui, FlexLove.enums
 local Positioning = enums.Positioning
 local FlexDirection = enums.FlexDirection
 local FlexWrap = enums.FlexWrap
@@ -538,8 +538,7 @@ function TestFlexWrap15_WrapWithMixedPositioning()
 
   -- Create flex children and one absolute child
   local child1 = createChild(container, { width = 80, height = 30 }) -- flex child
-  local child2 =
-    createChild(container, { width = 80, height = 30, positioning = Positioning.ABSOLUTE, x = 150, y = 50 }) -- absolute child
+  local child2 = createChild(container, { width = 80, height = 30, positioning = Positioning.ABSOLUTE, x = 150, y = 50 }) -- absolute child
   local child3 = createChild(container, { width = 80, height = 30 }) -- flex child
   local child4 = createChild(container, { width = 80, height = 30 }) -- flex child - should wrap
 

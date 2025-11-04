@@ -12,11 +12,15 @@ end
 
 -- internals
 local Blur = req("Blur")
+local ImageCache = req("ImageCache")
 local ImageDataReader = req("ImageDataReader")
+local ImageRenderer = req("ImageRenderer")
+local ImageScaler = req("ImageScaler")
 local NinePatchParser = req("NinePatchParser")
 local utils = req("utils")
 local Units = req("Units")
 local GuiState = req("GuiState")
+local ImmediateModeState = req("ImmediateModeState")
 
 -- externals
 ---@type Theme
@@ -49,7 +53,7 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
 local Gui = GuiState
 
 --- Initialize FlexLove with configuration
----@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition}
+---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number}
 function Gui.init(config)
   if config.baseScale then
     Gui.baseScale = {
@@ -79,6 +83,24 @@ function Gui.init(config)
       print("[FlexLove] Failed to load theme: " .. tostring(err))
     end
   end
+
+  -- Initialize immediate mode if requested
+  if config.immediateMode then
+    Gui._immediateMode = true
+    Gui._immediateModeState = ImmediateModeState
+
+    -- Configure state management
+    if config.stateRetentionFrames or config.maxStateEntries then
+      ImmediateModeState.configure({
+        stateRetentionFrames = config.stateRetentionFrames,
+        maxStateEntries = config.maxStateEntries,
+      })
+    end
+  else
+    -- Explicitly disable immediate mode if not requested
+    Gui._immediateMode = false
+    Gui._immediateModeState = nil
+  end
 end
 
 function Gui.resize()
@@ -98,6 +120,63 @@ function Gui.resize()
   for _, win in ipairs(Gui.topElements) do
     win:resize(newWidth, newHeight)
   end
+end
+
+--- Begin a new immediate mode frame
+function Gui.beginFrame()
+  if not Gui._immediateMode then
+    return
+  end
+
+  -- Increment frame counter
+  Gui._frameNumber = Gui._frameNumber + 1
+  ImmediateModeState.incrementFrame()
+
+  -- Clear current frame elements
+  Gui._currentFrameElements = {}
+
+  -- Clear top elements (they will be recreated this frame)
+  Gui.topElements = {}
+end
+
+--- End the current immediate mode frame
+function Gui.endFrame()
+  if not Gui._immediateMode then
+    return
+  end
+
+  -- Save state back for all elements created this frame
+  for _, element in ipairs(Gui._currentFrameElements) do
+    if element.id and element.id ~= "" then
+      local state = ImmediateModeState.getState(element.id, {})
+
+      -- Save stateful properties back to persistent state
+      state._pressed = element._pressed
+      state._lastClickTime = element._lastClickTime
+      state._lastClickButton = element._lastClickButton
+      state._clickCount = element._clickCount
+      state._dragStartX = element._dragStartX
+      state._dragStartY = element._dragStartY
+      state._lastMouseX = element._lastMouseX
+      state._lastMouseY = element._lastMouseY
+      state._hovered = element._hovered
+      state._focused = element._focused
+      state._cursorPosition = element._cursorPosition
+      state._selectionStart = element._selectionStart
+      state._selectionEnd = element._selectionEnd
+      state._textBuffer = element._textBuffer
+      state._scrollX = element._scrollX
+      state._scrollY = element._scrollY
+
+      ImmediateModeState.setState(element.id, state)
+    end
+  end
+
+  -- Cleanup stale states
+  ImmediateModeState.cleanup()
+
+  -- Force cleanup if we have too many states
+  ImmediateModeState.forceCleanupIfNeeded()
 end
 
 -- Canvas cache for game rendering
@@ -384,12 +463,144 @@ function Gui.destroy()
   Gui._focusedElement = nil
 end
 
-Gui.new = Element.new
+-- ====================
+-- Immediate Mode API
+-- ====================
+
+--- Create a new element (supports both immediate and retained mode)
+---@param props table
+---@return Element
+function Gui.new(props)
+  props = props or {}
+
+  -- If not in immediate mode, use standard Element.new
+  if not Gui._immediateMode then
+    return Element.new(props)
+  end
+
+  -- Immediate mode: generate ID if not provided
+  if not props.id then
+    props.id = ImmediateModeState.generateID(props)
+  end
+
+  -- Get or create state for this element
+  local state = ImmediateModeState.getState(props.id, {})
+
+  -- Mark state as used this frame
+  ImmediateModeState.markStateUsed(props.id)
+
+  -- Create the element
+  local element = Element.new(props)
+
+  -- Bind persistent state to element
+  -- Copy stateful properties from persistent state
+  element._pressed = state._pressed or {}
+  element._lastClickTime = state._lastClickTime
+  element._lastClickButton = state._lastClickButton
+  element._clickCount = state._clickCount or 0
+  element._dragStartX = state._dragStartX or element._dragStartX or {}
+  element._dragStartY = state._dragStartY or element._dragStartY or {}
+  element._lastMouseX = state._lastMouseX or element._lastMouseX or {}
+  element._lastMouseY = state._lastMouseY or element._lastMouseY or {}
+  element._hovered = state._hovered
+  element._focused = state._focused
+  element._cursorPosition = state._cursorPosition
+  element._selectionStart = state._selectionStart
+  element._selectionEnd = state._selectionEnd
+  element._textBuffer = state._textBuffer or element.text or ""
+  element._scrollX = state._scrollX or element._scrollX or 0
+  element._scrollY = state._scrollY or element._scrollY or 0
+
+  -- Store element in current frame tracking
+  table.insert(Gui._currentFrameElements, element)
+
+  -- Save state back at end of frame (we'll do this in endFrame)
+  -- For now, we need to update the state when properties change
+  -- This is a simplified approach - a full implementation would use
+  -- a more sophisticated state synchronization mechanism
+
+  return element
+end
+
+--- Get state count (for debugging)
+---@return number
+function Gui.getStateCount()
+  if not Gui._immediateMode then
+    return 0
+  end
+  return ImmediateModeState.getStateCount()
+end
+
+--- Clear state for a specific element ID
+---@param id string
+function Gui.clearState(id)
+  if not Gui._immediateMode then
+    return
+  end
+  ImmediateModeState.clearState(id)
+end
+
+--- Clear all immediate mode states
+function Gui.clearAllStates()
+  if not Gui._immediateMode then
+    return
+  end
+  ImmediateModeState.clearAllStates()
+end
+
+--- Get state statistics (for debugging)
+---@return table
+function Gui.getStateStats()
+  if not Gui._immediateMode then
+    return { stateCount = 0, frameNumber = 0 }
+  end
+  return ImmediateModeState.getStats()
+end
+
+--- Helper function: Create a button with default styling
+---@param props table
+---@return Element
+function Gui.button(props)
+  props = props or {}
+  props.themeComponent = props.themeComponent or "button"
+  return Gui.new(props)
+end
+
+--- Helper function: Create a panel/container
+---@param props table
+---@return Element
+function Gui.panel(props)
+  props = props or {}
+  return Gui.new(props)
+end
+
+--- Helper function: Create a text label
+---@param props table
+---@return Element
+function Gui.text(props)
+  props = props or {}
+  return Gui.new(props)
+end
+
+--- Helper function: Create an input field
+---@param props table
+---@return Element
+function Gui.input(props)
+  props = props or {}
+  props.editable = true
+  return Gui.new(props)
+end
+
+-- Export original Element.new for direct access if needed
 Gui.Element = Element
 Gui.Animation = Animation
 Gui.Theme = Theme
+Gui.ImageCache = ImageCache
 Gui.ImageDataReader = ImageDataReader
+Gui.ImageRenderer = ImageRenderer
+Gui.ImageScaler = ImageScaler
 Gui.NinePatchParser = NinePatchParser
+Gui.ImmediateModeState = ImmediateModeState
 
 return {
   Gui = Gui,
@@ -406,4 +617,8 @@ return {
   JustifySelf = JustifySelf,
   FlexWrap = FlexWrap,
   enums = enums,
+  -- generally should not be used directly, exported for testing, mainly
+  ImageCache = ImageCache,
+  ImageRenderer = ImageRenderer,
+  ImageScaler = ImageScaler,
 }

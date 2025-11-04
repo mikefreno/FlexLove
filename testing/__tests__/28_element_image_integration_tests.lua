@@ -270,9 +270,9 @@ function TestElementImageIntegration:testImageWithPadding()
   lu.assertNotNil(element._loadedImage)
   lu.assertEquals(element.padding.top, 10)
   lu.assertEquals(element.padding.left, 10)
-  -- Image should render in content area (200x200)
-  lu.assertEquals(element.width, 200)
-  lu.assertEquals(element.height, 200)
+  -- Image should render in content area (180x180 = 200 - 10 - 10)
+  lu.assertEquals(element.width, 180)
+  lu.assertEquals(element.height, 180)
 end
 
 function TestElementImageIntegration:testImageWithCornerRadius()

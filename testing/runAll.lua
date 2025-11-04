@@ -32,6 +32,9 @@ local testFiles = {
   "testing/__tests__/26_object_fit_modes_tests.lua",
   "testing/__tests__/27_object_position_tests.lua",
   "testing/__tests__/28_element_image_integration_tests.lua",
+  "testing/__tests__/29_drag_event_tests.lua",
+  "testing/__tests__/30_scrollbar_features_tests.lua",
+  "testing/__tests__/31_immediate_mode_basic_tests.lua",
 }
 
 local success = true

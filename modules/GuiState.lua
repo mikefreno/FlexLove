@@ -25,6 +25,12 @@ local GuiState = {
 
   -- Cached viewport dimensions
   _cachedViewport = { width = 0, height = 0 },
+
+  -- Immediate mode state
+  _immediateMode = false,
+  _frameNumber = 0,
+  _currentFrameElements = {},
+  _immediateModeState = nil, -- Will be initialized if immediate mode is enabled
 }
 
 --- Get current scale factors

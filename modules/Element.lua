@@ -3892,6 +3892,18 @@ function Element:insertText(text, position)
   position = position or self._cursorPosition
   local buffer = self._textBuffer or ""
 
+  -- Check maxLength constraint before inserting
+  if self.maxLength then
+    local currentLength = utf8.len(buffer) or 0
+    local textLength = utf8.len(text) or 0
+    local newLength = currentLength + textLength
+    
+    if newLength > self.maxLength then
+      -- Don't insert if it would exceed maxLength
+      return
+    end
+  end
+
   -- Convert character position to byte offset
   local byteOffset = utf8.offset(buffer, position + 1) or (#buffer + 1)
 

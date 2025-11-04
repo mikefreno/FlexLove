@@ -48,26 +48,26 @@ end
 
 function TestAuxiliaryFunctions:testColorFromHex6Digit()
   local color = Color.fromHex("#FF8040")
-  -- Note: Color.fromHex actually returns values in 0-255 range, not 0-1
-  luaunit.assertEquals(color.r, 255)
-  luaunit.assertEquals(color.g, 128)
-  luaunit.assertEquals(color.b, 64)
+  -- Note: Color.fromHex returns values in 0-1 range (normalized)
+  luaunit.assertAlmostEquals(color.r, 255 / 255, 0.01)
+  luaunit.assertAlmostEquals(color.g, 128 / 255, 0.01)
+  luaunit.assertAlmostEquals(color.b, 64 / 255, 0.01)
   luaunit.assertEquals(color.a, 1)
 end
 
 function TestAuxiliaryFunctions:testColorFromHex8Digit()
   local color = Color.fromHex("#FF8040CC")
-  luaunit.assertEquals(color.r, 255)
-  luaunit.assertEquals(color.g, 128)
-  luaunit.assertEquals(color.b, 64)
+  luaunit.assertAlmostEquals(color.r, 255 / 255, 0.01)
+  luaunit.assertAlmostEquals(color.g, 128 / 255, 0.01)
+  luaunit.assertAlmostEquals(color.b, 64 / 255, 0.01)
   luaunit.assertAlmostEquals(color.a, 204 / 255, 0.01) -- CC hex = 204 decimal
 end
 
 function TestAuxiliaryFunctions:testColorFromHexWithoutHash()
   local color = Color.fromHex("FF8040")
-  luaunit.assertEquals(color.r, 255)
-  luaunit.assertEquals(color.g, 128)
-  luaunit.assertEquals(color.b, 64)
+  luaunit.assertAlmostEquals(color.r, 255 / 255, 0.01)
+  luaunit.assertAlmostEquals(color.g, 128 / 255, 0.01)
+  luaunit.assertAlmostEquals(color.b, 64 / 255, 0.01)
   luaunit.assertEquals(color.a, 1)
 end
 
@@ -577,10 +577,10 @@ function TestAuxiliaryFunctions:testComplexColorManagementSystem()
       name = color_def.name,
     }
 
-    -- Verify hex parsing (FlexLove uses 0-255 range)
-    luaunit.assertAlmostEquals(hex_color.r / 255, color_def.r, 0.01, string.format("%s hex red component mismatch", color_def.name))
-    luaunit.assertAlmostEquals(hex_color.g / 255, color_def.g, 0.01, string.format("%s hex green component mismatch", color_def.name))
-    luaunit.assertAlmostEquals(hex_color.b / 255, color_def.b, 0.01, string.format("%s hex blue component mismatch", color_def.name))
+    -- Verify hex parsing (FlexLove uses 0-1 range)
+    luaunit.assertAlmostEquals(hex_color.r, color_def.r, 0.01, string.format("%s hex red component mismatch", color_def.name))
+    luaunit.assertAlmostEquals(hex_color.g, color_def.g, 0.01, string.format("%s hex green component mismatch", color_def.name))
+    luaunit.assertAlmostEquals(hex_color.b, color_def.b, 0.01, string.format("%s hex blue component mismatch", color_def.name))
   end
 
   -- Test color variations (opacity, brightness adjustments)

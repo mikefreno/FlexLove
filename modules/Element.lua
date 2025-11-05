@@ -2,22 +2,27 @@
 -- Element Object
 -- ====================
 
+-- Setup module path for relative requires
+local modulePath = (...):match("(.-)[^%.]+$")
+local function req(name)
+  return require(modulePath .. name)
+end
+
 -- Module dependencies
-local GuiState = require("GuiState")
-local Theme = require("Theme")
-local Color = require("Color")
-local Units = require("Units")
-local Blur = require("Blur")
-local ImageRenderer = require("ImageRenderer")
-local NineSlice = require("NineSlice")
-local RoundedRect = require("RoundedRect")
---local Animation = require("Animation")
-local ImageCache = require("ImageCache")
-local utils = require("utils")
-local Grid = require("Grid")
-local InputEvent = require("InputEvent")
-local StateManager = require("StateManager")
-local StateManager = req("StateManager")
+local GuiState = req("GuiState")
+local Theme = req("Theme")
+local Color = req("Color")
+local Units = req("Units")
+local Blur = req("Blur")
+local ImageRenderer = req("ImageRenderer")
+local NineSlice = req("NineSlice")
+local RoundedRect = req("RoundedRect")
+--local Animation = req("Animation")
+local ImageCache = req("ImageCache")
+local utils = req("utils")
+local Grid = req("Grid")
+local InputEvent = req("InputEvent")
+local ImmediateModeState = req("ImmediateModeState")
 local StateManager = req("StateManager")
 
 -- Extract utilities
@@ -204,8 +209,11 @@ function Element.new(props)
   self._lastMouseX = {} -- Track last mouse X position per button
   self._lastMouseY = {} -- Track last mouse Y position per button
 
-  -- Initialize theme
+  -- Initialize theme state (will be managed by StateManager in immediate mode)
   self._themeState = "normal"
+  
+  -- Initialize state manager ID for immediate mode
+  self._stateId = nil -- Will be set during GUI initialization if in immediate mode
 
   -- Handle theme property:
   -- - theme: which theme to use (defaults to Gui.defaultTheme if not specified)
@@ -1513,6 +1521,15 @@ function Element:_handleScrollbarPress(mouseX, mouseY, button)
       local thumbX = trackX + dims.horizontal.thumbX
       self._scrollbarDragOffset = mouseX - thumbX
     end
+    
+    -- Update StateManager if in immediate mode
+    if self._stateId and Gui._immediateMode then
+      StateManager.updateState(self._stateId, {
+        scrollbarDragging = self._scrollbarDragging,
+        hoveredScrollbar = self._hoveredScrollbar,
+        scrollbarDragOffset = self._scrollbarDragOffset,
+      })
+    end
 
     return true -- Event consumed
   elseif scrollbar.region == "track" then
@@ -1582,6 +1599,14 @@ function Element:_handleScrollbarRelease(button)
 
   if self._scrollbarDragging then
     self._scrollbarDragging = false
+    
+    -- Update StateManager if in immediate mode
+    if self._stateId and Gui._immediateMode then
+      StateManager.updateState(self._stateId, {
+        scrollbarDragging = false,
+      })
+    end
+    
     return true
   end
 
@@ -2814,6 +2839,16 @@ function Element:update(dt)
   if not scrollbar and not self._scrollbarDragging then
     self._hoveredScrollbar = nil
   end
+  
+  -- Update scrollbar state in StateManager if in immediate mode
+  if self._stateId and Gui._immediateMode then
+    StateManager.updateState(self._stateId, {
+      scrollbarHoveredVertical = self._scrollbarHoveredVertical,
+      scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal,
+      scrollbarDragging = self._scrollbarDragging,
+      hoveredScrollbar = self._hoveredScrollbar,
+    })
+  end
 
   -- Handle scrollbar dragging
   if self._scrollbarDragging and love.mouse.isDown(1) then
@@ -2821,6 +2856,13 @@ function Element:update(dt)
   elseif self._scrollbarDragging then
     -- Mouse button released
     self._scrollbarDragging = false
+    
+    -- Update StateManager if in immediate mode
+    if self._stateId and Gui._immediateMode then
+      StateManager.updateState(self._stateId, {
+        scrollbarDragging = false,
+      })
+    end
   end
 
   -- Handle scrollbar click/press (independent of callback)
@@ -2884,12 +2926,14 @@ function Element:update(dt)
 
     -- Update theme state based on interaction
     if self.themeComponent then
+      local newThemeState = "normal"
+      
       -- Disabled state takes priority
       if self.disabled then
-        self._themeState = "disabled"
+        newThemeState = "disabled"
       -- Active state (for inputs when focused/typing)
       elseif self.active then
-        self._themeState = "active"
+        newThemeState = "active"
       -- Only show hover/pressed states if this element is active (not blocked)
       elseif isHovering and isActiveElement then
         -- Check if any button is pressed
@@ -2902,13 +2946,30 @@ function Element:update(dt)
         end
 
         if anyPressed then
-          self._themeState = "pressed"
+          newThemeState = "pressed"
         else
-          self._themeState = "hover"
+          newThemeState = "hover"
         end
-      else
-        self._themeState = "normal"
       end
+      
+      -- Update state (in StateManager if in immediate mode, otherwise locally)
+      if self._stateId and Gui._immediateMode then
+        -- Update in StateManager for immediate mode
+        local hover = newThemeState == "hover"
+        local pressed = newThemeState == "pressed"
+        local focused = newThemeState == "active" or self._focused
+        
+        StateManager.updateState(self._stateId, {
+          hover = hover,
+          pressed = pressed,
+          focused = focused,
+          disabled = self.disabled,
+          active = self.active,
+        })
+      end
+      
+      -- Always update local state for backward compatibility
+      self._themeState = newThemeState
     end
 
     -- Only process button events if callback exists, element is not disabled,

@@ -21,6 +21,7 @@ local utils = req("utils")
 local Units = req("Units")
 local GuiState = req("GuiState")
 local ImmediateModeState = req("ImmediateModeState")
+local StateManager = req("StateManager")
 
 -- externals
 ---@type Theme
@@ -131,6 +132,7 @@ function Gui.beginFrame()
   -- Increment frame counter
   Gui._frameNumber = Gui._frameNumber + 1
   ImmediateModeState.incrementFrame()
+  StateManager.incrementFrame()
 
   -- Clear current frame elements
   Gui._currentFrameElements = {}
@@ -167,6 +169,9 @@ function Gui.endFrame()
       state._textBuffer = element._textBuffer
       state._scrollX = element._scrollX
       state._scrollY = element._scrollY
+      state._scrollbarDragging = element._scrollbarDragging
+      state._hoveredScrollbar = element._hoveredScrollbar
+      state._scrollbarDragOffset = element._scrollbarDragOffset
 
       ImmediateModeState.setState(element.id, state)
     end
@@ -174,9 +179,11 @@ function Gui.endFrame()
 
   -- Cleanup stale states
   ImmediateModeState.cleanup()
+  StateManager.cleanup()
 
   -- Force cleanup if we have too many states
   ImmediateModeState.forceCleanupIfNeeded()
+  StateManager.forceCleanupIfNeeded()
 end
 
 -- Canvas cache for game rendering
@@ -442,7 +449,9 @@ function Gui.wheelmoved(x, y)
     return nil
   end
 
-  local scrollableElement = findScrollableAtPosition(Gui.topElements, mx, my)
+  -- In immediate mode, use current frame elements; in retained mode, use topElements
+  local elements = Gui._immediateMode and Gui._currentFrameElements or Gui.topElements
+  local scrollableElement = findScrollableAtPosition(elements, mx, my)
   if scrollableElement then
     scrollableElement:_handleWheelScroll(x, y)
   end
@@ -492,7 +501,7 @@ function Gui.new(props)
   -- Create the element
   local element = Element.new(props)
 
-  -- Bind persistent state to element
+  -- Bind persistent state to element (ImmediateModeState)
   -- Copy stateful properties from persistent state
   element._pressed = state._pressed or {}
   element._lastClickTime = state._lastClickTime
@@ -510,6 +519,37 @@ function Gui.new(props)
   element._textBuffer = state._textBuffer or element.text or ""
   element._scrollX = state._scrollX or element._scrollX or 0
   element._scrollY = state._scrollY or element._scrollY or 0
+  element._scrollbarDragging = state._scrollbarDragging or false
+  element._hoveredScrollbar = state._hoveredScrollbar
+  element._scrollbarDragOffset = state._scrollbarDragOffset or 0
+  
+  -- Bind element to StateManager for interactive states
+  -- Use the same ID for StateManager so state persists across frames
+  element._stateId = props.id
+  
+  -- Load interactive state from StateManager
+  local interactiveState = StateManager.getState(props.id)
+  element._scrollbarHoveredVertical = interactiveState.scrollbarHoveredVertical
+  element._scrollbarHoveredHorizontal = interactiveState.scrollbarHoveredHorizontal
+  element._scrollbarDragging = interactiveState.scrollbarDragging
+  element._hoveredScrollbar = interactiveState.hoveredScrollbar
+  element._scrollbarDragOffset = interactiveState.scrollbarDragOffset or 0
+  
+  -- Set initial theme state based on StateManager state
+  -- This will be updated in Element:update() but we need an initial value
+  if element.themeComponent then
+    if element.disabled or interactiveState.disabled then
+      element._themeState = "disabled"
+    elseif element.active or interactiveState.active then
+      element._themeState = "active"
+    elseif interactiveState.pressed then
+      element._themeState = "pressed"
+    elseif interactiveState.hover then
+      element._themeState = "hover"
+    else
+      element._themeState = "normal"
+    end
+  end
 
   -- Store element in current frame tracking
   table.insert(Gui._currentFrameElements, element)

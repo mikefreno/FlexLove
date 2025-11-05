@@ -32,6 +32,13 @@ function StateManager.getState(id)
             focused = false,
             disabled = false,
             active = false,
+            -- Scrollbar-specific states
+            scrollbarHoveredVertical = false,
+            scrollbarHoveredHorizontal = false,
+            scrollbarDragging = false,
+            hoveredScrollbar = nil, -- "vertical" or "horizontal"
+            scrollbarDragOffset = 0,
+            -- Frame tracking
             lastHoverFrame = 0,
             lastPressedFrame = 0,
             lastFocusFrame = 0,
@@ -244,6 +251,11 @@ function StateManager.getActiveState(id)
         focused = state.focused,
         disabled = state.disabled,
         active = state.active,
+        scrollbarHoveredVertical = state.scrollbarHoveredVertical,
+        scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal,
+        scrollbarDragging = state.scrollbarDragging,
+        hoveredScrollbar = state.hoveredScrollbar,
+        scrollbarDragOffset = state.scrollbarDragOffset,
     }
 end
 

@@ -84,6 +84,9 @@ local function hashProps(props, visited, depth)
   return table.concat(parts, ";")
 end
 
+-- Counter to track multiple elements created at the same source location (e.g., in loops)
+local callSiteCounters = {} -- {source_line -> counter}
+
 --- Generate a unique ID from call site and properties
 ---@param props table|nil Optional properties to include in ID generation
 ---@return string
@@ -102,9 +105,20 @@ function ImmediateModeState.generateID(props)
   -- Create ID from source file and line number
   local baseID = source:match("([^/\\]+)$") or source -- Get filename
   baseID = baseID:gsub("%.lua$", "") -- Remove .lua extension
-  baseID = baseID .. "_L" .. line
+  local locationKey = baseID .. "_L" .. line
+  
+  -- Track how many elements have been created at this location
+  callSiteCounters[locationKey] = (callSiteCounters[locationKey] or 0) + 1
+  local instanceNum = callSiteCounters[locationKey]
+  
+  baseID = locationKey
+  
+  -- Add instance number if multiple elements created at same location (e.g., in loops)
+  if instanceNum > 1 then
+    baseID = baseID .. "_" .. instanceNum
+  end
 
-  -- Add property hash if provided
+  -- Add property hash if provided (for additional differentiation)
   if props then
     local propHash = hashProps(props)
     if propHash ~= "" then
@@ -197,6 +211,8 @@ end
 --- Increment frame counter (called at frame start)
 function ImmediateModeState.incrementFrame()
   frameNumber = frameNumber + 1
+  -- Reset call site counters for new frame
+  callSiteCounters = {}
 end
 
 --- Get current frame number
@@ -320,6 +336,7 @@ function ImmediateModeState.reset()
   stateStore = {}
   stateMetadata = {}
   frameNumber = 0
+  callSiteCounters = {}
 end
 
 return ImmediateModeState

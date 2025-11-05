@@ -2,25 +2,23 @@
 -- Element Object
 -- ====================
 
--- Module dependencies (using relative paths)
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
-local GuiState = req("GuiState")
-local Theme = req("Theme")
-local Color = req("Color")
-local Units = req("Units")
-local Blur = req("Blur")
-local ImageRenderer = req("ImageRenderer")
-local NineSlice = req("NineSlice")
-local RoundedRect = req("RoundedRect")
---local Animation = req("Animation")
-local ImageCache = req("ImageCache")
-local utils = req("utils")
-local Grid = req("Grid")
-local InputEvent = req("InputEvent")
+-- Module dependencies
+local GuiState = require("GuiState")
+local Theme = require("Theme")
+local Color = require("Color")
+local Units = require("Units")
+local Blur = require("Blur")
+local ImageRenderer = require("ImageRenderer")
+local NineSlice = require("NineSlice")
+local RoundedRect = require("RoundedRect")
+--local Animation = require("Animation")
+local ImageCache = require("ImageCache")
+local utils = require("utils")
+local Grid = require("Grid")
+local InputEvent = require("InputEvent")
+local StateManager = require("StateManager")
+local StateManager = req("StateManager")
+local StateManager = req("StateManager")
 
 -- Extract utilities
 local enums = utils.enums
@@ -128,6 +126,7 @@ Public API methods to access internal state:
 ---@field theme string? -- Theme component to use for rendering
 ---@field themeComponent string?
 ---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
+---@field _stateId string? -- State manager ID for this element
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)

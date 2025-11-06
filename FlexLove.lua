@@ -311,22 +311,23 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
     love.graphics.setColor(unpack(prevColor))
 
     for _, win in ipairs(Gui.topElements) do
-      -- Only draw with backdrop canvas if this element tree has backdrop blur
+      -- Check if this element tree has backdrop blur
       local needsBackdrop = hasBackdropBlur(win)
 
+      -- Draw element with backdrop blur applied if needed
       if needsBackdrop then
-        -- Draw element with backdrop blur applied
         win:draw(backdropCanvas)
-
-        -- Update backdrop canvas for next element
-        love.graphics.setCanvas(backdropCanvas)
-        love.graphics.setColor(1, 1, 1, 1)
-        win:draw(nil)
-        love.graphics.setCanvas(outerCanvas)
       else
-        -- No backdrop blur needed, draw normally once
         win:draw(nil)
       end
+
+      -- IMPORTANT: Update backdrop canvas for EVERY element (respecting z-index order)
+      -- This ensures that lower z-index elements are visible in the backdrop blur
+      -- of higher z-index elements
+      love.graphics.setCanvas(backdropCanvas)
+      love.graphics.setColor(1, 1, 1, 1)
+      win:draw(nil)
+      love.graphics.setCanvas(outerCanvas)
     end
   else
     for _, win in ipairs(Gui.topElements) do

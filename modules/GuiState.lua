@@ -31,6 +31,8 @@ local GuiState = {
   _frameNumber = 0,
   _currentFrameElements = {},
   _immediateModeState = nil, -- Will be initialized if immediate mode is enabled
+  _frameStarted = false,
+  _autoBeganFrame = false,
 }
 
 --- Get current scale factors

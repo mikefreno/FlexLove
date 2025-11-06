@@ -54,8 +54,10 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
 local Gui = GuiState
 
 --- Initialize FlexLove with configuration
----@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number}
+---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean}
 function Gui.init(config)
+  config = config or {}
+
   if config.baseScale then
     Gui.baseScale = {
       width = config.baseScale.width or 1920,
@@ -85,22 +87,18 @@ function Gui.init(config)
     end
   end
 
-  -- Initialize immediate mode if requested
-  if config.immediateMode then
-    Gui._immediateMode = true
-    Gui._immediateModeState = ImmediateModeState
+  local immediateMode = config.immediateMode or false
+  Gui.setMode(immediateMode and "immediate" or "retained")
 
-    -- Configure state management
-    if config.stateRetentionFrames or config.maxStateEntries then
-      ImmediateModeState.configure({
-        stateRetentionFrames = config.stateRetentionFrames,
-        maxStateEntries = config.maxStateEntries,
-      })
-    end
-  else
-    -- Explicitly disable immediate mode if not requested
-    Gui._immediateMode = false
-    Gui._immediateModeState = nil
+  -- Configure auto frame management (defaults to false for manual control)
+  Gui._autoFrameManagement = config.autoFrameManagement or false
+
+  -- Configure state management
+  if config.stateRetentionFrames or config.maxStateEntries then
+    ImmediateModeState.configure({
+      stateRetentionFrames = config.stateRetentionFrames,
+      maxStateEntries = config.maxStateEntries,
+    })
   end
 end
 
@@ -123,6 +121,34 @@ function Gui.resize()
   end
 end
 
+--- Set the rendering mode (immediate or retained)
+---@param mode "immediate"|"retained" The rendering mode to use
+function Gui.setMode(mode)
+  if mode == "immediate" then
+    Gui._immediateMode = true
+    Gui._immediateModeState = ImmediateModeState
+    -- Reset frame state
+    Gui._frameStarted = false
+    Gui._autoBeganFrame = false
+  elseif mode == "retained" then
+    Gui._immediateMode = false
+    Gui._immediateModeState = nil
+    -- Clear immediate mode state
+    Gui._frameStarted = false
+    Gui._autoBeganFrame = false
+    Gui._currentFrameElements = {}
+    Gui._frameNumber = 0
+  else
+    error("[FlexLove] Invalid mode: " .. tostring(mode) .. ". Expected 'immediate' or 'retained'")
+  end
+end
+
+--- Get the current rendering mode
+---@return "immediate"|"retained"
+function Gui.getMode()
+  return Gui._immediateMode and "immediate" or "retained"
+end
+
 --- Begin a new immediate mode frame
 function Gui.beginFrame()
   if not Gui._immediateMode then
@@ -136,6 +162,7 @@ function Gui.beginFrame()
 
   -- Clear current frame elements
   Gui._currentFrameElements = {}
+  Gui._frameStarted = true
 
   -- Clear top elements (they will be recreated this frame)
   Gui.topElements = {}
@@ -145,6 +172,16 @@ end
 function Gui.endFrame()
   if not Gui._immediateMode then
     return
+  end
+
+  -- Auto-update all top-level elements (triggers layout calculation and overflow detection)
+  -- This must happen BEFORE saving state so that scroll positions and overflow are calculated
+  for _, element in ipairs(Gui._currentFrameElements) do
+    -- Only update top-level elements (those without parents in the current frame)
+    -- Element:update() will recursively update children
+    if not element.parent then
+      element:update(0) -- dt=0 since we're not doing animation updates here
+    end
   end
 
   -- Save state back for all elements created this frame
@@ -184,6 +221,9 @@ function Gui.endFrame()
   -- Force cleanup if we have too many states
   ImmediateModeState.forceCleanupIfNeeded()
   StateManager.forceCleanupIfNeeded()
+
+  -- Clear frame started flag
+  Gui._frameStarted = false
 end
 
 -- Canvas cache for game rendering
@@ -194,6 +234,12 @@ Gui._canvasDimensions = { width = 0, height = 0 }
 ---@param gameDrawFunc function|nil
 ---@param postDrawFunc function|nil
 function Gui.draw(gameDrawFunc, postDrawFunc)
+  -- Auto-end frame if it was auto-started in immediate mode
+  if Gui._immediateMode and Gui._autoBeganFrame then
+    Gui.endFrame()
+    Gui._autoBeganFrame = false
+  end
+
   local outerCanvas = love.graphics.getCanvas()
   local gameCanvas = nil
 
@@ -487,6 +533,12 @@ function Gui.new(props)
     return Element.new(props)
   end
 
+  -- Auto-begin frame if not manually started (convenience feature)
+  if not Gui._frameStarted then
+    Gui.beginFrame()
+    Gui._autoBeganFrame = true
+  end
+
   -- Immediate mode: generate ID if not provided
   if not props.id then
     props.id = ImmediateModeState.generateID(props)
@@ -522,11 +574,11 @@ function Gui.new(props)
   element._scrollbarDragging = state._scrollbarDragging or false
   element._hoveredScrollbar = state._hoveredScrollbar
   element._scrollbarDragOffset = state._scrollbarDragOffset or 0
-  
+
   -- Bind element to StateManager for interactive states
   -- Use the same ID for StateManager so state persists across frames
   element._stateId = props.id
-  
+
   -- Load interactive state from StateManager
   local interactiveState = StateManager.getState(props.id)
   element._scrollbarHoveredVertical = interactiveState.scrollbarHoveredVertical
@@ -534,7 +586,7 @@ function Gui.new(props)
   element._scrollbarDragging = interactiveState.scrollbarDragging
   element._hoveredScrollbar = interactiveState.hoveredScrollbar
   element._scrollbarDragOffset = interactiveState.scrollbarDragOffset or 0
-  
+
   -- Set initial theme state based on StateManager state
   -- This will be updated in Element:update() but we need an initial value
   if element.themeComponent then

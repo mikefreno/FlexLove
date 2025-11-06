@@ -33,7 +33,7 @@ local GuiState = {
   _immediateModeState = nil, -- Will be initialized if immediate mode is enabled
   _frameStarted = false,
   _autoBeganFrame = false,
-  
+
   -- Z-index ordered element tracking for immediate mode
   _zIndexOrderedElements = {}, -- Array of elements sorted by z-index (lowest to highest)
 }
@@ -50,7 +50,7 @@ function GuiState.registerElement(element)
   if not GuiState._immediateMode then
     return
   end
-  
+
   -- Add element to the z-index ordered list
   table.insert(GuiState._zIndexOrderedElements, element)
 end
@@ -75,7 +75,7 @@ function GuiState.sortElementsByZIndex()
       end
       return z
     end
-    
+
     return getEffectiveZIndex(a) < getEffectiveZIndex(b)
   end)
 end
@@ -91,30 +91,29 @@ local function isPointInElement(element, x, y)
   local by = element.y
   local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
   local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-  
+
   -- Walk up parent chain to check clipping and apply scroll offsets
   local current = element.parent
   while current do
     local overflowX = current.overflowX or current.overflow
     local overflowY = current.overflowY or current.overflow
-    
+
     -- Check if parent clips content (overflow: hidden, scroll, auto)
-    if overflowX == "hidden" or overflowX == "scroll" or overflowX == "auto" or
-       overflowY == "hidden" or overflowY == "scroll" or overflowY == "auto" then
+    if overflowX == "hidden" or overflowX == "scroll" or overflowX == "auto" or overflowY == "hidden" or overflowY == "scroll" or overflowY == "auto" then
       -- Check if point is outside parent's clipping region
       local parentX = current.x + current.padding.left
       local parentY = current.y + current.padding.top
       local parentW = current.width
       local parentH = current.height
-      
+
       if x < parentX or x > parentX + parentW or y < parentY or y > parentY + parentH then
         return false -- Point is clipped by parent
       end
     end
-    
+
     current = current.parent
   end
-  
+
   -- Check if point is inside element bounds
   return x >= bx and x <= bx + bw and y >= by and y <= by + bh
 end
@@ -127,17 +126,37 @@ function GuiState.getTopElementAt(x, y)
   if not GuiState._immediateMode then
     return nil
   end
-  
+
+  -- Helper function to find the first interactive ancestor (including self)
+  local function findInteractiveAncestor(elem)
+    local current = elem
+    while current do
+      -- An element is interactive if it has a callback or themeComponent
+      if current.callback or current.themeComponent then
+        return current
+      end
+      current = current.parent
+    end
+    return nil
+  end
+
   -- Traverse from highest to lowest z-index (reverse order)
   for i = #GuiState._zIndexOrderedElements, 1, -1 do
     local element = GuiState._zIndexOrderedElements[i]
-    
+
     -- Check if point is inside this element
     if isPointInElement(element, x, y) then
+      -- Return the first interactive ancestor (or the element itself if interactive)
+      local interactive = findInteractiveAncestor(element)
+      if interactive then
+        return interactive
+      end
+      -- If no interactive ancestor, return the element itself
+      -- This preserves backward compatibility for non-interactive overlays
       return element
     end
   end
-  
+
   return nil
 end
 

@@ -16,7 +16,7 @@ FlexLove supports a flexible 9-slice/9-patch theming system that allows you to c
 
 You have **three ways** to organize your theme images:
 
-### Option 1: Separate Images Per Component (Recommended for Beginners)
+### Option 1: Separate Images Per Component
 
 Each component gets its own image file:
 
@@ -56,7 +56,7 @@ return {
 }
 ```
 
-### Option 2: Single Atlas (Recommended for Performance)
+### Option 2: Single Atlas
 
 All components in one texture atlas:
 
@@ -87,7 +87,7 @@ return {
 }
 ```
 
-### Option 3: Hybrid (Best of Both Worlds)
+### Option 3: Hybrid
 
 Mix global atlas with component-specific images:
 
@@ -108,7 +108,7 @@ return {
 }
 ```
 
-## 9-Slice Structure
+## 9-patch Structure
 
 Each component image is divided into 9 regions:
 
@@ -127,13 +127,10 @@ Each component image is divided into 9 regions:
 - **Edges** (TC, BC, ML, MR): Stretched in one direction
 - **Center** (MC): Stretched in both directions
 
-## Creating Theme Images
+## Creating 9-patch images
 
-### Minimum Image Size
-
-For a 9-slice image, you need at least **24x24 pixels**:
-- 8px for each corner
-- 8px for stretchable middle section
+I would recommend using [android studio](https://developer.android.com/studio) to create these, you can read
+about how to do it in the editor [here](https://developer.android.com/studio/write/draw9patch)
 
 ### Image Requirements
 

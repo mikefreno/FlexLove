@@ -2,11 +2,16 @@
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
-FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system. It provides a simple way to create and manage UI elements with automatic layout calculations, animations, theming, and responsive design.
+FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system. It provides a simple way to create and manage UI elements with automatic layout calculations, animations, theming, and responsive design. Immediate mode support is now included (retained is default). 
 
 ## ⚠️ Development Status
 
 This library is under active development. While many features are functional, some aspects may change or have incomplete/broken implementations.
+
+### Coming Soon
+The following features are currently being actively developed:
+- **Input Fields**: Text input, password fields, and text areas
+- **Generic Image Support**: Enhanced image rendering capabilities and utilities
 
 ## Features
 
@@ -42,6 +47,7 @@ local FlexLove = require("FlexLove")
 FlexLove.Gui.init({
   baseScale = { width = 1920, height = 1080 },
   theme = "space"
+  immediateMode = true -- Optional: enable immediate mode (default: false)
 })
 
 -- Create a button with flexbox layout
@@ -84,6 +90,62 @@ end
 - **Constructors**: Always return instance (never nil)
 
 ## Core Concepts
+
+### Immediate Mode vs Retained Mode
+
+FlexLöve supports both **immediate mode** and **retained mode** UI paradigms, giving you flexibility in how you structure your UI code:
+
+#### Retained Mode (Default)
+In retained mode, you create elements once and they persist across frames. The library manages the element hierarchy and state automatically.
+
+```lua
+-- Create elements once (e.g., in love.load)
+local button = FlexLove.Element.new({
+  text = "Click Me",
+  callback = function() print("Clicked!") end
+})
+
+-- Elements automatically update and draw each frame
+function love.update(dt)
+  FlexLove.Gui.update(dt)
+end
+
+function love.draw()
+  FlexLove.Gui.draw()
+end
+```
+
+**Best for:**
+- Complex UIs with many persistent elements
+- Elements that maintain state over time
+- UIs that don't change frequently
+
+#### Immediate Mode
+In immediate mode, you recreate UI elements every frame based on your application state. This approach can be simpler for dynamic UIs that change frequently.
+
+```lua
+-- Recreate UI every frame
+function love.draw()
+  FlexLove.ImmediateMode.begin()
+  
+  if FlexLove.ImmediateMode.button("myButton", {
+    x = 100, y = 100,
+    text = "Click Me"
+  }) then
+    print("Clicked!")
+  end
+  
+  FlexLove.ImmediateMode.finish()
+end
+```
+
+**Best for:**
+- Simple UIs that change frequently
+- Procedurally generated interfaces
+- Debugging and development tools
+- UIs driven directly by application state
+
+You can mix both modes in the same application - use retained mode for your main UI and immediate mode for debug overlays or dynamic elements.
 
 ### Element Properties
 

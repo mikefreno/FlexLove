@@ -164,7 +164,7 @@ function Gui.beginFrame()
 
   -- Clear top elements (they will be recreated this frame)
   Gui.topElements = {}
-  
+
   -- Clear z-index ordered elements from previous frame
   GuiState.clearFrameElements()
 end
@@ -178,7 +178,15 @@ function Gui.endFrame()
   -- Sort elements by z-index for occlusion detection
   GuiState.sortElementsByZIndex()
 
-  -- Auto-update all top-level elements (triggers layout calculation and overflow detection)
+  -- Layout all top-level elements now that all children have been added
+  -- This ensures overflow detection happens with complete child lists
+  for _, element in ipairs(Gui._currentFrameElements) do
+    if not element.parent then
+      element:layoutChildren() -- Layout with all children present
+    end
+  end
+
+  -- Auto-update all top-level elements (triggers additional state updates)
   -- This must happen BEFORE saving state so that scroll positions and overflow are calculated
   for _, element in ipairs(Gui._currentFrameElements) do
     -- Only update top-level elements (those without parents in the current frame)
@@ -305,7 +313,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
     for _, win in ipairs(Gui.topElements) do
       -- Only draw with backdrop canvas if this element tree has backdrop blur
       local needsBackdrop = hasBackdropBlur(win)
-      
+
       if needsBackdrop then
         -- Draw element with backdrop blur applied
         win:draw(backdropCanvas)
@@ -478,7 +486,7 @@ end
 --- Handle mouse wheel scrolling
 function Gui.wheelmoved(x, y)
   local mx, my = love.mouse.getPosition()
-  
+
   local function findScrollableAtPosition(elements, mx, my)
     for i = #elements, 1, -1 do
       local element = elements[i]
@@ -512,12 +520,12 @@ function Gui.wheelmoved(x, y)
     -- Find topmost scrollable element at mouse position using z-index ordering
     for i = #GuiState._zIndexOrderedElements, 1, -1 do
       local element = GuiState._zIndexOrderedElements[i]
-      
+
       local bx = element.x
       local by = element.y
       local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
       local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-      
+
       if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
         local overflowX = element.overflowX or element.overflow
         local overflowY = element.overflowY or element.overflow
@@ -583,6 +591,11 @@ function Gui.new(props)
   -- Mark state as used this frame
   StateManager.markStateUsed(props.id)
 
+  -- Inject scroll state into props BEFORE creating element
+  -- This ensures scroll position is set before layoutChildren/detectOverflow is called
+  props._scrollX = state._scrollX or 0
+  props._scrollY = state._scrollY or 0
+
   -- Create the element
   local element = Element.new(props)
 
@@ -602,11 +615,11 @@ function Gui.new(props)
   element._selectionStart = state._selectionStart
   element._selectionEnd = state._selectionEnd
   element._textBuffer = state._textBuffer or element.text or ""
-  element._scrollX = state._scrollX or element._scrollX or 0
-  element._scrollY = state._scrollY or element._scrollY or 0
-  element._scrollbarDragging = state._scrollbarDragging or false
+  -- Note: scroll position already set from props during Element.new()
+  -- element._scrollX and element._scrollY already restored
+  element._scrollbarDragging = state._scrollbarDragging ~= nil and state._scrollbarDragging or false
   element._hoveredScrollbar = state._hoveredScrollbar
-  element._scrollbarDragOffset = state._scrollbarDragOffset or 0
+  element._scrollbarDragOffset = state._scrollbarDragOffset ~= nil and state._scrollbarDragOffset or 0
 
   -- Bind element to StateManager for interactive states
   -- Use the same ID for StateManager so state persists across frames

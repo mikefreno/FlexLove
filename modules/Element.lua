@@ -185,14 +185,14 @@ function Element.new(props)
   local self = setmetatable({}, Element)
   self.children = {}
   self.callback = props.callback
-  
+
   -- Auto-generate ID in immediate mode if not provided
   if Gui._immediateMode and (not props.id or props.id == "") then
     self.id = StateManager.generateID(props)
   else
     self.id = props.id or ""
   end
-  
+
   self.userdata = props.userdata
 
   -- Input event callbacks
@@ -217,7 +217,7 @@ function Element.new(props)
 
   -- Initialize theme state (will be managed by StateManager in immediate mode)
   self._themeState = "normal"
-  
+
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
@@ -1165,9 +1165,9 @@ function Element.new(props)
   self._contentWidth = 0
   self._contentHeight = 0
 
-  -- Scroll state
-  self._scrollX = 0
-  self._scrollY = 0
+  -- Scroll state (can be restored from props in immediate mode)
+  self._scrollX = props._scrollX or 0
+  self._scrollY = props._scrollY or 0
   self._maxScrollX = 0
   self._maxScrollY = 0
 
@@ -1286,7 +1286,7 @@ function Element:setScrollPosition(x, y)
   if y ~= nil then
     self._scrollY = math.max(0, math.min(y, self._maxScrollY))
   end
-  
+
   -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
   -- No need to save here
 end
@@ -1536,7 +1536,7 @@ function Element:_handleScrollbarPress(mouseX, mouseY, button)
       local thumbX = trackX + dims.horizontal.thumbX
       self._scrollbarDragOffset = mouseX - thumbX
     end
-    
+
     -- Update StateManager if in immediate mode
     if self._stateId and Gui._immediateMode then
       StateManager.updateState(self._stateId, {
@@ -1614,14 +1614,14 @@ function Element:_handleScrollbarRelease(button)
 
   if self._scrollbarDragging then
     self._scrollbarDragging = false
-    
+
     -- Update StateManager if in immediate mode
     if self._stateId and Gui._immediateMode then
       StateManager.updateState(self._stateId, {
         scrollbarDragging = false,
       })
     end
-    
+
     return true
   end
 
@@ -1928,7 +1928,11 @@ function Element:addChild(child)
     end
   end
 
-  self:layoutChildren()
+  -- In immediate mode, defer layout until endFrame() when all elements are created
+  -- This prevents premature overflow detection with incomplete children
+  if not Gui._immediateMode then
+    self:layoutChildren()
+  end
 end
 
 --- Apply positioning offsets (top, right, bottom, left) to an element
@@ -2867,7 +2871,7 @@ function Element:update(dt)
   if not scrollbar and not self._scrollbarDragging then
     self._hoveredScrollbar = nil
   end
-  
+
   -- Update scrollbar state in StateManager if in immediate mode
   if self._stateId and Gui._immediateMode then
     StateManager.updateState(self._stateId, {
@@ -2884,7 +2888,7 @@ function Element:update(dt)
   elseif self._scrollbarDragging then
     -- Mouse button released
     self._scrollbarDragging = false
-    
+
     -- Update StateManager if in immediate mode
     if self._stateId and Gui._immediateMode then
       StateManager.updateState(self._stateId, {
@@ -2963,7 +2967,7 @@ function Element:update(dt)
     -- Update theme state based on interaction
     if self.themeComponent then
       local newThemeState = "normal"
-      
+
       -- Disabled state takes priority
       if self.disabled then
         newThemeState = "disabled"
@@ -2987,14 +2991,14 @@ function Element:update(dt)
           newThemeState = "hover"
         end
       end
-      
+
       -- Update state (in StateManager if in immediate mode, otherwise locally)
       if self._stateId and Gui._immediateMode then
         -- Update in StateManager for immediate mode
         local hover = newThemeState == "hover"
         local pressed = newThemeState == "pressed"
         local focused = newThemeState == "active" or self._focused
-        
+
         StateManager.updateState(self._stateId, {
           hover = hover,
           pressed = pressed,
@@ -3003,7 +3007,7 @@ function Element:update(dt)
           active = self.active,
         })
       end
-      
+
       -- Always update local state for backward compatibility
       self._themeState = newThemeState
     end
@@ -3012,15 +3016,15 @@ function Element:update(dt)
     -- and this is the topmost element at the mouse position (z-index ordering)
     -- Exception: Allow drag continuation even if occluded (once drag starts, it continues)
     local isDragging = false
-    for _, button in ipairs({1, 2, 3}) do
+    for _, button in ipairs({ 1, 2, 3 }) do
       if self._pressed[button] and love.mouse.isDown(button) then
         isDragging = true
         break
       end
     end
-    
+
     local canProcessEvents = self.callback and not self.disabled and (isActiveElement or isDragging)
-    
+
     if canProcessEvents then
       -- Check all three mouse buttons
       local buttons = { 1, 2, 3 } -- left, right, middle
@@ -4004,7 +4008,7 @@ function Element:insertText(text, position)
     local currentLength = utf8.len(buffer) or 0
     local textLength = utf8.len(text) or 0
     local newLength = currentLength + textLength
-    
+
     if newLength > self.maxLength then
       -- Don't insert if it would exceed maxLength
       return

@@ -22,7 +22,6 @@ local ImageCache = req("ImageCache")
 local utils = req("utils")
 local Grid = req("Grid")
 local InputEvent = req("InputEvent")
-local ImmediateModeState = req("ImmediateModeState")
 local StateManager = req("StateManager")
 
 -- Extract utilities
@@ -186,7 +185,14 @@ function Element.new(props)
   local self = setmetatable({}, Element)
   self.children = {}
   self.callback = props.callback
-  self.id = props.id or ""
+  
+  -- Auto-generate ID in immediate mode if not provided
+  if Gui._immediateMode and (not props.id or props.id == "") then
+    self.id = StateManager.generateID(props)
+  else
+    self.id = props.id or ""
+  end
+  
   self.userdata = props.userdata
 
   -- Input event callbacks
@@ -212,8 +218,8 @@ function Element.new(props)
   -- Initialize theme state (will be managed by StateManager in immediate mode)
   self._themeState = "normal"
   
-  -- Initialize state manager ID for immediate mode
-  self._stateId = nil -- Will be set during GUI initialization if in immediate mode
+  -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
+  self._stateId = self.id
 
   -- Handle theme property:
   -- - theme: which theme to use (defaults to Gui.defaultTheme if not specified)
@@ -1173,6 +1179,11 @@ function Element.new(props)
   self._scrollbarDragOffset = 0 -- Offset from thumb top when drag started
   self._scrollbarPressHandled = false -- Track if scrollbar press was handled this frame
 
+  -- Register element in z-index tracking for immediate mode
+  if Gui._immediateMode then
+    GuiState.registerElement(self)
+  end
+
   return self
 end
 
@@ -1260,6 +1271,7 @@ function Element:_detectOverflow()
   self._maxScrollY = math.max(0, self._contentHeight - containerHeight)
 
   -- Clamp current scroll position to new bounds
+  -- Note: Scroll position is already restored in Gui.new() from ImmediateModeState
   self._scrollX = math.max(0, math.min(self._scrollX, self._maxScrollX))
   self._scrollY = math.max(0, math.min(self._scrollY, self._maxScrollY))
 end
@@ -1274,6 +1286,9 @@ function Element:setScrollPosition(x, y)
   if y ~= nil then
     self._scrollY = math.max(0, math.min(y, self._maxScrollY))
   end
+  
+  -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
+  -- No need to save here
 end
 
 --- Calculate scrollbar dimensions and positions
@@ -1686,6 +1701,7 @@ function Element:_handleWheelScroll(x, y)
     scrolled = true
   end
 
+  -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
   return scrolled
 end
 
@@ -2781,6 +2797,18 @@ end
 --- Update element (propagate to children)
 ---@param dt number
 function Element:update(dt)
+  -- Restore scrollbar state from StateManager in immediate mode
+  if self._stateId and Gui._immediateMode then
+    local state = StateManager.getState(self._stateId)
+    if state then
+      self._scrollbarHoveredVertical = state.scrollbarHoveredVertical or false
+      self._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal or false
+      self._scrollbarDragging = state.scrollbarDragging or false
+      self._hoveredScrollbar = state.hoveredScrollbar
+      self._scrollbarDragOffset = state.scrollbarDragOffset or 0
+    end
+  end
+
   for _, child in ipairs(self.children) do
     child:update(dt)
   end
@@ -2922,7 +2950,15 @@ function Element:update(dt)
 
     -- Check if this is the topmost element at the mouse position (z-index ordering)
     -- This prevents blocked elements from receiving interactions or visual feedback
-    local isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
+    local isActiveElement
+    if Gui._immediateMode then
+      -- In immediate mode, use z-index occlusion detection
+      local topElement = GuiState.getTopElementAt(mx, my)
+      isActiveElement = (topElement == self or topElement == nil)
+    else
+      -- In retained mode, use the old _activeEventElement mechanism
+      isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
+    end
 
     -- Update theme state based on interaction
     if self.themeComponent then
@@ -2974,12 +3010,23 @@ function Element:update(dt)
 
     -- Only process button events if callback exists, element is not disabled,
     -- and this is the topmost element at the mouse position (z-index ordering)
-    if self.callback and not self.disabled and isActiveElement then
+    -- Exception: Allow drag continuation even if occluded (once drag starts, it continues)
+    local isDragging = false
+    for _, button in ipairs({1, 2, 3}) do
+      if self._pressed[button] and love.mouse.isDown(button) then
+        isDragging = true
+        break
+      end
+    end
+    
+    local canProcessEvents = self.callback and not self.disabled and (isActiveElement or isDragging)
+    
+    if canProcessEvents then
       -- Check all three mouse buttons
       local buttons = { 1, 2, 3 } -- left, right, middle
 
       for _, button in ipairs(buttons) do
-        if isHovering then
+        if isHovering or isDragging then
           if love.mouse.isDown(button) then
             -- Button is pressed down
             if not self._pressed[button] then

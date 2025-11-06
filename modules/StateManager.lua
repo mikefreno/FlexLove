@@ -1,318 +1,492 @@
 -- ====================
 -- State Manager Module
 -- ====================
--- Provides centralized state management for immediate mode GUI elements
--- Handles hover, pressed, disabled, and other interactive states properly
--- Manages state change events and integrates with theme components
+-- Unified state management system for immediate mode GUI elements
+-- Combines ID-based state persistence with interactive state tracking
+-- Handles all element state: interaction, scroll, input, click tracking, etc.
 
 ---@class StateManager
 local StateManager = {}
 
 -- State storage: ID -> state table
 local stateStore = {}
+
+-- Frame tracking metadata: ID -> {lastFrame, createdFrame, accessCount}
+local stateMetadata = {}
+
+-- Frame counter
 local frameNumber = 0
+
+-- Counter to track multiple elements created at the same source location (e.g., in loops)
+local callSiteCounters = {}
 
 -- Configuration
 local config = {
-    stateRetentionFrames = 60, -- Keep unused state for 60 frames (~1 second at 60fps)
-    maxStateEntries = 1000,    -- Maximum state entries before forced GC
+  stateRetentionFrames = 60, -- Keep unused state for 60 frames (~1 second at 60fps)
+  maxStateEntries = 1000,    -- Maximum state entries before forced GC
 }
 
--- State change listeners
-local stateChangeListeners = {}
+-- ====================
+-- ID Generation
+-- ====================
 
---- Get or create a state object for an element ID
----@param id string Element ID
----@return table state State object for the element
-function StateManager.getState(id)
-    if not stateStore[id] then
-        stateStore[id] = {
-            hover = false,
-            pressed = false,
-            focused = false,
-            disabled = false,
-            active = false,
-            -- Scrollbar-specific states
-            scrollbarHoveredVertical = false,
-            scrollbarHoveredHorizontal = false,
-            scrollbarDragging = false,
-            hoveredScrollbar = nil, -- "vertical" or "horizontal"
-            scrollbarDragOffset = 0,
-            -- Frame tracking
-            lastHoverFrame = 0,
-            lastPressedFrame = 0,
-            lastFocusFrame = 0,
-            lastUpdateFrame = 0,
-        }
+--- Generate a hash from a table of properties
+---@param props table
+---@param visited table|nil Tracking table to prevent circular references
+---@param depth number|nil Current recursion depth
+---@return string
+local function hashProps(props, visited, depth)
+  if not props then return "" end
+
+  -- Initialize visited table on first call
+  visited = visited or {}
+  depth = depth or 0
+  
+  -- Limit recursion depth to prevent deep nesting issues
+  if depth > 3 then
+    return "[deep]"
+  end
+  
+  -- Check if we've already visited this table (circular reference)
+  if visited[props] then
+    return "[circular]"
+  end
+  
+  -- Mark this table as visited
+  visited[props] = true
+
+  local parts = {}
+  local keys = {}
+  
+  -- Properties to skip (they cause issues or aren't relevant for ID generation)
+  local skipKeys = {
+    callback = true,
+    parent = true,
+    children = true,
+    onFocus = true,
+    onBlur = true,
+    onTextInput = true,
+    onTextChange = true,
+    onEnter = true,
+    userdata = true,
+  }
+
+  -- Collect and sort keys for consistent ordering
+  for k in pairs(props) do
+    if not skipKeys[k] then
+      table.insert(keys, k)
     end
-    
-    return stateStore[id]
+  end
+  table.sort(keys)
+
+  -- Build hash string from sorted key-value pairs
+  for _, k in ipairs(keys) do
+    local v = props[k]
+    local vtype = type(v)
+
+    if vtype == "string" or vtype == "number" or vtype == "boolean" then
+      table.insert(parts, k .. "=" .. tostring(v))
+    elseif vtype == "table" then
+      table.insert(parts, k .. "={" .. hashProps(v, visited, depth + 1) .. "}")
+    end
+  end
+
+  return table.concat(parts, ";")
 end
 
---- Update state for an element ID
+--- Generate a unique ID from call site and properties
+---@param props table|nil Optional properties to include in ID generation
+---@return string
+function StateManager.generateID(props)
+  -- Get call stack information
+  local info = debug.getinfo(3, "Sl") -- Level 3: caller of Element.new -> caller of generateID
+
+  if not info then
+    -- Fallback to random ID if debug info unavailable
+    return "auto_" .. tostring(math.random(1000000, 9999999))
+  end
+
+  local source = info.source or "unknown"
+  local line = info.currentline or 0
+
+  -- Create ID from source file and line number
+  local baseID = source:match("([^/\\]+)$") or source -- Get filename
+  baseID = baseID:gsub("%.lua$", "") -- Remove .lua extension
+  local locationKey = baseID .. "_L" .. line
+  
+  -- Track how many elements have been created at this location
+  callSiteCounters[locationKey] = (callSiteCounters[locationKey] or 0) + 1
+  local instanceNum = callSiteCounters[locationKey]
+  
+  baseID = locationKey
+  
+  -- Add instance number if multiple elements created at same location (e.g., in loops)
+  if instanceNum > 1 then
+    baseID = baseID .. "_" .. instanceNum
+  end
+
+  -- Add property hash if provided (for additional differentiation)
+  if props then
+    local propHash = hashProps(props)
+    if propHash ~= "" then
+      -- Use first 8 chars of a simple hash
+      local hash = 0
+      for i = 1, #propHash do
+        hash = (hash * 31 + string.byte(propHash, i)) % 1000000
+      end
+      baseID = baseID .. "_" .. hash
+    end
+  end
+
+  return baseID
+end
+
+-- ====================
+-- State Management
+-- ====================
+
+--- Get state for an element ID, creating if it doesn't exist
+---@param id string Element ID
+---@param defaultState table|nil Default state if creating new
+---@return table state State table for the element
+function StateManager.getState(id, defaultState)
+  if not id then
+    error("StateManager.getState: id is required")
+  end
+
+  -- Create state if it doesn't exist
+  if not stateStore[id] then
+    -- Merge default state with standard structure
+    stateStore[id] = defaultState or {}
+    
+    -- Ensure all standard properties exist with defaults
+    local state = stateStore[id]
+    
+    -- Interaction states
+    if state.hover == nil then state.hover = false end
+    if state.pressed == nil then state.pressed = false end
+    if state.focused == nil then state.focused = false end
+    if state.disabled == nil then state.disabled = false end
+    if state.active == nil then state.active = false end
+    
+    -- Scrollbar states
+    if state.scrollbarHoveredVertical == nil then state.scrollbarHoveredVertical = false end
+    if state.scrollbarHoveredHorizontal == nil then state.scrollbarHoveredHorizontal = false end
+    if state.scrollbarDragging == nil then state.scrollbarDragging = false end
+    if state.hoveredScrollbar == nil then state.hoveredScrollbar = nil end
+    if state.scrollbarDragOffset == nil then state.scrollbarDragOffset = 0 end
+    
+    -- Scroll position
+    if state.scrollX == nil then state.scrollX = 0 end
+    if state.scrollY == nil then state.scrollY = 0 end
+    
+    -- Click tracking
+    if state._pressed == nil then state._pressed = {} end
+    if state._lastClickTime == nil then state._lastClickTime = nil end
+    if state._lastClickButton == nil then state._lastClickButton = nil end
+    if state._clickCount == nil then state._clickCount = 0 end
+    
+    -- Drag tracking
+    if state._dragStartX == nil then state._dragStartX = {} end
+    if state._dragStartY == nil then state._dragStartY = {} end
+    if state._lastMouseX == nil then state._lastMouseX = {} end
+    if state._lastMouseY == nil then state._lastMouseY = {} end
+    
+    -- Input/focus state
+    if state._hovered == nil then state._hovered = nil end
+    if state._focused == nil then state._focused = nil end
+    if state._cursorPosition == nil then state._cursorPosition = nil end
+    if state._selectionStart == nil then state._selectionStart = nil end
+    if state._selectionEnd == nil then state._selectionEnd = nil end
+    if state._textBuffer == nil then state._textBuffer = "" end
+    
+    -- Create metadata
+    stateMetadata[id] = {
+      lastFrame = frameNumber,
+      createdFrame = frameNumber,
+      accessCount = 0,
+    }
+  end
+
+  -- Update metadata
+  local meta = stateMetadata[id]
+  meta.lastFrame = frameNumber
+  meta.accessCount = meta.accessCount + 1
+
+  return stateStore[id]
+end
+
+--- Set state for an element ID (replaces entire state)
+---@param id string Element ID
+---@param state table State to store
+function StateManager.setState(id, state)
+  if not id then
+    error("StateManager.setState: id is required")
+  end
+
+  stateStore[id] = state
+
+  -- Update or create metadata
+  if not stateMetadata[id] then
+    stateMetadata[id] = {
+      lastFrame = frameNumber,
+      createdFrame = frameNumber,
+      accessCount = 1,
+    }
+  else
+    stateMetadata[id].lastFrame = frameNumber
+  end
+end
+
+--- Update state for an element ID (merges with existing state)
 ---@param id string Element ID
 ---@param newState table New state values to merge
 function StateManager.updateState(id, newState)
-    local state = StateManager.getState(id)
-    
-    -- Track which properties are changing
-    local changedProperties = {}
-    for key, value in pairs(newState) do
-        if state[key] ~= value then
-            changedProperties[key] = true
-        end
-        state[key] = value
-    end
-    
-    -- Track frame numbers for state changes
-    if newState.hover ~= nil then
-        state.lastHoverFrame = frameNumber
-    end
-    if newState.pressed ~= nil then
-        state.lastPressedFrame = frameNumber
-    end
-    if newState.focused ~= nil then
-        state.lastFocusFrame = frameNumber
-    end
-    
-    -- Track last update frame
-    state.lastUpdateFrame = frameNumber
-    
-    -- Notify listeners of state changes (if any)
-    if next(changedProperties) then
-        StateManager.notifyStateChange(id, changedProperties, newState)
-    end
-end
-
---- Get the current state for an element ID
----@param id string Element ID
----@return table state State object for the element
-function StateManager.getCurrentState(id)
-    return stateStore[id] or {}
+  local state = StateManager.getState(id)
+  
+  -- Merge new state into existing state
+  for key, value in pairs(newState) do
+    state[key] = value
+  end
+  
+  -- Update metadata
+  stateMetadata[id].lastFrame = frameNumber
 end
 
 --- Clear state for a specific element ID
 ---@param id string Element ID
 function StateManager.clearState(id)
-    stateStore[id] = nil
+  stateStore[id] = nil
+  stateMetadata[id] = nil
 end
+
+--- Mark state as used this frame (updates last accessed frame)
+---@param id string Element ID
+function StateManager.markStateUsed(id)
+  if stateMetadata[id] then
+    stateMetadata[id].lastFrame = frameNumber
+  end
+end
+
+--- Get the last frame number when state was accessed
+---@param id string Element ID
+---@return number|nil frameNumber Last accessed frame, or nil if not found
+function StateManager.getLastAccessedFrame(id)
+  if stateMetadata[id] then
+    return stateMetadata[id].lastFrame
+  end
+  return nil
+end
+
+-- ====================
+-- Frame Management
+-- ====================
 
 --- Increment frame counter (called at frame start)
 function StateManager.incrementFrame()
-    frameNumber = frameNumber + 1
+  frameNumber = frameNumber + 1
+  -- Reset call site counters for new frame
+  callSiteCounters = {}
 end
 
 --- Get current frame number
 ---@return number
 function StateManager.getFrameNumber()
-    return frameNumber
+  return frameNumber
 end
+
+-- ====================
+-- Cleanup & Maintenance
+-- ====================
 
 --- Clean up stale states (not accessed recently)
 ---@return number count Number of states cleaned up
 function StateManager.cleanup()
-    local cleanedCount = 0
-    local retentionFrames = config.stateRetentionFrames
+  local cleanedCount = 0
+  local retentionFrames = config.stateRetentionFrames
 
-    for id, state in pairs(stateStore) do
-        -- Check if state is old (no updates in last N frames)
-        local lastUpdateFrame = math.max(
-            state.lastHoverFrame,
-            state.lastPressedFrame,
-            state.lastFocusFrame,
-            state.lastUpdateFrame
-        )
-        
-        if frameNumber - lastUpdateFrame > retentionFrames then
-            stateStore[id] = nil
-            cleanedCount = cleanedCount + 1
-        end
+  for id, meta in pairs(stateMetadata) do
+    local framesSinceAccess = frameNumber - meta.lastFrame
+
+    if framesSinceAccess > retentionFrames then
+      stateStore[id] = nil
+      stateMetadata[id] = nil
+      cleanedCount = cleanedCount + 1
     end
+  end
 
-    return cleanedCount
+  return cleanedCount
 end
 
 --- Force cleanup if state count exceeds maximum
 ---@return number count Number of states cleaned up
 function StateManager.forceCleanupIfNeeded()
-    local stateCount = 0
-    for _ in pairs(stateStore) do
-        stateCount = stateCount + 1
+  local stateCount = StateManager.getStateCount()
+
+  if stateCount > config.maxStateEntries then
+    -- Clean up states not accessed in last 10 frames (aggressive)
+    local cleanedCount = 0
+
+    for id, meta in pairs(stateMetadata) do
+      local framesSinceAccess = frameNumber - meta.lastFrame
+
+      if framesSinceAccess > 10 then
+        stateStore[id] = nil
+        stateMetadata[id] = nil
+        cleanedCount = cleanedCount + 1
+      end
     end
-    
-    if stateCount > config.maxStateEntries then
-        -- Clean up states not accessed in last 10 frames (aggressive)
-        local cleanedCount = 0
-        
-        for id, state in pairs(stateStore) do
-            local lastUpdateFrame = math.max(
-                state.lastHoverFrame,
-                state.lastPressedFrame,
-                state.lastFocusFrame,
-                state.lastUpdateFrame
-            )
-            
-            if frameNumber - lastUpdateFrame > 10 then
-                stateStore[id] = nil
-                cleanedCount = cleanedCount + 1
-            end
-        end
-        
-        return cleanedCount
-    end
-    
-    return 0
+
+    return cleanedCount
+  end
+
+  return 0
 end
 
 --- Get total number of stored states
 ---@return number
 function StateManager.getStateCount()
-    local count = 0
-    for _ in pairs(stateStore) do
-        count = count + 1
-    end
-    return count
+  local count = 0
+  for _ in pairs(stateStore) do
+    count = count + 1
+  end
+  return count
 end
 
 --- Clear all states
 function StateManager.clearAllStates()
-    stateStore = {}
+  stateStore = {}
+  stateMetadata = {}
 end
 
 --- Configure state management
 ---@param newConfig {stateRetentionFrames?: number, maxStateEntries?: number}
 function StateManager.configure(newConfig)
-    if newConfig.stateRetentionFrames then
-        config.stateRetentionFrames = newConfig.stateRetentionFrames
-    end
-    if newConfig.maxStateEntries then
-        config.maxStateEntries = newConfig.maxStateEntries
-    end
+  if newConfig.stateRetentionFrames then
+    config.stateRetentionFrames = newConfig.stateRetentionFrames
+  end
+  if newConfig.maxStateEntries then
+    config.maxStateEntries = newConfig.maxStateEntries
+  end
 end
 
---- Subscribe to state change events for an element ID
+--- Get state statistics for debugging
+---@return {stateCount: number, frameNumber: number, oldestState: number|nil, newestState: number|nil}
+function StateManager.getStats()
+  local stateCount = StateManager.getStateCount()
+  local oldest = nil
+  local newest = nil
+
+  for _, meta in pairs(stateMetadata) do
+    if not oldest or meta.createdFrame < oldest then
+      oldest = meta.createdFrame
+    end
+    if not newest or meta.createdFrame > newest then
+      newest = meta.createdFrame
+    end
+  end
+
+  return {
+    stateCount = stateCount,
+    frameNumber = frameNumber,
+    oldestState = oldest,
+    newestState = newest,
+  }
+end
+
+--- Dump all states for debugging
+---@return table states Copy of all states with metadata
+function StateManager.dumpStates()
+  local dump = {}
+
+  for id, state in pairs(stateStore) do
+    dump[id] = {
+      state = state,
+      metadata = stateMetadata[id],
+    }
+  end
+
+  return dump
+end
+
+--- Reset the entire state system (for testing)
+function StateManager.reset()
+  stateStore = {}
+  stateMetadata = {}
+  frameNumber = 0
+  callSiteCounters = {}
+end
+
+-- ====================
+-- Convenience Functions (for backward compatibility)
+-- ====================
+
+--- Get the current state for an element ID (alias for getState)
 ---@param id string Element ID
----@param callback fun(id: string, property: string, oldValue: any, newValue: any)
-function StateManager.subscribe(id, callback)
-    if not stateChangeListeners[id] then
-        stateChangeListeners[id] = {}
-    end
-    table.insert(stateChangeListeners[id], callback)
+---@return table state State object for the element
+function StateManager.getCurrentState(id)
+  return stateStore[id] or {}
 end
 
---- Notify listeners of a state change
----@param id string Element ID
----@param changedProperties table Properties that have changed
----@param newState table The new state values
-function StateManager.notifyStateChange(id, changedProperties, newState)
-    if not stateChangeListeners[id] then return end
-    
-    local prevState = StateManager.getCurrentState(id)
-    
-    for property, _ in pairs(changedProperties) do
-        local oldValue = prevState[property]
-        local newValue = newState[property]
-        
-        for _, callback in ipairs(stateChangeListeners[id]) do
-            callback(id, property, oldValue, newValue)
-        end
-    end
-end
-
---- Unsubscribe a listener for an element ID
----@param id string Element ID
----@param callback fun(id: string, property: string, oldValue: any, newValue: any)
-function StateManager.unsubscribe(id, callback)
-    if not stateChangeListeners[id] then return end
-    
-    for i = #stateChangeListeners[id], 1, -1 do
-        if stateChangeListeners[id][i] == callback then
-            table.remove(stateChangeListeners[id], i)
-        end
-    end
-end
-
---- Get all listeners for debugging
----@return table
-function StateManager.getListeners()
-    return stateChangeListeners
-end
-
---- Get the active state values for an element
+--- Get the active state values for an element (interaction states only)
 ---@param id string Element ID
 ---@return table state Active state values
 function StateManager.getActiveState(id)
-    local state = StateManager.getState(id)
-    
-    -- Return only the active state properties (not tracking frames)
-    return {
-        hover = state.hover,
-        pressed = state.pressed,
-        focused = state.focused,
-        disabled = state.disabled,
-        active = state.active,
-        scrollbarHoveredVertical = state.scrollbarHoveredVertical,
-        scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal,
-        scrollbarDragging = state.scrollbarDragging,
-        hoveredScrollbar = state.hoveredScrollbar,
-        scrollbarDragOffset = state.scrollbarDragOffset,
-    }
+  local state = StateManager.getState(id)
+  
+  -- Return only the active state properties (not tracking frames or internal state)
+  return {
+    hover = state.hover,
+    pressed = state.pressed,
+    focused = state.focused,
+    disabled = state.disabled,
+    active = state.active,
+    scrollbarHoveredVertical = state.scrollbarHoveredVertical,
+    scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal,
+    scrollbarDragging = state.scrollbarDragging,
+    hoveredScrollbar = state.hoveredScrollbar,
+    scrollbarDragOffset = state.scrollbarDragOffset,
+  }
 end
 
 --- Check if an element is currently hovered
 ---@param id string Element ID
 ---@return boolean
 function StateManager.isHovered(id)
-    local state = StateManager.getState(id)
-    return state.hover or false
+  local state = StateManager.getState(id)
+  return state.hover or false
 end
 
 --- Check if an element is currently pressed
 ---@param id string Element ID
 ---@return boolean
 function StateManager.isPressed(id)
-    local state = StateManager.getState(id)
-    return state.pressed or false
+  local state = StateManager.getState(id)
+  return state.pressed or false
 end
 
 --- Check if an element is currently focused
 ---@param id string Element ID
 ---@return boolean
 function StateManager.isFocused(id)
-    local state = StateManager.getState(id)
-    return state.focused or false
+  local state = StateManager.getState(id)
+  return state.focused or false
 end
 
 --- Check if an element is disabled
 ---@param id string Element ID
 ---@return boolean
 function StateManager.isDisabled(id)
-    local state = StateManager.getState(id)
-    return state.disabled or false
+  local state = StateManager.getState(id)
+  return state.disabled or false
 end
 
 --- Check if an element is active (e.g., input focused)
 ---@param id string Element ID
 ---@return boolean
 function StateManager.isActive(id)
-    local state = StateManager.getState(id)
-    return state.active or false
-end
-
---- Get the time since last hover event for an element
----@param id string Element ID
----@return number secondsSinceLastHover
-function StateManager.getSecondsSinceLastHover(id)
-    local state = StateManager.getState(id)
-    return (frameNumber - state.lastHoverFrame) / 60 -- Assuming 60fps
-end
-
---- Get the time since last press event for an element
----@param id string Element ID
----@return number secondsSinceLastPress
-function StateManager.getSecondsSinceLastPress(id)
-    local state = StateManager.getState(id)
-    return (frameNumber - state.lastPressedFrame) / 60 -- Assuming 60fps
+  local state = StateManager.getState(id)
+  return state.active or false
 end
 
 return StateManager

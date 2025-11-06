@@ -20,7 +20,6 @@ local NinePatchParser = req("NinePatchParser")
 local utils = req("utils")
 local Units = req("Units")
 local GuiState = req("GuiState")
-local ImmediateModeState = req("ImmediateModeState")
 local StateManager = req("StateManager")
 
 -- externals
@@ -95,7 +94,7 @@ function Gui.init(config)
 
   -- Configure state management
   if config.stateRetentionFrames or config.maxStateEntries then
-    ImmediateModeState.configure({
+    StateManager.configure({
       stateRetentionFrames = config.stateRetentionFrames,
       maxStateEntries = config.maxStateEntries,
     })
@@ -126,7 +125,7 @@ end
 function Gui.setMode(mode)
   if mode == "immediate" then
     Gui._immediateMode = true
-    Gui._immediateModeState = ImmediateModeState
+    Gui._immediateModeState = StateManager
     -- Reset frame state
     Gui._frameStarted = false
     Gui._autoBeganFrame = false
@@ -157,7 +156,6 @@ function Gui.beginFrame()
 
   -- Increment frame counter
   Gui._frameNumber = Gui._frameNumber + 1
-  ImmediateModeState.incrementFrame()
   StateManager.incrementFrame()
 
   -- Clear current frame elements
@@ -166,6 +164,9 @@ function Gui.beginFrame()
 
   -- Clear top elements (they will be recreated this frame)
   Gui.topElements = {}
+  
+  -- Clear z-index ordered elements from previous frame
+  GuiState.clearFrameElements()
 end
 
 --- End the current immediate mode frame
@@ -173,6 +174,9 @@ function Gui.endFrame()
   if not Gui._immediateMode then
     return
   end
+
+  -- Sort elements by z-index for occlusion detection
+  GuiState.sortElementsByZIndex()
 
   -- Auto-update all top-level elements (triggers layout calculation and overflow detection)
   -- This must happen BEFORE saving state so that scroll positions and overflow are calculated
@@ -187,7 +191,7 @@ function Gui.endFrame()
   -- Save state back for all elements created this frame
   for _, element in ipairs(Gui._currentFrameElements) do
     if element.id and element.id ~= "" then
-      local state = ImmediateModeState.getState(element.id, {})
+      local state = StateManager.getState(element.id, {})
 
       -- Save stateful properties back to persistent state
       state._pressed = element._pressed
@@ -210,16 +214,14 @@ function Gui.endFrame()
       state._hoveredScrollbar = element._hoveredScrollbar
       state._scrollbarDragOffset = element._scrollbarDragOffset
 
-      ImmediateModeState.setState(element.id, state)
+      StateManager.setState(element.id, state)
     end
   end
 
   -- Cleanup stale states
-  ImmediateModeState.cleanup()
   StateManager.cleanup()
 
   -- Force cleanup if we have too many states
-  ImmediateModeState.forceCleanupIfNeeded()
   StateManager.forceCleanupIfNeeded()
 
   -- Clear frame started flag
@@ -476,7 +478,7 @@ end
 --- Handle mouse wheel scrolling
 function Gui.wheelmoved(x, y)
   local mx, my = love.mouse.getPosition()
-
+  
   local function findScrollableAtPosition(elements, mx, my)
     for i = #elements, 1, -1 do
       local element = elements[i]
@@ -505,11 +507,32 @@ function Gui.wheelmoved(x, y)
     return nil
   end
 
-  -- In immediate mode, use current frame elements; in retained mode, use topElements
-  local elements = Gui._immediateMode and Gui._currentFrameElements or Gui.topElements
-  local scrollableElement = findScrollableAtPosition(elements, mx, my)
-  if scrollableElement then
-    scrollableElement:_handleWheelScroll(x, y)
+  -- In immediate mode, use z-index ordered elements and respect occlusion
+  if Gui._immediateMode then
+    -- Find topmost scrollable element at mouse position using z-index ordering
+    for i = #GuiState._zIndexOrderedElements, 1, -1 do
+      local element = GuiState._zIndexOrderedElements[i]
+      
+      local bx = element.x
+      local by = element.y
+      local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+      local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+      
+      if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
+        local overflowX = element.overflowX or element.overflow
+        local overflowY = element.overflowY or element.overflow
+        if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
+          element:_handleWheelScroll(x, y)
+          return
+        end
+      end
+    end
+  else
+    -- In retained mode, use the old tree traversal method
+    local scrollableElement = findScrollableAtPosition(Gui.topElements, mx, my)
+    if scrollableElement then
+      scrollableElement:_handleWheelScroll(x, y)
+    end
   end
 end
 
@@ -551,14 +574,14 @@ function Gui.new(props)
 
   -- Immediate mode: generate ID if not provided
   if not props.id then
-    props.id = ImmediateModeState.generateID(props)
+    props.id = StateManager.generateID(props)
   end
 
   -- Get or create state for this element
-  local state = ImmediateModeState.getState(props.id, {})
+  local state = StateManager.getState(props.id, {})
 
   -- Mark state as used this frame
-  ImmediateModeState.markStateUsed(props.id)
+  StateManager.markStateUsed(props.id)
 
   -- Create the element
   local element = Element.new(props)
@@ -589,24 +612,23 @@ function Gui.new(props)
   -- Use the same ID for StateManager so state persists across frames
   element._stateId = props.id
 
-  -- Load interactive state from StateManager
-  local interactiveState = StateManager.getState(props.id)
-  element._scrollbarHoveredVertical = interactiveState.scrollbarHoveredVertical
-  element._scrollbarHoveredHorizontal = interactiveState.scrollbarHoveredHorizontal
-  element._scrollbarDragging = interactiveState.scrollbarDragging
-  element._hoveredScrollbar = interactiveState.hoveredScrollbar
-  element._scrollbarDragOffset = interactiveState.scrollbarDragOffset or 0
+  -- Load interactive state from StateManager (already loaded in 'state' variable above)
+  element._scrollbarHoveredVertical = state.scrollbarHoveredVertical
+  element._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal
+  element._scrollbarDragging = state.scrollbarDragging
+  element._hoveredScrollbar = state.hoveredScrollbar
+  element._scrollbarDragOffset = state.scrollbarDragOffset or 0
 
   -- Set initial theme state based on StateManager state
   -- This will be updated in Element:update() but we need an initial value
   if element.themeComponent then
-    if element.disabled or interactiveState.disabled then
+    if element.disabled or state.disabled then
       element._themeState = "disabled"
-    elseif element.active or interactiveState.active then
+    elseif element.active or state.active then
       element._themeState = "active"
-    elseif interactiveState.pressed then
+    elseif state.pressed then
       element._themeState = "pressed"
-    elseif interactiveState.hover then
+    elseif state.hover then
       element._themeState = "hover"
     else
       element._themeState = "normal"
@@ -630,7 +652,7 @@ function Gui.getStateCount()
   if not Gui._immediateMode then
     return 0
   end
-  return ImmediateModeState.getStateCount()
+  return StateManager.getStateCount()
 end
 
 --- Clear state for a specific element ID
@@ -639,7 +661,7 @@ function Gui.clearState(id)
   if not Gui._immediateMode then
     return
   end
-  ImmediateModeState.clearState(id)
+  StateManager.clearState(id)
 end
 
 --- Clear all immediate mode states
@@ -647,7 +669,7 @@ function Gui.clearAllStates()
   if not Gui._immediateMode then
     return
   end
-  ImmediateModeState.clearAllStates()
+  StateManager.clearAllStates()
 end
 
 --- Get state statistics (for debugging)
@@ -656,7 +678,7 @@ function Gui.getStateStats()
   if not Gui._immediateMode then
     return { stateCount = 0, frameNumber = 0 }
   end
-  return ImmediateModeState.getStats()
+  return StateManager.getStats()
 end
 
 --- Helper function: Create a button with default styling
@@ -702,7 +724,7 @@ Gui.ImageDataReader = ImageDataReader
 Gui.ImageRenderer = ImageRenderer
 Gui.ImageScaler = ImageScaler
 Gui.NinePatchParser = NinePatchParser
-Gui.ImmediateModeState = ImmediateModeState
+Gui.StateManager = StateManager
 
 return {
   Gui = Gui,

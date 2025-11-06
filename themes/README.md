@@ -2,7 +2,7 @@
 
 ## Overview
 
-FlexLove supports a flexible 9-slice/9-patch theming system that allows you to create scalable UI components using texture atlases. Themes provide state-based visual feedback and automatically handle element sizing.
+FlexLove supports a flexible 9-patch (NinePatch) theming system that allows you to create scalable UI components using texture atlases. Themes provide state-based visual feedback and automatically handle element sizing.
 
 ## Key Features
 
@@ -22,11 +22,11 @@ Each component gets its own image file:
 
 ```
 themes/
-  panel.png           (24x24 pixels - 9-slice for panels)
-  button_normal.png   (24x24 pixels - 9-slice for buttons)
+  panel.png           (24x24 pixels - 9-patch for panels)
+  button_normal.png   (24x24 pixels - 9-patch for buttons)
   button_hover.png    (24x24 pixels - hover state)
   button_pressed.png  (24x24 pixels - pressed state)
-  input.png           (24x24 pixels - 9-slice for inputs)
+  input.png           (24x24 pixels - 9-patch for inputs)
 ```
 
 **Theme definition:**
@@ -207,7 +207,7 @@ local panel = Gui.new({
 Elements with themes render in this order:
 
 1. **backgroundColor** - Rendered first (behind everything)
-2. **Theme 9-slice** - Rendered on top of backgroundColor
+2. **Theme 9-patch** - Rendered on top of backgroundColor
 3. **Borders** - Rendered on top of theme (if specified)
 4. **Text** - Rendered last (on top of everything)
 
@@ -346,7 +346,7 @@ Gui.new({
 
 ## Corner Scaling
 
-By default, 9-slice corners and non-stretched edges are rendered at their original pixel size (1:1). You can scale corners using a numeric multiplier:
+By default, 9-patch corners and non-stretched edges are rendered at their original pixel size (1:1). You can scale corners using a numeric multiplier:
 
 ### Corner Scaling
 
@@ -405,7 +405,7 @@ button = {
 ## Tips
 
 1. **Start Simple**: Begin with one component (button) before creating a full theme
-2. **Test Scaling**: Make sure your 9-slice regions stretch properly at different sizes
+2. **Test Scaling**: Make sure your 9-patch regions stretch properly at different sizes
 3. **Consistent Style**: Keep corner sizes consistent across components
 4. **State Variations**: For button states, change colors/brightness rather than structure
 5. **Atlas Packing**: Use tools like TexturePacker or Aseprite to create efficient atlases

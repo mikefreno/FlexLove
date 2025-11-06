@@ -1,5 +1,5 @@
 --[[
-NineSlice - 9-Patch Renderer for FlexLove
+NinePatch - 9-Patch Renderer for FlexLove
 Handles rendering of 9-patch components with Android-style scaling.
 Corners can be scaled independently while edges stretch in one dimension.
 ]]
@@ -15,7 +15,7 @@ local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
 end
 
-local NineSlice = {}
+local NinePatch = {}
 
 --- Draw a 9-patch component using Android-style rendering
 --- Corners are scaled by scaleCorners multiplier, edges stretch in one dimension only
@@ -28,7 +28,7 @@ local NineSlice = {}
 ---@param opacity number?
 ---@param elementScaleCorners number? -- Element-level override for scaleCorners (scale multiplier)
 ---@param elementScalingAlgorithm "nearest"|"bilinear"? -- Element-level override for scalingAlgorithm
-function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementScaleCorners, elementScalingAlgorithm)
+function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementScaleCorners, elementScalingAlgorithm)
   if not component or not atlas then
     return
   end
@@ -98,7 +98,7 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
       -- Get ImageData from component (stored during theme loading)
       local atlasData = component._loadedAtlasData
       if not atlasData then
-        error(formatError("NineSlice", "No ImageData available for atlas. Image must be loaded with safeLoadImage."))
+        error(formatError("NinePatch", "No ImageData available for atlas. Image must be loaded with safeLoadImage."))
       end
 
       local scaledData
@@ -195,4 +195,4 @@ function NineSlice.draw(component, atlas, x, y, width, height, opacity, elementS
   love.graphics.setColor(1, 1, 1, 1)
 end
 
-return NineSlice
+return NinePatch

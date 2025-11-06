@@ -130,7 +130,7 @@ function NinePatchParser.parse(imagePath)
   local firstStretchY = stretchY[1]
   local lastStretchY = stretchY[#stretchY]
 
-  -- Stretch insets define the 9-slice regions
+  -- Stretch insets define the 9-patch regions
   local stretchLeft = firstStretchX.start
   local stretchRight = #topStretchPixels - lastStretchX["end"]
   local stretchTop = firstStretchY.start

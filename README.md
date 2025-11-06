@@ -19,7 +19,7 @@ The following features are currently being actively developed:
 - **Grid Layout**: CSS-like (but simplified) grid system for structured layouts
 - **Element Management**: Hierarchical element structures with automatic sizing
 - **Interactive Elements**: Buttons with click detection, event system, and callbacks
-- **Theme System**: 9-slice/9-patch theming with state support (normal, hover, pressed, disabled)
+- **Theme System**: 9-patch (NinePatch) theming with state support (normal, hover, pressed, disabled)
 - **Android 9-Patch Auto-Parsing**: Automatic parsing of *.9.png files with multi-region support
 - **Animations**: Built-in animation support for transitions and effects
 - **Responsive Design**: Automatic resizing with viewport units (vw, vh, %)

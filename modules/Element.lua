@@ -15,7 +15,7 @@ local Color = req("Color")
 local Units = req("Units")
 local Blur = req("Blur")
 local ImageRenderer = req("ImageRenderer")
-local NineSlice = req("NineSlice")
+local NinePatch = req("NinePatch")
 local RoundedRect = req("RoundedRect")
 --local Animation = req("Animation")
 local ImageCache = req("ImageCache")
@@ -135,8 +135,8 @@ Public API methods to access internal state:
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions
----@field scaleCorners number? -- Scale multiplier for 9-slice corners/edges. E.g., 2 = 2x size (overrides theme setting)
----@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-slice corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
+---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges. E.g., 2 = 2x size (overrides theme setting)
+---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-patch corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
 ---@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10)
 ---@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10)
 ---@field _blurInstance table? -- Internal: cached blur effect instance
@@ -270,7 +270,7 @@ function Element.new(props)
     end
   end
 
-  -- Initialize 9-slice corner scaling properties
+  -- Initialize 9-patch corner scaling properties
   -- These override theme component settings when specified
   self.scaleCorners = props.scaleCorners
   self.scalingAlgorithm = props.scalingAlgorithm
@@ -1841,7 +1841,7 @@ function Element:getBlurInstance()
   return self._blurInstance
 end
 
---- Get available content width for children (accounting for 9-slice content padding)
+--- Get available content width for children (accounting for 9-patch content padding)
 --- This is the width that children should use when calculating percentage widths
 ---@return number
 function Element:getAvailableContentWidth()
@@ -1865,7 +1865,7 @@ function Element:getAvailableContentWidth()
   return math.max(0, availableWidth)
 end
 
---- Get available content height for children (accounting for 9-slice content padding)
+--- Get available content height for children (accounting for 9-patch content padding)
 --- This is the height that children should use when calculating percentage heights
 ---@return number
 function Element:getAvailableContentHeight()
@@ -2534,7 +2534,7 @@ function Element:draw(backdropCanvas)
             local borderBoxWidth = self.width + self.padding.left + self.padding.right
             local borderBoxHeight = self.height + self.padding.top + self.padding.bottom
             -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-            NineSlice.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.scaleCorners, self.scalingAlgorithm)
+            NinePatch.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.scaleCorners, self.scalingAlgorithm)
           else
             -- Silently skip drawing if component structure is invalid
           end
@@ -2609,13 +2609,13 @@ function Element:draw(backdropCanvas)
     local tx, ty
 
     -- Text is drawn in the content box (inside padding)
-    -- For 9-slice components, use contentPadding if available
+    -- For 9-patch components, use contentPadding if available
     local textPaddingLeft = self.padding.left
     local textPaddingTop = self.padding.top
     local textAreaWidth = self.width
     local textAreaHeight = self.height
 
-    -- Check if we should use 9-slice contentPadding for text positioning
+    -- Check if we should use 9-patch contentPadding for text positioning
     local scaledContentPadding = self:getScaledContentPadding()
     if scaledContentPadding then
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)

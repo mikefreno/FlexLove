@@ -96,23 +96,29 @@ end
 FlexLöve supports both **immediate mode** and **retained mode** UI paradigms, giving you flexibility in how you structure your UI code:
 
 #### Retained Mode (Default)
-In retained mode, you create elements once and they persist across frames. The library manages the element hierarchy and state automatically.
+In retained mode, you create elements once and they persist across frames. The library manages the element hierarchy, but you must manage changes in element
+state by .
 
 ```lua
+local someGameState = true
 -- Create elements once (e.g., in love.load)
-local button = FlexLove.Element.new({
-  text = "Click Me",
+local button1 = FlexLove.Element.new({
+  text = "Button 1",
+  disabled = someGameState,
   callback = function() print("Clicked!") end
 })
+-- ... other things ... --
+local someGameState = false  -- button1 will not change its disabled state, you need a way to update the element
 
--- Elements automatically update and draw each frame
-function love.update(dt)
-  FlexLove.Gui.update(dt)
-end
+local button2 = FlexLove.Element.new({
+  text = "Click to activate button 1",
+  callback = function(_, event)
+    if event.type == "release" then -- only fire on mouse release
+      button1.disabled = false -- this will actual update the element
+    end
+  end
+})
 
-function love.draw()
-  FlexLove.Gui.draw()
-end
 ```
 
 **Best for:**
@@ -122,21 +128,29 @@ end
 
 #### Immediate Mode
 In immediate mode, you recreate UI elements every frame based on your application state. This approach can be simpler for dynamic UIs that change frequently.
+There is of course some overhead for this, which is why it is not the default behavior.
 
 ```lua
 -- Recreate UI every frame
-function love.draw()
-  FlexLove.ImmediateMode.begin()
-  
-  if FlexLove.ImmediateMode.button("myButton", {
-    x = 100, y = 100,
-    text = "Click Me"
-  }) then
-    print("Clicked!")
+local someGameState = true
+-- Create elements once (e.g., in love.load)
+local button1 = FlexLove.Element.new({
+  text = "Button 1",
+  disabled = someGameState,
+  callback = function() print("Clicked!") end
+})
+-- ... other things ... --
+local someGameState = false  -- button1 in immediate mode will have its state updated 
+
+local button2 = FlexLove.Element.new({
+  text = "Click to activate button 1",
+  callback = function(_, event)
+    if event.type == "release" then -- only fire on mouse release
+      button1.disabled = false -- this will also update the element
+    end
   end
-  
-  FlexLove.ImmediateMode.finish()
-end
+})
+
 ```
 
 **Best for:**
@@ -145,7 +159,8 @@ end
 - Debugging and development tools
 - UIs driven directly by application state
 
-You can mix both modes in the same application - use retained mode for your main UI and immediate mode for debug overlays or dynamic elements.
+You should be able to mix both modes in the same application - use retained mode for your main UI and immediate mode for debug overlays or dynamic elements,
+though this hasn't been tested.
 
 ### Element Properties
 

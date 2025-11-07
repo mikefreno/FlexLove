@@ -10,7 +10,7 @@ This library is under active development. While many features are functional, so
 
 ### Coming Soon
 The following features are currently being actively developed:
-- **Input Fields**: Text input, password fields, and text areas
+- **Input Fields**: Password fields, and text areas(multi-line)
 - **Generic Image Support**: Enhanced image rendering capabilities and utilities
 
 ## Features
@@ -363,6 +363,71 @@ callback = function(element, event)
   end
 end
 ```
+
+### Input Fields
+
+FlexLöve provides text input support with single-line (and multi-line coming soon) fields:
+
+```lua
+-- Create a text input field
+local input = Gui.new({
+  x = 10,
+  y = 10,
+  width = 200,
+  height = 30,
+  editable = true,
+  text = "Type here...",
+  placeholder = "Enter text",
+  textColor = Color.new(1, 1, 1, 1),
+  onTextChange = function(element, newText, oldText)
+    print("Text changed:", newText)
+  end
+})
+
+-- Multi-line text area (coming soon - subject to change)
+local textArea = Gui.new({
+  x = 10,
+  y = 50,
+  width = 300,
+  height = 150,
+  editable = true,
+  multiline = true,
+  text = "",
+  placeholder = "Enter multiple lines..."
+})
+```
+
+**Important**: To enable key repeat for navigation keys (arrows, backspace, delete), add this to your `love.load()`:
+
+```lua
+function love.load()
+  love.keyboard.setKeyRepeat(true)
+end
+```
+
+**Input Properties:**
+- `editable` - Enable text input (default: false)
+- `multiline` - Allow multiple lines (default: false)
+- `placeholder` - Placeholder text when empty
+- `maxLength` - Maximum character count
+- `passwordMode` - Hide text with bullets
+- `selectOnFocus` - Select all text when focused
+
+**Input Callbacks:**
+- `onTextChange(element, newText, oldText)` - Called when text changes
+- `onTextInput(element, text)` - Called for each character input
+- `onEnter(element)` - Called when Enter is pressed (single-line only)
+- `onFocus(element)` - Called when input gains focus
+- `onBlur(element)` - Called when input loses focus
+
+**Features:**
+- Cursor positioning and blinking
+- Text selection (mouse and keyboard)
+- Copy/Cut/Paste (Ctrl+C/X/V)
+- Word navigation (Ctrl+Arrow keys)
+- Select all (Ctrl+A)
+- Automatic text scrolling to keep cursor visible
+- UTF-8 support
 
 ### Responsive Units
 

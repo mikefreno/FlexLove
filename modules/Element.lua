@@ -3205,6 +3205,11 @@ function Element:update(dt)
                   })
                   self.callback(self, dragEvent)
                 end
+                
+                -- Handle text selection drag for editable elements
+                if button == 1 and self.editable and self._focused then
+                  self:_handleTextDrag(mx, my)
+                end
 
                 -- Update last known position for this button
                 self._lastMouseX[button] = mx
@@ -3255,11 +3260,19 @@ function Element:update(dt)
             -- Clean up drag tracking
             self._dragStartX[button] = nil
             self._dragStartY[button] = nil
+            
+            -- Clean up text selection drag tracking
+            if button == 1 then
+              self._mouseDownPosition = nil
+            end
 
             -- Focus editable elements on left click
             if button == 1 and self.editable then
               print("[Element:update] Calling focus on editable element")
               self:focus()
+              
+              -- Handle text click for cursor positioning and word selection
+              self:_handleTextClick(mx, my, clickCount)
             elseif button == 1 then
               print("[Element:update] Button 1 clicked but editable:", self.editable)
             end
@@ -3915,6 +3928,81 @@ function Element:moveCursorToLineEnd()
   self:moveCursorToEnd()
 end
 
+--- Move cursor to start of previous word
+function Element:moveCursorToPreviousWord()
+  if not self.editable or not self._textBuffer then
+    return
+  end
+
+  local text = self._textBuffer
+  local pos = self._cursorPosition
+
+  if pos <= 0 then
+    return
+  end
+
+  -- Skip any whitespace/punctuation before current position
+  while pos > 0 do
+    local offset = utf8.offset(text, pos)
+    local char = offset and text:sub(offset, utf8.offset(text, pos + 1) - 1) or ""
+    if char:match("[%w]") then
+      break
+    end
+    pos = pos - 1
+  end
+
+  -- Move to start of current word
+  while pos > 0 do
+    local offset = utf8.offset(text, pos)
+    local char = offset and text:sub(offset, utf8.offset(text, pos + 1) - 1) or ""
+    if not char:match("[%w]") then
+      break
+    end
+    pos = pos - 1
+  end
+
+  self._cursorPosition = pos
+  self:_validateCursorPosition()
+end
+
+--- Move cursor to start of next word
+function Element:moveCursorToNextWord()
+  if not self.editable or not self._textBuffer then
+    return
+  end
+
+  local text = self._textBuffer
+  local textLength = utf8.len(text) or 0
+  local pos = self._cursorPosition
+
+  if pos >= textLength then
+    return
+  end
+
+  -- Skip current word
+  while pos < textLength do
+    local offset = utf8.offset(text, pos + 1)
+    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
+    if not char:match("[%w]") then
+      break
+    end
+    pos = pos + 1
+  end
+
+  -- Skip any whitespace/punctuation
+  while pos < textLength do
+    local offset = utf8.offset(text, pos + 1)
+    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
+    if char:match("[%w]") then
+      break
+    end
+    pos = pos + 1
+  end
+
+  self._cursorPosition = pos
+  self:_validateCursorPosition()
+end
+
 --- Validate cursor position (ensure it's within text bounds)
 function Element:_validateCursorPosition()
   if not self.editable then
@@ -4397,6 +4485,152 @@ function Element:_getFont()
 end
 
 -- ====================
+-- Input Handling - Mouse Selection
+-- ====================
+
+--- Convert mouse coordinates to cursor position in text
+---@param mouseX number -- Mouse X coordinate (absolute)
+---@param mouseY number -- Mouse Y coordinate (absolute)
+---@return number -- Cursor position (character index)
+function Element:_mouseToTextPosition(mouseX, mouseY)
+  if not self.editable or not self._textBuffer then
+    return 0
+  end
+
+  -- Get content area bounds
+  local contentX = (self._absoluteX or self.x) + self.padding.left
+  local contentY = (self._absoluteY or self.y) + self.padding.top
+  
+  -- Calculate relative X position within text area
+  local relativeX = mouseX - contentX
+  
+  -- Get font for measuring text
+  local font = self:_getFont()
+  
+  -- Find the character position closest to the click
+  local text = self._textBuffer
+  local textLength = utf8.len(text) or 0
+  local closestPos = 0
+  local closestDist = math.huge
+  
+  -- Check each position in the text
+  for i = 0, textLength do
+    -- Get text up to this position
+    local offset = utf8.offset(text, i + 1)
+    local beforeText = offset and text:sub(1, offset - 1) or text
+    local textWidth = font:getWidth(beforeText)
+    
+    -- Calculate distance from click to this position
+    local dist = math.abs(relativeX - textWidth)
+    
+    if dist < closestDist then
+      closestDist = dist
+      closestPos = i
+    end
+  end
+  
+  return closestPos
+end
+
+--- Handle mouse click on text (set cursor position or start selection)
+---@param mouseX number -- Mouse X coordinate
+---@param mouseY number -- Mouse Y coordinate
+---@param clickCount number -- Number of clicks (1=single, 2=double, 3=triple)
+function Element:_handleTextClick(mouseX, mouseY, clickCount)
+  if not self.editable or not self._focused then
+    return
+  end
+
+  if clickCount == 1 then
+    -- Single click: Set cursor position
+    local pos = self:_mouseToTextPosition(mouseX, mouseY)
+    self:setCursorPosition(pos)
+    self:clearSelection()
+    
+    -- Store position for potential drag selection
+    self._mouseDownPosition = pos
+    
+  elseif clickCount == 2 then
+    -- Double click: Select word
+    self:_selectWordAtPosition(self:_mouseToTextPosition(mouseX, mouseY))
+    
+  elseif clickCount >= 3 then
+    -- Triple click: Select all (or line in multi-line mode)
+    self:selectAll()
+  end
+  
+  self:_resetCursorBlink()
+end
+
+--- Handle mouse drag for text selection
+---@param mouseX number -- Mouse X coordinate
+---@param mouseY number -- Mouse Y coordinate
+function Element:_handleTextDrag(mouseX, mouseY)
+  if not self.editable or not self._focused or not self._mouseDownPosition then
+    return
+  end
+
+  local currentPos = self:_mouseToTextPosition(mouseX, mouseY)
+  
+  -- Create selection from mouse down position to current position
+  if currentPos ~= self._mouseDownPosition then
+    self:setSelection(self._mouseDownPosition, currentPos)
+    self._cursorPosition = currentPos
+  else
+    self:clearSelection()
+  end
+  
+  self:_resetCursorBlink()
+end
+
+--- Select word at given position
+---@param position number -- Character position
+function Element:_selectWordAtPosition(position)
+  if not self.editable or not self._textBuffer then
+    return
+  end
+
+  local text = self._textBuffer
+  local textLength = utf8.len(text) or 0
+  
+  if position < 0 or position > textLength then
+    return
+  end
+
+  -- Find word boundaries
+  local wordStart = position
+  local wordEnd = position
+  
+  -- Find start of word (move left while alphanumeric)
+  while wordStart > 0 do
+    local offset = utf8.offset(text, wordStart)
+    local char = offset and text:sub(offset, utf8.offset(text, wordStart + 1) - 1) or ""
+    if char:match("[%w]") then
+      wordStart = wordStart - 1
+    else
+      break
+    end
+  end
+  
+  -- Find end of word (move right while alphanumeric)
+  while wordEnd < textLength do
+    local offset = utf8.offset(text, wordEnd + 1)
+    local char = offset and text:sub(offset, utf8.offset(text, wordEnd + 2) - 1) or ""
+    if char:match("[%w]") then
+      wordEnd = wordEnd + 1
+    else
+      break
+    end
+  end
+  
+  -- Select the word
+  if wordEnd > wordStart then
+    self:setSelection(wordStart, wordEnd)
+    self._cursorPosition = wordEnd
+  end
+end
+
+-- ====================
 -- Input Handling - Keyboard Input
 -- ====================
 
@@ -4446,48 +4680,81 @@ function Element:keypressed(key, scancode, isrepeat)
   local modifiers = getModifiers()
   local ctrl = modifiers.ctrl or modifiers.super -- Support both Ctrl and Cmd
 
-  -- Handle cursor movement
-  if key == "left" then
-    if self:hasSelection() and not modifiers.shift then
-      -- Move to start of selection
-      local startPos, _ = self:getSelection()
-      self._cursorPosition = startPos
-      self:clearSelection()
-    else
-      self:moveCursorBy(-1)
+  -- Handle cursor movement with selection
+  if key == "left" or key == "right" or key == "home" or key == "end" or key == "up" or key == "down" then
+    -- Set selection anchor if Shift is pressed and no anchor exists
+    if modifiers.shift and not self._selectionAnchor then
+      self._selectionAnchor = self._cursorPosition
     end
-    self:_resetCursorBlink()
-  elseif key == "right" then
-    if self:hasSelection() and not modifiers.shift then
-      -- Move to end of selection
-      local _, endPos = self:getSelection()
-      self._cursorPosition = endPos
-      self:clearSelection()
-    else
-      self:moveCursorBy(1)
+
+    -- Store old cursor position
+    local oldCursorPos = self._cursorPosition
+
+    -- Move cursor based on key
+    if key == "left" then
+      if self:hasSelection() and not modifiers.shift then
+        -- Move to start of selection
+        local startPos, _ = self:getSelection()
+        self._cursorPosition = startPos
+        self:clearSelection()
+      elseif ctrl then
+        -- Ctrl+Left: Move to previous word
+        self:moveCursorToPreviousWord()
+      else
+        self:moveCursorBy(-1)
+      end
+    elseif key == "right" then
+      if self:hasSelection() and not modifiers.shift then
+        -- Move to end of selection
+        local _, endPos = self:getSelection()
+        self._cursorPosition = endPos
+        self:clearSelection()
+      elseif ctrl then
+        -- Ctrl+Right: Move to next word
+        self:moveCursorToNextWord()
+      else
+        self:moveCursorBy(1)
+      end
+    elseif key == "home" then
+      -- Move to line start (or document start for single-line)
+      if ctrl or not self.multiline then
+        self:moveCursorToStart()
+      else
+        self:moveCursorToLineStart()
+      end
+      if not modifiers.shift then
+        self:clearSelection()
+      end
+    elseif key == "end" then
+      -- Move to line end (or document end for single-line)
+      if ctrl or not self.multiline then
+        self:moveCursorToEnd()
+      else
+        self:moveCursorToLineEnd()
+      end
+      if not modifiers.shift then
+        self:clearSelection()
+      end
+    elseif key == "up" then
+      -- TODO: Implement up/down for multi-line
+      if not modifiers.shift then
+        self:clearSelection()
+      end
+    elseif key == "down" then
+      -- TODO: Implement up/down for multi-line
+      if not modifiers.shift then
+        self:clearSelection()
+      end
     end
-    self:_resetCursorBlink()
-  elseif key == "home" or (ctrl and key == "a" and not self.multiline) then
-    -- Move to line start (or document start for single-line)
-    if ctrl or not self.multiline then
-      self:moveCursorToStart()
-    else
-      self:moveCursorToLineStart()
+
+    -- Update selection if Shift is pressed
+    if modifiers.shift and self._selectionAnchor then
+      self:setSelection(self._selectionAnchor, self._cursorPosition)
+    elseif not modifiers.shift then
+      -- Clear anchor when Shift is released
+      self._selectionAnchor = nil
     end
-    if key == "home" then
-      self:clearSelection()
-    end
-    self:_resetCursorBlink()
-  elseif key == "end" or (ctrl and key == "e" and not self.multiline) then
-    -- Move to line end (or document end for single-line)
-    if ctrl or not self.multiline then
-      self:moveCursorToEnd()
-    else
-      self:moveCursorToLineEnd()
-    end
-    if key == "end" then
-      self:clearSelection()
-    end
+
     self:_resetCursorBlink()
 
   -- Handle backspace and delete
@@ -4552,6 +4819,56 @@ function Element:keypressed(key, scancode, isrepeat)
   -- Handle Ctrl/Cmd+A (select all)
   elseif ctrl and key == "a" then
     self:selectAll()
+    self:_resetCursorBlink()
+
+  -- Handle Ctrl/Cmd+C (copy)
+  elseif ctrl and key == "c" then
+    if self:hasSelection() then
+      local selectedText = self:getSelectedText()
+      if selectedText then
+        love.system.setClipboardText(selectedText)
+      end
+    end
+    self:_resetCursorBlink()
+
+  -- Handle Ctrl/Cmd+X (cut)
+  elseif ctrl and key == "x" then
+    if self:hasSelection() then
+      local selectedText = self:getSelectedText()
+      if selectedText then
+        love.system.setClipboardText(selectedText)
+        
+        -- Delete the selected text
+        local oldText = self._textBuffer
+        self:deleteSelection()
+        
+        -- Trigger onTextChange callback
+        if self.onTextChange and self._textBuffer ~= oldText then
+          self.onTextChange(self, self._textBuffer, oldText)
+        end
+      end
+    end
+    self:_resetCursorBlink()
+
+  -- Handle Ctrl/Cmd+V (paste)
+  elseif ctrl and key == "v" then
+    local clipboardText = love.system.getClipboardText()
+    if clipboardText and clipboardText ~= "" then
+      local oldText = self._textBuffer
+      
+      -- Delete selection if exists
+      if self:hasSelection() then
+        self:deleteSelection()
+      end
+      
+      -- Insert clipboard text
+      self:insertText(clipboardText)
+      
+      -- Trigger onTextChange callback
+      if self.onTextChange and self._textBuffer ~= oldText then
+        self.onTextChange(self, self._textBuffer, oldText)
+      end
+    end
     self:_resetCursorBlink()
 
   -- Handle Escape

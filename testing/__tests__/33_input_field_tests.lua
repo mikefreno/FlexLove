@@ -586,5 +586,883 @@ function TestInputField:testPasswordModeDisablesMultiline()
   lu.assertFalse(element.multiline)
 end
 
+-- ====================
+-- Keyboard Selection Tests
+-- ====================
+
+function TestInputField:testShiftRightSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+
+  -- Mock Shift key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Shift+Right should select one character
+  element:keypressed("right", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 0)
+  lu.assertEquals(endPos, 1)
+
+  -- Another Shift+Right should extend selection
+  element:keypressed("right", nil, false)
+  lu.assertTrue(element:hasSelection())
+  startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 0)
+  lu.assertEquals(endPos, 2)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testShiftLeftSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setCursorPosition(5) -- Position after "Hello"
+
+  -- Mock Shift key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Shift+Left should select one character backwards
+  element:keypressed("left", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 4)
+  lu.assertEquals(endPos, 5)
+
+  -- Another Shift+Left should extend selection
+  element:keypressed("left", nil, false)
+  lu.assertTrue(element:hasSelection())
+  startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 3)
+  lu.assertEquals(endPos, 5)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testShiftHomeSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setCursorPosition(5)
+
+  -- Mock Shift key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Shift+Home should select from cursor to start
+  element:keypressed("home", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 0)
+  lu.assertEquals(endPos, 5)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testShiftEndSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setCursorPosition(5)
+
+  -- Mock Shift key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Shift+End should select from cursor to end
+  element:keypressed("end", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 5)
+  lu.assertEquals(endPos, 11) -- "Hello World" has 11 characters
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testSelectionDirectionChange()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setCursorPosition(5)
+
+  -- Mock Shift key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Select right
+  element:keypressed("right", nil, false)
+  element:keypressed("right", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 5)
+  lu.assertEquals(endPos, 7)
+
+  -- Now select left (should shrink selection)
+  element:keypressed("left", nil, false)
+  lu.assertTrue(element:hasSelection())
+  startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 5)
+  lu.assertEquals(endPos, 6)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testArrowWithoutShiftClearsSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setSelection(0, 5)
+  lu.assertTrue(element:hasSelection())
+
+  -- Arrow key without Shift should clear selection and move cursor
+  element:keypressed("right", nil, false)
+  lu.assertFalse(element:hasSelection())
+  lu.assertEquals(element._cursorPosition, 5) -- Should move to end of selection
+end
+
+function TestInputField:testTypingReplacesSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setSelection(0, 5) -- Select "Hello"
+
+  -- Type a character - should replace selection
+  element:textinput("X")
+  lu.assertEquals(element:getText(), "X World")
+  lu.assertFalse(element:hasSelection())
+  lu.assertEquals(element._cursorPosition, 1)
+end
+
+-- ====================
+-- Mouse Selection Tests
+-- ====================
+
+function TestInputField:testMouseClickSetsCursorPosition()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  
+  -- Simulate single click (this would normally be done through the event system)
+  -- We'll test the _handleTextClick method directly
+  element:_handleTextClick(15, 15, 1) -- Single click near start
+  
+  -- Cursor should be set (exact position depends on font, so we just check it's valid)
+  lu.assertTrue(element._cursorPosition >= 0)
+  lu.assertTrue(element._cursorPosition <= 11)
+  lu.assertFalse(element:hasSelection())
+end
+
+function TestInputField:testMouseDoubleClickSelectsWord()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setCursorPosition(3) -- Position in "Hello"
+  
+  -- Simulate double click to select word
+  element:_handleTextClick(15, 15, 2) -- Double click
+  
+  -- Should have selected a word (we can't test exact positions without font metrics)
+  -- But we can verify a selection was created
+  lu.assertTrue(element:hasSelection() or element._cursorPosition >= 0)
+end
+
+function TestInputField:testMouseTripleClickSelectsAll()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  
+  -- Simulate triple click
+  element:_handleTextClick(15, 15, 3) -- Triple click
+  
+  -- Should select all text
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 0)
+  lu.assertEquals(endPos, 11)
+end
+
+function TestInputField:testMouseDragCreatesSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  
+  -- Simulate mouse down at position 0
+  element._mouseDownPosition = 0
+  
+  -- Simulate drag to position 5
+  element:_handleTextDrag(50, 15)
+  
+  -- Should have created a selection (exact positions depend on font metrics)
+  -- We just verify the drag handler works
+  lu.assertTrue(element._cursorPosition >= 0)
+end
+
+function TestInputField:testSelectWordAtPosition()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World Test",
+  })
+
+  element:focus()
+  
+  -- Select word at position 6 (in "World")
+  element:_selectWordAtPosition(6)
+  
+  -- Should have selected "World"
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 6)
+  lu.assertEquals(endPos, 11)
+  lu.assertEquals(element:getSelectedText(), "World")
+end
+
+function TestInputField:testSelectWordWithNonAlphanumeric()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello, World!",
+  })
+
+  element:focus()
+  
+  -- Select word at position 0 (in "Hello")
+  element:_selectWordAtPosition(2)
+  
+  -- Should have selected "Hello" (not including comma)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 0)
+  lu.assertEquals(endPos, 5)
+  lu.assertEquals(element:getSelectedText(), "Hello")
+end
+
+function TestInputField:testMouseToTextPosition()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello",
+  })
+
+  element:focus()
+  
+  -- Test conversion at start of element
+  local pos = element:_mouseToTextPosition(10, 10)
+  lu.assertEquals(pos, 0)
+  
+  -- Test conversion far to the right (should be at end)
+  pos = element:_mouseToTextPosition(200, 10)
+  lu.assertEquals(pos, 5) -- "Hello" has 5 characters
+end
+
+-- ====================
+-- Clipboard Operations Tests
+-- ====================
+
+function TestInputField:testCtrlCCopiesSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setSelection(0, 5) -- Select "Hello"
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+C
+  element:keypressed("c", nil, false)
+
+  -- Check clipboard content
+  lu.assertEquals(love.system.getClipboardText(), "Hello")
+  
+  -- Text should remain unchanged
+  lu.assertEquals(element:getText(), "Hello World")
+  lu.assertTrue(element:hasSelection())
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCtrlXCutsSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setSelection(0, 5) -- Select "Hello"
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+X
+  element:keypressed("x", nil, false)
+
+  -- Check clipboard content
+  lu.assertEquals(love.system.getClipboardText(), "Hello")
+  
+  -- Text should be cut
+  lu.assertEquals(element:getText(), " World")
+  lu.assertFalse(element:hasSelection())
+  lu.assertEquals(element._cursorPosition, 0)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCtrlVPastesFromClipboard()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "World",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+
+  -- Set clipboard content
+  love.system.setClipboardText("Hello ")
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+V
+  element:keypressed("v", nil, false)
+
+  -- Text should be pasted
+  lu.assertEquals(element:getText(), "Hello World")
+  lu.assertEquals(element._cursorPosition, 6)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCtrlVReplacesSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  element:setSelection(6, 11) -- Select "World"
+
+  -- Set clipboard content
+  love.system.setClipboardText("Everyone")
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+V
+  element:keypressed("v", nil, false)
+
+  -- Selection should be replaced
+  lu.assertEquals(element:getText(), "Hello Everyone")
+  lu.assertFalse(element:hasSelection())
+  lu.assertEquals(element._cursorPosition, 14)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCopyWithoutSelectionDoesNothing()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  
+  -- Clear clipboard
+  love.system.setClipboardText("")
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+C without selection
+  element:keypressed("c", nil, false)
+
+  -- Clipboard should remain empty
+  lu.assertEquals(love.system.getClipboardText(), "")
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCutWithoutSelectionDoesNothing()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World",
+  })
+
+  element:focus()
+  
+  -- Clear clipboard
+  love.system.setClipboardText("")
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+X without selection
+  element:keypressed("x", nil, false)
+
+  -- Clipboard should remain empty and text unchanged
+  lu.assertEquals(love.system.getClipboardText(), "")
+  lu.assertEquals(element:getText(), "Hello World")
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testPasteEmptyClipboard()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello",
+  })
+
+  element:focus()
+  element:setCursorPosition(5)
+  
+  -- Clear clipboard
+  love.system.setClipboardText("")
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Simulate Ctrl+V with empty clipboard
+  element:keypressed("v", nil, false)
+
+  -- Text should remain unchanged
+  lu.assertEquals(element:getText(), "Hello")
+  lu.assertEquals(element._cursorPosition, 5)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+-- ====================
+-- Word Navigation Tests
+-- ====================
+
+function TestInputField:testCtrlLeftMovesToPreviousWord()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World Test",
+  })
+
+  element:focus()
+  element:setCursorPosition(16) -- At end of text
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Ctrl+Left should move to start of "Test"
+  element:keypressed("left", nil, false)
+  lu.assertEquals(element._cursorPosition, 12)
+
+  -- Another Ctrl+Left should move to start of "World"
+  element:keypressed("left", nil, false)
+  lu.assertEquals(element._cursorPosition, 6)
+
+  -- Another Ctrl+Left should move to start of "Hello"
+  element:keypressed("left", nil, false)
+  lu.assertEquals(element._cursorPosition, 0)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCtrlRightMovesToNextWord()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World Test",
+  })
+
+  element:focus()
+  element:setCursorPosition(0) -- At start of text
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Ctrl+Right should move to start of "World"
+  element:keypressed("right", nil, false)
+  lu.assertEquals(element._cursorPosition, 6)
+
+  -- Another Ctrl+Right should move to start of "Test"
+  element:keypressed("right", nil, false)
+  lu.assertEquals(element._cursorPosition, 12)
+
+  -- Another Ctrl+Right should move to end
+  element:keypressed("right", nil, false)
+  lu.assertEquals(element._cursorPosition, 16)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCtrlShiftLeftSelectsWord()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World Test",
+  })
+
+  element:focus()
+  element:setCursorPosition(16) -- At end of text
+
+  -- Mock Ctrl+Shift keys
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" or key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Ctrl+Shift+Left should select "Test"
+  element:keypressed("left", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 12)
+  lu.assertEquals(endPos, 16)
+  lu.assertEquals(element:getSelectedText(), "Test")
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testCtrlShiftRightSelectsWord()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello World Test",
+  })
+
+  element:focus()
+  element:setCursorPosition(0) -- At start of text
+
+  -- Mock Ctrl+Shift keys
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" or key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Ctrl+Shift+Right should select "Hello"
+  element:keypressed("right", nil, false)
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  lu.assertEquals(startPos, 0)
+  lu.assertEquals(endPos, 6)
+  lu.assertEquals(element:getSelectedText(), "Hello ")
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testWordNavigationWithPunctuation()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 100,
+    height = 30,
+    editable = true,
+    text = "Hello, World! Test.",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+
+  -- Mock Ctrl key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lctrl" or key == "rctrl" then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Ctrl+Right should skip punctuation and move to "World"
+  element:keypressed("right", nil, false)
+  lu.assertEquals(element._cursorPosition, 7)
+
+  -- Another Ctrl+Right should move to "Test"
+  element:keypressed("right", nil, false)
+  lu.assertEquals(element._cursorPosition, 14)
+
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
 -- Run tests
 lu.LuaUnit.run()

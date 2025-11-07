@@ -412,5 +412,17 @@ function love_helper.filesystem.addMockFile(path, data)
   }
 end
 
+-- Mock system clipboard
+love_helper.system = {}
+local mockClipboard = ""
+
+function love_helper.system.getClipboardText()
+  return mockClipboard
+end
+
+function love_helper.system.setClipboardText(text)
+  mockClipboard = text or ""
+end
+
 _G.love = love_helper
 return love_helper

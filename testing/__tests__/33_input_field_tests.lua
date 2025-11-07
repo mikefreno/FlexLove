@@ -1464,5 +1464,169 @@ function TestInputField:testWordNavigationWithPunctuation()
   _G.love.keyboard.isDown = oldIsDown
 end
 
+-- ====================
+-- Text Scrolling Tests
+-- ====================
+
+function TestInputField:testTextScrollInitiallyZero()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50, -- Small width to force scrolling
+    height = 30,
+    editable = true,
+    text = "",
+  })
+
+  element:focus()
+  
+  -- Initial scroll should be 0
+  lu.assertEquals(element._textScrollX, 0)
+end
+
+function TestInputField:testTextScrollUpdatesOnCursorMove()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50, -- Small width to force scrolling
+    height = 30,
+    editable = true,
+    text = "This is a very long text that will overflow",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+  
+  -- Scroll should be 0 at start
+  lu.assertEquals(element._textScrollX, 0)
+  
+  -- Move cursor to end
+  element:moveCursorToEnd()
+  
+  -- Scroll should have increased to keep cursor visible
+  lu.assertTrue(element._textScrollX > 0)
+end
+
+function TestInputField:testTextScrollKeepsCursorVisible()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50, -- Small width
+    height = 30,
+    editable = true,
+    text = "",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+  
+  -- Set long text directly
+  element:setText("This is a very long text that will definitely overflow the bounds")
+  element:moveCursorToEnd()
+  
+  -- Cursor should be at end and scroll should be adjusted
+  lu.assertTrue(element._textScrollX > 0)
+  
+  -- Move cursor back to start
+  element:moveCursorToStart()
+  
+  -- Scroll should reset to 0
+  lu.assertEquals(element._textScrollX, 0)
+end
+
+function TestInputField:testTextScrollWithSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50,
+    height = 30,
+    editable = true,
+    text = "This is a very long text for testing",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+  
+  -- Move to end and check scroll
+  element:moveCursorToEnd()
+  local scrollAtEnd = element._textScrollX
+  lu.assertTrue(scrollAtEnd > 0)
+  
+  -- Select from end backwards
+  element:setSelection(20, 37)
+  element._cursorPosition = 20
+  element:_updateTextScroll()
+  
+  -- Scroll should adjust to show cursor at position 20
+  lu.assertTrue(element._textScrollX < scrollAtEnd)
+end
+
+function TestInputField:testTextScrollDoesNotAffectMultiline()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50,
+    height = 60,
+    editable = true,
+    multiline = true,
+    text = "This is a very long text",
+  })
+
+  element:focus()
+  element:moveCursorToEnd()
+  
+  -- Multiline should not use horizontal scroll
+  lu.assertEquals(element._textScrollX, 0)
+end
+
+function TestInputField:testTextScrollResetsOnClear()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50,
+    height = 30,
+    editable = true,
+    text = "This is a very long text that overflows",
+  })
+
+  element:focus()
+  element:moveCursorToEnd()
+  
+  -- Should have scrolled
+  lu.assertTrue(element._textScrollX > 0)
+  
+  -- Clear text
+  element:setText("")
+  element:setCursorPosition(0)
+  
+  -- Scroll should reset
+  lu.assertEquals(element._textScrollX, 0)
+end
+
+function TestInputField:testTextScrollWithBackspace()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 50,
+    height = 30,
+    editable = true,
+    text = "XXXXXXXXXXXXXXXXXXXXXXXXXX", -- Long text
+  })
+
+  element:focus()
+  element:moveCursorToEnd()
+  
+  local initialScroll = element._textScrollX
+  lu.assertTrue(initialScroll > 0)
+  
+  -- Delete characters from end
+  element:keypressed("backspace", nil, false)
+  element:keypressed("backspace", nil, false)
+  element:keypressed("backspace", nil, false)
+  
+  -- Scroll should decrease as text gets shorter
+  lu.assertTrue(element._textScrollX <= initialScroll)
+end
+
 -- Run tests
 lu.LuaUnit.run()

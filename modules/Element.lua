@@ -338,6 +338,9 @@ function Element.new(props)
     self._lines = nil -- Split lines (for multiline)
     self._wrappedLines = nil -- Wrapped line data
     self._textDirty = true -- Flag to recalculate lines/wrapping
+    
+    -- Scroll state for text overflow
+    self._textScrollX = 0 -- Horizontal scroll offset in pixels
   end
 
   -- Set parent first so it's available for size calculations
@@ -2679,7 +2682,23 @@ function Element:draw(backdropCanvas)
         tx = contentX
         ty = contentY
       end
+      
+      -- Apply scroll offset for editable single-line inputs
+      if self.editable and not self.multiline and self._textScrollX then
+        tx = tx - self._textScrollX
+      end
+      
+      -- Use scissor to clip text to content area for editable inputs
+      if self.editable and not self.multiline then
+        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
+      end
+      
       love.graphics.print(displayText, tx, ty)
+      
+      -- Reset scissor
+      if self.editable and not self.multiline then
+        love.graphics.setScissor()
+      end
     end
     
     -- Draw cursor for focused editable elements (even if text is empty)
@@ -2700,8 +2719,18 @@ function Element:draw(backdropCanvas)
       local cursorY = ty or contentY
       local cursorHeight = textHeight
       
+      -- Apply scissor for single-line editable inputs
+      if not self.multiline then
+        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
+      end
+      
       -- Draw cursor line
       love.graphics.rectangle("fill", cursorX, cursorY, 2, cursorHeight)
+      
+      -- Reset scissor
+      if not self.multiline then
+        love.graphics.setScissor()
+      end
     end
     
     -- Draw selection highlight for editable elements
@@ -2727,6 +2756,11 @@ function Element:draw(backdropCanvas)
       local selY = ty or contentY
       local selHeight = textHeight
       
+      -- Apply scissor for single-line editable inputs
+      if not self.multiline then
+        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
+      end
+      
       -- Draw selection background
       love.graphics.setColor(selectionWithOpacity:toRGBA())
       love.graphics.rectangle("fill", selX, selY, selWidth, selHeight)
@@ -2734,6 +2768,11 @@ function Element:draw(backdropCanvas)
       -- Redraw selected text on top
       love.graphics.setColor(textColorWithOpacity:toRGBA())
       love.graphics.print(selectedText, selX, selY)
+      
+      -- Reset scissor
+      if not self.multiline then
+        love.graphics.setScissor()
+      end
     end
     
     if self.textSize then
@@ -4019,6 +4058,56 @@ function Element:_resetCursorBlink()
   end
   self._cursorBlinkTimer = 0
   self._cursorVisible = true
+  
+  -- Update scroll to keep cursor visible
+  self:_updateTextScroll()
+end
+
+--- Update text scroll offset to keep cursor visible
+function Element:_updateTextScroll()
+  if not self.editable or self.multiline then
+    return
+  end
+
+  -- Get font for measuring text
+  local font = self:_getFont()
+  if not font then
+    return
+  end
+
+  -- Calculate cursor X position in text coordinates
+  local cursorText = ""
+  if self._textBuffer and self._textBuffer ~= "" and self._cursorPosition > 0 then
+    local byteOffset = utf8.offset(self._textBuffer, self._cursorPosition + 1)
+    if byteOffset then
+      cursorText = self._textBuffer:sub(1, byteOffset - 1)
+    end
+  end
+  local cursorX = font:getWidth(cursorText)
+
+  -- Get available text area width (accounting for padding)
+  local textAreaWidth = self.width
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
+  end
+
+  -- Add some padding on the right for the cursor
+  local cursorPadding = 4
+  local visibleWidth = textAreaWidth - cursorPadding
+
+  -- Adjust scroll to keep cursor visible
+  if cursorX - self._textScrollX < 0 then
+    -- Cursor is to the left of visible area - scroll left
+    self._textScrollX = cursorX
+  elseif cursorX - self._textScrollX > visibleWidth then
+    -- Cursor is to the right of visible area - scroll right
+    self._textScrollX = cursorX - visibleWidth
+  end
+
+  -- Ensure we don't scroll past the beginning
+  self._textScrollX = math.max(0, self._textScrollX)
 end
 
 -- ====================

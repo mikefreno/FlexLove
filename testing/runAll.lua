@@ -36,6 +36,7 @@ local testFiles = {
   "testing/__tests__/30_scrollbar_features_tests.lua",
   "testing/__tests__/31_immediate_mode_basic_tests.lua",
   "testing/__tests__/32_state_manager_tests.lua",
+  "testing/__tests__/33_input_field_tests.lua",
 }
 
 local success = true

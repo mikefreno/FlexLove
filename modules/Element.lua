@@ -3187,8 +3187,8 @@ function Element:update(dt)
               local lastY = self._lastMouseY[button] or my
 
               if lastX ~= mx or lastY ~= my then
-                -- Mouse has moved - fire drag event
-                if self.callback then
+                -- Mouse has moved - fire drag event only if still hovering
+                if self.callback and isHovering then
                   local modifiers = getModifiers()
                   local dx = mx - self._dragStartX[button]
                   local dy = my - self._dragStartY[button]
@@ -4009,9 +4009,21 @@ function Element:getSelectedText()
     return nil
   end
 
-  -- Convert character indices to byte offsets for utf8.sub
+  -- Convert character indices to byte offsets for string.sub
   local text = self._textBuffer or ""
-  return utf8.sub(text, startPos + 1, endPos)
+  local startByte = utf8.offset(text, startPos + 1)
+  local endByte = utf8.offset(text, endPos + 1)
+  
+  if not startByte then
+    return ""
+  end
+  
+  -- If endByte is nil, it means we want to the end of the string
+  if endByte then
+    endByte = endByte - 1 -- Adjust to get the last byte of the character
+  end
+  
+  return string.sub(text, startByte, endByte)
 end
 
 --- Delete selected text

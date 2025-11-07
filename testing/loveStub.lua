@@ -221,8 +221,14 @@ love_helper.keyboard = {}
 -- Mock keyboard state
 local mockKeyboardKeys = {} -- Table to track key states
 
-function love_helper.keyboard.isDown(key)
-  return mockKeyboardKeys[key] or false
+function love_helper.keyboard.isDown(...)
+  local keys = {...}
+  for _, key in ipairs(keys) do
+    if mockKeyboardKeys[key] then
+      return true
+    end
+  end
+  return false
 end
 
 function love_helper.keyboard.setDown(key, isDown)

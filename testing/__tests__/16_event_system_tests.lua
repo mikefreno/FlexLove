@@ -20,6 +20,13 @@ end
 function TestEventSystem:tearDown()
   -- Clean up after each test
   Gui.destroy()
+  -- Reset keyboard state
+  love.keyboard.setDown("lshift", false)
+  love.keyboard.setDown("rshift", false)
+  love.keyboard.setDown("lctrl", false)
+  love.keyboard.setDown("rctrl", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("ralt", false)
 end
 
 -- Test 1: Event object structure

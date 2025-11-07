@@ -44,6 +44,9 @@ local FlexWrap = enums.FlexWrap
 -- Reference to Gui (via GuiState)
 local Gui = GuiState
 
+-- UTF-8 support (available in LÖVE/Lua 5.3+)
+local utf8 = utf8 or require("utf8")
+
 --[[
 INTERNAL FIELD NAMING CONVENTIONS:
 ---------------------------------
@@ -2574,8 +2577,21 @@ function Element:draw(backdropCanvas)
   end
 
   -- Draw element text if present
-  if self.text then
-    local textColorWithOpacity = Color.new(self.textColor.r, self.textColor.g, self.textColor.b, self.textColor.a * self.opacity)
+  -- For editable elements, also handle placeholder
+  local displayText = self.text
+  local isPlaceholder = false
+  
+  -- Show placeholder if editable, empty, and not focused
+  if self.editable and (not self.text or self.text == "") and self.placeholder and not self._focused then
+    displayText = self.placeholder
+    isPlaceholder = true
+  end
+  
+  if displayText and displayText ~= "" then
+    local textColor = isPlaceholder 
+      and Color.new(self.textColor.r * 0.5, self.textColor.g * 0.5, self.textColor.b * 0.5, self.textColor.a * 0.5)
+      or self.textColor
+    local textColorWithOpacity = Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()
@@ -2604,7 +2620,7 @@ function Element:draw(backdropCanvas)
       love.graphics.setFont(font)
     end
     local font = love.graphics.getFont()
-    local textWidth = font:getWidth(self.text)
+    local textWidth = font:getWidth(displayText)
     local textHeight = font:getHeight()
     local tx, ty
 
@@ -2646,7 +2662,7 @@ function Element:draw(backdropCanvas)
       ty = contentY
 
       -- Use printf with the available width for wrapping
-      love.graphics.printf(self.text, tx, ty, textAreaWidth, align)
+      love.graphics.printf(displayText, tx, ty, textAreaWidth, align)
     else
       -- Use regular print for non-wrapped text
       if self.textAlign == TextAlign.START then
@@ -2663,8 +2679,107 @@ function Element:draw(backdropCanvas)
         tx = contentX
         ty = contentY
       end
-      love.graphics.print(self.text, tx, ty)
+      love.graphics.print(displayText, tx, ty)
     end
+    
+    -- Draw cursor for focused editable elements (even if text is empty)
+    if self.editable and self._focused and self._cursorVisible then
+      local cursorColor = self.cursorColor or self.textColor
+      local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+      love.graphics.setColor(cursorWithOpacity:toRGBA())
+      
+      -- Calculate cursor position
+      local cursorText = ""
+      if self.text and self.text ~= "" and self._cursorPosition > 0 then
+        local byteOffset = utf8.offset(self.text, self._cursorPosition + 1)
+        if byteOffset then
+          cursorText = self.text:sub(1, byteOffset - 1)
+        end
+      end
+      local cursorX = (tx or contentX) + font:getWidth(cursorText)
+      local cursorY = ty or contentY
+      local cursorHeight = textHeight
+      
+      -- Draw cursor line
+      love.graphics.rectangle("fill", cursorX, cursorY, 2, cursorHeight)
+    end
+    
+    -- Draw selection highlight for editable elements
+    if self.editable and self._focused and self:hasSelection() and self.text and self.text ~= "" then
+      local selStart, selEnd = self:getSelection()
+      local selectionColor = self.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
+      local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
+      
+      -- Calculate selection bounds safely
+      local beforeSelection = ""
+      local selectedText = ""
+      
+      local startByte = utf8.offset(self.text, selStart + 1)
+      local endByte = utf8.offset(self.text, selEnd + 1)
+      
+      if startByte and endByte then
+        beforeSelection = self.text:sub(1, startByte - 1)
+        selectedText = self.text:sub(startByte, endByte - 1)
+      end
+      
+      local selX = (tx or contentX) + font:getWidth(beforeSelection)
+      local selWidth = font:getWidth(selectedText)
+      local selY = ty or contentY
+      local selHeight = textHeight
+      
+      -- Draw selection background
+      love.graphics.setColor(selectionWithOpacity:toRGBA())
+      love.graphics.rectangle("fill", selX, selY, selWidth, selHeight)
+      
+      -- Redraw selected text on top
+      love.graphics.setColor(textColorWithOpacity:toRGBA())
+      love.graphics.print(selectedText, selX, selY)
+    end
+    
+    if self.textSize then
+      love.graphics.setFont(origFont)
+    end
+  end
+  
+  -- Draw cursor for focused editable elements even when empty
+  if self.editable and self._focused and self._cursorVisible and (not displayText or displayText == "") then
+    -- Set up font for cursor rendering
+    local origFont = love.graphics.getFont()
+    if self.textSize then
+      local fontPath = nil
+      if self.fontFamily then
+        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+        if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+          fontPath = themeToUse.fonts[self.fontFamily]
+        else
+          fontPath = self.fontFamily
+        end
+      end
+      local font = FONT_CACHE.get(self.textSize, fontPath)
+      love.graphics.setFont(font)
+    end
+    
+    local font = love.graphics.getFont()
+    local textHeight = font:getHeight()
+    
+    -- Calculate text area position
+    local textPaddingLeft = self.padding.left
+    local textPaddingTop = self.padding.top
+    local scaledContentPadding = self:getScaledContentPadding()
+    if scaledContentPadding then
+      textPaddingLeft = scaledContentPadding.left
+      textPaddingTop = scaledContentPadding.top
+    end
+    
+    local contentX = self.x + textPaddingLeft
+    local contentY = self.y + textPaddingTop
+    
+    -- Draw cursor
+    local cursorColor = self.cursorColor or self.textColor
+    local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+    love.graphics.setColor(cursorWithOpacity:toRGBA())
+    love.graphics.rectangle("fill", contentX, contentY, 2, textHeight)
+    
     if self.textSize then
       love.graphics.setFont(origFont)
     end
@@ -2722,7 +2837,12 @@ function Element:draw(backdropCanvas)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
       local stencilFunc = RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
+      -- Temporarily disable canvas for stencil operation (LÖVE 11.5 workaround)
+      local currentCanvas = love.graphics.getCanvas()
+      love.graphics.setCanvas()
       love.graphics.stencil(stencilFunc, "replace", 1)
+      love.graphics.setCanvas(currentCanvas)
+      
       love.graphics.setStencilTest("greater", 0)
 
       -- Apply scroll offset AFTER clipping is set
@@ -2916,7 +3036,7 @@ function Element:update(dt)
     end
   end
 
-  if self.callback or self.themeComponent then
+  if self.callback or self.themeComponent or self.editable then
     -- Clickable area is the border box (x, y already includes padding)
     -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection
     local bx = self.x
@@ -3023,7 +3143,7 @@ function Element:update(dt)
       end
     end
 
-    local canProcessEvents = self.callback and not self.disabled and (isActiveElement or isDragging)
+    local canProcessEvents = (self.callback or self.editable) and not self.disabled and (isActiveElement or isDragging)
 
     if canProcessEvents then
       -- Check all three mouse buttons
@@ -3042,15 +3162,17 @@ function Element:update(dt)
               else
                 -- Just pressed - fire press event and record drag start position
                 local modifiers = getModifiers()
-                local pressEvent = InputEvent.new({
-                  type = "press",
-                  button = button,
-                  x = mx,
-                  y = my,
-                  modifiers = modifiers,
-                  clickCount = 1,
-                })
-                self.callback(self, pressEvent)
+                if self.callback then
+                  local pressEvent = InputEvent.new({
+                    type = "press",
+                    button = button,
+                    x = mx,
+                    y = my,
+                    modifiers = modifiers,
+                    clickCount = 1,
+                  })
+                  self.callback(self, pressEvent)
+                end
                 self._pressed[button] = true
               end
 
@@ -3066,21 +3188,23 @@ function Element:update(dt)
 
               if lastX ~= mx or lastY ~= my then
                 -- Mouse has moved - fire drag event
-                local modifiers = getModifiers()
-                local dx = mx - self._dragStartX[button]
-                local dy = my - self._dragStartY[button]
+                if self.callback then
+                  local modifiers = getModifiers()
+                  local dx = mx - self._dragStartX[button]
+                  local dy = my - self._dragStartY[button]
 
-                local dragEvent = InputEvent.new({
-                  type = "drag",
-                  button = button,
-                  x = mx,
-                  y = my,
-                  dx = dx,
-                  dy = dy,
-                  modifiers = modifiers,
-                  clickCount = 1,
-                })
-                self.callback(self, dragEvent)
+                  local dragEvent = InputEvent.new({
+                    type = "drag",
+                    button = button,
+                    x = mx,
+                    y = my,
+                    dx = dx,
+                    dy = dy,
+                    modifiers = modifiers,
+                    clickCount = 1,
+                  })
+                  self.callback(self, dragEvent)
+                end
 
                 -- Update last known position for this button
                 self._lastMouseX[button] = mx
@@ -3114,16 +3238,18 @@ function Element:update(dt)
               eventType = "middleclick"
             end
 
-            local clickEvent = InputEvent.new({
-              type = eventType,
-              button = button,
-              x = mx,
-              y = my,
-              modifiers = modifiers,
-              clickCount = clickCount,
-            })
+            if self.callback then
+              local clickEvent = InputEvent.new({
+                type = eventType,
+                button = button,
+                x = mx,
+                y = my,
+                modifiers = modifiers,
+                clickCount = clickCount,
+              })
 
-            self.callback(self, clickEvent)
+              self.callback(self, clickEvent)
+            end
             self._pressed[button] = false
 
             -- Clean up drag tracking
@@ -3132,19 +3258,24 @@ function Element:update(dt)
 
             -- Focus editable elements on left click
             if button == 1 and self.editable then
+              print("[Element:update] Calling focus on editable element")
               self:focus()
+            elseif button == 1 then
+              print("[Element:update] Button 1 clicked but editable:", self.editable)
             end
 
             -- Fire release event
-            local releaseEvent = InputEvent.new({
-              type = "release",
-              button = button,
-              x = mx,
-              y = my,
-              modifiers = modifiers,
-              clickCount = clickCount,
-            })
-            self.callback(self, releaseEvent)
+            if self.callback then
+              local releaseEvent = InputEvent.new({
+                type = "release",
+                button = button,
+                x = mx,
+                y = my,
+                modifiers = modifiers,
+                clickCount = clickCount,
+              })
+              self.callback(self, releaseEvent)
+            end
           end
         else
           -- Mouse left the element - reset pressed state and drag tracking
@@ -3908,8 +4039,11 @@ end
 --- Focus this element for keyboard input
 function Element:focus()
   if not self.editable then
+    print("[Element:focus] Not editable, skipping focus")
     return
   end
+
+  print("[Element:focus] Focusing element, editable:", self.editable)
 
   -- Blur previously focused element
   if Gui._focusedElement and Gui._focusedElement ~= self then
@@ -3919,6 +4053,8 @@ function Element:focus()
   -- Set focus state
   self._focused = true
   Gui._focusedElement = self
+
+  print("[Element:focus] Focus set, _focused:", self._focused)
 
   -- Reset cursor blink
   self:_resetCursorBlink()

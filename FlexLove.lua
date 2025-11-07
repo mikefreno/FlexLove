@@ -469,8 +469,11 @@ end
 --- Forward text input to focused element
 ---@param text string
 function Gui.textinput(text)
+  print("[Gui.textinput] Received text:", text, "Focused element:", Gui._focusedElement)
   if Gui._focusedElement then
     Gui._focusedElement:textinput(text)
+  else
+    print("[Gui.textinput] No focused element!")
   end
 end
 

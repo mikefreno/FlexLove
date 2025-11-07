@@ -309,7 +309,12 @@ function Element.new(props)
   if self.scrollable == nil then
     self.scrollable = self.multiline
   end
-  self.autoGrow = props.autoGrow or false
+  -- autoGrow defaults to true for multiline, false for single-line
+  if props.autoGrow ~= nil then
+    self.autoGrow = props.autoGrow
+  else
+    self.autoGrow = self.multiline
+  end
   self.selectOnFocus = props.selectOnFocus or false
 
   -- Cursor and selection properties
@@ -2581,11 +2586,18 @@ function Element:draw(backdropCanvas)
 
   -- Draw element text if present
   -- For editable elements, also handle placeholder
-  local displayText = self.text
+  -- Update text layout if dirty (for multiline auto-grow)
+  if self.editable then
+    self:_updateTextIfDirty()
+    self:_updateAutoGrowHeight()
+  end
+  
+  -- For editable elements, use _textBuffer; for non-editable, use text
+  local displayText = self.editable and self._textBuffer or self.text
   local isPlaceholder = false
   
   -- Show placeholder if editable, empty, and not focused
-  if self.editable and (not self.text or self.text == "") and self.placeholder and not self._focused then
+  if self.editable and (not displayText or displayText == "") and self.placeholder and not self._focused then
     displayText = self.placeholder
     isPlaceholder = true
   end
@@ -2707,17 +2719,16 @@ function Element:draw(backdropCanvas)
       local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
       
-      -- Calculate cursor position
-      local cursorText = ""
-      if self.text and self.text ~= "" and self._cursorPosition > 0 then
-        local byteOffset = utf8.offset(self.text, self._cursorPosition + 1)
-        if byteOffset then
-          cursorText = self.text:sub(1, byteOffset - 1)
-        end
-      end
-      local cursorX = (tx or contentX) + font:getWidth(cursorText)
-      local cursorY = ty or contentY
+      -- Calculate cursor position using new method that handles multiline
+      local cursorRelX, cursorRelY = self:_getCursorScreenPosition()
+      local cursorX = contentX + cursorRelX
+      local cursorY = contentY + cursorRelY
       local cursorHeight = textHeight
+      
+      -- Apply scroll offset for single-line inputs
+      if not self.multiline and self._textScrollX then
+        cursorX = cursorX - self._textScrollX
+      end
       
       -- Apply scissor for single-line editable inputs
       if not self.multiline then
@@ -4314,6 +4325,8 @@ function Element:setText(text)
   self._textBuffer = text or ""
   self.text = self._textBuffer -- Sync display text
   self:_markTextDirty()
+  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
+  self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
 end
 
@@ -4352,7 +4365,12 @@ function Element:insertText(text, position)
   -- Update cursor position
   self._cursorPosition = position + utf8.len(text)
 
+  print(string.format("[InsertText] Text: '%s', multiline: %s, autoGrow: %s", 
+    self._textBuffer:gsub("\n", "\\n"), tostring(self.multiline), tostring(self.autoGrow)))
+  
   self:_markTextDirty()
+  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
+  self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
 end
 
@@ -4386,6 +4404,8 @@ function Element:deleteText(startPos, endPos)
   self.text = self._textBuffer -- Sync display text
 
   self:_markTextDirty()
+  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
+  self:_updateAutoGrowHeight() -- Then update height based on new content
 end
 
 --- Replace text in range
@@ -4487,6 +4507,21 @@ function Element:_wrapLine(line, maxWidth)
   local wrappedParts = {}
   local currentLine = ""
   local startIdx = 0
+  
+  -- Helper function to extract a UTF-8 character by character index
+  local function getUtf8Char(str, charIndex)
+    local byteStart = utf8.offset(str, charIndex)
+    if not byteStart then return "" end
+    local byteEnd = utf8.offset(str, charIndex + 1)
+    if byteEnd then
+      return str:sub(byteStart, byteEnd - 1)
+    else
+      return str:sub(byteStart)
+    end
+  end
+  
+  print(string.format("[WrapLine] line length: %d, maxWidth: %.1f, textWrap: %s", 
+    utf8.len(line) or 0, maxWidth, tostring(self.textWrap)))
 
   if self.textWrap == "word" then
     -- Word wrapping
@@ -4501,13 +4536,68 @@ function Element:_wrapLine(line, maxWidth)
 
       if width > maxWidth and currentLine ~= "" then
         -- Current line is full, start new line
+        local currentLineLen = utf8.len(currentLine)
         table.insert(wrappedParts, {
           text = currentLine,
           startIdx = startIdx,
-          endIdx = startIdx + utf8.len(currentLine),
+          endIdx = startIdx + currentLineLen,
         })
+        startIdx = startIdx + currentLineLen + 1 -- +1 for the space
         currentLine = word
-        startIdx = startIdx + utf8.len(currentLine) + 1
+        
+        -- Check if the word itself is too long - if so, break it with character wrapping
+        if font:getWidth(word) > maxWidth then
+          local wordLen = utf8.len(word)
+          local charLine = ""
+          local charStartIdx = startIdx
+          
+        for j = 1, wordLen do
+          local char = getUtf8Char(word, j)
+          local testCharLine = charLine .. char
+          local charWidth = font:getWidth(testCharLine)
+          
+          if charWidth > maxWidth and charLine ~= "" then
+              table.insert(wrappedParts, {
+                text = charLine,
+                startIdx = charStartIdx,
+                endIdx = charStartIdx + utf8.len(charLine),
+              })
+              charStartIdx = charStartIdx + utf8.len(charLine)
+              charLine = char
+            else
+              charLine = testCharLine
+            end
+          end
+          
+          currentLine = charLine
+          startIdx = charStartIdx
+        end
+      elseif width > maxWidth and currentLine == "" then
+        -- Word is too long to fit on a line by itself - use character wrapping
+        local wordLen = utf8.len(word)
+        local charLine = ""
+        local charStartIdx = startIdx
+        
+        for j = 1, wordLen do
+          local char = getUtf8Char(word, j)
+          local testCharLine = charLine .. char
+          local charWidth = font:getWidth(testCharLine)
+          
+          if charWidth > maxWidth and charLine ~= "" then
+            table.insert(wrappedParts, {
+              text = charLine,
+              startIdx = charStartIdx,
+              endIdx = charStartIdx + utf8.len(charLine),
+            })
+            charStartIdx = charStartIdx + utf8.len(charLine)
+            charLine = char
+          else
+            charLine = testCharLine
+          end
+        end
+        
+        currentLine = charLine
+        startIdx = charStartIdx
       else
         currentLine = testLine
       end
@@ -4516,7 +4606,7 @@ function Element:_wrapLine(line, maxWidth)
     -- Character wrapping
     local lineLength = utf8.len(line)
     for i = 1, lineLength do
-      local char = utf8.sub(line, i, i)
+      local char = getUtf8Char(line, i)
       local testLine = currentLine .. char
       local width = font:getWidth(testLine)
 
@@ -4551,6 +4641,11 @@ function Element:_wrapLine(line, maxWidth)
       endIdx = 0,
     })
   end
+  
+  if #wrappedParts > 1 then
+    print(string.format("[WrapLine] Returning %d segments for line length %d", 
+      #wrappedParts, utf8.len(line) or 0))
+  end
 
   return wrappedParts
 end
@@ -4571,6 +4666,188 @@ function Element:_getFont()
   end
 
   return FONT_CACHE.getFont(self.textSize, fontPath)
+end
+
+--- Get cursor screen position for rendering (handles multiline text)
+---@return number, number -- Cursor X and Y position relative to content area
+function Element:_getCursorScreenPosition()
+  if not self.editable then
+    return 0, 0
+  end
+
+  local font = self:_getFont()
+  if not font then
+    return 0, 0
+  end
+
+  local text = self._textBuffer or ""
+  local cursorPos = self._cursorPosition or 0
+
+  -- For single-line text, calculate simple X position
+  if not self.multiline then
+    local cursorText = ""
+    if text ~= "" and cursorPos > 0 then
+      local byteOffset = utf8.offset(text, cursorPos + 1)
+      if byteOffset then
+        cursorText = text:sub(1, byteOffset - 1)
+      end
+    end
+    return font:getWidth(cursorText), 0
+  end
+
+  -- For multiline text, we need to find which wrapped line the cursor is on
+  -- Update text wrapping if dirty
+  self:_updateTextIfDirty()
+
+  -- Get text area width for wrapping
+  local textAreaWidth = self.width
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
+  end
+
+  -- Split text by actual newlines first
+  local lines = {}
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+    table.insert(lines, line)
+  end
+  if #lines == 0 then
+    lines = { "" }
+  end
+
+  -- Track character position as we iterate through lines
+  local charCount = 0
+  local cursorX = 0
+  local cursorY = 0
+  local lineHeight = font:getHeight()
+
+  for lineNum, line in ipairs(lines) do
+    local lineLength = utf8.len(line) or 0
+    
+    -- Check if cursor is on this line (before the newline)
+    if cursorPos <= charCount + lineLength then
+      -- Cursor is on this line
+      local posInLine = cursorPos - charCount
+      
+      -- If text wrapping is enabled, find which wrapped segment
+      if self.textWrap and textAreaWidth > 0 then
+        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        
+        for segmentIdx, segment in ipairs(wrappedSegments) do
+          -- Check if cursor is within this segment's character range
+          if posInLine >= segment.startIdx and posInLine <= segment.endIdx then
+            -- Cursor is in this segment
+            local posInSegment = posInLine - segment.startIdx
+            local segmentText = ""
+            if posInSegment > 0 and segment.text ~= "" then
+              -- Extract substring by character positions using byte offsets
+              local endByte = utf8.offset(segment.text, posInSegment + 1)
+              if endByte then
+                segmentText = segment.text:sub(1, endByte - 1)
+              else
+                segmentText = segment.text
+              end
+            end
+            cursorX = font:getWidth(segmentText)
+            -- Add line offset for wrapped segments
+            cursorY = (lineNum - 1) * lineHeight + (segmentIdx - 1) * lineHeight
+            print(string.format("[CursorCalc] Line %d, Segment %d, posInLine: %d, startIdx: %d, endIdx: %d, cursorY: %.1f", 
+              lineNum, segmentIdx, posInLine, segment.startIdx, segment.endIdx, cursorY))
+            return cursorX, cursorY
+          end
+        end
+      else
+        -- No wrapping, simple calculation
+        local lineText = ""
+        if posInLine > 0 then
+          -- Extract substring by character positions using byte offsets
+          local endByte = utf8.offset(line, posInLine + 1)
+          if endByte then
+            lineText = line:sub(1, endByte - 1)
+          else
+            lineText = line
+          end
+        end
+        cursorX = font:getWidth(lineText)
+        cursorY = (lineNum - 1) * lineHeight
+        return cursorX, cursorY
+      end
+    end
+    
+    -- Move to next line (add 1 for the newline character)
+    charCount = charCount + lineLength + 1
+  end
+
+  -- Cursor is at the very end
+  return 0, (#lines) * lineHeight
+end
+
+--- Update element height based on text content (for autoGrow multiline fields)
+function Element:_updateAutoGrowHeight()
+  if not self.editable or not self.multiline or not self.autoGrow then
+    return
+  end
+
+  local font = self:_getFont()
+  if not font then
+    return
+  end
+
+  local text = self._textBuffer or ""
+  local lineHeight = font:getHeight()
+  
+  -- Get text area width for wrapping
+  local textAreaWidth = self.width
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
+  end
+
+  -- Split text by actual newlines
+  local lines = {}
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+    table.insert(lines, line)
+  end
+  if #lines == 0 then
+    lines = { "" }
+  end
+
+  -- Count total wrapped lines
+  local totalWrappedLines = 0
+  if self.textWrap and textAreaWidth > 0 then
+    for _, line in ipairs(lines) do
+      if line == "" then
+        totalWrappedLines = totalWrappedLines + 1
+      else
+        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        totalWrappedLines = totalWrappedLines + #wrappedSegments
+      end
+    end
+  else
+    totalWrappedLines = #lines
+  end
+
+  -- Ensure at least one line
+  totalWrappedLines = math.max(1, totalWrappedLines)
+
+  -- Calculate new content height
+  local newContentHeight = totalWrappedLines * lineHeight
+
+  -- Update height if it changed
+  if self.height ~= newContentHeight then
+    print(string.format("[AutoGrow] Height changing from %s to %s (lines: %d)", 
+      tostring(self.height), tostring(newContentHeight), totalWrappedLines))
+    self.height = newContentHeight
+    self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
+    
+    -- Re-layout parent if this element participates in parent layout
+    if self.parent and not self._explicitlyAbsolute then
+      print("[AutoGrow] Re-layouting parent")
+      self.parent:layoutChildren()
+    end
+  end
 end
 
 -- ====================

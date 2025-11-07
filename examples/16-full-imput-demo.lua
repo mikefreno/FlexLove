@@ -4,7 +4,7 @@ Simple input field demo - multiple fields to test all features
 Uses retained mode - elements are created once and reused
 --]]
 
-local FlexLove = require("FlexLove")
+local FlexLove = require("libs.FlexLove")
 local Element = FlexLove.Element
 local Color = FlexLove.Color
 
@@ -20,11 +20,20 @@ local function initialize()
     return
   end
   initialized = true
+  elements.container = Element.new({
+    x = 0,
+    y = 0,
+    padding = { horizontal = "5%", vertical = "5%" },
+    width = love.graphics.getWidth(),
+    height = love.graphics.getHeight(),
+    flexDirection = "vertical",
+    positioning = "flex",
+    gap = 10,
+  })
 
   -- Title
   elements.title = Element.new({
-    x = 50,
-    y = 50,
+    parent = elements.container,
     width = 700,
     height = 40,
     text = "FlexLove Input Field Demo",
@@ -35,8 +44,7 @@ local function initialize()
 
   -- Input field 1 - Empty with placeholder
   elements.inputField1 = Element.new({
-    x = 50,
-    y = 120,
+    parent = elements.container,
     width = 600,
     height = 50,
     editable = true,
@@ -48,17 +56,17 @@ local function initialize()
     padding = { horizontal = 15, vertical = 12 },
     placeholder = "Type here... (empty field with placeholder)",
     selectOnFocus = false,
+    multiline = true,
+    autoGrow = true,
     z = 1000,
+    onTextChange = function(element, newText)
+      print("Field 1 changed:", newText)
+    end,
   })
-
-  elements.inputField1.onTextChange = function(element, newText)
-    print("Field 1 changed:", newText)
-  end
 
   -- Input field 2 - Pre-filled with selectOnFocus
   elements.inputField2 = Element.new({
-    x = 50,
-    y = 200,
+    parent = elements.container,
     width = 600,
     height = 50,
     editable = true,
@@ -71,16 +79,13 @@ local function initialize()
     placeholder = "This shouldn't show",
     selectOnFocus = true,
     z = 1000,
+    onTextChange = function(_, newText)
+      print("Field 2 changed:", newText)
+    end,
   })
 
-  elements.inputField2.onTextChange = function(element, newText)
-    print("Field 2 changed:", newText)
-  end
-
-  -- Input field 3 - With max length
   elements.inputField3 = Element.new({
-    x = 50,
-    y = 280,
+    parent = elements.container,
     width = 600,
     height = 50,
     editable = true,
@@ -94,16 +99,13 @@ local function initialize()
     maxLength = 20,
     selectOnFocus = false,
     z = 1000,
+    onTextChange = function(element, newText)
+      print("Field 3 changed:", newText)
+    end,
   })
 
-  elements.inputField3.onTextChange = function(element, newText)
-    print("Field 3 changed:", newText)
-  end
-
-  -- Instructions
   elements.instructions = Element.new({
-    x = 50,
-    y = 360,
+    parent = elements.container,
     width = 700,
     height = 200,
     text = "Instructions:\n• Click on a field to focus it\n• Type to enter text\n• Field 1: Empty with placeholder\n• Field 2: Pre-filled, selects all on focus\n• Field 3: Max 20 characters\n• Press ESC to unfocus\n• Use arrow keys to move cursor",

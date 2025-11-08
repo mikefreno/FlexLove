@@ -5131,8 +5131,11 @@ function Element:keypressed(key, scancode, isrepeat)
       self:deleteSelection()
     elseif self._cursorPosition > 0 then
       -- Delete character before cursor
-      self:deleteText(self._cursorPosition - 1, self._cursorPosition)
-      self._cursorPosition = self._cursorPosition - 1
+      -- Update cursor position BEFORE deleteText so updates use correct position
+      local deleteStart = self._cursorPosition - 1
+      local deleteEnd = self._cursorPosition
+      self._cursorPosition = deleteStart
+      self:deleteText(deleteStart, deleteEnd)
       self:_validateCursorPosition()
     end
 

@@ -343,7 +343,7 @@ function Element.new(props)
     self._lines = nil -- Split lines (for multiline)
     self._wrappedLines = nil -- Wrapped line data
     self._textDirty = true -- Flag to recalculate lines/wrapping
-    
+
     -- Scroll state for text overflow
     self._textScrollX = 0 -- Horizontal scroll offset in pixels
   end
@@ -2551,10 +2551,10 @@ function Element:draw(backdropCanvas)
           end
         end
       else
-        print("[FlexLove] Component not found: " .. self.themeComponent .. " in theme: " .. themeToUse.name)
+        -- Component not found in theme
       end
     else
-      print("[FlexLove] No theme available for themeComponent: " .. self.themeComponent)
+      -- No theme available for themeComponent
     end
   end
 
@@ -2591,20 +2591,19 @@ function Element:draw(backdropCanvas)
     self:_updateTextIfDirty()
     self:_updateAutoGrowHeight()
   end
-  
+
   -- For editable elements, use _textBuffer; for non-editable, use text
   local displayText = self.editable and self._textBuffer or self.text
   local isPlaceholder = false
-  
+
   -- Show placeholder if editable, empty, and not focused
   if self.editable and (not displayText or displayText == "") and self.placeholder and not self._focused then
     displayText = self.placeholder
     isPlaceholder = true
   end
-  
+
   if displayText and displayText ~= "" then
-    local textColor = isPlaceholder 
-      and Color.new(self.textColor.r * 0.5, self.textColor.g * 0.5, self.textColor.b * 0.5, self.textColor.a * 0.5)
+    local textColor = isPlaceholder and Color.new(self.textColor.r * 0.5, self.textColor.g * 0.5, self.textColor.b * 0.5, self.textColor.a * 0.5)
       or self.textColor
     local textColorWithOpacity = Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
@@ -2694,103 +2693,103 @@ function Element:draw(backdropCanvas)
         tx = contentX
         ty = contentY
       end
-      
+
       -- Apply scroll offset for editable single-line inputs
       if self.editable and not self.multiline and self._textScrollX then
         tx = tx - self._textScrollX
       end
-      
+
       -- Use scissor to clip text to content area for editable inputs
       if self.editable and not self.multiline then
         love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
       end
-      
+
       love.graphics.print(displayText, tx, ty)
-      
+
       -- Reset scissor
       if self.editable and not self.multiline then
         love.graphics.setScissor()
       end
     end
-    
+
     -- Draw cursor for focused editable elements (even if text is empty)
     if self.editable and self._focused and self._cursorVisible then
       local cursorColor = self.cursorColor or self.textColor
       local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
-      
+
       -- Calculate cursor position using new method that handles multiline
       local cursorRelX, cursorRelY = self:_getCursorScreenPosition()
       local cursorX = contentX + cursorRelX
       local cursorY = contentY + cursorRelY
       local cursorHeight = textHeight
-      
+
       -- Apply scroll offset for single-line inputs
       if not self.multiline and self._textScrollX then
         cursorX = cursorX - self._textScrollX
       end
-      
+
       -- Apply scissor for single-line editable inputs
       if not self.multiline then
         love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
       end
-      
+
       -- Draw cursor line
       love.graphics.rectangle("fill", cursorX, cursorY, 2, cursorHeight)
-      
+
       -- Reset scissor
       if not self.multiline then
         love.graphics.setScissor()
       end
     end
-    
+
     -- Draw selection highlight for editable elements
     if self.editable and self._focused and self:hasSelection() and self.text and self.text ~= "" then
       local selStart, selEnd = self:getSelection()
       local selectionColor = self.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
       local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
-      
+
       -- Calculate selection bounds safely
       local beforeSelection = ""
       local selectedText = ""
-      
+
       local startByte = utf8.offset(self.text, selStart + 1)
       local endByte = utf8.offset(self.text, selEnd + 1)
-      
+
       if startByte and endByte then
         beforeSelection = self.text:sub(1, startByte - 1)
         selectedText = self.text:sub(startByte, endByte - 1)
       end
-      
+
       local selX = (tx or contentX) + font:getWidth(beforeSelection)
       local selWidth = font:getWidth(selectedText)
       local selY = ty or contentY
       local selHeight = textHeight
-      
+
       -- Apply scissor for single-line editable inputs
       if not self.multiline then
         love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
       end
-      
+
       -- Draw selection background
       love.graphics.setColor(selectionWithOpacity:toRGBA())
       love.graphics.rectangle("fill", selX, selY, selWidth, selHeight)
-      
+
       -- Redraw selected text on top
       love.graphics.setColor(textColorWithOpacity:toRGBA())
       love.graphics.print(selectedText, selX, selY)
-      
+
       -- Reset scissor
       if not self.multiline then
         love.graphics.setScissor()
       end
     end
-    
+
     if self.textSize then
       love.graphics.setFont(origFont)
     end
   end
-  
+
   -- Draw cursor for focused editable elements even when empty
   if self.editable and self._focused and self._cursorVisible and (not displayText or displayText == "") then
     -- Set up font for cursor rendering
@@ -2808,10 +2807,10 @@ function Element:draw(backdropCanvas)
       local font = FONT_CACHE.get(self.textSize, fontPath)
       love.graphics.setFont(font)
     end
-    
+
     local font = love.graphics.getFont()
     local textHeight = font:getHeight()
-    
+
     -- Calculate text area position
     local textPaddingLeft = self.padding.left
     local textPaddingTop = self.padding.top
@@ -2820,16 +2819,16 @@ function Element:draw(backdropCanvas)
       textPaddingLeft = scaledContentPadding.left
       textPaddingTop = scaledContentPadding.top
     end
-    
+
     local contentX = self.x + textPaddingLeft
     local contentY = self.y + textPaddingTop
-    
+
     -- Draw cursor
     local cursorColor = self.cursorColor or self.textColor
     local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
     love.graphics.setColor(cursorWithOpacity:toRGBA())
     love.graphics.rectangle("fill", contentX, contentY, 2, textHeight)
-    
+
     if self.textSize then
       love.graphics.setFont(origFont)
     end
@@ -2892,7 +2891,7 @@ function Element:draw(backdropCanvas)
       love.graphics.setCanvas()
       love.graphics.stencil(stencilFunc, "replace", 1)
       love.graphics.setCanvas(currentCanvas)
-      
+
       love.graphics.setStencilTest("greater", 0)
 
       -- Apply scroll offset AFTER clipping is set
@@ -3255,7 +3254,7 @@ function Element:update(dt)
                   })
                   self.callback(self, dragEvent)
                 end
-                
+
                 -- Handle text selection drag for editable elements
                 if button == 1 and self.editable and self._focused then
                   self:_handleTextDrag(mx, my)
@@ -3310,7 +3309,7 @@ function Element:update(dt)
             -- Clean up drag tracking
             self._dragStartX[button] = nil
             self._dragStartY[button] = nil
-            
+
             -- Clean up text selection drag tracking
             if button == 1 then
               self._mouseDownPosition = nil
@@ -3318,13 +3317,11 @@ function Element:update(dt)
 
             -- Focus editable elements on left click
             if button == 1 and self.editable then
-              print("[Element:update] Calling focus on editable element")
               self:focus()
-              
+
               -- Handle text click for cursor positioning and word selection
               self:_handleTextClick(mx, my, clickCount)
             elseif button == 1 then
-              print("[Element:update] Button 1 clicked but editable:", self.editable)
             end
 
             -- Fire release event
@@ -4069,7 +4066,7 @@ function Element:_resetCursorBlink()
   end
   self._cursorBlinkTimer = 0
   self._cursorVisible = true
-  
+
   -- Update scroll to keep cursor visible
   self:_updateTextScroll()
 end
@@ -4201,16 +4198,16 @@ function Element:getSelectedText()
   local text = self._textBuffer or ""
   local startByte = utf8.offset(text, startPos + 1)
   local endByte = utf8.offset(text, endPos + 1)
-  
+
   if not startByte then
     return ""
   end
-  
+
   -- If endByte is nil, it means we want to the end of the string
   if endByte then
     endByte = endByte - 1 -- Adjust to get the last byte of the character
   end
-  
+
   return string.sub(text, startByte, endByte)
 end
 
@@ -4239,13 +4236,9 @@ end
 --- Focus this element for keyboard input
 function Element:focus()
   if not self.editable then
-    print("[Element:focus] Not editable, skipping focus")
     return
   end
 
-  print("[Element:focus] Focusing element, editable:", self.editable)
-
-  -- Blur previously focused element
   if Gui._focusedElement and Gui._focusedElement ~= self then
     Gui._focusedElement:blur()
   end
@@ -4254,16 +4247,11 @@ function Element:focus()
   self._focused = true
   Gui._focusedElement = self
 
-  print("[Element:focus] Focus set, _focused:", self._focused)
-
-  -- Reset cursor blink
   self:_resetCursorBlink()
 
-  -- Select all text if selectOnFocus is enabled
   if self.selectOnFocus then
     self:selectAll()
   else
-    -- Move cursor to end of text
     self:moveCursorToEnd()
   end
 
@@ -4362,19 +4350,14 @@ function Element:insertText(text, position)
   self._textBuffer = before .. text .. after
   self.text = self._textBuffer -- Sync display text
 
-  -- Update cursor position
   self._cursorPosition = position + utf8.len(text)
 
-  print(string.format("[InsertText] Text: '%s', multiline: %s, autoGrow: %s", 
-    self._textBuffer:gsub("\n", "\\n"), tostring(self.multiline), tostring(self.autoGrow)))
-  
   self:_markTextDirty()
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
 end
 
---- Delete text in range
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:deleteText(startPos, endPos)
@@ -4507,11 +4490,13 @@ function Element:_wrapLine(line, maxWidth)
   local wrappedParts = {}
   local currentLine = ""
   local startIdx = 0
-  
+
   -- Helper function to extract a UTF-8 character by character index
   local function getUtf8Char(str, charIndex)
     local byteStart = utf8.offset(str, charIndex)
-    if not byteStart then return "" end
+    if not byteStart then
+      return ""
+    end
     local byteEnd = utf8.offset(str, charIndex + 1)
     if byteEnd then
       return str:sub(byteStart, byteEnd - 1)
@@ -4519,12 +4504,8 @@ function Element:_wrapLine(line, maxWidth)
       return str:sub(byteStart)
     end
   end
-  
-  print(string.format("[WrapLine] line length: %d, maxWidth: %.1f, textWrap: %s", 
-    utf8.len(line) or 0, maxWidth, tostring(self.textWrap)))
 
   if self.textWrap == "word" then
-    -- Word wrapping
     local words = {}
     for word in line:gmatch("%S+") do
       table.insert(words, word)
@@ -4535,7 +4516,6 @@ function Element:_wrapLine(line, maxWidth)
       local width = font:getWidth(testLine)
 
       if width > maxWidth and currentLine ~= "" then
-        -- Current line is full, start new line
         local currentLineLen = utf8.len(currentLine)
         table.insert(wrappedParts, {
           text = currentLine,
@@ -4544,19 +4524,19 @@ function Element:_wrapLine(line, maxWidth)
         })
         startIdx = startIdx + currentLineLen + 1 -- +1 for the space
         currentLine = word
-        
+
         -- Check if the word itself is too long - if so, break it with character wrapping
         if font:getWidth(word) > maxWidth then
           local wordLen = utf8.len(word)
           local charLine = ""
           local charStartIdx = startIdx
-          
-        for j = 1, wordLen do
-          local char = getUtf8Char(word, j)
-          local testCharLine = charLine .. char
-          local charWidth = font:getWidth(testCharLine)
-          
-          if charWidth > maxWidth and charLine ~= "" then
+
+          for j = 1, wordLen do
+            local char = getUtf8Char(word, j)
+            local testCharLine = charLine .. char
+            local charWidth = font:getWidth(testCharLine)
+
+            if charWidth > maxWidth and charLine ~= "" then
               table.insert(wrappedParts, {
                 text = charLine,
                 startIdx = charStartIdx,
@@ -4568,7 +4548,7 @@ function Element:_wrapLine(line, maxWidth)
               charLine = testCharLine
             end
           end
-          
+
           currentLine = charLine
           startIdx = charStartIdx
         end
@@ -4577,12 +4557,12 @@ function Element:_wrapLine(line, maxWidth)
         local wordLen = utf8.len(word)
         local charLine = ""
         local charStartIdx = startIdx
-        
+
         for j = 1, wordLen do
           local char = getUtf8Char(word, j)
           local testCharLine = charLine .. char
           local charWidth = font:getWidth(testCharLine)
-          
+
           if charWidth > maxWidth and charLine ~= "" then
             table.insert(wrappedParts, {
               text = charLine,
@@ -4595,7 +4575,7 @@ function Element:_wrapLine(line, maxWidth)
             charLine = testCharLine
           end
         end
-        
+
         currentLine = charLine
         startIdx = charStartIdx
       else
@@ -4641,16 +4621,10 @@ function Element:_wrapLine(line, maxWidth)
       endIdx = 0,
     })
   end
-  
-  if #wrappedParts > 1 then
-    print(string.format("[WrapLine] Returning %d segments for line length %d", 
-      #wrappedParts, utf8.len(line) or 0))
-  end
 
   return wrappedParts
 end
 
---- Get font for text rendering
 ---@return love.Font
 function Element:_getFont()
   -- Get font path from theme or element
@@ -4660,7 +4634,6 @@ function Element:_getFont()
     if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
       fontPath = themeToUse.fonts[self.fontFamily]
     else
-      -- Assume fontFamily is a direct path
       fontPath = self.fontFamily
     end
   end
@@ -4724,16 +4697,16 @@ function Element:_getCursorScreenPosition()
 
   for lineNum, line in ipairs(lines) do
     local lineLength = utf8.len(line) or 0
-    
+
     -- Check if cursor is on this line (before the newline)
     if cursorPos <= charCount + lineLength then
       -- Cursor is on this line
       local posInLine = cursorPos - charCount
-      
+
       -- If text wrapping is enabled, find which wrapped segment
       if self.textWrap and textAreaWidth > 0 then
         local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-        
+
         for segmentIdx, segment in ipairs(wrappedSegments) do
           -- Check if cursor is within this segment's character range
           if posInLine >= segment.startIdx and posInLine <= segment.endIdx then
@@ -4750,10 +4723,8 @@ function Element:_getCursorScreenPosition()
               end
             end
             cursorX = font:getWidth(segmentText)
-            -- Add line offset for wrapped segments
             cursorY = (lineNum - 1) * lineHeight + (segmentIdx - 1) * lineHeight
-            print(string.format("[CursorCalc] Line %d, Segment %d, posInLine: %d, startIdx: %d, endIdx: %d, cursorY: %.1f", 
-              lineNum, segmentIdx, posInLine, segment.startIdx, segment.endIdx, cursorY))
+
             return cursorX, cursorY
           end
         end
@@ -4774,13 +4745,12 @@ function Element:_getCursorScreenPosition()
         return cursorX, cursorY
       end
     end
-    
-    -- Move to next line (add 1 for the newline character)
+
     charCount = charCount + lineLength + 1
   end
 
   -- Cursor is at the very end
-  return 0, (#lines) * lineHeight
+  return 0, #lines * lineHeight
 end
 
 --- Update element height based on text content (for autoGrow multiline fields)
@@ -4796,7 +4766,7 @@ function Element:_updateAutoGrowHeight()
 
   local text = self._textBuffer or ""
   local lineHeight = font:getHeight()
-  
+
   -- Get text area width for wrapping
   local textAreaWidth = self.width
   local scaledContentPadding = self:getScaledContentPadding()
@@ -4829,22 +4799,14 @@ function Element:_updateAutoGrowHeight()
     totalWrappedLines = #lines
   end
 
-  -- Ensure at least one line
   totalWrappedLines = math.max(1, totalWrappedLines)
 
-  -- Calculate new content height
   local newContentHeight = totalWrappedLines * lineHeight
 
-  -- Update height if it changed
   if self.height ~= newContentHeight then
-    print(string.format("[AutoGrow] Height changing from %s to %s (lines: %d)", 
-      tostring(self.height), tostring(newContentHeight), totalWrappedLines))
     self.height = newContentHeight
     self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
-    
-    -- Re-layout parent if this element participates in parent layout
     if self.parent and not self._explicitlyAbsolute then
-      print("[AutoGrow] Re-layouting parent")
       self.parent:layoutChildren()
     end
   end
@@ -4866,35 +4828,40 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
   -- Get content area bounds
   local contentX = (self._absoluteX or self.x) + self.padding.left
   local contentY = (self._absoluteY or self.y) + self.padding.top
-  
+
   -- Calculate relative X position within text area
   local relativeX = mouseX - contentX
-  
+
+  -- Account for horizontal scroll offset in single-line inputs
+  if not self.multiline and self._textScrollX then
+    relativeX = relativeX + self._textScrollX
+  end
+
   -- Get font for measuring text
   local font = self:_getFont()
-  
+
   -- Find the character position closest to the click
   local text = self._textBuffer
   local textLength = utf8.len(text) or 0
   local closestPos = 0
   local closestDist = math.huge
-  
+
   -- Check each position in the text
   for i = 0, textLength do
     -- Get text up to this position
     local offset = utf8.offset(text, i + 1)
     local beforeText = offset and text:sub(1, offset - 1) or text
     local textWidth = font:getWidth(beforeText)
-    
+
     -- Calculate distance from click to this position
     local dist = math.abs(relativeX - textWidth)
-    
+
     if dist < closestDist then
       closestDist = dist
       closestPos = i
     end
   end
-  
+
   return closestPos
 end
 
@@ -4912,19 +4879,17 @@ function Element:_handleTextClick(mouseX, mouseY, clickCount)
     local pos = self:_mouseToTextPosition(mouseX, mouseY)
     self:setCursorPosition(pos)
     self:clearSelection()
-    
+
     -- Store position for potential drag selection
     self._mouseDownPosition = pos
-    
   elseif clickCount == 2 then
     -- Double click: Select word
     self:_selectWordAtPosition(self:_mouseToTextPosition(mouseX, mouseY))
-    
   elseif clickCount >= 3 then
     -- Triple click: Select all (or line in multi-line mode)
     self:selectAll()
   end
-  
+
   self:_resetCursorBlink()
 end
 
@@ -4937,7 +4902,7 @@ function Element:_handleTextDrag(mouseX, mouseY)
   end
 
   local currentPos = self:_mouseToTextPosition(mouseX, mouseY)
-  
+
   -- Create selection from mouse down position to current position
   if currentPos ~= self._mouseDownPosition then
     self:setSelection(self._mouseDownPosition, currentPos)
@@ -4945,7 +4910,7 @@ function Element:_handleTextDrag(mouseX, mouseY)
   else
     self:clearSelection()
   end
-  
+
   self:_resetCursorBlink()
 end
 
@@ -4958,7 +4923,7 @@ function Element:_selectWordAtPosition(position)
 
   local text = self._textBuffer
   local textLength = utf8.len(text) or 0
-  
+
   if position < 0 or position > textLength then
     return
   end
@@ -4966,7 +4931,7 @@ function Element:_selectWordAtPosition(position)
   -- Find word boundaries
   local wordStart = position
   local wordEnd = position
-  
+
   -- Find start of word (move left while alphanumeric)
   while wordStart > 0 do
     local offset = utf8.offset(text, wordStart)
@@ -4977,7 +4942,7 @@ function Element:_selectWordAtPosition(position)
       break
     end
   end
-  
+
   -- Find end of word (move right while alphanumeric)
   while wordEnd < textLength do
     local offset = utf8.offset(text, wordEnd + 1)
@@ -4988,7 +4953,7 @@ function Element:_selectWordAtPosition(position)
       break
     end
   end
-  
+
   -- Select the word
   if wordEnd > wordStart then
     self:setSelection(wordStart, wordEnd)
@@ -5129,6 +5094,13 @@ function Element:keypressed(key, scancode, isrepeat)
     if self:hasSelection() then
       -- Delete selection
       self:deleteSelection()
+    elseif ctrl then
+      -- Ctrl/Cmd+Backspace: Delete all text from start to cursor
+      if self._cursorPosition > 0 then
+        self:deleteText(0, self._cursorPosition)
+        self._cursorPosition = 0
+        self:_validateCursorPosition()
+      end
     elseif self._cursorPosition > 0 then
       -- Delete character before cursor
       -- Update cursor position BEFORE deleteText so updates use correct position
@@ -5206,11 +5178,11 @@ function Element:keypressed(key, scancode, isrepeat)
       local selectedText = self:getSelectedText()
       if selectedText then
         love.system.setClipboardText(selectedText)
-        
+
         -- Delete the selected text
         local oldText = self._textBuffer
         self:deleteSelection()
-        
+
         -- Trigger onTextChange callback
         if self.onTextChange and self._textBuffer ~= oldText then
           self.onTextChange(self, self._textBuffer, oldText)
@@ -5224,15 +5196,15 @@ function Element:keypressed(key, scancode, isrepeat)
     local clipboardText = love.system.getClipboardText()
     if clipboardText and clipboardText ~= "" then
       local oldText = self._textBuffer
-      
+
       -- Delete selection if exists
       if self:hasSelection() then
         self:deleteSelection()
       end
-      
+
       -- Insert clipboard text
       self:insertText(clipboardText)
-      
+
       -- Trigger onTextChange callback
       if self.onTextChange and self._textBuffer ~= oldText then
         self.onTextChange(self, self._textBuffer, oldText)

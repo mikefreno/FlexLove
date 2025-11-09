@@ -3323,7 +3323,11 @@ function Element:update(dt)
 
             -- Focus editable elements on left click
             if button == 1 and self.editable then
-              self:focus()
+              -- Only focus if not already focused (to avoid moving cursor to end)
+              local wasFocused = self:isFocused()
+              if not wasFocused then
+                self:focus()
+              end
 
               -- Handle text click for cursor positioning and word selection
               -- Only process click if no text drag occurred (to preserve drag selection)

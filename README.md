@@ -10,7 +10,6 @@ This library is under active development. While many features are functional, so
 
 ### Coming Soon
 The following features are currently being actively developed:
-- **Input Fields**: Password fields, and text areas(multi-line)
 - **Generic Image Support**: Enhanced image rendering capabilities and utilities
 
 ## Features
@@ -384,7 +383,6 @@ local input = Gui.new({
   end
 })
 
--- Multi-line text area (coming soon - subject to change)
 local textArea = Gui.new({
   x = 10,
   y = 50,

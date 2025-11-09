@@ -296,6 +296,154 @@ function TestInputField:testDeleteSelection()
   lu.assertEquals(testElement:getCursorPosition(), 0)
 end
 
+function TestInputField:testMouseDownPositionSetOnUnfocusedElement()
+  -- Test that _mouseDownPosition is set on mouse press even when element is not focused
+  -- This is critical for text selection to work on the first click
+  
+  -- Ensure element is not focused
+  lu.assertFalse(testElement:isFocused())
+  
+  -- Simulate mouse press at position (150, 120) inside the element
+  love.mouse.setPosition(150, 120)
+  love.mouse.setDown(1, true)
+  testElement:update(0.016)
+  
+  -- Verify that _mouseDownPosition was set
+  lu.assertNotNil(testElement._mouseDownPosition, 
+    "_mouseDownPosition should be set on press even when unfocused")
+end
+
+function TestInputField:testMouseDownPositionSetOnFocusedElement()
+  -- Test that _mouseDownPosition is set on mouse press when element is focused
+  
+  testElement:focus()
+  lu.assertTrue(testElement:isFocused())
+  
+  -- Simulate mouse press at position (150, 120)
+  love.mouse.setPosition(150, 120)
+  love.mouse.setDown(1, true)
+  testElement:update(0.016)
+  
+  -- Verify that _mouseDownPosition was set
+  lu.assertNotNil(testElement._mouseDownPosition,
+    "_mouseDownPosition should be set on press when focused")
+end
+
+function TestInputField:testMouseDownPositionNotSetOnNonEditableElement()
+  -- Test that _mouseDownPosition is NOT set for non-editable elements
+  
+  local nonEditableElement = FlexLove.Element.new({
+    x = 100,
+    y = 100,
+    width = 200,
+    height = 40,
+    editable = false,
+    text = "Not Editable",
+  })
+  
+  -- Simulate mouse press at position (150, 120)
+  love.mouse.setPosition(150, 120)
+  love.mouse.setDown(1, true)
+  nonEditableElement:update(0.016)
+  
+  -- Verify that _mouseDownPosition was NOT set
+  lu.assertNil(nonEditableElement._mouseDownPosition,
+    "_mouseDownPosition should not be set for non-editable elements")
+end
+
+function TestInputField:testDragSelectionPreservedOnRelease()
+  -- Test that text selection created by dragging is preserved when releasing over the element
+  -- This is the fix for the bug where selections were dropped on mouse release
+  
+  testElement:focus()
+  
+  -- Simulate mouse press at position (110, 120)
+  love.mouse.setPosition(110, 120)
+  love.mouse.setDown(1, true)
+  testElement:update(0.016)
+  
+  -- Drag to another position to create a selection
+  love.mouse.setPosition(150, 120)
+  testElement:update(0.016)
+  
+  -- Verify selection exists after drag
+  lu.assertTrue(testElement:hasSelection(), "Selection should exist after drag")
+  
+  -- Release mouse while still over the element
+  love.mouse.setDown(1, false)
+  testElement:update(0.016)
+  
+  -- The key test: selection should STILL be there after release
+  lu.assertTrue(testElement:hasSelection(), 
+    "Selection should be preserved after releasing mouse over element")
+end
+
+function TestInputField:testClickWithoutDragClearsSelection()
+  -- Test that a click (press and release without drag) still clears selection as expected
+  
+  testElement:focus()
+  testElement:setSelection(0, 5) -- Select "Hello"
+  lu.assertTrue(testElement:hasSelection())
+  
+  -- Click at a position (press and release without moving)
+  love.mouse.setPosition(120, 120)
+  love.mouse.setDown(1, true)
+  testElement:update(0.016)
+  
+  -- Release at same position (no drag occurred)
+  love.mouse.setDown(1, false)
+  testElement:update(0.016)
+  
+  -- Selection should be cleared since it was a click, not a drag
+  lu.assertFalse(testElement:hasSelection(), 
+    "Selection should be cleared by click without drag")
+end
+
+function TestInputField:testDragSelectionOnInitialClick()
+  -- Test that drag selection works even on the first interaction with an unfocused element
+  
+  local newElement = FlexLove.Element.new({
+    x = 100,
+    y = 100,
+    width = 200,
+    height = 40,
+    editable = true,
+    text = "Test Text",
+  })
+  
+  lu.assertFalse(newElement:isFocused(), "Element should start unfocused")
+  
+  -- First interaction: press (will focus on release)
+  love.mouse.setPosition(110, 120)
+  love.mouse.setDown(1, true)
+  newElement:update(0.016)
+  
+  -- Release to complete the focus
+  love.mouse.setDown(1, false)
+  newElement:update(0.016)
+  
+  lu.assertTrue(newElement:isFocused(), "Element should be focused after click")
+  
+  -- Now perform a drag selection on the focused element
+  love.mouse.setPosition(110, 120)
+  love.mouse.setDown(1, true)
+  newElement:update(0.016)
+  
+  -- Drag to create selection
+  love.mouse.setPosition(150, 120)
+  newElement:update(0.016)
+  
+  lu.assertTrue(newElement:hasSelection(), "Selection should exist after drag")
+  
+  -- Release over element
+  love.mouse.setDown(1, false)
+  newElement:update(0.016)
+  
+  -- Selection should be preserved
+  lu.assertTrue(newElement:hasSelection(), 
+    "Selection should be preserved after drag release")
+end
+
 -- ====================
 -- Text Input Tests
 -- ====================

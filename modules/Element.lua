@@ -3223,6 +3223,12 @@ function Element:update(dt)
                   self.callback(self, pressEvent)
                 end
                 self._pressed[button] = true
+                
+                -- Set mouse down position for text selection on left click
+                if button == 1 and self.editable then
+                  self._mouseDownPosition = self:_mouseToTextPosition(mx, my)
+                  self._textDragOccurred = false -- Reset drag flag on press
+                end
               end
 
               -- Record drag start position per button
@@ -3320,7 +3326,13 @@ function Element:update(dt)
               self:focus()
 
               -- Handle text click for cursor positioning and word selection
-              self:_handleTextClick(mx, my, clickCount)
+              -- Only process click if no text drag occurred (to preserve drag selection)
+              if not self._textDragOccurred then
+                self:_handleTextClick(mx, my, clickCount)
+              end
+              
+              -- Reset drag flag after release
+              self._textDragOccurred = false
             elseif button == 1 then
             end
 
@@ -4907,6 +4919,7 @@ function Element:_handleTextDrag(mouseX, mouseY)
   if currentPos ~= self._mouseDownPosition then
     self:setSelection(self._mouseDownPosition, currentPos)
     self._cursorPosition = currentPos
+    self._textDragOccurred = true -- Mark that a text drag occurred
   else
     self:clearSelection()
   end
@@ -5009,7 +5022,7 @@ function Element:keypressed(key, scancode, isrepeat)
   end
 
   local modifiers = getModifiers()
-  local ctrl = modifiers.ctrl or modifiers.super -- Support both Ctrl and Cmd
+  local ctrl = modifiers.ctrl or modifiers.super
 
   -- Handle cursor movement with selection
   if key == "left" or key == "right" or key == "home" or key == "end" or key == "up" or key == "down" then

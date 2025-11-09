@@ -36,8 +36,6 @@ function TestEventSystem:tearDown()
   love.keyboard.setDown("rctrl", false)
   love.keyboard.setDown("lalt", false)
   love.keyboard.setDown("ralt", false)
-  love.keyboard.setDown("lgui", false)
-  love.keyboard.setDown("rgui", false)
 end
 
 -- Test 1: Event object structure

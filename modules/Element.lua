@@ -2595,11 +2595,19 @@ function Element:draw(backdropCanvas)
   -- For editable elements, use _textBuffer; for non-editable, use text
   local displayText = self.editable and self._textBuffer or self.text
   local isPlaceholder = false
+  local isPasswordMasked = false
 
   -- Show placeholder if editable, empty, and not focused
   if self.editable and (not displayText or displayText == "") and self.placeholder and not self._focused then
     displayText = self.placeholder
     isPlaceholder = true
+  end
+
+  -- Apply password masking if enabled
+  if self.passwordMode and displayText and displayText ~= "" and not isPlaceholder then
+    local maskedText = string.rep("•", utf8.len(displayText))
+    displayText = maskedText
+    isPasswordMasked = true
   end
 
   if displayText and displayText ~= "" then
@@ -4661,13 +4669,19 @@ function Element:_getCursorScreenPosition()
   local text = self._textBuffer or ""
   local cursorPos = self._cursorPosition or 0
 
+  -- Apply password masking for cursor position calculation
+  local textForMeasurement = text
+  if self.passwordMode and text ~= "" then
+    textForMeasurement = string.rep("•", utf8.len(text))
+  end
+
   -- For single-line text, calculate simple X position
   if not self.multiline then
     local cursorText = ""
-    if text ~= "" and cursorPos > 0 then
-      local byteOffset = utf8.offset(text, cursorPos + 1)
+    if textForMeasurement ~= "" and cursorPos > 0 then
+      local byteOffset = utf8.offset(textForMeasurement, cursorPos + 1)
       if byteOffset then
-        cursorText = text:sub(1, byteOffset - 1)
+        cursorText = textForMeasurement:sub(1, byteOffset - 1)
       end
     end
     return font:getWidth(cursorText), 0
@@ -4775,14 +4789,20 @@ function Element:_getSelectionRects(selStart, selEnd)
   local text = self._textBuffer or ""
   local rects = {}
 
+  -- Apply password masking for selection rectangle calculation
+  local textForMeasurement = text
+  if self.passwordMode and text ~= "" then
+    textForMeasurement = string.rep("•", utf8.len(text))
+  end
+
   -- For single-line text, calculate simple rectangle
   if not self.multiline then
-    local startByte = utf8.offset(text, selStart + 1)
-    local endByte = utf8.offset(text, selEnd + 1)
+    local startByte = utf8.offset(textForMeasurement, selStart + 1)
+    local endByte = utf8.offset(textForMeasurement, selEnd + 1)
 
     if startByte and endByte then
-      local beforeSelection = text:sub(1, startByte - 1)
-      local selectedText = text:sub(startByte, endByte - 1)
+      local beforeSelection = textForMeasurement:sub(1, startByte - 1)
+      local selectedText = textForMeasurement:sub(startByte, endByte - 1)
       local selX = font:getWidth(beforeSelection)
       local selWidth = font:getWidth(selectedText)
       local selY = 0
@@ -5278,32 +5298,44 @@ function Element:keypressed(key, scancode, isrepeat)
 
     -- Move cursor based on key
     if key == "left" then
-      if self:hasSelection() and not modifiers.shift then
+      if modifiers.super then
+        -- Cmd/Super+Left: Move to start
+        self:moveCursorToStart()
+        if not modifiers.shift then
+          self:clearSelection()
+        end
+      elseif modifiers.alt then
+        -- Alt+Left: Move to previous word
+        self:moveCursorToPreviousWord()
+      elseif self:hasSelection() and not modifiers.shift then
         -- Move to start of selection
         local startPos, _ = self:getSelection()
         self._cursorPosition = startPos
         self:clearSelection()
-      elseif ctrl then
-        -- Ctrl+Left: Move to previous word
-        self:moveCursorToPreviousWord()
       else
         self:moveCursorBy(-1)
       end
     elseif key == "right" then
-      if self:hasSelection() and not modifiers.shift then
+      if modifiers.super then
+        -- Cmd/Super+Right: Move to end
+        self:moveCursorToEnd()
+        if not modifiers.shift then
+          self:clearSelection()
+        end
+      elseif modifiers.alt then
+        -- Alt+Right: Move to next word
+        self:moveCursorToNextWord()
+      elseif self:hasSelection() and not modifiers.shift then
         -- Move to end of selection
         local _, endPos = self:getSelection()
         self._cursorPosition = endPos
         self:clearSelection()
-      elseif ctrl then
-        -- Ctrl+Right: Move to next word
-        self:moveCursorToNextWord()
       else
         self:moveCursorBy(1)
       end
     elseif key == "home" then
-      -- Move to line start (or document start for single-line)
-      if ctrl or not self.multiline then
+      -- Home: Move to start (or line start for multiline)
+      if not self.multiline then
         self:moveCursorToStart()
       else
         self:moveCursorToLineStart()
@@ -5312,8 +5344,8 @@ function Element:keypressed(key, scancode, isrepeat)
         self:clearSelection()
       end
     elseif key == "end" then
-      -- Move to line end (or document end for single-line)
-      if ctrl or not self.multiline then
+      -- End: Move to end (or line end for multiline)
+      if not self.multiline then
         self:moveCursorToEnd()
       else
         self:moveCursorToLineEnd()

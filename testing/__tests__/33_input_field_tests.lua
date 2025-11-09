@@ -18,6 +18,16 @@ local testElement
 TestInputField = {}
 
 function TestInputField:setUp()
+  -- Clear all keyboard modifier states at start of each test
+  love.keyboard.setDown("lshift", false)
+  love.keyboard.setDown("rshift", false)
+  love.keyboard.setDown("lctrl", false)
+  love.keyboard.setDown("rctrl", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("ralt", false)
+  love.keyboard.setDown("lgui", false)
+  love.keyboard.setDown("rgui", false)
+  
   -- Reset FlexLove state
   FlexLove.Gui.topElements = {}
   FlexLove.Gui._focusedElement = nil
@@ -34,6 +44,16 @@ function TestInputField:setUp()
 end
 
 function TestInputField:tearDown()
+  -- Clear all keyboard modifier states
+  love.keyboard.setDown("lshift", false)
+  love.keyboard.setDown("rshift", false)
+  love.keyboard.setDown("lctrl", false)
+  love.keyboard.setDown("rctrl", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("ralt", false)
+  love.keyboard.setDown("lgui", false)
+  love.keyboard.setDown("rgui", false)
+  
   testElement = nil
   FlexLove.Gui.topElements = {}
   FlexLove.Gui._focusedElement = nil

@@ -19,17 +19,8 @@ end
 
 function TestKeyboardInput:setUp()
   -- Clear all keyboard modifier states at start of each test
-  if love.keyboard.isDown("lgui", "rgui", "lalt", "ralt", "lctrl", "rctrl", "lshift", "rshift") then
-    local mods = {}
-    if love.keyboard.isDown("lshift") then table.insert(mods, "lshift") end
-    if love.keyboard.isDown("rshift") then table.insert(mods, "rshift") end
-    if love.keyboard.isDown("lctrl") then table.insert(mods, "lctrl") end
-    if love.keyboard.isDown("rctrl") then table.insert(mods, "rctrl") end
-    if love.keyboard.isDown("lalt") then table.insert(mods, "lalt") end
-    if love.keyboard.isDown("ralt") then table.insert(mods, "ralt") end
-    if love.keyboard.isDown("lgui") then table.insert(mods, "lgui") end
-    if love.keyboard.isDown("rgui") then table.insert(mods, "rgui") end
-    print("WARNING: Modifiers down at setUp: " .. table.concat(mods, ", "))
+  if love.keyboard.isDown("lgui", "rgui", "lalt", "ralt", "lctrl", "rctrl") then
+    print("WARNING: Modifier keys were down at start of test!")
   end
   love.keyboard.setDown("lshift", false)
   love.keyboard.setDown("rshift", false)
@@ -383,8 +374,6 @@ function TestKeyboardInput:testSuperLeftMovesToStart()
 end
 
 function TestKeyboardInput:testSuperRightMovesToEnd()
-  clearModifierKeys()
-  
   local input = Element.new({
     width = 200,
     height = 40,
@@ -394,6 +383,11 @@ function TestKeyboardInput:testSuperRightMovesToEnd()
 
   input:focus()
   input:setCursorPosition(3) -- Middle of text
+  
+  -- Ensure clean state before setting modifier
+  love.keyboard.setDown("lgui", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("lctrl", false)
   
   -- Simulate Super (Cmd/Win) key being held
   love.keyboard.setDown("lgui", true)
@@ -469,9 +463,12 @@ function TestKeyboardInput:testAltLeftMultipleWords()
 end
 
 function TestKeyboardInput:testAltRightMultipleWords()
-  clearModifierKeys()
+    -- Ensure clean keyboard state
+  love.keyboard.setDown("lgui", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("lctrl", false)
   
-  local input = Element.new({
+local input = Element.new({
     width = 200,
     height = 40,
     editable = true,
@@ -492,9 +489,12 @@ function TestKeyboardInput:testAltRightMultipleWords()
 end
 
 function TestKeyboardInput:testSuperLeftWithSelection()
-  clearModifierKeys()
+    -- Ensure clean keyboard state
+  love.keyboard.setDown("lgui", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("lctrl", false)
   
-  local input = Element.new({
+local input = Element.new({
     width = 200,
     height = 40,
     editable = true,
@@ -515,9 +515,12 @@ function TestKeyboardInput:testSuperLeftWithSelection()
 end
 
 function TestKeyboardInput:testSuperRightWithSelection()
-  clearModifierKeys()
+    -- Ensure clean keyboard state
+  love.keyboard.setDown("lgui", false)
+  love.keyboard.setDown("lalt", false)
+  love.keyboard.setDown("lctrl", false)
   
-  local input = Element.new({
+local input = Element.new({
     width = 200,
     height = 40,
     editable = true,

@@ -2749,35 +2749,24 @@ function Element:draw(backdropCanvas)
       local selectionColor = self.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
       local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
 
-      -- Calculate selection bounds safely
-      local beforeSelection = ""
-      local selectedText = ""
-
-      local startByte = utf8.offset(self.text, selStart + 1)
-      local endByte = utf8.offset(self.text, selEnd + 1)
-
-      if startByte and endByte then
-        beforeSelection = self.text:sub(1, startByte - 1)
-        selectedText = self.text:sub(startByte, endByte - 1)
-      end
-
-      local selX = (tx or contentX) + font:getWidth(beforeSelection)
-      local selWidth = font:getWidth(selectedText)
-      local selY = ty or contentY
-      local selHeight = textHeight
+      -- Get selection rectangles (handles multiline and wrapping)
+      local selectionRects = self:_getSelectionRects(selStart, selEnd)
 
       -- Apply scissor for single-line editable inputs
       if not self.multiline then
         love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
       end
 
-      -- Draw selection background
+      -- Draw selection background rectangles
       love.graphics.setColor(selectionWithOpacity:toRGBA())
-      love.graphics.rectangle("fill", selX, selY, selWidth, selHeight)
-
-      -- Redraw selected text on top
-      love.graphics.setColor(textColorWithOpacity:toRGBA())
-      love.graphics.print(selectedText, selX, selY)
+      for _, rect in ipairs(selectionRects) do
+        local rectX = contentX + rect.x
+        local rectY = contentY + rect.y
+        if not self.multiline and self._textScrollX then
+          rectX = rectX - self._textScrollX
+        end
+        love.graphics.rectangle("fill", rectX, rectY, rect.width, rect.height)
+      end
 
       -- Reset scissor
       if not self.multiline then
@@ -4769,6 +4758,158 @@ function Element:_getCursorScreenPosition()
   return 0, #lines * lineHeight
 end
 
+--- Get selection rectangles for rendering (handles multiline and wrapped text)
+---@param selStart number -- Selection start position (character index)
+---@param selEnd number -- Selection end position (character index)
+---@return table -- Array of rectangles {x, y, width, height} relative to content area
+function Element:_getSelectionRects(selStart, selEnd)
+  if not self.editable then
+    return {}
+  end
+
+  local font = self:_getFont()
+  if not font then
+    return {}
+  end
+
+  local text = self._textBuffer or ""
+  local rects = {}
+
+  -- For single-line text, calculate simple rectangle
+  if not self.multiline then
+    local startByte = utf8.offset(text, selStart + 1)
+    local endByte = utf8.offset(text, selEnd + 1)
+
+    if startByte and endByte then
+      local beforeSelection = text:sub(1, startByte - 1)
+      local selectedText = text:sub(startByte, endByte - 1)
+      local selX = font:getWidth(beforeSelection)
+      local selWidth = font:getWidth(selectedText)
+      local selY = 0
+      local selHeight = font:getHeight()
+
+      table.insert(rects, {x = selX, y = selY, width = selWidth, height = selHeight})
+    end
+
+    return rects
+  end
+
+  -- For multiline text, we need to handle line wrapping
+  self:_updateTextIfDirty()
+
+  -- Get text area width for wrapping
+  local textAreaWidth = self.width
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
+  end
+
+  -- Split text by actual newlines first
+  local lines = {}
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+    table.insert(lines, line)
+  end
+  if #lines == 0 then
+    lines = { "" }
+  end
+
+  local lineHeight = font:getHeight()
+  local charCount = 0
+  local visualLineNum = 0
+
+  for lineNum, line in ipairs(lines) do
+    local lineLength = utf8.len(line) or 0
+
+    -- Check if selection intersects with this line
+    local lineStartChar = charCount
+    local lineEndChar = charCount + lineLength
+
+    if selEnd > lineStartChar and selStart <= lineEndChar then
+      -- Selection intersects with this line
+      local selStartInLine = math.max(0, selStart - charCount)
+      local selEndInLine = math.min(lineLength, selEnd - charCount)
+
+      -- If text wrapping is enabled, handle wrapped segments
+      if self.textWrap and textAreaWidth > 0 then
+        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+
+        for segmentIdx, segment in ipairs(wrappedSegments) do
+          -- Check if selection intersects with this segment
+          if selEndInLine > segment.startIdx and selStartInLine <= segment.endIdx then
+            -- Selection intersects with this segment
+            local segSelStart = math.max(segment.startIdx, selStartInLine)
+            local segSelEnd = math.min(segment.endIdx, selEndInLine)
+
+            -- Calculate X position and width
+            local beforeText = ""
+            local selectedText = ""
+
+            if segSelStart > segment.startIdx then
+              local startByte = utf8.offset(segment.text, segSelStart - segment.startIdx + 1)
+              if startByte then
+                beforeText = segment.text:sub(1, startByte - 1)
+              end
+            end
+
+            local selStartByte = utf8.offset(segment.text, segSelStart - segment.startIdx + 1)
+            local selEndByte = utf8.offset(segment.text, segSelEnd - segment.startIdx + 1)
+            if selStartByte and selEndByte then
+              selectedText = segment.text:sub(selStartByte, selEndByte - 1)
+            end
+
+            local selX = font:getWidth(beforeText)
+            local selWidth = font:getWidth(selectedText)
+            local selY = visualLineNum * lineHeight
+            local selHeight = lineHeight
+
+            table.insert(rects, {x = selX, y = selY, width = selWidth, height = selHeight})
+          end
+
+          visualLineNum = visualLineNum + 1
+        end
+      else
+        -- No wrapping, simple calculation
+        local beforeText = ""
+        local selectedText = ""
+
+        if selStartInLine > 0 then
+          local startByte = utf8.offset(line, selStartInLine + 1)
+          if startByte then
+            beforeText = line:sub(1, startByte - 1)
+          end
+        end
+
+        local selStartByte = utf8.offset(line, selStartInLine + 1)
+        local selEndByte = utf8.offset(line, selEndInLine + 1)
+        if selStartByte and selEndByte then
+          selectedText = line:sub(selStartByte, selEndByte - 1)
+        end
+
+        local selX = font:getWidth(beforeText)
+        local selWidth = font:getWidth(selectedText)
+        local selY = visualLineNum * lineHeight
+        local selHeight = lineHeight
+
+        table.insert(rects, {x = selX, y = selY, width = selWidth, height = selHeight})
+        visualLineNum = visualLineNum + 1
+      end
+    else
+      -- Selection doesn't intersect, but we still need to count visual lines
+      if self.textWrap and textAreaWidth > 0 then
+        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        visualLineNum = visualLineNum + #wrappedSegments
+      else
+        visualLineNum = visualLineNum + 1
+      end
+    end
+
+    charCount = charCount + lineLength + 1
+  end
+
+  return rects
+end
+
 --- Update element height based on text content (for autoGrow multiline fields)
 function Element:_updateAutoGrowHeight()
   if not self.editable or not self.multiline or not self.autoGrow then
@@ -4845,31 +4986,128 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
   local contentX = (self._absoluteX or self.x) + self.padding.left
   local contentY = (self._absoluteY or self.y) + self.padding.top
 
-  -- Calculate relative X position within text area
+  -- Calculate relative position within text area
   local relativeX = mouseX - contentX
-
-  -- Account for horizontal scroll offset in single-line inputs
-  if not self.multiline and self._textScrollX then
-    relativeX = relativeX + self._textScrollX
-  end
+  local relativeY = mouseY - contentY
 
   -- Get font for measuring text
   local font = self:_getFont()
+  if not font then
+    return 0
+  end
 
-  -- Find the character position closest to the click
   local text = self._textBuffer
   local textLength = utf8.len(text) or 0
+
+  -- === SINGLE-LINE TEXT HANDLING ===
+  if not self.multiline then
+    -- Account for horizontal scroll offset in single-line inputs
+    if self._textScrollX then
+      relativeX = relativeX + self._textScrollX
+    end
+
+    -- Find the character position closest to the click
+    local closestPos = 0
+    local closestDist = math.huge
+
+    -- Check each position in the text
+    for i = 0, textLength do
+      -- Get text up to this position
+      local offset = utf8.offset(text, i + 1)
+      local beforeText = offset and text:sub(1, offset - 1) or text
+      local textWidth = font:getWidth(beforeText)
+
+      -- Calculate distance from click to this position
+      local dist = math.abs(relativeX - textWidth)
+
+      if dist < closestDist then
+        closestDist = dist
+        closestPos = i
+      end
+    end
+
+    return closestPos
+  end
+
+  -- === MULTILINE TEXT HANDLING ===
+  
+  -- Update text wrapping if dirty
+  self:_updateTextIfDirty()
+
+  -- Split text into lines
+  local lines = {}
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+    table.insert(lines, line)
+  end
+  if #lines == 0 then
+    lines = { "" }
+  end
+
+  local lineHeight = font:getHeight()
+  
+  -- Get text area width for wrapping calculations
+  local textAreaWidth = self.width
+  local scaledContentPadding = self:getScaledContentPadding()
+  if scaledContentPadding then
+    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
+  end
+
+  -- Determine which line the click is on based on Y coordinate
+  local clickedLineNum = math.floor(relativeY / lineHeight) + 1
+  clickedLineNum = math.max(1, math.min(clickedLineNum, #lines))
+
+  -- Calculate character offset for lines before the clicked line
+  local charOffset = 0
+  for i = 1, clickedLineNum - 1 do
+    local lineLen = utf8.len(lines[i]) or 0
+    charOffset = charOffset + lineLen + 1 -- +1 for newline character
+  end
+
+  -- Get the clicked line
+  local clickedLine = lines[clickedLineNum]
+  local lineLen = utf8.len(clickedLine) or 0
+
+  -- If text wrapping is enabled, handle wrapped segments
+  if self.textWrap and textAreaWidth > 0 then
+    local wrappedSegments = self:_wrapLine(clickedLine, textAreaWidth)
+    
+    -- Determine which wrapped segment was clicked
+    local lineYOffset = (clickedLineNum - 1) * lineHeight
+    local segmentNum = math.floor((relativeY - lineYOffset) / lineHeight) + 1
+    segmentNum = math.max(1, math.min(segmentNum, #wrappedSegments))
+    
+    local segment = wrappedSegments[segmentNum]
+    
+    -- Find closest position within the segment
+    local segmentText = segment.text
+    local segmentLen = utf8.len(segmentText) or 0
+    local closestPos = segment.startIdx
+    local closestDist = math.huge
+    
+    for i = 0, segmentLen do
+      local offset = utf8.offset(segmentText, i + 1)
+      local beforeText = offset and segmentText:sub(1, offset - 1) or segmentText
+      local textWidth = font:getWidth(beforeText)
+      local dist = math.abs(relativeX - textWidth)
+      
+      if dist < closestDist then
+        closestDist = dist
+        closestPos = segment.startIdx + i
+      end
+    end
+    
+    return charOffset + closestPos
+  end
+
+  -- No wrapping - find closest position in the clicked line
   local closestPos = 0
   local closestDist = math.huge
 
-  -- Check each position in the text
-  for i = 0, textLength do
-    -- Get text up to this position
-    local offset = utf8.offset(text, i + 1)
-    local beforeText = offset and text:sub(1, offset - 1) or text
+  for i = 0, lineLen do
+    local offset = utf8.offset(clickedLine, i + 1)
+    local beforeText = offset and clickedLine:sub(1, offset - 1) or clickedLine
     local textWidth = font:getWidth(beforeText)
-
-    -- Calculate distance from click to this position
     local dist = math.abs(relativeX - textWidth)
 
     if dist < closestDist then
@@ -4878,7 +5116,7 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
     end
   end
 
-  return closestPos
+  return charOffset + closestPos
 end
 
 --- Handle mouse click on text (set cursor position or start selection)

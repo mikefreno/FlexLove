@@ -1776,5 +1776,313 @@ function TestInputField:testTextScrollWithBackspace()
   lu.assertTrue(element._textScrollX <= initialScroll)
 end
 
+-- ====================
+-- Multiline Text Selection Tests
+-- ====================
+
+function TestInputField:testMultilineMouseToTextPositionBasic()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "Line 1\nLine 2\nLine 3",
+  })
+
+  element:focus()
+  
+  -- Get font to calculate positions
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Click at start (should be position 0)
+  local pos = element:_mouseToTextPosition(10, 10)
+  lu.assertEquals(pos, 0)
+  
+  -- Click on second line start (should be after "Line 1\n" = position 7)
+  pos = element:_mouseToTextPosition(10, 10 + lineHeight)
+  lu.assertEquals(pos, 7)
+  
+  -- Click on third line start (should be after "Line 1\nLine 2\n" = position 14)
+  pos = element:_mouseToTextPosition(10, 10 + lineHeight * 2)
+  lu.assertEquals(pos, 14)
+end
+
+function TestInputField:testMultilineMouseToTextPositionXCoordinate()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "ABC\nDEF\nGHI",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  local charWidth = font:getWidth("A")
+  
+  -- Click in middle of first line (should be around position 1-2)
+  local pos = element:_mouseToTextPosition(10 + charWidth * 1.5, 10)
+  lu.assertTrue(pos >= 1 and pos <= 2)
+  
+  -- Click at end of second line (should be around position 6-7)
+  -- Text is "ABC\nDEF\nGHI", so second line "DEF" ends at position 6 or 7 (newline)
+  pos = element:_mouseToTextPosition(10 + charWidth * 3, 10 + lineHeight)
+  lu.assertTrue(pos >= 6 and pos <= 7)
+end
+
+function TestInputField:testMultilineMouseDragSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "Line 1\nLine 2\nLine 3",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Simulate mouse click on first line (sets _mouseDownPosition)
+  element:_handleTextClick(10, 10, 1)
+  lu.assertEquals(element._cursorPosition, 0)
+  lu.assertFalse(element:hasSelection())
+  
+  -- Drag to second line
+  element:_handleTextDrag(50, 10 + lineHeight)
+  lu.assertTrue(element:hasSelection())
+  
+  -- Selection should span from first line to second line
+  local startPos, endPos = element:getSelection()
+  lu.assertTrue(startPos == 0 or endPos == 0)
+  lu.assertTrue(startPos > 6 or endPos > 6) -- Past first newline
+  
+  -- After drag, selection should be preserved
+  lu.assertTrue(element:hasSelection())
+end
+
+function TestInputField:testMultilineMouseDragAcrossThreeLines()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 150,
+    editable = true,
+    multiline = true,
+    text = "First\nSecond\nThird\nFourth",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Click on first line, then drag to third line
+  element:_handleTextClick(10, 10, 1)
+  element:_handleTextDrag(50, 10 + lineHeight * 2.5)
+  
+  lu.assertTrue(element:hasSelection())
+  local startPos, endPos = element:getSelection()
+  
+  -- Should select across multiple lines
+  local minPos = math.min(startPos, endPos)
+  local maxPos = math.max(startPos, endPos)
+  lu.assertEquals(minPos, 0) -- From start
+  lu.assertTrue(maxPos > 12) -- Past "First\nSecond\n"
+  
+  -- Selection should persist after drag
+  lu.assertTrue(element:hasSelection())
+end
+
+function TestInputField:testMultilineClickOnDifferentLines()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "AAA\nBBB\nCCC",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Click on first line
+  element:_handleTextClick(10, 10, 1)
+  local pos1 = element._cursorPosition
+  lu.assertEquals(pos1, 0)
+  
+  -- Click on second line
+  element:_handleTextClick(10, 10 + lineHeight, 1)
+  local pos2 = element._cursorPosition
+  lu.assertEquals(pos2, 4) -- After "AAA\n"
+  
+  -- Click on third line
+  element:_handleTextClick(10, 10 + lineHeight * 2, 1)
+  local pos3 = element._cursorPosition
+  lu.assertEquals(pos3, 8) -- After "AAA\nBBB\n"
+end
+
+function TestInputField:testMultilineSelectionWithKeyboard()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "Line 1\nLine 2\nLine 3",
+  })
+
+  element:focus()
+  element:setCursorPosition(0)
+  
+  -- Mock Shift key
+  local oldIsDown = _G.love.keyboard.isDown
+  _G.love.keyboard.isDown = function(...)
+    local keys = {...}
+    for _, key in ipairs(keys) do
+      if key == "lshift" or key == "rshift" then
+        return true
+      end
+    end
+    return false
+  end
+  
+  -- Test Shift+Right selection (horizontal movement works)
+  element:keypressed("right", nil, false)
+  lu.assertTrue(element:hasSelection())
+  
+  local startPos, endPos = element:getSelection()
+  lu.assertTrue(math.abs(endPos - startPos) > 0)
+  
+  -- Reset mock
+  _G.love.keyboard.isDown = oldIsDown
+end
+
+function TestInputField:testMultilineMouseSelectionPreservedAfterRelease()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "First line\nSecond line\nThird line",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Create a selection by dragging
+  element:_handleTextClick(10, 10, 1)
+  element:_handleTextDrag(100, 10 + lineHeight * 1.5)
+  
+  local startPos, endPos = element:getSelection()
+  local hadSelection = element:hasSelection()
+  
+  lu.assertTrue(hadSelection)
+  
+  -- Note: There's no mouse release handler that affects selection
+  -- The drag creates the selection and it persists
+  
+  -- Selection should still exist
+  lu.assertTrue(element:hasSelection())
+  local startPos2, endPos2 = element:getSelection()
+  lu.assertEquals(startPos, startPos2)
+  lu.assertEquals(endPos, endPos2)
+end
+
+function TestInputField:testMultilineClickDoesNotPreserveSelection()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 100,
+    editable = true,
+    multiline = true,
+    text = "First line\nSecond line",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Create a selection
+  element:setSelection(0, 5)
+  lu.assertTrue(element:hasSelection())
+  
+  -- Click somewhere else (should clear selection)
+  element:_handleTextClick(10, 10 + lineHeight, 1)
+  
+  -- Selection should be cleared
+  lu.assertFalse(element:hasSelection())
+end
+
+function TestInputField:testMultilineEmptyLinesHandling()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 150,
+    editable = true,
+    multiline = true,
+    text = "Line 1\n\nLine 3",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Click on empty line (second line)
+  local pos = element:_mouseToTextPosition(10, 10 + lineHeight)
+  lu.assertEquals(pos, 7) -- After "Line 1\n"
+  
+  -- Click on third line
+  pos = element:_mouseToTextPosition(10, 10 + lineHeight * 2)
+  lu.assertEquals(pos, 8) -- After "Line 1\n\n"
+end
+
+function TestInputField:testMultilineYCoordinateBeyondText()
+  local element = FlexLove.Element.new({
+    x = 10,
+    y = 10,
+    width = 300,
+    height = 200,
+    editable = true,
+    multiline = true,
+    text = "Line 1\nLine 2",
+  })
+
+  element:focus()
+  
+  local font = element:_getFont()
+  local lineHeight = font:getHeight()
+  
+  -- Click way below the text (should clamp to last line)
+  local pos = element:_mouseToTextPosition(10, 10 + lineHeight * 10)
+  local textLen = utf8.len(element.text)
+  
+  -- Should be at or near end of text
+  lu.assertTrue(pos >= textLen - 6) -- Within last line
+end
+
 -- Run tests
 lu.LuaUnit.run()

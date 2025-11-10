@@ -4042,11 +4042,27 @@ function Element:moveCursorToPreviousWord()
     return
   end
 
+  -- Helper function to get character at position
+  local function getCharAt(p)
+    if p < 0 or p >= utf8.len(text) then
+      return nil
+    end
+    local offset1 = utf8.offset(text, p + 1)
+    local offset2 = utf8.offset(text, p + 2)
+    if not offset1 then
+      return nil
+    end
+    if not offset2 then
+      -- Last character in string
+      return text:sub(offset1)
+    end
+    return text:sub(offset1, offset2 - 1)
+  end
+
   -- Skip any whitespace/punctuation before current position
   while pos > 0 do
-    local offset = utf8.offset(text, pos + 1)
-    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
-    if char:match("[%w]") then
+    local char = getCharAt(pos - 1)
+    if char and char:match("[%w]") then
       break
     end
     pos = pos - 1
@@ -4054,11 +4070,8 @@ function Element:moveCursorToPreviousWord()
 
   -- Move to start of current word
   while pos > 0 do
-    local offset = utf8.offset(text, pos + 1)
-    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
-    if not char:match("[%w]") then
-      -- We've moved one position past the start, so move back
-      pos = pos + 1
+    local char = getCharAt(pos - 1)
+    if not char or not char:match("[%w]") then
       break
     end
     pos = pos - 1
@@ -4082,11 +4095,27 @@ function Element:moveCursorToNextWord()
     return
   end
 
+  -- Helper function to get character at position
+  local function getCharAt(p)
+    if p < 0 or p >= textLength then
+      return nil
+    end
+    local offset1 = utf8.offset(text, p + 1)
+    local offset2 = utf8.offset(text, p + 2)
+    if not offset1 then
+      return nil
+    end
+    if not offset2 then
+      -- Last character in string
+      return text:sub(offset1)
+    end
+    return text:sub(offset1, offset2 - 1)
+  end
+
   -- Skip current word
   while pos < textLength do
-    local offset = utf8.offset(text, pos + 1)
-    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
-    if not char:match("[%w]") then
+    local char = getCharAt(pos)
+    if not char or not char:match("[%w]") then
       break
     end
     pos = pos + 1
@@ -4094,9 +4123,8 @@ function Element:moveCursorToNextWord()
 
   -- Skip any whitespace/punctuation
   while pos < textLength do
-    local offset = utf8.offset(text, pos + 1)
-    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
-    if char:match("[%w]") then
+    local char = getCharAt(pos)
+    if char and char:match("[%w]") then
       break
     end
     pos = pos + 1
@@ -4597,33 +4625,95 @@ function Element:_wrapLine(line, maxWidth)
   end
 
   if self.textWrap == "word" then
-    local words = {}
-    for word in line:gmatch("%S+") do
-      table.insert(words, word)
+    -- Tokenize into words and whitespace, preserving exact spacing
+    local tokens = {}
+    local pos = 1
+    local lineLen = utf8.len(line)
+    
+    while pos <= lineLen do
+      -- Check if current position is whitespace
+      local char = getUtf8Char(line, pos)
+      if char:match("%s") then
+        -- Collect whitespace sequence
+        local wsStart = pos
+        while pos <= lineLen and getUtf8Char(line, pos):match("%s") do
+          pos = pos + 1
+        end
+        table.insert(tokens, {
+          type = "space",
+          text = line:sub(utf8.offset(line, wsStart), utf8.offset(line, pos) and utf8.offset(line, pos) - 1 or #line),
+          startPos = wsStart - 1,
+          length = pos - wsStart
+        })
+      else
+        -- Collect word (non-whitespace sequence)
+        local wordStart = pos
+        while pos <= lineLen and not getUtf8Char(line, pos):match("%s") do
+          pos = pos + 1
+        end
+        table.insert(tokens, {
+          type = "word",
+          text = line:sub(utf8.offset(line, wordStart), utf8.offset(line, pos) and utf8.offset(line, pos) - 1 or #line),
+          startPos = wordStart - 1,
+          length = pos - wordStart
+        })
+      end
     end
 
-    for i, word in ipairs(words) do
-      local testLine = currentLine == "" and word or (currentLine .. " " .. word)
-      local width = font:getWidth(testLine)
+    -- Process tokens and wrap
+    local charPos = 0  -- Track our position in the original line
+    for i, token in ipairs(tokens) do
+      if token.type == "word" then
+        local testLine = currentLine .. token.text
+        local width = font:getWidth(testLine)
 
-      if width > maxWidth and currentLine ~= "" then
-        local currentLineLen = utf8.len(currentLine)
-        table.insert(wrappedParts, {
-          text = currentLine,
-          startIdx = startIdx,
-          endIdx = startIdx + currentLineLen,
-        })
-        startIdx = startIdx + currentLineLen + 1 -- +1 for the space
-        currentLine = word
+        if width > maxWidth and currentLine ~= "" then
+          -- Current line is full, wrap before this word
+          local currentLineLen = utf8.len(currentLine)
+          table.insert(wrappedParts, {
+            text = currentLine,
+            startIdx = startIdx,
+            endIdx = startIdx + currentLineLen,
+          })
+          startIdx = charPos
+          currentLine = token.text
+          charPos = charPos + token.length
 
-        -- Check if the word itself is too long - if so, break it with character wrapping
-        if font:getWidth(word) > maxWidth then
-          local wordLen = utf8.len(word)
+          -- Check if the word itself is too long - if so, break it with character wrapping
+          if font:getWidth(token.text) > maxWidth then
+            local wordLen = utf8.len(token.text)
+            local charLine = ""
+            local charStartIdx = startIdx
+
+            for j = 1, wordLen do
+              local char = getUtf8Char(token.text, j)
+              local testCharLine = charLine .. char
+              local charWidth = font:getWidth(testCharLine)
+
+              if charWidth > maxWidth and charLine ~= "" then
+                table.insert(wrappedParts, {
+                  text = charLine,
+                  startIdx = charStartIdx,
+                  endIdx = charStartIdx + utf8.len(charLine),
+                })
+                charStartIdx = charStartIdx + utf8.len(charLine)
+                charLine = char
+              else
+                charLine = testCharLine
+              end
+            end
+
+            currentLine = charLine
+            startIdx = charStartIdx
+          end
+        elseif width > maxWidth and currentLine == "" then
+          -- Word is too long to fit on a line by itself - use character wrapping
+          local wordLen = utf8.len(token.text)
           local charLine = ""
           local charStartIdx = startIdx
 
           for j = 1, wordLen do
-            local char = getUtf8Char(word, j)
+            local char = getUtf8Char(token.text, j)
             local testCharLine = charLine .. char
             local charWidth = font:getWidth(testCharLine)
 
@@ -4642,35 +4732,15 @@ function Element:_wrapLine(line, maxWidth)
 
           currentLine = charLine
           startIdx = charStartIdx
+          charPos = charPos + token.length
+        else
+          currentLine = testLine
+          charPos = charPos + token.length
         end
-      elseif width > maxWidth and currentLine == "" then
-        -- Word is too long to fit on a line by itself - use character wrapping
-        local wordLen = utf8.len(word)
-        local charLine = ""
-        local charStartIdx = startIdx
-
-        for j = 1, wordLen do
-          local char = getUtf8Char(word, j)
-          local testCharLine = charLine .. char
-          local charWidth = font:getWidth(testCharLine)
-
-          if charWidth > maxWidth and charLine ~= "" then
-            table.insert(wrappedParts, {
-              text = charLine,
-              startIdx = charStartIdx,
-              endIdx = charStartIdx + utf8.len(charLine),
-            })
-            charStartIdx = charStartIdx + utf8.len(charLine)
-            charLine = char
-          else
-            charLine = testCharLine
-          end
-        end
-
-        currentLine = charLine
-        startIdx = charStartIdx
       else
-        currentLine = testLine
+        -- It's whitespace - add to current line
+        currentLine = currentLine .. token.text
+        charPos = charPos + token.length
       end
     end
   else

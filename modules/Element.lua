@@ -2638,8 +2638,8 @@ function Element:draw(backdropCanvas)
   local isPlaceholder = false
   local isPasswordMasked = false
 
-  -- Show placeholder if editable, empty, and not focused
-  if self.editable and (not displayText or displayText == "") and self.placeholder and not self._focused then
+  -- Show placeholder if editable and empty
+  if self.editable and (not displayText or displayText == "") and self.placeholder then
     displayText = self.placeholder
     isPlaceholder = true
   end
@@ -4044,8 +4044,8 @@ function Element:moveCursorToPreviousWord()
 
   -- Skip any whitespace/punctuation before current position
   while pos > 0 do
-    local offset = utf8.offset(text, pos)
-    local char = offset and text:sub(offset, utf8.offset(text, pos + 1) - 1) or ""
+    local offset = utf8.offset(text, pos + 1)
+    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
     if char:match("[%w]") then
       break
     end
@@ -4054,9 +4054,11 @@ function Element:moveCursorToPreviousWord()
 
   -- Move to start of current word
   while pos > 0 do
-    local offset = utf8.offset(text, pos)
-    local char = offset and text:sub(offset, utf8.offset(text, pos + 1) - 1) or ""
+    local offset = utf8.offset(text, pos + 1)
+    local char = offset and text:sub(offset, utf8.offset(text, pos + 2) - 1) or ""
     if not char:match("[%w]") then
+      -- We've moved one position past the start, so move back
+      pos = pos + 1
       break
     end
     pos = pos - 1

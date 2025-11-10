@@ -10,6 +10,7 @@ This library is under active development. While many features are functional, so
 
 ### Coming Soon
 The following features are currently being actively developed:
+- **Animations**: Simple to use animations for UI transitions and effects
 - **Generic Image Support**: Enhanced image rendering capabilities and utilities
 
 ## Features

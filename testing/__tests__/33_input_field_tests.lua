@@ -11,6 +11,7 @@ _G.love = loveStub
 
 -- Load FlexLove after setting up love stub
 local FlexLove = require("FlexLove")
+local StateManager = require("modules.StateManager")
 
 -- Test fixtures
 local testElement
@@ -53,6 +54,9 @@ function TestInputField:tearDown()
   love.keyboard.setDown("ralt", false)
   love.keyboard.setDown("lgui", false)
   love.keyboard.setDown("rgui", false)
+  
+  -- Clear StateManager to prevent test contamination
+  StateManager.reset()
   
   testElement = nil
   FlexLove.Gui.topElements = {}

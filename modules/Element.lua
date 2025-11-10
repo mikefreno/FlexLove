@@ -191,7 +191,7 @@ function Element.new(props)
 
   -- Auto-generate ID in immediate mode if not provided
   if Gui._immediateMode and (not props.id or props.id == "") then
-    self.id = StateManager.generateID(props)
+    self.id = StateManager.generateID(props, props.parent)
   else
     self.id = props.id or ""
   end
@@ -346,6 +346,36 @@ function Element.new(props)
 
     -- Scroll state for text overflow
     self._textScrollX = 0 -- Horizontal scroll offset in pixels
+    
+    -- Restore state from StateManager in immediate mode
+    if Gui._immediateMode and self._stateId then
+      local state = StateManager.getState(self._stateId)
+      if state then
+        -- Restore focus state
+        if state._focused then
+          self._focused = true
+          Gui._focusedElement = self
+        end
+        
+        -- Restore text buffer (prefer state over props for immediate mode)
+        if state._textBuffer and state._textBuffer ~= "" then
+          self._textBuffer = state._textBuffer
+        end
+        
+        -- Restore cursor position
+        if state._cursorPosition then
+          self._cursorPosition = state._cursorPosition
+        end
+        
+        -- Restore selection
+        if state._selectionStart then
+          self._selectionStart = state._selectionStart
+        end
+        if state._selectionEnd then
+          self._selectionEnd = state._selectionEnd
+        end
+      end
+    end
   end
 
   -- Set parent first so it's available for size calculations
@@ -396,7 +426,18 @@ function Element.new(props)
     }
   end
 
-  self.text = props.text
+  -- For editable elements, default text to empty string if not provided
+  if self.editable and props.text == nil then
+    self.text = ""
+  else
+    self.text = props.text
+  end
+  
+  -- Sync self.text with restored _textBuffer for editable elements in immediate mode
+  if self.editable and Gui._immediateMode and self._textBuffer then
+    self.text = self._textBuffer
+  end
+  
   self.textAlign = props.textAlign or TextAlign.START
 
   -- Image properties
@@ -4068,8 +4109,9 @@ function Element:_validateCursorPosition()
   if not self.editable then
     return
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._cursorPosition = math.max(0, math.min(self._cursorPosition, textLength))
+  local textLength = utf8.len(self._textBuffer or "") or 0
+  local cursorPos = tonumber(self._cursorPosition) or 0
+  self._cursorPosition = math.max(0, math.min(cursorPos, textLength))
 end
 
 --- Reset cursor blink (show cursor immediately)
@@ -4239,6 +4281,10 @@ function Element:deleteSelection()
   self:clearSelection()
   self._cursorPosition = startPos
   self:_validateCursorPosition()
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
+
   return true
 end
 
@@ -4272,6 +4318,9 @@ function Element:focus()
   if self.onFocus then
     self.onFocus(self)
   end
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 --- Remove focus from this element
@@ -4291,6 +4340,9 @@ function Element:blur()
   if self.onBlur then
     self.onBlur(self)
   end
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 --- Check if this element is focused
@@ -4300,6 +4352,21 @@ function Element:isFocused()
     return false
   end
   return self._focused == true
+end
+
+--- Save editable element state to StateManager (for immediate mode)
+function Element:_saveEditableState()
+  if not self.editable or not self._stateId or not Gui._immediateMode then
+    return
+  end
+
+  StateManager.updateState(self._stateId, {
+    _focused = self._focused,
+    _textBuffer = self._textBuffer,
+    _cursorPosition = self._cursorPosition,
+    _selectionStart = self._selectionStart,
+    _selectionEnd = self._selectionEnd,
+  })
 end
 
 -- ====================
@@ -4329,6 +4396,9 @@ function Element:setText(text)
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 --- Insert text at position
@@ -4369,6 +4439,9 @@ function Element:insertText(text, position)
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 ---@param startPos number -- Start position (inclusive)
@@ -4402,6 +4475,9 @@ function Element:deleteText(startPos, endPos)
   self:_markTextDirty()
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 --- Replace text in range
@@ -5272,6 +5348,9 @@ function Element:textinput(text)
   if self.onTextChange and self._textBuffer ~= oldText then
     self.onTextChange(self, self._textBuffer, oldText)
   end
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 --- Handle key press (special keys)
@@ -5510,6 +5589,9 @@ function Element:keypressed(key, scancode, isrepeat)
     end
     self:_resetCursorBlink()
   end
+
+  -- Save state to StateManager in immediate mode
+  self:_saveEditableState()
 end
 
 return Element

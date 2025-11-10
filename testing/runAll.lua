@@ -1,5 +1,8 @@
 package.path = package.path .. ";./?.lua;./game/?.lua;./game/utils/?.lua;./game/components/?.lua;./game/systems/?.lua"
 
+-- Set global flag to prevent individual test files from running luaunit
+_G.RUNNING_ALL_TESTS = true
+
 local luaunit = require("testing.luaunit")
 
 -- Run all tests in the __tests__ directory
@@ -38,6 +41,7 @@ local testFiles = {
   "testing/__tests__/32_state_manager_tests.lua",
   "testing/__tests__/33_input_field_tests.lua",
   "testing/__tests__/34_password_mode_tests.lua",
+  "testing/__tests__/35_stable_id_generation_tests.lua",
 }
 
 local success = true

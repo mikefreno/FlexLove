@@ -131,8 +131,8 @@ function GuiState.getTopElementAt(x, y)
   local function findInteractiveAncestor(elem)
     local current = elem
     while current do
-      -- An element is interactive if it has a callback or themeComponent
-      if current.callback or current.themeComponent then
+      -- An element is interactive if it has a callback, themeComponent, or is editable
+      if current.callback or current.themeComponent or current.editable then
         return current
       end
       current = current.parent

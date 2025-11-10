@@ -583,7 +583,7 @@ function Gui.new(props)
 
   -- Immediate mode: generate ID if not provided
   if not props.id then
-    props.id = StateManager.generateID(props)
+    props.id = StateManager.generateID(props, props.parent)
   end
 
   -- Get or create state for this element

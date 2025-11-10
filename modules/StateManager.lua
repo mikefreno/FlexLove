@@ -69,6 +69,13 @@ local function hashProps(props, visited, depth)
     onTextChange = true,
     onEnter = true,
     userdata = true,
+    -- Dynamic input/state properties that should not affect ID stability
+    text = true,           -- Text content changes as user types
+    placeholder = true,    -- Placeholder text is presentational
+    editable = true,       -- Editable state can be toggled dynamically
+    selectOnFocus = true,  -- Input behavior flag
+    autoGrow = true,       -- Auto-grow behavior flag
+    passwordMode = true,   -- Password mode can be toggled
   }
 
   -- Collect and sort keys for consistent ordering
@@ -96,8 +103,9 @@ end
 
 --- Generate a unique ID from call site and properties
 ---@param props table|nil Optional properties to include in ID generation
+---@param parent table|nil Optional parent element for tree-based ID generation
 ---@return string
-function StateManager.generateID(props)
+function StateManager.generateID(props, parent)
   -- Get call stack information
   local info = debug.getinfo(3, "Sl") -- Level 3: caller of Element.new -> caller of generateID
 
@@ -109,16 +117,43 @@ function StateManager.generateID(props)
   local source = info.source or "unknown"
   local line = info.currentline or 0
 
-  -- Create ID from source file and line number
-  local baseID = source:match("([^/\\]+)$") or source -- Get filename
-  baseID = baseID:gsub("%.lua$", "") -- Remove .lua extension
-  local locationKey = baseID .. "_L" .. line
+  -- Create base location key from source file and line number
+  local filename = source:match("([^/\\]+)$") or source -- Get filename
+  filename = filename:gsub("%.lua$", "") -- Remove .lua extension
+  local locationKey = filename .. "_L" .. line
   
+  -- If we have a parent, use tree-based ID generation for stability
+  if parent and parent.id and parent.id ~= "" then
+    -- Count how many children the parent currently has
+    -- This gives us a stable sibling index
+    local siblingIndex = #(parent.children or {})
+    
+    -- Generate ID based on parent ID + sibling position (NO line number for stability)
+    -- This ensures the same position in the tree always gets the same ID
+    local baseID = parent.id .. "_child" .. siblingIndex
+    
+    -- Add property hash if provided (for additional differentiation at same position)
+    if props then
+      local propHash = hashProps(props)
+      if propHash ~= "" then
+        -- Use first 8 chars of a simple hash
+        local hash = 0
+        for i = 1, #propHash do
+          hash = (hash * 31 + string.byte(propHash, i)) % 1000000
+        end
+        baseID = baseID .. "_" .. hash
+      end
+    end
+    
+    return baseID
+  end
+  
+  -- No parent (top-level element): use call-site counter approach
   -- Track how many elements have been created at this location
   callSiteCounters[locationKey] = (callSiteCounters[locationKey] or 0) + 1
   local instanceNum = callSiteCounters[locationKey]
   
-  baseID = locationKey
+  local baseID = locationKey
   
   -- Add instance number if multiple elements created at same location (e.g., in loops)
   if instanceNum > 1 then

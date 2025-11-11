@@ -350,7 +350,7 @@ function Element.new(props)
 
     -- Scroll state for text overflow
     self._textScrollX = 0 -- Horizontal scroll offset in pixels
-    
+
     -- Restore state from StateManager in immediate mode
     if Gui._immediateMode and self._stateId then
       local state = StateManager.getState(self._stateId)
@@ -360,17 +360,17 @@ function Element.new(props)
           self._focused = true
           Gui._focusedElement = self
         end
-        
+
         -- Restore text buffer (prefer state over props for immediate mode)
         if state._textBuffer and state._textBuffer ~= "" then
           self._textBuffer = state._textBuffer
         end
-        
+
         -- Restore cursor position
         if state._cursorPosition then
           self._cursorPosition = state._cursorPosition
         end
-        
+
         -- Restore selection
         if state._selectionStart then
           self._selectionStart = state._selectionStart
@@ -436,12 +436,12 @@ function Element.new(props)
   else
     self.text = props.text
   end
-  
+
   -- Sync self.text with restored _textBuffer for editable elements in immediate mode
   if self.editable and Gui._immediateMode and self._textBuffer then
     self.text = self._textBuffer
   end
-  
+
   self.textAlign = props.textAlign or TextAlign.START
 
   -- Image properties
@@ -629,10 +629,19 @@ function Element.new(props)
     self.width = tempWidth
   else
     self.autosizing.width = true
-    -- Calculate auto-width without padding first
-    tempWidth = self:calculateAutoWidth()
-    self.width = tempWidth
-    self.units.width = { value = nil, unit = "auto" } -- Mark as auto-sized
+    -- Special case: if textWrap is enabled and parent exists, constrain width to parent
+    -- Text wrapping requires a width constraint, so use parent's content width
+    if props.textWrap and self.parent and self.parent.width then
+      tempWidth = self.parent.width
+      self.width = tempWidth
+      self.units.width = { value = 100, unit = "%" } -- Mark as parent-constrained
+      self.autosizing.width = false -- Not truly autosizing, constrained by parent
+    else
+      -- Calculate auto-width without padding first
+      tempWidth = self:calculateAutoWidth()
+      self.width = tempWidth
+      self.units.width = { value = nil, unit = "auto" } -- Mark as auto-sized
+    end
   end
 
   -- Handle height (both h and height properties, prefer h if both exist)
@@ -1970,17 +1979,43 @@ function Element:addChild(child)
   -- Only recalculate auto-sizing if the child participates in layout
   -- (CSS: absolutely positioned children don't affect parent auto-sizing)
   if not child._explicitlyAbsolute then
+    local sizeChanged = false
+
     if self.autosizing.height then
+      local oldHeight = self.height
       local contentHeight = self:calculateAutoHeight()
       -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
       self._borderBoxHeight = contentHeight + self.padding.top + self.padding.bottom
       self.height = contentHeight
+      if oldHeight ~= self.height then
+        sizeChanged = true
+      end
     end
     if self.autosizing.width then
+      local oldWidth = self.width
       local contentWidth = self:calculateAutoWidth()
       -- BORDER-BOX MODEL: Add padding to get border-box, then subtract to get content
       self._borderBoxWidth = contentWidth + self.padding.left + self.padding.right
       self.width = contentWidth
+      if oldWidth ~= self.width then
+        sizeChanged = true
+      end
+    end
+
+    -- Propagate size change up the tree
+    if sizeChanged and self.parent and (self.parent.autosizing.width or self.parent.autosizing.height) then
+      -- Trigger parent to recalculate its size by re-adding this child's contribution
+      -- This ensures grandparents are notified of size changes
+      if self.parent.autosizing.height then
+        local contentHeight = self.parent:calculateAutoHeight()
+        self.parent._borderBoxHeight = contentHeight + self.parent.padding.top + self.parent.padding.bottom
+        self.parent.height = contentHeight
+      end
+      if self.parent.autosizing.width then
+        local contentWidth = self.parent:calculateAutoWidth()
+        self.parent._borderBoxWidth = contentWidth + self.parent.padding.left + self.parent.padding.right
+        self.parent.width = contentWidth
+      end
     end
   end
 
@@ -3276,7 +3311,7 @@ function Element:update(dt)
                   self.callback(self, pressEvent)
                 end
                 self._pressed[button] = true
-                
+
                 -- Set mouse down position for text selection on left click
                 if button == 1 and self.editable then
                   self._mouseDownPosition = self:_mouseToTextPosition(mx, my)
@@ -3387,7 +3422,7 @@ function Element:update(dt)
               if not self._textDragOccurred then
                 self:_handleTextClick(mx, my, clickCount)
               end
-              
+
               -- Reset drag flag after release
               self._textDragOccurred = false
             elseif button == 1 then
@@ -3854,6 +3889,13 @@ function Element:calculateTextHeight()
   if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
     -- Calculate available width for wrapping
     local availableWidth = self.width
+
+    -- If width is not set or is 0, try to use parent's content width
+    if (not availableWidth or availableWidth <= 0) and self.parent then
+      -- Use parent's content width (excluding padding)
+      availableWidth = self.parent.width
+    end
+
     if availableWidth and availableWidth > 0 then
       -- Get the wrapped text lines using getWrap (returns width and table of lines)
       local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
@@ -4167,7 +4209,7 @@ function Element:_resetCursorBlink(pauseBlink)
   end
   self._cursorBlinkTimer = 0
   self._cursorVisible = true
-  
+
   if pauseBlink then
     self._cursorBlinkPaused = true -- Pause blinking while typing
     self._cursorBlinkPauseTimer = 0 -- Reset pause timer
@@ -4494,7 +4536,7 @@ function Element:insertText(text, position)
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
-  
+
   -- Reset cursor blink to show cursor and pause blinking while typing
   self:_resetCursorBlink(true)
 
@@ -4533,7 +4575,7 @@ function Element:deleteText(startPos, endPos)
   self:_markTextDirty()
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
-  
+
   -- Reset cursor blink to show cursor and pause blinking while deleting
   self:_resetCursorBlink(true)
 
@@ -4660,7 +4702,7 @@ function Element:_wrapLine(line, maxWidth)
     local tokens = {}
     local pos = 1
     local lineLen = utf8.len(line)
-    
+
     while pos <= lineLen do
       -- Check if current position is whitespace
       local char = getUtf8Char(line, pos)
@@ -4674,7 +4716,7 @@ function Element:_wrapLine(line, maxWidth)
           type = "space",
           text = line:sub(utf8.offset(line, wsStart), utf8.offset(line, pos) and utf8.offset(line, pos) - 1 or #line),
           startPos = wsStart - 1,
-          length = pos - wsStart
+          length = pos - wsStart,
         })
       else
         -- Collect word (non-whitespace sequence)
@@ -4686,13 +4728,13 @@ function Element:_wrapLine(line, maxWidth)
           type = "word",
           text = line:sub(utf8.offset(line, wordStart), utf8.offset(line, pos) and utf8.offset(line, pos) - 1 or #line),
           startPos = wordStart - 1,
-          length = pos - wordStart
+          length = pos - wordStart,
         })
       end
     end
 
     -- Process tokens and wrap
-    local charPos = 0  -- Track our position in the original line
+    local charPos = 0 -- Track our position in the original line
     for i, token in ipairs(tokens) do
       if token.type == "word" then
         local testLine = currentLine .. token.text
@@ -4987,7 +5029,7 @@ function Element:_getSelectionRects(selStart, selEnd)
       local selY = 0
       local selHeight = font:getHeight()
 
-      table.insert(rects, {x = selX, y = selY, width = selWidth, height = selHeight})
+      table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
     end
 
     return rects
@@ -5062,7 +5104,7 @@ function Element:_getSelectionRects(selStart, selEnd)
             local selY = visualLineNum * lineHeight
             local selHeight = lineHeight
 
-            table.insert(rects, {x = selX, y = selY, width = selWidth, height = selHeight})
+            table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
           end
 
           visualLineNum = visualLineNum + 1
@@ -5090,7 +5132,7 @@ function Element:_getSelectionRects(selStart, selEnd)
         local selY = visualLineNum * lineHeight
         local selHeight = lineHeight
 
-        table.insert(rects, {x = selX, y = selY, width = selWidth, height = selHeight})
+        table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
         visualLineNum = visualLineNum + 1
       end
     else
@@ -5229,7 +5271,7 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
   end
 
   -- === MULTILINE TEXT HANDLING ===
-  
+
   -- Update text wrapping if dirty
   self:_updateTextIfDirty()
 
@@ -5243,7 +5285,7 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
   end
 
   local lineHeight = font:getHeight()
-  
+
   -- Get text area width for wrapping calculations
   local textAreaWidth = self.width
   local scaledContentPadding = self:getScaledContentPadding()
@@ -5270,32 +5312,32 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
   -- If text wrapping is enabled, handle wrapped segments
   if self.textWrap and textAreaWidth > 0 then
     local wrappedSegments = self:_wrapLine(clickedLine, textAreaWidth)
-    
+
     -- Determine which wrapped segment was clicked
     local lineYOffset = (clickedLineNum - 1) * lineHeight
     local segmentNum = math.floor((relativeY - lineYOffset) / lineHeight) + 1
     segmentNum = math.max(1, math.min(segmentNum, #wrappedSegments))
-    
+
     local segment = wrappedSegments[segmentNum]
-    
+
     -- Find closest position within the segment
     local segmentText = segment.text
     local segmentLen = utf8.len(segmentText) or 0
     local closestPos = segment.startIdx
     local closestDist = math.huge
-    
+
     for i = 0, segmentLen do
       local offset = utf8.offset(segmentText, i + 1)
       local beforeText = offset and segmentText:sub(1, offset - 1) or segmentText
       local textWidth = font:getWidth(beforeText)
       local dist = math.abs(relativeX - textWidth)
-      
+
       if dist < closestDist then
         closestDist = dist
         closestPos = segment.startIdx + i
       end
     end
-    
+
     return charOffset + closestPos
   end
 

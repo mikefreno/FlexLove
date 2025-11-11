@@ -469,19 +469,19 @@ function Gui.update(dt)
   end
 
   Gui._activeEventElement = nil
-  
+
   -- In immediate mode, save state after update so that cursor blink timer changes persist
   if Gui._immediateMode and Gui._currentFrameElements then
     for _, element in ipairs(Gui._currentFrameElements) do
       if element.id and element.id ~= "" and element.editable and element._focused then
         local state = StateManager.getState(element.id, {})
-        
+
         -- Save cursor blink state (updated during element:update())
         state._cursorBlinkTimer = element._cursorBlinkTimer
         state._cursorVisible = element._cursorVisible
         state._cursorBlinkPaused = element._cursorBlinkPaused
         state._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
-        
+
         StateManager.setState(element.id, state)
       end
     end
@@ -582,12 +582,8 @@ function Gui.destroy()
   Gui._focusedElement = nil
 end
 
--- ====================
--- Immediate Mode API
--- ====================
-
 --- Create a new element (supports both immediate and retained mode)
----@param props table
+---@param props ElementProps
 ---@return Element
 function Gui.new(props)
   props = props or {}

@@ -186,7 +186,7 @@ local button = Gui.new({
   textColor = Color.new(1, 1, 1, 1),
   backgroundColor = Color.new(0.2, 0.4, 0.8, 0.3),  -- Shows behind theme
   themeComponent = "button",  -- Uses button component from active theme
-  callback = function(element, event)
+  onEvent = function(element, event)
     if event.type == "click" then
       print("Clicked!")
     end

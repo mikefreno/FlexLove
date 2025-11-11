@@ -2502,7 +2502,7 @@ function Element:destroy()
   -- Clear animation reference
   self.animation = nil
 
-  -- Clear callback to prevent closure leaks
+  -- Clear onEvent to prevent closure leaks
   self.onEvent = nil
 end
 
@@ -3154,7 +3154,7 @@ function Element:update(dt)
     end
   end
 
-  -- Handle scrollbar click/press (independent of callback)
+  -- Handle scrollbar click/press (independent of onEvent)
   -- Check if we should handle scrollbar press for elements with overflow
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
@@ -3293,7 +3293,7 @@ function Element:update(dt)
             if not self._pressed[button] then
               -- Check if press is on scrollbar first (skip if already handled)
               if button == 1 and not self._scrollbarPressHandled and self:_handleScrollbarPress(mx, my, button) then
-                -- Scrollbar consumed the event, mark as pressed to prevent callback
+                -- Scrollbar consumed the event, mark as pressed to prevent onEvent
                 self._pressed[button] = true
                 self._scrollbarPressHandled = true
               else

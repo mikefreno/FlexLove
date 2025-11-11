@@ -444,7 +444,7 @@ function Gui.getElementAtPosition(x, y)
       local topBlocker = blockingElements[1]
       -- If the top blocker has higher z-index than the top candidate,
       -- and the blocker is NOT an ancestor of the candidate,
-      -- return the blocker (even though it has no callback, it blocks input)
+      -- return the blocker (even though it has no onEvent, it blocks input)
       if topBlocker.z > topCandidate.z and not isAncestor(topBlocker, topCandidate) then
         return topBlocker
       end

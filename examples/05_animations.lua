@@ -63,7 +63,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 10,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         -- Fade out then fade in
         local fadeOut = Animation.fade(1.0, 1.0, 0.0)
@@ -109,7 +109,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 10,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         -- Scale up
         local scaleUp = Animation.scale(
@@ -193,7 +193,7 @@ function Lv.load()
       textColor = Color.new(1, 1, 1, 1),
       textAlign = enums.TextAlign.CENTER,
       cornerRadius = 8,
-      callback = function(element, event)
+      onEvent = function(element, event)
         if event.type == "click" then
           -- Fade out and in with this easing
           local fadeOut = Animation.fade(0.8, 1.0, 0.2)

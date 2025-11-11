@@ -384,8 +384,8 @@ function Gui.getElementAtPosition(x, y)
     local adjustedY = y + scrollOffsetY
 
     if adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh then
-      -- Collect interactive elements (those with callbacks)
-      if element.callback and not element.disabled then
+      -- Collect interactive elements (those with onEvent handlers)
+      if element.onEvent and not element.disabled then
         table.insert(candidates, element)
       end
 

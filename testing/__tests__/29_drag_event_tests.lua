@@ -32,7 +32,7 @@ function TestDragEvent:test_drag_event_fired_on_mouse_movement()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         dragEventReceived = true
         dragEvent = event
@@ -62,7 +62,7 @@ function TestDragEvent:test_drag_event_contains_delta_values()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         dragEvent = event
       end
@@ -94,7 +94,7 @@ function TestDragEvent:test_drag_event_updates_delta_continuously()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         table.insert(dragEvents, { dx = event.dx, dy = event.dy })
       end
@@ -130,7 +130,7 @@ function TestDragEvent:test_no_drag_event_when_mouse_stationary()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         dragEventCount = dragEventCount + 1
       end
@@ -158,7 +158,7 @@ function TestDragEvent:test_drag_tracking_cleaned_up_on_release()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         table.insert(dragEvents, { dx = event.dx, dy = event.dy })
       end
@@ -199,7 +199,7 @@ function TestDragEvent:test_drag_works_with_different_buttons()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         table.insert(dragEvents, { button = event.button, dx = event.dx })
       end
@@ -232,7 +232,7 @@ function TestDragEvent:test_drag_event_contains_mouse_position()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         dragEvent = event
       end
@@ -260,7 +260,7 @@ function TestDragEvent:test_no_drag_when_mouse_leaves_element()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(el, event)
+    onEvent = function(el, event)
       if event.type == "drag" then
         dragEventCount = dragEventCount + 1
       end

@@ -58,7 +58,7 @@ local button = FlexLove.Element.new({
   text = "Click Me",
   textSize = "md",
   themeComponent = "button",
-  callback = function(element, event)
+  onEvent = function(element, event)
     print("Button clicked!")
   end
 })
@@ -105,14 +105,25 @@ local someGameState = true
 local button1 = FlexLove.Element.new({
   text = "Button 1",
   disabled = someGameState,
-  callback = function() print("Clicked!") end
+  onEvent = function() print("Clicked!") end
 })
 -- ... other things ... --
 local someGameState = false  -- button1 will not change its disabled state, you need a way to update the element
 
 local button2 = FlexLove.Element.new({
   text = "Click to activate button 1",
-  callback = function(_, event)
+  onEvent = function(_, event)
+    if event.type == "release" then -- only fire on mouse release
+      button1.disabled = false -- this will actual update the element
+    end
+  end
+})
+-- ... other things ... --
+local someGameState = false  -- button1 will not change its disabled state, you need a way to update the element
+
+local button2 = FlexLove.Element.new({
+  text = "Click to activate button 1",
+  onEvent = function(_, event)
     if event.type == "release" then -- only fire on mouse release
       button1.disabled = false -- this will actual update the element
     end
@@ -137,14 +148,14 @@ local someGameState = true
 local button1 = FlexLove.Element.new({
   text = "Button 1",
   disabled = someGameState,
-  callback = function() print("Clicked!") end
+  onEvent = function() print("Clicked!") end
 })
 -- ... other things ... --
 local someGameState = false  -- button1 in immediate mode will have its state updated 
 
 local button2 = FlexLove.Element.new({
   text = "Click to activate button 1",
-  callback = function(_, event)
+  onEvent = function(_, event)
     if event.type == "release" then -- only fire on mouse release
       button1.disabled = false -- this will also update the element
     end
@@ -211,7 +222,7 @@ Common properties for all elements:
   themeComponent = "button", -- Component type from theme
   
   -- Interaction
-  callback = function(element, event) end,
+  onEvent = function(element, event) end,
   disabled = false,
   disableHighlight = false, -- Disable pressed overlay (auto-true for themed elements)
   
@@ -351,7 +362,7 @@ Themes support state-based rendering:
 Enhanced event handling with detailed event information:
 
 ```lua
-callback = function(element, event)
+onEvent = function(element, event)
   -- event.type: "click", "press", "release", "rightclick", "middleclick"
   -- event.button: 1 (left), 2 (right), 3 (middle)
   -- event.x, event.y: Mouse position

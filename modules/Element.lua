@@ -114,7 +114,7 @@ Public API methods to access internal state:
 ---@field autoScaleText boolean -- Whether text should auto-scale with window size (default: true)
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
----@field callback fun(element:Element, event:InputEvent)? -- Callback function for interaction events
+---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
 ---@field units table -- Original unit specifications for responsive behavior
 ---@field _pressed table<number, boolean> -- Track pressed state per mouse button
 ---@field _lastClickTime number? -- Timestamp of last click for double-click detection
@@ -189,7 +189,7 @@ Element.__index = Element
 function Element.new(props)
   local self = setmetatable({}, Element)
   self.children = {}
-  self.callback = props.callback
+  self.onEvent = props.onEvent
 
   -- Auto-generate ID in immediate mode if not provided
   if Gui._immediateMode and (not props.id or props.id == "") then
@@ -2503,7 +2503,7 @@ function Element:destroy()
   self.animation = nil
 
   -- Clear callback to prevent closure leaks
-  self.callback = nil
+  self.onEvent = nil
 end
 
 --- Draw element and its children
@@ -2911,8 +2911,8 @@ function Element:draw(backdropCanvas)
     end
   end
 
-  -- Draw visual feedback when element is pressed (if it has a callback and highlight is not disabled)
-  if self.callback and not self.disableHighlight then
+  -- Draw visual feedback when element is pressed (if it has an onEvent handler and highlight is not disabled)
+  if self.onEvent and not self.disableHighlight then
     -- Check if any button is pressed
     local anyPressed = false
     for _, pressed in pairs(self._pressed) do
@@ -3173,7 +3173,7 @@ function Element:update(dt)
     end
   end
 
-  if self.callback or self.themeComponent or self.editable then
+  if self.onEvent or self.themeComponent or self.editable then
     -- Clickable area is the border box (x, y already includes padding)
     -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection
     local bx = self.x
@@ -3269,7 +3269,7 @@ function Element:update(dt)
       self._themeState = newThemeState
     end
 
-    -- Only process button events if callback exists, element is not disabled,
+    -- Only process button events if onEvent handler exists, element is not disabled,
     -- and this is the topmost element at the mouse position (z-index ordering)
     -- Exception: Allow drag continuation even if occluded (once drag starts, it continues)
     local isDragging = false
@@ -3280,7 +3280,7 @@ function Element:update(dt)
       end
     end
 
-    local canProcessEvents = (self.callback or self.editable) and not self.disabled and (isActiveElement or isDragging)
+    local canProcessEvents = (self.onEvent or self.editable) and not self.disabled and (isActiveElement or isDragging)
 
     if canProcessEvents then
       -- Check all three mouse buttons
@@ -3299,7 +3299,7 @@ function Element:update(dt)
               else
                 -- Just pressed - fire press event and record drag start position
                 local modifiers = getModifiers()
-                if self.callback then
+                if self.onEvent then
                   local pressEvent = InputEvent.new({
                     type = "press",
                     button = button,
@@ -3308,7 +3308,7 @@ function Element:update(dt)
                     modifiers = modifiers,
                     clickCount = 1,
                   })
-                  self.callback(self, pressEvent)
+                  self.onEvent(self, pressEvent)
                 end
                 self._pressed[button] = true
 
@@ -3331,7 +3331,7 @@ function Element:update(dt)
 
               if lastX ~= mx or lastY ~= my then
                 -- Mouse has moved - fire drag event only if still hovering
-                if self.callback and isHovering then
+                if self.onEvent and isHovering then
                   local modifiers = getModifiers()
                   local dx = mx - self._dragStartX[button]
                   local dy = my - self._dragStartY[button]
@@ -3346,7 +3346,7 @@ function Element:update(dt)
                     modifiers = modifiers,
                     clickCount = 1,
                   })
-                  self.callback(self, dragEvent)
+                  self.onEvent(self, dragEvent)
                 end
 
                 -- Handle text selection drag for editable elements
@@ -3386,7 +3386,7 @@ function Element:update(dt)
               eventType = "middleclick"
             end
 
-            if self.callback then
+            if self.onEvent then
               local clickEvent = InputEvent.new({
                 type = eventType,
                 button = button,
@@ -3396,7 +3396,7 @@ function Element:update(dt)
                 clickCount = clickCount,
               })
 
-              self.callback(self, clickEvent)
+              self.onEvent(self, clickEvent)
             end
             self._pressed[button] = false
 
@@ -3429,7 +3429,7 @@ function Element:update(dt)
             end
 
             -- Fire release event
-            if self.callback then
+            if self.onEvent then
               local releaseEvent = InputEvent.new({
                 type = "release",
                 button = button,
@@ -3438,7 +3438,7 @@ function Element:update(dt)
                 modifiers = modifiers,
                 clickCount = clickCount,
               })
-              self.callback(self, releaseEvent)
+              self.onEvent(self, releaseEvent)
             end
           end
         else
@@ -3450,10 +3450,10 @@ function Element:update(dt)
           end
         end
       end
-    end -- end if self.callback
+    end -- end if self.onEvent
 
     -- Handle touch events (maintain backward compatibility)
-    if self.callback then
+    if self.onEvent then
       local touches = love.touch.getTouches()
       for _, id in ipairs(touches) do
         local tx, ty = love.touch.getPosition(id)
@@ -3469,7 +3469,7 @@ function Element:update(dt)
             modifiers = getModifiers(),
             clickCount = 1,
           })
-          self.callback(self, touchEvent)
+          self.onEvent(self, touchEvent)
           self._touchPressed[id] = false
         end
       end

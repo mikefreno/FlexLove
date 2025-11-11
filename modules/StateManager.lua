@@ -60,7 +60,7 @@ local function hashProps(props, visited, depth)
   
   -- Properties to skip (they cause issues or aren't relevant for ID generation)
   local skipKeys = {
-    callback = true,
+    onEvent = true,
     parent = true,
     children = true,
     onFocus = true,

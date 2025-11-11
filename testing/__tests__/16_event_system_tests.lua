@@ -49,7 +49,7 @@ function TestEventSystem:test_event_object_has_required_fields()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       eventReceived = event
     end,
   })
@@ -82,7 +82,7 @@ function TestEventSystem:test_left_click_generates_click_event()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       table.insert(eventsReceived, { type = event.type, button = event.button })
     end,
   })
@@ -118,7 +118,7 @@ function TestEventSystem:test_right_click_generates_rightclick_event()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       table.insert(eventsReceived, { type = event.type, button = event.button })
     end,
   })
@@ -151,7 +151,7 @@ function TestEventSystem:test_middle_click_generates_middleclick_event()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       table.insert(eventsReceived, { type = event.type, button = event.button })
     end,
   })
@@ -184,7 +184,7 @@ function TestEventSystem:test_modifier_keys_are_detected()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         eventReceived = event
       end
@@ -213,7 +213,7 @@ function TestEventSystem:test_double_click_increments_click_count()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         table.insert(clickEvents, event.clickCount)
       end
@@ -248,7 +248,7 @@ function TestEventSystem:test_press_and_release_events_are_fired()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       table.insert(eventsReceived, event.type)
     end,
   })
@@ -288,7 +288,7 @@ function TestEventSystem:test_event_contains_mouse_position()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         eventReceived = event
       end
@@ -318,7 +318,7 @@ function TestEventSystem:test_no_callback_when_clicking_outside_element()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       callbackCalled = true
     end,
   })
@@ -343,7 +343,7 @@ function TestEventSystem:test_multiple_modifiers_detected()
     y = 100,
     width = 200,
     height = 100,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         eventReceived = event
       end

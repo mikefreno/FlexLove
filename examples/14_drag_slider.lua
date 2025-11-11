@@ -99,7 +99,7 @@ local function createSlider(x, y, width, label, min, max, initialValue, onValueC
   })
 
   -- Make the background track interactive
-  sliderBg.callback = function(element, event)
+  sliderBg.onEvent = function(element, event)
     if event.type == "press" or event.type == "drag" then
       -- Get element bounds
       local bg_x = element.x

@@ -249,7 +249,7 @@ function Lv.load()
     })
     
     -- Add hover animation
-    card.callback = function(element)
+    card.onEvent = function(element)
       local anim = Animation.new({
         duration = 0.2,
         start = { opacity = 1 },

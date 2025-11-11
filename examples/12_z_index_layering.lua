@@ -166,7 +166,7 @@ function Lv.load()
     })
     
     -- Add click handler to bring to front
-    box.callback = function(element)
+    box.onEvent = function(element)
       maxZ = maxZ + 1
       element.z = maxZ
       element.text = "Box " .. i .. "\nZ: " .. element.z

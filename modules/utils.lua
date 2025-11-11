@@ -34,7 +34,7 @@
 ---@field flexWrap FlexWrap? -- Whether children wrap to multiple lines: "nowrap"|"wrap"|"wrap-reverse" (default: NOWRAP)
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
----@field callback fun(element:Element, event:InputEvent)? -- Callback function for interaction events
+---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
 ---@field onFocus fun(element:Element, event:InputEvent)? -- Callback when element receives focus
 ---@field onBlur fun(element:Element, event:InputEvent)? -- Callback when element loses focus
 ---@field onTextInput fun(element:Element, text:string)? -- Callback when text is input

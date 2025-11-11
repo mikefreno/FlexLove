@@ -71,7 +71,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 10,
-    callback = function(element, event)
+    onEvent = function(element, event)
       local buttonName = event.button == 1 and "Left" or (event.button == 2 and "Right" or "Middle")
       local eventTypeName = event.type:sub(1,1):upper() .. event.type:sub(2)
       
@@ -113,7 +113,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 10,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         local mods = {}
         if event.modifiers.shift then table.insert(mods, "Shift") end
@@ -152,7 +152,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 10,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         if event.clickCount == 1 then
           addLogEntry("Single click detected")
@@ -237,7 +237,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 5,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "press" then
         addLogEntry("Button 1: PRESSED")
         element.backgroundColor = Color.new(0.2, 0.3, 0.6, 1)
@@ -259,7 +259,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 5,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         clickCounter = clickCounter + 1
         element.text = "Click Counter: " .. clickCounter
@@ -278,7 +278,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 5,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         eventLog = {}
         addLogEntry("Log cleared!")

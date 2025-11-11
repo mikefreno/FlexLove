@@ -119,7 +119,7 @@ function Lv.load()
     textSize = "2vh",
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         print("Normal button clicked!")
       end
@@ -139,7 +139,7 @@ function Lv.load()
     textColor = Color.new(0.3, 1, 0.3, 1),
     textAlign = enums.TextAlign.CENTER,
     active = true,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         element.active = not element.active
         print("Active button toggled:", element.active)
@@ -160,7 +160,7 @@ function Lv.load()
     textColor = Color.new(0.5, 0.5, 0.5, 1),
     textAlign = enums.TextAlign.CENTER,
     disabled = true,
-    callback = function(element, event)
+    onEvent = function(element, event)
       -- This won't be called because button is disabled
       print("This shouldn't print!")
     end,
@@ -179,7 +179,7 @@ function Lv.load()
     textSize = "2vh",
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
-    callback = function(element, event)
+    onEvent = function(element, event)
       if event.type == "click" then
         clickCount = clickCount + 1
         element.text = "Click Me! (" .. clickCount .. ")"

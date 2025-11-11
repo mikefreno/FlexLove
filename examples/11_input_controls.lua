@@ -72,7 +72,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 8,
-    callback = function()
+    onEvent = function()
       counter = counter + 1
       counterDisplay.text = "Counter: " .. counter
     end
@@ -90,7 +90,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 8,
-    callback = function()
+    onEvent = function()
       counter = counter - 1
       counterDisplay.text = "Counter: " .. counter
     end
@@ -108,7 +108,7 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
     cornerRadius = 8,
-    callback = function()
+    onEvent = function()
       counter = 0
       counterDisplay.text = "Counter: " .. counter
     end

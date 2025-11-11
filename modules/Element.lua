@@ -163,6 +163,8 @@ Public API methods to access internal state:
 ---@field _cursorColumn number? -- Internal: cursor column within line
 ---@field _cursorBlinkTimer number? -- Internal: cursor blink timer
 ---@field _cursorVisible boolean? -- Internal: cursor visibility state
+---@field _cursorBlinkPaused boolean? -- Internal: whether cursor blink is paused (e.g., while typing)
+---@field _cursorBlinkPauseTimer number? -- Internal: timer for how long cursor blink has been paused
 ---@field _selectionStart number? -- Internal: selection start position
 ---@field _selectionEnd number? -- Internal: selection end position
 ---@field _selectionAnchor number? -- Internal: selection anchor point
@@ -329,6 +331,8 @@ function Element.new(props)
     self._cursorColumn = 0 -- Column within current line
     self._cursorBlinkTimer = 0
     self._cursorVisible = true
+    self._cursorBlinkPaused = false
+    self._cursorBlinkPauseTimer = 0
 
     -- Selection state
     self._selectionStart = nil -- nil = no selection
@@ -3026,10 +3030,21 @@ function Element:update(dt)
 
   -- Update cursor blink timer (only if editable and focused)
   if self.editable and self._focused then
-    self._cursorBlinkTimer = self._cursorBlinkTimer + dt
-    if self._cursorBlinkTimer >= self.cursorBlinkRate then
-      self._cursorBlinkTimer = 0
-      self._cursorVisible = not self._cursorVisible
+    -- If blink is paused, increment pause timer
+    if self._cursorBlinkPaused then
+      self._cursorBlinkPauseTimer = (self._cursorBlinkPauseTimer or 0) + dt
+      -- Unpause after 0.5 seconds of no typing
+      if self._cursorBlinkPauseTimer >= 0.5 then
+        self._cursorBlinkPaused = false
+        self._cursorBlinkPauseTimer = 0
+      end
+    else
+      -- Normal blinking
+      self._cursorBlinkTimer = self._cursorBlinkTimer + dt
+      if self._cursorBlinkTimer >= self.cursorBlinkRate then
+        self._cursorBlinkTimer = 0
+        self._cursorVisible = not self._cursorVisible
+      end
     end
   end
 
@@ -4145,12 +4160,18 @@ function Element:_validateCursorPosition()
 end
 
 --- Reset cursor blink (show cursor immediately)
-function Element:_resetCursorBlink()
+---@param pauseBlink boolean|nil -- Whether to pause blinking (for typing)
+function Element:_resetCursorBlink(pauseBlink)
   if not self.editable then
     return
   end
   self._cursorBlinkTimer = 0
   self._cursorVisible = true
+  
+  if pauseBlink then
+    self._cursorBlinkPaused = true -- Pause blinking while typing
+    self._cursorBlinkPauseTimer = 0 -- Reset pause timer
+  end
 
   -- Update scroll to keep cursor visible
   self:_updateTextScroll()
@@ -4396,6 +4417,10 @@ function Element:_saveEditableState()
     _cursorPosition = self._cursorPosition,
     _selectionStart = self._selectionStart,
     _selectionEnd = self._selectionEnd,
+    _cursorBlinkTimer = self._cursorBlinkTimer,
+    _cursorVisible = self._cursorVisible,
+    _cursorBlinkPaused = self._cursorBlinkPaused,
+    _cursorBlinkPauseTimer = self._cursorBlinkPauseTimer,
   })
 end
 
@@ -4469,6 +4494,9 @@ function Element:insertText(text, position)
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
   self:_validateCursorPosition()
+  
+  -- Reset cursor blink to show cursor and pause blinking while typing
+  self:_resetCursorBlink(true)
 
   -- Save state to StateManager in immediate mode
   self:_saveEditableState()
@@ -4505,6 +4533,9 @@ function Element:deleteText(startPos, endPos)
   self:_markTextDirty()
   self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
   self:_updateAutoGrowHeight() -- Then update height based on new content
+  
+  -- Reset cursor blink to show cursor and pause blinking while deleting
+  self:_resetCursorBlink(true)
 
   -- Save state to StateManager in immediate mode
   self:_saveEditableState()
@@ -5553,7 +5584,7 @@ function Element:keypressed(key, scancode, isrepeat)
     if self.onTextChange and self._textBuffer ~= oldText then
       self.onTextChange(self, self._textBuffer, oldText)
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(true)
   elseif key == "delete" then
     local oldText = self._textBuffer
     if self:hasSelection() then
@@ -5571,7 +5602,7 @@ function Element:keypressed(key, scancode, isrepeat)
     if self.onTextChange and self._textBuffer ~= oldText then
       self.onTextChange(self, self._textBuffer, oldText)
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(true)
 
   -- Handle return/enter
   elseif key == "return" or key == "kpenter" then
@@ -5593,7 +5624,7 @@ function Element:keypressed(key, scancode, isrepeat)
         self.onEnter(self)
       end
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(true)
 
   -- Handle Ctrl/Cmd+A (select all)
   elseif ctrl and key == "a" then
@@ -5627,7 +5658,7 @@ function Element:keypressed(key, scancode, isrepeat)
         end
       end
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(true)
 
   -- Handle Ctrl/Cmd+V (paste)
   elseif ctrl and key == "v" then
@@ -5648,7 +5679,7 @@ function Element:keypressed(key, scancode, isrepeat)
         self.onTextChange(self, self._textBuffer, oldText)
       end
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(true)
 
   -- Handle Escape
   elseif key == "escape" then

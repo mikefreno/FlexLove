@@ -221,6 +221,11 @@ function Gui.endFrame()
       state._scrollbarDragging = element._scrollbarDragging
       state._hoveredScrollbar = element._hoveredScrollbar
       state._scrollbarDragOffset = element._scrollbarDragOffset
+      -- Save cursor blink state
+      state._cursorBlinkTimer = element._cursorBlinkTimer
+      state._cursorVisible = element._cursorVisible
+      state._cursorBlinkPaused = element._cursorBlinkPaused
+      state._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
 
       StateManager.setState(element.id, state)
     end
@@ -464,6 +469,23 @@ function Gui.update(dt)
   end
 
   Gui._activeEventElement = nil
+  
+  -- In immediate mode, save state after update so that cursor blink timer changes persist
+  if Gui._immediateMode and Gui._currentFrameElements then
+    for _, element in ipairs(Gui._currentFrameElements) do
+      if element.id and element.id ~= "" and element.editable and element._focused then
+        local state = StateManager.getState(element.id, {})
+        
+        -- Save cursor blink state (updated during element:update())
+        state._cursorBlinkTimer = element._cursorBlinkTimer
+        state._cursorVisible = element._cursorVisible
+        state._cursorBlinkPaused = element._cursorBlinkPaused
+        state._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
+        
+        StateManager.setState(element.id, state)
+      end
+    end
+  end
 end
 
 --- Forward text input to focused element
@@ -621,6 +643,15 @@ function Gui.new(props)
   element._scrollbarDragging = state._scrollbarDragging ~= nil and state._scrollbarDragging or false
   element._hoveredScrollbar = state._hoveredScrollbar
   element._scrollbarDragOffset = state._scrollbarDragOffset ~= nil and state._scrollbarDragOffset or 0
+  -- Restore cursor blink state
+  element._cursorBlinkTimer = state._cursorBlinkTimer or element._cursorBlinkTimer or 0
+  if state._cursorVisible ~= nil then
+    element._cursorVisible = state._cursorVisible
+  elseif element._cursorVisible == nil then
+    element._cursorVisible = true
+  end
+  element._cursorBlinkPaused = state._cursorBlinkPaused or false
+  element._cursorBlinkPauseTimer = state._cursorBlinkPauseTimer or 0
 
   -- Bind element to StateManager for interactive states
   -- Use the same ID for StateManager so state persists across frames

@@ -23,6 +23,8 @@ local utils = req("utils")
 local Grid = req("Grid")
 local InputEvent = req("InputEvent")
 local StateManager = req("StateManager")
+local TextEditor = req("TextEditor")
+local LayoutEngine = req("LayoutEngine")
 
 -- Extract utilities
 local enums = utils.enums
@@ -324,62 +326,32 @@ function Element.new(props)
   self.selectionColor = props.selectionColor
   self.cursorBlinkRate = props.cursorBlinkRate or 0.5
 
-  -- Initialize cursor and selection state (only if editable)
+  -- Initialize TextEditor for editable elements
   if self.editable then
-    self._cursorPosition = 0 -- Character index (0 = before first char)
-    self._cursorLine = 1 -- Current line number (1-based)
-    self._cursorColumn = 0 -- Column within current line
-    self._cursorBlinkTimer = 0
-    self._cursorVisible = true
-    self._cursorBlinkPaused = false
-    self._cursorBlinkPauseTimer = 0
-
-    -- Selection state
-    self._selectionStart = nil -- nil = no selection
-    self._selectionEnd = nil
-    self._selectionAnchor = nil -- Anchor point for shift+arrow selection
-
-    -- Focus state
-    self._focused = false
-
-    -- Text buffer state (initialized after self.text is set below)
-    self._textBuffer = props.text or "" -- Actual text content
-    self._lines = nil -- Split lines (for multiline)
-    self._wrappedLines = nil -- Wrapped line data
-    self._textDirty = true -- Flag to recalculate lines/wrapping
-
-    -- Scroll state for text overflow
-    self._textScrollX = 0 -- Horizontal scroll offset in pixels
-
-    -- Restore state from StateManager in immediate mode
-    if Gui._immediateMode and self._stateId then
-      local state = StateManager.getState(self._stateId)
-      if state then
-        -- Restore focus state
-        if state._focused then
-          self._focused = true
-          Gui._focusedElement = self
-        end
-
-        -- Restore text buffer (prefer state over props for immediate mode)
-        if state._textBuffer and state._textBuffer ~= "" then
-          self._textBuffer = state._textBuffer
-        end
-
-        -- Restore cursor position
-        if state._cursorPosition then
-          self._cursorPosition = state._cursorPosition
-        end
-
-        -- Restore selection
-        if state._selectionStart then
-          self._selectionStart = state._selectionStart
-        end
-        if state._selectionEnd then
-          self._selectionEnd = state._selectionEnd
-        end
-      end
-    end
+    self._textEditor = TextEditor.new({
+      editable = self.editable,
+      multiline = self.multiline,
+      passwordMode = self.passwordMode,
+      textWrap = self.textWrap,
+      maxLines = self.maxLines,
+      maxLength = self.maxLength,
+      placeholder = self.placeholder,
+      inputType = self.inputType,
+      textOverflow = self.textOverflow,
+      scrollable = self.scrollable,
+      autoGrow = self.autoGrow,
+      selectOnFocus = self.selectOnFocus,
+      cursorColor = self.cursorColor,
+      selectionColor = self.selectionColor,
+      cursorBlinkRate = self.cursorBlinkRate,
+      text = props.text or "",
+      onFocus = props.onFocus,
+      onBlur = props.onBlur,
+      onTextInput = props.onTextInput,
+      onTextChange = props.onTextChange,
+      onEnter = props.onEnter,
+    })
+    -- Initialize will be called after self is fully constructed
   end
 
   -- Set parent first so it's available for size calculations
@@ -1191,6 +1163,23 @@ function Element.new(props)
 
   self.alignSelf = props.alignSelf or AlignSelf.AUTO
 
+  -- Initialize LayoutEngine for layout calculations
+  self._layoutEngine = LayoutEngine.new({
+    positioning = self.positioning,
+    flexDirection = self.flexDirection,
+    flexWrap = self.flexWrap,
+    justifyContent = self.justifyContent,
+    alignItems = self.alignItems,
+    alignContent = self.alignContent,
+    gap = self.gap,
+    gridRows = self.gridRows,
+    gridColumns = self.gridColumns,
+    columnGap = self.columnGap,
+    rowGap = self.rowGap,
+  })
+  -- Initialize immediately so it can be used for auto-sizing calculations
+  self._layoutEngine:initialize(self)
+
   ---animation
   self.transform = props.transform or {}
   self.transition = props.transition or {}
@@ -1247,6 +1236,11 @@ function Element.new(props)
   -- Register element in z-index tracking for immediate mode
   if Gui._immediateMode then
     GuiState.registerElement(self)
+  end
+
+  -- Initialize TextEditor after element is fully constructed
+  if self._textEditor then
+    self._textEditor:initialize(self)
   end
 
   return self
@@ -2029,441 +2023,13 @@ end
 --- Apply positioning offsets (top, right, bottom, left) to an element
 -- @param element The element to apply offsets to
 function Element:applyPositioningOffsets(element)
-  if not element then
-    return
-  end
-
-  -- For CSS-style positioning, we need the parent's bounds
-  local parent = element.parent
-  if not parent then
-    return
-  end
-
-  -- Only apply offsets to explicitly absolute children or children in relative/absolute containers
-  -- Flex/grid children ignore positioning offsets as they participate in layout
-  local isFlexChild = element.positioning == Positioning.FLEX
-    or element.positioning == Positioning.GRID
-    or (element.positioning == Positioning.ABSOLUTE and not element._explicitlyAbsolute)
-
-  if not isFlexChild then
-    -- Apply absolute positioning for explicitly absolute children
-    -- Apply top offset (distance from parent's content box top edge)
-    if element.top then
-      element.y = parent.y + parent.padding.top + element.top
-    end
-
-    -- Apply bottom offset (distance from parent's content box bottom edge)
-    -- BORDER-BOX MODEL: Use border-box dimensions for positioning
-    if element.bottom then
-      local elementBorderBoxHeight = element:getBorderBoxHeight()
-      element.y = parent.y + parent.padding.top + parent.height - element.bottom - elementBorderBoxHeight
-    end
-
-    -- Apply left offset (distance from parent's content box left edge)
-    if element.left then
-      element.x = parent.x + parent.padding.left + element.left
-    end
-
-    -- Apply right offset (distance from parent's content box right edge)
-    -- BORDER-BOX MODEL: Use border-box dimensions for positioning
-    if element.right then
-      local elementBorderBoxWidth = element:getBorderBoxWidth()
-      element.x = parent.x + parent.padding.left + parent.width - element.right - elementBorderBoxWidth
-    end
-  end
+  -- Delegate to LayoutEngine
+  self._layoutEngine:applyPositioningOffsets(element)
 end
 
 function Element:layoutChildren()
-  if self.positioning == Positioning.ABSOLUTE or self.positioning == Positioning.RELATIVE then
-    -- Absolute/Relative positioned containers don't layout their children according to flex rules,
-    -- but they should still apply CSS positioning offsets to their children
-    for _, child in ipairs(self.children) do
-      if child.top or child.right or child.bottom or child.left then
-        self:applyPositioningOffsets(child)
-      end
-    end
-    return
-  end
-
-  -- Handle grid layout
-  if self.positioning == Positioning.GRID then
-    Grid.layoutGridItems(self)
-    return
-  end
-
-  local childCount = #self.children
-
-  if childCount == 0 then
-    return
-  end
-
-  -- Get flex children (children that participate in flex layout)
-  local flexChildren = {}
-  for _, child in ipairs(self.children) do
-    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
-    if isFlexChild then
-      table.insert(flexChildren, child)
-    end
-  end
-
-  if #flexChildren == 0 then
-    return
-  end
-
-  -- Calculate space reserved by absolutely positioned siblings with explicit positioning
-  local reservedMainStart = 0 -- Space reserved at the start of main axis (left for horizontal, top for vertical)
-  local reservedMainEnd = 0 -- Space reserved at the end of main axis (right for horizontal, bottom for vertical)
-  local reservedCrossStart = 0 -- Space reserved at the start of cross axis (top for horizontal, left for vertical)
-  local reservedCrossEnd = 0 -- Space reserved at the end of cross axis (bottom for horizontal, right for vertical)
-
-  for _, child in ipairs(self.children) do
-    -- Only consider absolutely positioned children with explicit positioning
-    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
-      local childBorderBoxWidth = child:getBorderBoxWidth()
-      local childBorderBoxHeight = child:getBorderBoxHeight()
-
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        -- Horizontal layout: main axis is X, cross axis is Y
-        -- Check for left positioning (reserves space at main axis start)
-        if child.left then
-          local spaceNeeded = child.left + childBorderBoxWidth
-          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
-        end
-        -- Check for right positioning (reserves space at main axis end)
-        if child.right then
-          local spaceNeeded = child.right + childBorderBoxWidth
-          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
-        end
-        -- Check for top positioning (reserves space at cross axis start)
-        if child.top then
-          local spaceNeeded = child.top + childBorderBoxHeight
-          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
-        end
-        -- Check for bottom positioning (reserves space at cross axis end)
-        if child.bottom then
-          local spaceNeeded = child.bottom + childBorderBoxHeight
-          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
-        end
-      else
-        -- Vertical layout: main axis is Y, cross axis is X
-        -- Check for top positioning (reserves space at main axis start)
-        if child.top then
-          local spaceNeeded = child.top + childBorderBoxHeight
-          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
-        end
-        -- Check for bottom positioning (reserves space at main axis end)
-        if child.bottom then
-          local spaceNeeded = child.bottom + childBorderBoxHeight
-          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
-        end
-        -- Check for left positioning (reserves space at cross axis start)
-        if child.left then
-          local spaceNeeded = child.left + childBorderBoxWidth
-          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
-        end
-        -- Check for right positioning (reserves space at cross axis end)
-        if child.right then
-          local spaceNeeded = child.right + childBorderBoxWidth
-          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
-        end
-      end
-    end
-  end
-
-  -- Calculate available space (accounting for padding and reserved space)
-  -- BORDER-BOX MODEL: self.width and self.height are already content dimensions (padding subtracted)
-  local availableMainSize = 0
-  local availableCrossSize = 0
-  if self.flexDirection == FlexDirection.HORIZONTAL then
-    availableMainSize = self.width - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.height - reservedCrossStart - reservedCrossEnd
-  else
-    availableMainSize = self.height - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.width - reservedCrossStart - reservedCrossEnd
-  end
-
-  -- Handle flex wrap: create lines of children
-  local lines = {}
-
-  if self.flexWrap == FlexWrap.NOWRAP then
-    -- All children go on one line
-    lines[1] = flexChildren
-  else
-    -- Wrap children into multiple lines
-    local currentLine = {}
-    local currentLineSize = 0
-
-    for _, child in ipairs(flexChildren) do
-      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-      -- Include margins in size calculations
-      local childMainSize = 0
-      local childMainMargin = 0
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        childMainSize = child:getBorderBoxWidth()
-        childMainMargin = child.margin.left + child.margin.right
-      else
-        childMainSize = child:getBorderBoxHeight()
-        childMainMargin = child.margin.top + child.margin.bottom
-      end
-      local childTotalMainSize = childMainSize + childMainMargin
-
-      -- Check if adding this child would exceed the available space
-      local lineSpacing = #currentLine > 0 and self.gap or 0
-      if #currentLine > 0 and currentLineSize + lineSpacing + childTotalMainSize > availableMainSize then
-        -- Start a new line
-        if #currentLine > 0 then
-          table.insert(lines, currentLine)
-        end
-        currentLine = { child }
-        currentLineSize = childTotalMainSize
-      else
-        -- Add to current line
-        table.insert(currentLine, child)
-        currentLineSize = currentLineSize + lineSpacing + childTotalMainSize
-      end
-    end
-
-    -- Add the last line if it has children
-    if #currentLine > 0 then
-      table.insert(lines, currentLine)
-    end
-
-    -- Handle wrap-reverse: reverse the order of lines
-    if self.flexWrap == FlexWrap.WRAP_REVERSE then
-      local reversedLines = {}
-      for i = #lines, 1, -1 do
-        table.insert(reversedLines, lines[i])
-      end
-      lines = reversedLines
-    end
-  end
-
-  -- Calculate line positions and heights (including child padding)
-  local lineHeights = {}
-  local totalLinesHeight = 0
-
-  for lineIndex, line in ipairs(lines) do
-    local maxCrossSize = 0
-    for _, child in ipairs(line) do
-      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-      -- Include margins in cross-axis size calculations
-      local childCrossSize = 0
-      local childCrossMargin = 0
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        childCrossSize = child:getBorderBoxHeight()
-        childCrossMargin = child.margin.top + child.margin.bottom
-      else
-        childCrossSize = child:getBorderBoxWidth()
-        childCrossMargin = child.margin.left + child.margin.right
-      end
-      local childTotalCrossSize = childCrossSize + childCrossMargin
-      maxCrossSize = math.max(maxCrossSize, childTotalCrossSize)
-    end
-    lineHeights[lineIndex] = maxCrossSize
-    totalLinesHeight = totalLinesHeight + maxCrossSize
-  end
-
-  -- Account for gaps between lines
-  local lineGaps = math.max(0, #lines - 1) * self.gap
-  totalLinesHeight = totalLinesHeight + lineGaps
-
-  -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
-  if #lines == 1 then
-    if self.alignItems == AlignItems.STRETCH or self.alignItems == AlignItems.CENTER or self.alignItems == AlignItems.FLEX_END then
-      -- STRETCH, CENTER, and FLEX_END should use full available cross size
-      lineHeights[1] = availableCrossSize
-      totalLinesHeight = availableCrossSize
-    end
-    -- CENTER and FLEX_END should preserve natural child dimensions
-    -- and only affect positioning within the available space
-  end
-
-  -- Calculate starting position for lines based on alignContent
-  local lineStartPos = 0
-  local lineSpacing = self.gap
-  local freeLineSpace = availableCrossSize - totalLinesHeight
-
-  -- Apply AlignContent logic for both single and multiple lines
-  if self.alignContent == AlignContent.FLEX_START then
-    lineStartPos = 0
-  elseif self.alignContent == AlignContent.CENTER then
-    lineStartPos = freeLineSpace / 2
-  elseif self.alignContent == AlignContent.FLEX_END then
-    lineStartPos = freeLineSpace
-  elseif self.alignContent == AlignContent.SPACE_BETWEEN then
-    lineStartPos = 0
-    if #lines > 1 then
-      lineSpacing = self.gap + (freeLineSpace / (#lines - 1))
-    end
-  elseif self.alignContent == AlignContent.SPACE_AROUND then
-    local spaceAroundEach = freeLineSpace / #lines
-    lineStartPos = spaceAroundEach / 2
-    lineSpacing = self.gap + spaceAroundEach
-  elseif self.alignContent == AlignContent.STRETCH then
-    lineStartPos = 0
-    if #lines > 1 and freeLineSpace > 0 then
-      lineSpacing = self.gap + (freeLineSpace / #lines)
-      -- Distribute extra space to line heights (only if positive)
-      local extraPerLine = freeLineSpace / #lines
-      for i = 1, #lineHeights do
-        lineHeights[i] = lineHeights[i] + extraPerLine
-      end
-    end
-  end
-
-  -- Position children within each line
-  local currentCrossPos = lineStartPos
-
-  for lineIndex, line in ipairs(lines) do
-    local lineHeight = lineHeights[lineIndex]
-
-    -- Calculate total size of children in this line (including padding and margins)
-    -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-    local totalChildrenSize = 0
-    for _, child in ipairs(line) do
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        totalChildrenSize = totalChildrenSize + child:getBorderBoxWidth() + child.margin.left + child.margin.right
-      else
-        totalChildrenSize = totalChildrenSize + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom
-      end
-    end
-
-    local totalGapSize = math.max(0, #line - 1) * self.gap
-    local totalContentSize = totalChildrenSize + totalGapSize
-    local freeSpace = availableMainSize - totalContentSize
-
-    -- Calculate initial position and spacing based on justifyContent
-    local startPos = 0
-    local itemSpacing = self.gap
-
-    if self.justifyContent == JustifyContent.FLEX_START then
-      startPos = 0
-    elseif self.justifyContent == JustifyContent.CENTER then
-      startPos = freeSpace / 2
-    elseif self.justifyContent == JustifyContent.FLEX_END then
-      startPos = freeSpace
-    elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
-      startPos = 0
-      if #line > 1 then
-        itemSpacing = self.gap + (freeSpace / (#line - 1))
-      end
-    elseif self.justifyContent == JustifyContent.SPACE_AROUND then
-      local spaceAroundEach = freeSpace / #line
-      startPos = spaceAroundEach / 2
-      itemSpacing = self.gap + spaceAroundEach
-    elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
-      local spaceBetween = freeSpace / (#line + 1)
-      startPos = spaceBetween
-      itemSpacing = self.gap + spaceBetween
-    end
-
-    -- Position children in this line
-    local currentMainPos = startPos
-
-    for _, child in ipairs(line) do
-      -- Determine effective cross-axis alignment
-      local effectiveAlign = child.alignSelf
-      if effectiveAlign == nil or effectiveAlign == AlignSelf.AUTO then
-        effectiveAlign = self.alignItems
-      end
-
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        -- Horizontal layout: main axis is X, cross axis is Y
-        -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart and left margin to account for absolutely positioned siblings and margins
-        child.x = self.x + self.padding.left + reservedMainStart + currentMainPos + child.margin.left
-
-        -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
-        local childBorderBoxHeight = child:getBorderBoxHeight()
-        local childTotalCrossSize = childBorderBoxHeight + child.margin.top + child.margin.bottom
-
-        if effectiveAlign == AlignItems.FLEX_START then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
-        elseif effectiveAlign == AlignItems.CENTER then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.top
-        elseif effectiveAlign == AlignItems.FLEX_END then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.top
-        elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH: Only apply if height was not explicitly set
-          if child.autosizing and child.autosizing.height then
-            -- STRETCH: Set border-box height to lineHeight minus margins, content area shrinks to fit
-            local availableHeight = lineHeight - child.margin.top - child.margin.bottom
-            child._borderBoxHeight = availableHeight
-            child.height = math.max(0, availableHeight - child.padding.top - child.padding.bottom)
-          end
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
-        end
-
-        -- Apply positioning offsets (top, right, bottom, left)
-        self:applyPositioningOffsets(child)
-
-        -- If child has children, re-layout them after position change
-        if #child.children > 0 then
-          child:layoutChildren()
-        end
-
-        -- Advance position by child's border-box width plus margins
-        currentMainPos = currentMainPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + itemSpacing
-      else
-        -- Vertical layout: main axis is Y, cross axis is X
-        -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart and top margin to account for absolutely positioned siblings and margins
-        child.y = self.y + self.padding.top + reservedMainStart + currentMainPos + child.margin.top
-
-        -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
-        local childBorderBoxWidth = child:getBorderBoxWidth()
-        local childTotalCrossSize = childBorderBoxWidth + child.margin.left + child.margin.right
-
-        if effectiveAlign == AlignItems.FLEX_START then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
-        elseif effectiveAlign == AlignItems.CENTER then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.left
-        elseif effectiveAlign == AlignItems.FLEX_END then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.left
-        elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH: Only apply if width was not explicitly set
-          if child.autosizing and child.autosizing.width then
-            -- STRETCH: Set border-box width to lineHeight minus margins, content area shrinks to fit
-            local availableWidth = lineHeight - child.margin.left - child.margin.right
-            child._borderBoxWidth = availableWidth
-            child.width = math.max(0, availableWidth - child.padding.left - child.padding.right)
-          end
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
-        end
-
-        -- Apply positioning offsets (top, right, bottom, left)
-        self:applyPositioningOffsets(child)
-
-        -- If child has children, re-layout them after position change
-        if #child.children > 0 then
-          child:layoutChildren()
-        end
-
-        -- Advance position by child's border-box height plus margins
-        currentMainPos = currentMainPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + itemSpacing
-      end
-    end
-
-    -- Move to next line position
-    currentCrossPos = currentCrossPos + lineHeight + lineSpacing
-  end
-
-  -- Position explicitly absolute children after flex layout
-  for _, child in ipairs(self.children) do
-    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
-      -- Apply positioning offsets (top, right, bottom, left)
-      self:applyPositioningOffsets(child)
-
-      -- If child has children, layout them after position change
-      if #child.children > 0 then
-        child:layoutChildren()
-      end
-    end
-  end
-
-  -- Detect overflow after children are laid out
-  self:_detectOverflow()
+  -- Delegate layout to LayoutEngine
+  self._layoutEngine:layoutChildren()
 end
 
 --- Destroy element and its children
@@ -2667,13 +2233,13 @@ function Element:draw(backdropCanvas)
   -- Draw element text if present
   -- For editable elements, also handle placeholder
   -- Update text layout if dirty (for multiline auto-grow)
-  if self.editable then
-    self:_updateTextIfDirty()
-    self:_updateAutoGrowHeight()
+  if self._textEditor then
+    self._textEditor:_updateTextIfDirty()
+    self._textEditor:updateAutoGrowHeight()
   end
 
-  -- For editable elements, use _textBuffer; for non-editable, use text
-  local displayText = self.editable and self._textBuffer or self.text
+  -- For editable elements, use TextEditor buffer; for non-editable, use text
+  local displayText = self._textEditor and self._textEditor:getText() or self.text
   local isPlaceholder = false
   local isPasswordMasked = false
 
@@ -2801,20 +2367,20 @@ function Element:draw(backdropCanvas)
     end
 
     -- Draw cursor for focused editable elements (even if text is empty)
-    if self.editable and self._focused and self._cursorVisible then
+    if self._textEditor and self._textEditor:isFocused() and self._textEditor._cursorVisible then
       local cursorColor = self.cursorColor or self.textColor
       local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
 
-      -- Calculate cursor position using new method that handles multiline
-      local cursorRelX, cursorRelY = self:_getCursorScreenPosition()
+      -- Calculate cursor position using TextEditor method
+      local cursorRelX, cursorRelY = self._textEditor:_getCursorScreenPosition()
       local cursorX = contentX + cursorRelX
       local cursorY = contentY + cursorRelY
       local cursorHeight = textHeight
 
       -- Apply scroll offset for single-line inputs
-      if not self.multiline and self._textScrollX then
-        cursorX = cursorX - self._textScrollX
+      if not self.multiline and self._textEditor._textScrollX then
+        cursorX = cursorX - self._textEditor._textScrollX
       end
 
       -- Apply scissor for single-line editable inputs
@@ -2832,13 +2398,13 @@ function Element:draw(backdropCanvas)
     end
 
     -- Draw selection highlight for editable elements
-    if self.editable and self._focused and self:hasSelection() and self.text and self.text ~= "" then
-      local selStart, selEnd = self:getSelection()
+    if self._textEditor and self._textEditor:isFocused() and self._textEditor:hasSelection() and self.text and self.text ~= "" then
+      local selStart, selEnd = self._textEditor:getSelection()
       local selectionColor = self.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
       local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
 
-      -- Get selection rectangles (handles multiline and wrapping)
-      local selectionRects = self:_getSelectionRects(selStart, selEnd)
+      -- Get selection rectangles from TextEditor
+      local selectionRects = self._textEditor:_getSelectionRects(selStart, selEnd)
 
       -- Apply scissor for single-line editable inputs
       if not self.multiline then
@@ -2850,8 +2416,8 @@ function Element:draw(backdropCanvas)
       for _, rect in ipairs(selectionRects) do
         local rectX = contentX + rect.x
         local rectY = contentY + rect.y
-        if not self.multiline and self._textScrollX then
-          rectX = rectX - self._textScrollX
+        if not self.multiline and self._textEditor._textScrollX then
+          rectX = rectX - self._textEditor._textScrollX
         end
         love.graphics.rectangle("fill", rectX, rectY, rect.width, rect.height)
       end
@@ -2868,7 +2434,7 @@ function Element:draw(backdropCanvas)
   end
 
   -- Draw cursor for focused editable elements even when empty
-  if self.editable and self._focused and self._cursorVisible and (not displayText or displayText == "") then
+  if self._textEditor and self._textEditor:isFocused() and self._textEditor._cursorVisible and (not displayText or displayText == "") then
     -- Set up font for cursor rendering
     local origFont = love.graphics.getFont()
     if self.textSize then
@@ -3063,24 +2629,9 @@ function Element:update(dt)
     child:update(dt)
   end
 
-  -- Update cursor blink timer (only if editable and focused)
-  if self.editable and self._focused then
-    -- If blink is paused, increment pause timer
-    if self._cursorBlinkPaused then
-      self._cursorBlinkPauseTimer = (self._cursorBlinkPauseTimer or 0) + dt
-      -- Unpause after 0.5 seconds of no typing
-      if self._cursorBlinkPauseTimer >= 0.5 then
-        self._cursorBlinkPaused = false
-        self._cursorBlinkPauseTimer = 0
-      end
-    else
-      -- Normal blinking
-      self._cursorBlinkTimer = self._cursorBlinkTimer + dt
-      if self._cursorBlinkTimer >= self.cursorBlinkRate then
-        self._cursorBlinkTimer = 0
-        self._cursorVisible = not self._cursorVisible
-      end
-    end
+  -- Update text editor cursor blink
+  if self._textEditor then
+    self._textEditor:update(dt)
   end
 
   -- Update animation if exists
@@ -3313,8 +2864,8 @@ function Element:update(dt)
                 self._pressed[button] = true
 
                 -- Set mouse down position for text selection on left click
-                if button == 1 and self.editable then
-                  self._mouseDownPosition = self:_mouseToTextPosition(mx, my)
+                if button == 1 and self._textEditor then
+                  self._mouseDownPosition = self._textEditor:mouseToTextPosition(mx, my)
                   self._textDragOccurred = false -- Reset drag flag on press
                 end
               end
@@ -3913,77 +3464,24 @@ function Element:calculateTextHeight()
 end
 
 function Element:calculateAutoWidth()
-  -- BORDER-BOX MODEL: Calculate content width, caller will add padding to get border-box
-  local contentWidth = self:calculateTextWidth()
-  if not self.children or #self.children == 0 then
-    return contentWidth
+  -- During construction, LayoutEngine might not be initialized yet
+  -- Fall back to text width calculation
+  if not self._layoutEngine then
+    return self:calculateTextWidth()
   end
-
-  -- For HORIZONTAL flex: sum children widths + gaps
-  -- For VERTICAL flex: max of children widths
-  local isHorizontal = self.flexDirection == "horizontal"
-  local totalWidth = contentWidth
-  local maxWidth = contentWidth
-  local participatingChildren = 0
-
-  for _, child in ipairs(self.children) do
-    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    if not child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box width for auto-sizing calculations
-      local childBorderBoxWidth = child:getBorderBoxWidth()
-      if isHorizontal then
-        totalWidth = totalWidth + childBorderBoxWidth
-      else
-        maxWidth = math.max(maxWidth, childBorderBoxWidth)
-      end
-      participatingChildren = participatingChildren + 1
-    end
-  end
-
-  if isHorizontal then
-    -- Add gaps between children (n-1 gaps for n children)
-    local gapCount = math.max(0, participatingChildren - 1)
-    return totalWidth + (self.gap * gapCount)
-  else
-    return maxWidth
-  end
+  -- Delegate to LayoutEngine
+  return self._layoutEngine:calculateAutoWidth()
 end
 
 --- Calculate auto height based on children
 function Element:calculateAutoHeight()
-  local height = self:calculateTextHeight()
-  if not self.children or #self.children == 0 then
-    return height
+  -- During construction, LayoutEngine might not be initialized yet
+  -- Fall back to text height calculation
+  if not self._layoutEngine then
+    return self:calculateTextHeight()
   end
-
-  -- For VERTICAL flex: sum children heights + gaps
-  -- For HORIZONTAL flex: max of children heights
-  local isVertical = self.flexDirection == "vertical"
-  local totalHeight = height
-  local maxHeight = height
-  local participatingChildren = 0
-
-  for _, child in ipairs(self.children) do
-    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    if not child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box height for auto-sizing calculations
-      local childBorderBoxHeight = child:getBorderBoxHeight()
-      if isVertical then
-        totalHeight = totalHeight + childBorderBoxHeight
-      else
-        maxHeight = math.max(maxHeight, childBorderBoxHeight)
-      end
-      participatingChildren = participatingChildren + 1
-    end
-  end
-
-  if isVertical then
-    -- Add gaps between children (n-1 gaps for n children)
-    local gapCount = math.max(0, participatingChildren - 1)
-    return totalHeight + (self.gap * gapCount)
-  else
-    return maxHeight
-  end
+  -- Delegate to LayoutEngine
+  return self._layoutEngine:calculateAutoHeight()
 end
 
 ---@param newText string
@@ -4021,250 +3519,71 @@ end
 --- Set cursor position
 ---@param position number -- Character index (0-based)
 function Element:setCursorPosition(position)
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:setCursorPosition(position)
   end
-  self._cursorPosition = position
-  self:_validateCursorPosition()
-  self:_resetCursorBlink()
 end
 
 --- Get cursor position
 ---@return number -- Character index (0-based)
 function Element:getCursorPosition()
-  if not self.editable then
-    return 0
+  if self._textEditor then
+    return self._textEditor:getCursorPosition()
   end
-  return self._cursorPosition
+  return 0
 end
 
 --- Move cursor by delta characters
 ---@param delta number -- Number of characters to move (positive or negative)
 function Element:moveCursorBy(delta)
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorBy(delta)
   end
-  self._cursorPosition = self._cursorPosition + delta
-  self:_validateCursorPosition()
-  self:_resetCursorBlink()
 end
 
 --- Move cursor to start of text
 function Element:moveCursorToStart()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorToStart()
   end
-  self._cursorPosition = 0
-  self:_resetCursorBlink()
 end
 
 --- Move cursor to end of text
 function Element:moveCursorToEnd()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorToEnd()
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._cursorPosition = textLength
-  self:_resetCursorBlink()
 end
 
 --- Move cursor to start of current line
 function Element:moveCursorToLineStart()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorToLineStart()
   end
-  -- For now, just move to start (will be enhanced for multi-line)
-  self:moveCursorToStart()
 end
 
 --- Move cursor to end of current line
 function Element:moveCursorToLineEnd()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorToLineEnd()
   end
-  -- For now, just move to end (will be enhanced for multi-line)
-  self:moveCursorToEnd()
 end
 
 --- Move cursor to start of previous word
 function Element:moveCursorToPreviousWord()
-  if not self.editable or not self._textBuffer then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorToPreviousWord()
   end
-
-  local text = self._textBuffer
-  local pos = self._cursorPosition
-
-  if pos <= 0 then
-    return
-  end
-
-  -- Helper function to get character at position
-  local function getCharAt(p)
-    if p < 0 or p >= utf8.len(text) then
-      return nil
-    end
-    local offset1 = utf8.offset(text, p + 1)
-    local offset2 = utf8.offset(text, p + 2)
-    if not offset1 then
-      return nil
-    end
-    if not offset2 then
-      -- Last character in string
-      return text:sub(offset1)
-    end
-    return text:sub(offset1, offset2 - 1)
-  end
-
-  -- Skip any whitespace/punctuation before current position
-  while pos > 0 do
-    local char = getCharAt(pos - 1)
-    if char and char:match("[%w]") then
-      break
-    end
-    pos = pos - 1
-  end
-
-  -- Move to start of current word
-  while pos > 0 do
-    local char = getCharAt(pos - 1)
-    if not char or not char:match("[%w]") then
-      break
-    end
-    pos = pos - 1
-  end
-
-  self._cursorPosition = pos
-  self:_validateCursorPosition()
 end
 
 --- Move cursor to start of next word
 function Element:moveCursorToNextWord()
-  if not self.editable or not self._textBuffer then
-    return
+  if self._textEditor then
+    self._textEditor:moveCursorToNextWord()
   end
-
-  local text = self._textBuffer
-  local textLength = utf8.len(text) or 0
-  local pos = self._cursorPosition
-
-  if pos >= textLength then
-    return
-  end
-
-  -- Helper function to get character at position
-  local function getCharAt(p)
-    if p < 0 or p >= textLength then
-      return nil
-    end
-    local offset1 = utf8.offset(text, p + 1)
-    local offset2 = utf8.offset(text, p + 2)
-    if not offset1 then
-      return nil
-    end
-    if not offset2 then
-      -- Last character in string
-      return text:sub(offset1)
-    end
-    return text:sub(offset1, offset2 - 1)
-  end
-
-  -- Skip current word
-  while pos < textLength do
-    local char = getCharAt(pos)
-    if not char or not char:match("[%w]") then
-      break
-    end
-    pos = pos + 1
-  end
-
-  -- Skip any whitespace/punctuation
-  while pos < textLength do
-    local char = getCharAt(pos)
-    if char and char:match("[%w]") then
-      break
-    end
-    pos = pos + 1
-  end
-
-  self._cursorPosition = pos
-  self:_validateCursorPosition()
 end
 
---- Validate cursor position (ensure it's within text bounds)
-function Element:_validateCursorPosition()
-  if not self.editable then
-    return
-  end
-  local textLength = utf8.len(self._textBuffer or "") or 0
-  local cursorPos = tonumber(self._cursorPosition) or 0
-  self._cursorPosition = math.max(0, math.min(cursorPos, textLength))
-end
 
---- Reset cursor blink (show cursor immediately)
----@param pauseBlink boolean|nil -- Whether to pause blinking (for typing)
-function Element:_resetCursorBlink(pauseBlink)
-  if not self.editable then
-    return
-  end
-  self._cursorBlinkTimer = 0
-  self._cursorVisible = true
-
-  if pauseBlink then
-    self._cursorBlinkPaused = true -- Pause blinking while typing
-    self._cursorBlinkPauseTimer = 0 -- Reset pause timer
-  end
-
-  -- Update scroll to keep cursor visible
-  self:_updateTextScroll()
-end
-
---- Update text scroll offset to keep cursor visible
-function Element:_updateTextScroll()
-  if not self.editable or self.multiline then
-    return
-  end
-
-  -- Get font for measuring text
-  local font = self:_getFont()
-  if not font then
-    return
-  end
-
-  -- Calculate cursor X position in text coordinates
-  local cursorText = ""
-  if self._textBuffer and self._textBuffer ~= "" and self._cursorPosition > 0 then
-    local byteOffset = utf8.offset(self._textBuffer, self._cursorPosition + 1)
-    if byteOffset then
-      cursorText = self._textBuffer:sub(1, byteOffset - 1)
-    end
-  end
-  local cursorX = font:getWidth(cursorText)
-
-  -- Get available text area width (accounting for padding)
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Add some padding on the right for the cursor
-  local cursorPadding = 4
-  local visibleWidth = textAreaWidth - cursorPadding
-
-  -- Adjust scroll to keep cursor visible
-  if cursorX - self._textScrollX < 0 then
-    -- Cursor is to the left of visible area - scroll left
-    self._textScrollX = cursorX
-  elseif cursorX - self._textScrollX > visibleWidth then
-    -- Cursor is to the right of visible area - scroll right
-    self._textScrollX = cursorX - visibleWidth
-  end
-
-  -- Ensure we don't scroll past the beginning
-  self._textScrollX = math.max(0, self._textScrollX)
-end
 
 -- ====================
 -- Input Handling - Selection Management
@@ -4274,111 +3593,64 @@ end
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:setSelection(startPos, endPos)
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:setSelection(startPos, endPos)
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._selectionStart = math.max(0, math.min(startPos, textLength))
-  self._selectionEnd = math.max(0, math.min(endPos, textLength))
-
-  -- Ensure start <= end
-  if self._selectionStart > self._selectionEnd then
-    self._selectionStart, self._selectionEnd = self._selectionEnd, self._selectionStart
-  end
-
-  self:_resetCursorBlink()
 end
 
 --- Get selection range
 ---@return number?, number? -- Start and end positions, or nil if no selection
 function Element:getSelection()
-  if not self.editable then
-    return nil, nil
+  if self._textEditor then
+    return self._textEditor:getSelection()
   end
-  if not self:hasSelection() then
-    return nil, nil
-  end
-  return self._selectionStart, self._selectionEnd
+  return nil, nil
 end
 
 --- Check if there is an active selection
 ---@return boolean
 function Element:hasSelection()
-  if not self.editable then
-    return false
+  if self._textEditor then
+    return self._textEditor:hasSelection()
   end
-  return self._selectionStart ~= nil and self._selectionEnd ~= nil and self._selectionStart ~= self._selectionEnd
+  return false
 end
 
 --- Clear selection
 function Element:clearSelection()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:clearSelection()
   end
-  self._selectionStart = nil
-  self._selectionEnd = nil
-  self._selectionAnchor = nil
 end
 
 --- Select all text
 function Element:selectAll()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:selectAll()
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._selectionStart = 0
-  self._selectionEnd = textLength
-  self:_resetCursorBlink()
 end
 
 --- Get selected text
 ---@return string? -- Selected text or nil if no selection
 function Element:getSelectedText()
-  if not self.editable or not self:hasSelection() then
-    return nil
+  if self._textEditor then
+    return self._textEditor:getSelectedText()
   end
-  local startPos, endPos = self:getSelection()
-  if not startPos or not endPos then
-    return nil
-  end
-
-  -- Convert character indices to byte offsets for string.sub
-  local text = self._textBuffer or ""
-  local startByte = utf8.offset(text, startPos + 1)
-  local endByte = utf8.offset(text, endPos + 1)
-
-  if not startByte then
-    return ""
-  end
-
-  -- If endByte is nil, it means we want to the end of the string
-  if endByte then
-    endByte = endByte - 1 -- Adjust to get the last byte of the character
-  end
-
-  return string.sub(text, startByte, endByte)
+  return nil
 end
 
 --- Delete selected text
 ---@return boolean -- True if text was deleted
 function Element:deleteSelection()
-  if not self.editable or not self:hasSelection() then
-    return false
+  if self._textEditor then
+    local result = self._textEditor:deleteSelection()
+    if result then
+      self.text = self._textEditor:getText() -- Sync display text
+      self._textEditor:updateAutoGrowHeight()
+    end
+    return result
   end
-  local startPos, endPos = self:getSelection()
-  if not startPos or not endPos then
-    return false
-  end
-
-  self:deleteText(startPos, endPos)
-  self:clearSelection()
-  self._cursorPosition = startPos
-  self:_validateCursorPosition()
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
-
-  return true
+  return false
 end
 
 -- ====================
@@ -4387,83 +3659,25 @@ end
 
 --- Focus this element for keyboard input
 function Element:focus()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:focus()
   end
-
-  if Gui._focusedElement and Gui._focusedElement ~= self then
-    Gui._focusedElement:blur()
-  end
-
-  -- Set focus state
-  self._focused = true
-  Gui._focusedElement = self
-
-  self:_resetCursorBlink()
-
-  if self.selectOnFocus then
-    self:selectAll()
-  else
-    self:moveCursorToEnd()
-  end
-
-  -- Trigger onFocus callback if defined
-  if self.onFocus then
-    self.onFocus(self)
-  end
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
 --- Remove focus from this element
 function Element:blur()
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:blur()
   end
-
-  self._focused = false
-
-  -- Clear global focused element if it's this element
-  if Gui._focusedElement == self then
-    Gui._focusedElement = nil
-  end
-
-  -- Trigger onBlur callback if defined
-  if self.onBlur then
-    self.onBlur(self)
-  end
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
 --- Check if this element is focused
 ---@return boolean
 function Element:isFocused()
-  if not self.editable then
-    return false
+  if self._textEditor then
+    return self._textEditor:isFocused()
   end
-  return self._focused == true
-end
-
---- Save editable element state to StateManager (for immediate mode)
-function Element:_saveEditableState()
-  if not self.editable or not self._stateId or not Gui._immediateMode then
-    return
-  end
-
-  StateManager.updateState(self._stateId, {
-    _focused = self._focused,
-    _textBuffer = self._textBuffer,
-    _cursorPosition = self._cursorPosition,
-    _selectionStart = self._selectionStart,
-    _selectionEnd = self._selectionEnd,
-    _cursorBlinkTimer = self._cursorBlinkTimer,
-    _cursorVisible = self._cursorVisible,
-    _cursorBlinkPaused = self._cursorBlinkPaused,
-    _cursorBlinkPauseTimer = self._cursorBlinkPauseTimer,
-  })
+  return false
 end
 
 -- ====================
@@ -4473,114 +3687,43 @@ end
 --- Get current text buffer
 ---@return string
 function Element:getText()
-  if not self.editable then
-    return self.text or ""
+  if self._textEditor then
+    return self._textEditor:getText()
   end
-  return self._textBuffer or ""
+  return self.text or ""
 end
 
 --- Set text buffer and mark dirty
 ---@param text string
 function Element:setText(text)
-  if not self.editable then
-    self.text = text
+  if self._textEditor then
+    self._textEditor:setText(text)
+    self.text = self._textEditor:getText() -- Sync display text
+    self._textEditor:updateAutoGrowHeight()
     return
   end
-
-  self._textBuffer = text or ""
-  self.text = self._textBuffer -- Sync display text
-  self:_markTextDirty()
-  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
-  self:_updateAutoGrowHeight() -- Then update height based on new content
-  self:_validateCursorPosition()
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
+  self.text = text
 end
 
 --- Insert text at position
 ---@param text string -- Text to insert
 ---@param position number? -- Position to insert at (default: cursor position)
 function Element:insertText(text, position)
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:insertText(text, position)
+    self.text = self._textEditor:getText() -- Sync display text
+    self._textEditor:updateAutoGrowHeight()
   end
-
-  position = position or self._cursorPosition
-  local buffer = self._textBuffer or ""
-
-  -- Check maxLength constraint before inserting
-  if self.maxLength then
-    local currentLength = utf8.len(buffer) or 0
-    local textLength = utf8.len(text) or 0
-    local newLength = currentLength + textLength
-
-    if newLength > self.maxLength then
-      -- Don't insert if it would exceed maxLength
-      return
-    end
-  end
-
-  -- Convert character position to byte offset
-  local byteOffset = utf8.offset(buffer, position + 1) or (#buffer + 1)
-
-  -- Insert text
-  local before = buffer:sub(1, byteOffset - 1)
-  local after = buffer:sub(byteOffset)
-  self._textBuffer = before .. text .. after
-  self.text = self._textBuffer -- Sync display text
-
-  self._cursorPosition = position + utf8.len(text)
-
-  self:_markTextDirty()
-  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
-  self:_updateAutoGrowHeight() -- Then update height based on new content
-  self:_validateCursorPosition()
-
-  -- Reset cursor blink to show cursor and pause blinking while typing
-  self:_resetCursorBlink(true)
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:deleteText(startPos, endPos)
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:deleteText(startPos, endPos)
+    self.text = self._textEditor:getText() -- Sync display text
+    self._textEditor:updateAutoGrowHeight()
   end
-
-  local buffer = self._textBuffer or ""
-
-  -- Ensure valid range
-  local textLength = utf8.len(buffer)
-  startPos = math.max(0, math.min(startPos, textLength))
-  endPos = math.max(0, math.min(endPos, textLength))
-
-  if startPos > endPos then
-    startPos, endPos = endPos, startPos
-  end
-
-  -- Convert character positions to byte offsets
-  local startByte = utf8.offset(buffer, startPos + 1) or 1
-  local endByte = utf8.offset(buffer, endPos + 1) or (#buffer + 1)
-
-  -- Delete text
-  local before = buffer:sub(1, startByte - 1)
-  local after = buffer:sub(endByte)
-  self._textBuffer = before .. after
-  self.text = self._textBuffer -- Sync display text
-
-  self:_markTextDirty()
-  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
-  self:_updateAutoGrowHeight() -- Then update height based on new content
-
-  -- Reset cursor blink to show cursor and pause blinking while deleting
-  self:_resetCursorBlink(true)
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
 --- Replace text in range
@@ -4588,32 +3731,11 @@ end
 ---@param endPos number -- End position (inclusive)
 ---@param newText string -- Replacement text
 function Element:replaceText(startPos, endPos, newText)
-  if not self.editable then
-    return
+  if self._textEditor then
+    self._textEditor:replaceText(startPos, endPos, newText)
+    self.text = self._textEditor:getText() -- Sync display text
+    self._textEditor:updateAutoGrowHeight()
   end
-
-  self:deleteText(startPos, endPos)
-  self:insertText(newText, startPos)
-end
-
---- Mark text as dirty (needs recalculation)
-function Element:_markTextDirty()
-  if not self.editable then
-    return
-  end
-  self._textDirty = true
-end
-
---- Update text if dirty (recalculate lines and wrapping)
-function Element:_updateTextIfDirty()
-  if not self.editable or not self._textDirty then
-    return
-  end
-
-  self:_splitLines()
-  self:_calculateWrapping()
-  self:_validateCursorPosition()
-  self._textDirty = false
 end
 
 --- Split text into lines (for multi-line text)
@@ -4875,340 +3997,7 @@ function Element:_getFont()
   return FONT_CACHE.getFont(self.textSize, fontPath)
 end
 
---- Get cursor screen position for rendering (handles multiline text)
----@return number, number -- Cursor X and Y position relative to content area
-function Element:_getCursorScreenPosition()
-  if not self.editable then
-    return 0, 0
-  end
 
-  local font = self:_getFont()
-  if not font then
-    return 0, 0
-  end
-
-  local text = self._textBuffer or ""
-  local cursorPos = self._cursorPosition or 0
-
-  -- Apply password masking for cursor position calculation
-  local textForMeasurement = text
-  if self.passwordMode and text ~= "" then
-    textForMeasurement = string.rep("•", utf8.len(text))
-  end
-
-  -- For single-line text, calculate simple X position
-  if not self.multiline then
-    local cursorText = ""
-    if textForMeasurement ~= "" and cursorPos > 0 then
-      local byteOffset = utf8.offset(textForMeasurement, cursorPos + 1)
-      if byteOffset then
-        cursorText = textForMeasurement:sub(1, byteOffset - 1)
-      end
-    end
-    return font:getWidth(cursorText), 0
-  end
-
-  -- For multiline text, we need to find which wrapped line the cursor is on
-  -- Update text wrapping if dirty
-  self:_updateTextIfDirty()
-
-  -- Get text area width for wrapping
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Split text by actual newlines first
-  local lines = {}
-  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    table.insert(lines, line)
-  end
-  if #lines == 0 then
-    lines = { "" }
-  end
-
-  -- Track character position as we iterate through lines
-  local charCount = 0
-  local cursorX = 0
-  local cursorY = 0
-  local lineHeight = font:getHeight()
-
-  for lineNum, line in ipairs(lines) do
-    local lineLength = utf8.len(line) or 0
-
-    -- Check if cursor is on this line (before the newline)
-    if cursorPos <= charCount + lineLength then
-      -- Cursor is on this line
-      local posInLine = cursorPos - charCount
-
-      -- If text wrapping is enabled, find which wrapped segment
-      if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-
-        for segmentIdx, segment in ipairs(wrappedSegments) do
-          -- Check if cursor is within this segment's character range
-          if posInLine >= segment.startIdx and posInLine <= segment.endIdx then
-            -- Cursor is in this segment
-            local posInSegment = posInLine - segment.startIdx
-            local segmentText = ""
-            if posInSegment > 0 and segment.text ~= "" then
-              -- Extract substring by character positions using byte offsets
-              local endByte = utf8.offset(segment.text, posInSegment + 1)
-              if endByte then
-                segmentText = segment.text:sub(1, endByte - 1)
-              else
-                segmentText = segment.text
-              end
-            end
-            cursorX = font:getWidth(segmentText)
-            cursorY = (lineNum - 1) * lineHeight + (segmentIdx - 1) * lineHeight
-
-            return cursorX, cursorY
-          end
-        end
-      else
-        -- No wrapping, simple calculation
-        local lineText = ""
-        if posInLine > 0 then
-          -- Extract substring by character positions using byte offsets
-          local endByte = utf8.offset(line, posInLine + 1)
-          if endByte then
-            lineText = line:sub(1, endByte - 1)
-          else
-            lineText = line
-          end
-        end
-        cursorX = font:getWidth(lineText)
-        cursorY = (lineNum - 1) * lineHeight
-        return cursorX, cursorY
-      end
-    end
-
-    charCount = charCount + lineLength + 1
-  end
-
-  -- Cursor is at the very end
-  return 0, #lines * lineHeight
-end
-
---- Get selection rectangles for rendering (handles multiline and wrapped text)
----@param selStart number -- Selection start position (character index)
----@param selEnd number -- Selection end position (character index)
----@return table -- Array of rectangles {x, y, width, height} relative to content area
-function Element:_getSelectionRects(selStart, selEnd)
-  if not self.editable then
-    return {}
-  end
-
-  local font = self:_getFont()
-  if not font then
-    return {}
-  end
-
-  local text = self._textBuffer or ""
-  local rects = {}
-
-  -- Apply password masking for selection rectangle calculation
-  local textForMeasurement = text
-  if self.passwordMode and text ~= "" then
-    textForMeasurement = string.rep("•", utf8.len(text))
-  end
-
-  -- For single-line text, calculate simple rectangle
-  if not self.multiline then
-    local startByte = utf8.offset(textForMeasurement, selStart + 1)
-    local endByte = utf8.offset(textForMeasurement, selEnd + 1)
-
-    if startByte and endByte then
-      local beforeSelection = textForMeasurement:sub(1, startByte - 1)
-      local selectedText = textForMeasurement:sub(startByte, endByte - 1)
-      local selX = font:getWidth(beforeSelection)
-      local selWidth = font:getWidth(selectedText)
-      local selY = 0
-      local selHeight = font:getHeight()
-
-      table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
-    end
-
-    return rects
-  end
-
-  -- For multiline text, we need to handle line wrapping
-  self:_updateTextIfDirty()
-
-  -- Get text area width for wrapping
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Split text by actual newlines first
-  local lines = {}
-  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    table.insert(lines, line)
-  end
-  if #lines == 0 then
-    lines = { "" }
-  end
-
-  local lineHeight = font:getHeight()
-  local charCount = 0
-  local visualLineNum = 0
-
-  for lineNum, line in ipairs(lines) do
-    local lineLength = utf8.len(line) or 0
-
-    -- Check if selection intersects with this line
-    local lineStartChar = charCount
-    local lineEndChar = charCount + lineLength
-
-    if selEnd > lineStartChar and selStart <= lineEndChar then
-      -- Selection intersects with this line
-      local selStartInLine = math.max(0, selStart - charCount)
-      local selEndInLine = math.min(lineLength, selEnd - charCount)
-
-      -- If text wrapping is enabled, handle wrapped segments
-      if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-
-        for segmentIdx, segment in ipairs(wrappedSegments) do
-          -- Check if selection intersects with this segment
-          if selEndInLine > segment.startIdx and selStartInLine <= segment.endIdx then
-            -- Selection intersects with this segment
-            local segSelStart = math.max(segment.startIdx, selStartInLine)
-            local segSelEnd = math.min(segment.endIdx, selEndInLine)
-
-            -- Calculate X position and width
-            local beforeText = ""
-            local selectedText = ""
-
-            if segSelStart > segment.startIdx then
-              local startByte = utf8.offset(segment.text, segSelStart - segment.startIdx + 1)
-              if startByte then
-                beforeText = segment.text:sub(1, startByte - 1)
-              end
-            end
-
-            local selStartByte = utf8.offset(segment.text, segSelStart - segment.startIdx + 1)
-            local selEndByte = utf8.offset(segment.text, segSelEnd - segment.startIdx + 1)
-            if selStartByte and selEndByte then
-              selectedText = segment.text:sub(selStartByte, selEndByte - 1)
-            end
-
-            local selX = font:getWidth(beforeText)
-            local selWidth = font:getWidth(selectedText)
-            local selY = visualLineNum * lineHeight
-            local selHeight = lineHeight
-
-            table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
-          end
-
-          visualLineNum = visualLineNum + 1
-        end
-      else
-        -- No wrapping, simple calculation
-        local beforeText = ""
-        local selectedText = ""
-
-        if selStartInLine > 0 then
-          local startByte = utf8.offset(line, selStartInLine + 1)
-          if startByte then
-            beforeText = line:sub(1, startByte - 1)
-          end
-        end
-
-        local selStartByte = utf8.offset(line, selStartInLine + 1)
-        local selEndByte = utf8.offset(line, selEndInLine + 1)
-        if selStartByte and selEndByte then
-          selectedText = line:sub(selStartByte, selEndByte - 1)
-        end
-
-        local selX = font:getWidth(beforeText)
-        local selWidth = font:getWidth(selectedText)
-        local selY = visualLineNum * lineHeight
-        local selHeight = lineHeight
-
-        table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
-        visualLineNum = visualLineNum + 1
-      end
-    else
-      -- Selection doesn't intersect, but we still need to count visual lines
-      if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-        visualLineNum = visualLineNum + #wrappedSegments
-      else
-        visualLineNum = visualLineNum + 1
-      end
-    end
-
-    charCount = charCount + lineLength + 1
-  end
-
-  return rects
-end
-
---- Update element height based on text content (for autoGrow multiline fields)
-function Element:_updateAutoGrowHeight()
-  if not self.editable or not self.multiline or not self.autoGrow then
-    return
-  end
-
-  local font = self:_getFont()
-  if not font then
-    return
-  end
-
-  local text = self._textBuffer or ""
-  local lineHeight = font:getHeight()
-
-  -- Get text area width for wrapping
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Split text by actual newlines
-  local lines = {}
-  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    table.insert(lines, line)
-  end
-  if #lines == 0 then
-    lines = { "" }
-  end
-
-  -- Count total wrapped lines
-  local totalWrappedLines = 0
-  if self.textWrap and textAreaWidth > 0 then
-    for _, line in ipairs(lines) do
-      if line == "" then
-        totalWrappedLines = totalWrappedLines + 1
-      else
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-        totalWrappedLines = totalWrappedLines + #wrappedSegments
-      end
-    end
-  else
-    totalWrappedLines = #lines
-  end
-
-  totalWrappedLines = math.max(1, totalWrappedLines)
-
-  local newContentHeight = totalWrappedLines * lineHeight
-
-  if self.height ~= newContentHeight then
-    self.height = newContentHeight
-    self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
-    if self.parent and not self._explicitlyAbsolute then
-      self.parent:layoutChildren()
-    end
-  end
-end
 
 -- ====================
 -- Input Handling - Mouse Selection
@@ -5273,7 +4062,9 @@ function Element:_mouseToTextPosition(mouseX, mouseY)
   -- === MULTILINE TEXT HANDLING ===
 
   -- Update text wrapping if dirty
-  self:_updateTextIfDirty()
+  if self._textEditor then
+    self._textEditor:_updateTextIfDirty()
+  end
 
   -- Split text into lines
   local lines = {}
@@ -5365,97 +4156,26 @@ end
 ---@param mouseY number -- Mouse Y coordinate
 ---@param clickCount number -- Number of clicks (1=single, 2=double, 3=triple)
 function Element:_handleTextClick(mouseX, mouseY, clickCount)
-  if not self.editable or not self._focused then
-    return
+  if self._textEditor then
+    self._textEditor:handleTextClick(mouseX, mouseY, clickCount)
+    -- Store mouse down position on element for drag tracking
+    if clickCount == 1 then
+      self._mouseDownPosition = self._textEditor:mouseToTextPosition(mouseX, mouseY)
+    end
   end
-
-  if clickCount == 1 then
-    -- Single click: Set cursor position
-    local pos = self:_mouseToTextPosition(mouseX, mouseY)
-    self:setCursorPosition(pos)
-    self:clearSelection()
-
-    -- Store position for potential drag selection
-    self._mouseDownPosition = pos
-  elseif clickCount == 2 then
-    -- Double click: Select word
-    self:_selectWordAtPosition(self:_mouseToTextPosition(mouseX, mouseY))
-  elseif clickCount >= 3 then
-    -- Triple click: Select all (or line in multi-line mode)
-    self:selectAll()
-  end
-
-  self:_resetCursorBlink()
 end
 
 --- Handle mouse drag for text selection
 ---@param mouseX number -- Mouse X coordinate
 ---@param mouseY number -- Mouse Y coordinate
 function Element:_handleTextDrag(mouseX, mouseY)
-  if not self.editable or not self._focused or not self._mouseDownPosition then
-    return
-  end
-
-  local currentPos = self:_mouseToTextPosition(mouseX, mouseY)
-
-  -- Create selection from mouse down position to current position
-  if currentPos ~= self._mouseDownPosition then
-    self:setSelection(self._mouseDownPosition, currentPos)
-    self._cursorPosition = currentPos
-    self._textDragOccurred = true -- Mark that a text drag occurred
-  else
-    self:clearSelection()
-  end
-
-  self:_resetCursorBlink()
-end
-
---- Select word at given position
----@param position number -- Character position
-function Element:_selectWordAtPosition(position)
-  if not self.editable or not self._textBuffer then
-    return
-  end
-
-  local text = self._textBuffer
-  local textLength = utf8.len(text) or 0
-
-  if position < 0 or position > textLength then
-    return
-  end
-
-  -- Find word boundaries
-  local wordStart = position
-  local wordEnd = position
-
-  -- Find start of word (move left while alphanumeric)
-  while wordStart > 0 do
-    local offset = utf8.offset(text, wordStart)
-    local char = offset and text:sub(offset, utf8.offset(text, wordStart + 1) - 1) or ""
-    if char:match("[%w]") then
-      wordStart = wordStart - 1
-    else
-      break
-    end
-  end
-
-  -- Find end of word (move right while alphanumeric)
-  while wordEnd < textLength do
-    local offset = utf8.offset(text, wordEnd + 1)
-    local char = offset and text:sub(offset, utf8.offset(text, wordEnd + 2) - 1) or ""
-    if char:match("[%w]") then
-      wordEnd = wordEnd + 1
-    else
-      break
-    end
-  end
-
-  -- Select the word
-  if wordEnd > wordStart then
-    self:setSelection(wordStart, wordEnd)
-    self._cursorPosition = wordEnd
+  if self._textEditor then
+    self._textEditor:handleTextDrag(mouseX, mouseY)
+    self._textDragOccurred = self._textEditor._textDragOccurred
   end
 end
+
+
 
 -- ====================
 -- Input Handling - Keyboard Input
@@ -5464,38 +4184,11 @@ end
 --- Handle text input (character input)
 ---@param text string -- Character(s) to insert
 function Element:textinput(text)
-  if not self.editable or not self._focused then
-    return
+  if self._textEditor then
+    self._textEditor:handleTextInput(text)
+    self.text = self._textEditor:getText() -- Sync display text
+    self._textEditor:updateAutoGrowHeight()
   end
-
-  -- Trigger onTextInput callback if defined
-  if self.onTextInput then
-    local result = self.onTextInput(self, text)
-    -- If callback returns false, cancel the input
-    if result == false then
-      return
-    end
-  end
-
-  -- Capture old text for callback
-  local oldText = self._textBuffer
-
-  -- Delete selection if exists
-  local hadSelection = self:hasSelection()
-  if hadSelection then
-    self:deleteSelection()
-  end
-
-  -- Insert text at cursor position
-  self:insertText(text)
-
-  -- Trigger onTextChange callback if text changed
-  if self.onTextChange and self._textBuffer ~= oldText then
-    self.onTextChange(self, self._textBuffer, oldText)
-  end
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
 --- Handle key press (special keys)
@@ -5503,240 +4196,11 @@ end
 ---@param scancode string -- Scancode
 ---@param isrepeat boolean -- Whether this is a key repeat
 function Element:keypressed(key, scancode, isrepeat)
-  if not self.editable or not self._focused then
-    return
+  if self._textEditor then
+    self._textEditor:handleKeyPress(key, scancode, isrepeat)
+    self.text = self._textEditor:getText() -- Sync display text
+    self._textEditor:updateAutoGrowHeight()
   end
-
-  local modifiers = getModifiers()
-  local ctrl = modifiers.ctrl or modifiers.super
-
-  -- Handle cursor movement with selection
-  if key == "left" or key == "right" or key == "home" or key == "end" or key == "up" or key == "down" then
-    -- Set selection anchor if Shift is pressed and no anchor exists
-    if modifiers.shift and not self._selectionAnchor then
-      self._selectionAnchor = self._cursorPosition
-    end
-
-    -- Store old cursor position
-    local oldCursorPos = self._cursorPosition
-
-    -- Move cursor based on key
-    if key == "left" then
-      if modifiers.super then
-        -- Cmd/Super+Left: Move to start
-        self:moveCursorToStart()
-        if not modifiers.shift then
-          self:clearSelection()
-        end
-      elseif modifiers.alt then
-        -- Alt+Left: Move to previous word
-        self:moveCursorToPreviousWord()
-      elseif self:hasSelection() and not modifiers.shift then
-        -- Move to start of selection
-        local startPos, _ = self:getSelection()
-        self._cursorPosition = startPos
-        self:clearSelection()
-      else
-        self:moveCursorBy(-1)
-      end
-    elseif key == "right" then
-      if modifiers.super then
-        -- Cmd/Super+Right: Move to end
-        self:moveCursorToEnd()
-        if not modifiers.shift then
-          self:clearSelection()
-        end
-      elseif modifiers.alt then
-        -- Alt+Right: Move to next word
-        self:moveCursorToNextWord()
-      elseif self:hasSelection() and not modifiers.shift then
-        -- Move to end of selection
-        local _, endPos = self:getSelection()
-        self._cursorPosition = endPos
-        self:clearSelection()
-      else
-        self:moveCursorBy(1)
-      end
-    elseif key == "home" then
-      -- Home: Move to start (or line start for multiline)
-      if not self.multiline then
-        self:moveCursorToStart()
-      else
-        self:moveCursorToLineStart()
-      end
-      if not modifiers.shift then
-        self:clearSelection()
-      end
-    elseif key == "end" then
-      -- End: Move to end (or line end for multiline)
-      if not self.multiline then
-        self:moveCursorToEnd()
-      else
-        self:moveCursorToLineEnd()
-      end
-      if not modifiers.shift then
-        self:clearSelection()
-      end
-    elseif key == "up" then
-      -- TODO: Implement up/down for multi-line
-      if not modifiers.shift then
-        self:clearSelection()
-      end
-    elseif key == "down" then
-      -- TODO: Implement up/down for multi-line
-      if not modifiers.shift then
-        self:clearSelection()
-      end
-    end
-
-    -- Update selection if Shift is pressed
-    if modifiers.shift and self._selectionAnchor then
-      self:setSelection(self._selectionAnchor, self._cursorPosition)
-    elseif not modifiers.shift then
-      -- Clear anchor when Shift is released
-      self._selectionAnchor = nil
-    end
-
-    self:_resetCursorBlink()
-
-  -- Handle backspace and delete
-  elseif key == "backspace" then
-    local oldText = self._textBuffer
-    if self:hasSelection() then
-      -- Delete selection
-      self:deleteSelection()
-    elseif ctrl then
-      -- Ctrl/Cmd+Backspace: Delete all text from start to cursor
-      if self._cursorPosition > 0 then
-        self:deleteText(0, self._cursorPosition)
-        self._cursorPosition = 0
-        self:_validateCursorPosition()
-      end
-    elseif self._cursorPosition > 0 then
-      -- Delete character before cursor
-      -- Update cursor position BEFORE deleteText so updates use correct position
-      local deleteStart = self._cursorPosition - 1
-      local deleteEnd = self._cursorPosition
-      self._cursorPosition = deleteStart
-      self:deleteText(deleteStart, deleteEnd)
-      self:_validateCursorPosition()
-    end
-
-    -- Trigger onTextChange callback
-    if self.onTextChange and self._textBuffer ~= oldText then
-      self.onTextChange(self, self._textBuffer, oldText)
-    end
-    self:_resetCursorBlink(true)
-  elseif key == "delete" then
-    local oldText = self._textBuffer
-    if self:hasSelection() then
-      -- Delete selection
-      self:deleteSelection()
-    else
-      -- Delete character after cursor
-      local textLength = utf8.len(self._textBuffer or "")
-      if self._cursorPosition < textLength then
-        self:deleteText(self._cursorPosition, self._cursorPosition + 1)
-      end
-    end
-
-    -- Trigger onTextChange callback
-    if self.onTextChange and self._textBuffer ~= oldText then
-      self.onTextChange(self, self._textBuffer, oldText)
-    end
-    self:_resetCursorBlink(true)
-
-  -- Handle return/enter
-  elseif key == "return" or key == "kpenter" then
-    if self.multiline then
-      -- Insert newline
-      local oldText = self._textBuffer
-      if self:hasSelection() then
-        self:deleteSelection()
-      end
-      self:insertText("\n")
-
-      -- Trigger onTextChange callback
-      if self.onTextChange and self._textBuffer ~= oldText then
-        self.onTextChange(self, self._textBuffer, oldText)
-      end
-    else
-      -- Trigger onEnter callback for single-line
-      if self.onEnter then
-        self.onEnter(self)
-      end
-    end
-    self:_resetCursorBlink(true)
-
-  -- Handle Ctrl/Cmd+A (select all)
-  elseif ctrl and key == "a" then
-    self:selectAll()
-    self:_resetCursorBlink()
-
-  -- Handle Ctrl/Cmd+C (copy)
-  elseif ctrl and key == "c" then
-    if self:hasSelection() then
-      local selectedText = self:getSelectedText()
-      if selectedText then
-        love.system.setClipboardText(selectedText)
-      end
-    end
-    self:_resetCursorBlink()
-
-  -- Handle Ctrl/Cmd+X (cut)
-  elseif ctrl and key == "x" then
-    if self:hasSelection() then
-      local selectedText = self:getSelectedText()
-      if selectedText then
-        love.system.setClipboardText(selectedText)
-
-        -- Delete the selected text
-        local oldText = self._textBuffer
-        self:deleteSelection()
-
-        -- Trigger onTextChange callback
-        if self.onTextChange and self._textBuffer ~= oldText then
-          self.onTextChange(self, self._textBuffer, oldText)
-        end
-      end
-    end
-    self:_resetCursorBlink(true)
-
-  -- Handle Ctrl/Cmd+V (paste)
-  elseif ctrl and key == "v" then
-    local clipboardText = love.system.getClipboardText()
-    if clipboardText and clipboardText ~= "" then
-      local oldText = self._textBuffer
-
-      -- Delete selection if exists
-      if self:hasSelection() then
-        self:deleteSelection()
-      end
-
-      -- Insert clipboard text
-      self:insertText(clipboardText)
-
-      -- Trigger onTextChange callback
-      if self.onTextChange and self._textBuffer ~= oldText then
-        self.onTextChange(self, self._textBuffer, oldText)
-      end
-    end
-    self:_resetCursorBlink(true)
-
-  -- Handle Escape
-  elseif key == "escape" then
-    if self:hasSelection() then
-      -- Clear selection
-      self:clearSelection()
-    else
-      -- Blur element
-      self:blur()
-    end
-    self:_resetCursorBlink()
-  end
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
 return Element

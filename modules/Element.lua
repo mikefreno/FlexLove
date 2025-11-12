@@ -24,6 +24,13 @@ local Grid = req("Grid")
 local InputEvent = req("InputEvent")
 local StateManager = req("StateManager")
 
+-- Manager modules for composition architecture
+local TextEditor = req("TextEditor")
+local LayoutEngine = req("LayoutEngine")
+local Renderer = req("Renderer")
+local EventHandler = req("EventHandler")
+local ScrollManager = req("ScrollManager")
+local ThemeManager = req("ThemeManager")
 -- Extract utilities
 local enums = utils.enums
 local FONT_CACHE = utils.FONT_CACHE
@@ -41,10 +48,8 @@ local AlignSelf = enums.AlignSelf
 local JustifySelf = enums.JustifySelf
 local FlexWrap = enums.FlexWrap
 
--- Reference to Gui (via GuiState)
 local Gui = GuiState
 
--- UTF-8 support (available in LÖVE/Lua 5.3+)
 local utf8 = utf8 or require("utf8")
 
 --[[
@@ -182,12 +187,203 @@ Public API methods to access internal state:
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
 ---@field userdata table?
 local Element = {}
+
+-- Custom __index to proxy TextEditor properties for backward compatibility
+local Element_mt = {
+  __index = function(t, k)
+    -- First check if it's an Element method/property
+    local v = Element[k]
+    if v ~= nil then
+      return v
+    end
+
+    -- Proxy TextEditor internal fields for backward compatibility
+    local textEditor = rawget(t, "_textEditor")
+    if textEditor then
+      if k == "_textBuffer" then
+        return textEditor._textBuffer
+      elseif k == "_cursorPosition" then
+        return textEditor._cursorPosition
+      elseif k == "_selectionStart" then
+        return textEditor._selectionStart
+      elseif k == "_selectionEnd" then
+        return textEditor._selectionEnd
+      elseif k == "_cursorLine" then
+        return textEditor._cursorLine
+      elseif k == "_cursorColumn" then
+        return textEditor._cursorColumn
+      elseif k == "_textScrollX" then
+        return textEditor._textScrollX
+      elseif k == "_focused" then
+        return textEditor._focused
+      end
+    end
+
+    return nil
+  end,
+
+  __newindex = function(t, k, v)
+    -- Proxy TextEditor internal fields for backward compatibility
+    local textEditor = rawget(t, "_textEditor")
+    if textEditor then
+      if k == "_textBuffer" then
+        textEditor._textBuffer = v
+        return
+      elseif k == "_cursorPosition" then
+        textEditor._cursorPosition = v
+        return
+      elseif k == "_selectionStart" then
+        textEditor._selectionStart = v
+        return
+      elseif k == "_selectionEnd" then
+        textEditor._selectionEnd = v
+        return
+      elseif k == "_cursorLine" then
+        textEditor._cursorLine = v
+        return
+      elseif k == "_cursorColumn" then
+        textEditor._cursorColumn = v
+        return
+      elseif k == "_textScrollX" then
+        textEditor._textScrollX = v
+        return
+      elseif k == "_focused" then
+        textEditor._focused = v
+        return
+      end
+    end
+
+    -- Default behavior: set the field directly
+    rawset(t, k, v)
+  end,
+}
+
 Element.__index = Element
 
----@param props ElementProps
+-- ============================================
+-- Element Methods (Must be defined before Element.new)
+-- ============================================
+
+--- Get border-box width (including padding)
+---@return number
+function Element:getBorderBoxWidth()
+  return self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+end
+--- Get border-box height (including padding)
+---@return number
+function Element:getBorderBoxHeight()
+  return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+end
+--- Get element bounds
+---@return { x:number, y:number, width:number, height:number }
+function Element:getBounds()
+  return { x = self.x, y = self.y, width = self:getBorderBoxWidth(), height = self:getBorderBoxHeight() }
+end
+--- Check if point is inside element bounds
+---@param x number
+---@param y number
+---@return boolean
+function Element:contains(x, y)
+  local bounds = self:getBounds()
+  return bounds.x <= x and bounds.y <= y and bounds.x + bounds.width >= x and bounds.y + bounds.height >= y
+end
+--- Calculate text width
+---@return number
+function Element:calculateTextWidth()
+  if self.text == nil then
+    return 0
+  end
+  if self.textSize then
+    local fontPath = nil
+    if self.fontFamily then
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+        fontPath = themeToUse.fonts[self.fontFamily]
+      else
+        fontPath = self.fontFamily
+      end
+    elseif self.themeComponent then
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
+        fontPath = themeToUse.fonts.default
+      end
+    end
+    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
+    local width = tempFont:getWidth(self.text)
+    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
+      width = width * self.contentAutoSizingMultiplier.width
+    end
+    return width
+  end
+  local font = love.graphics.getFont()
+  local width = font:getWidth(self.text)
+  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
+    width = width * self.contentAutoSizingMultiplier.width
+  end
+  return width
+end
+---@return number
+function Element:calculateTextHeight()
+  if self.text == nil then
+    return 0
+  end
+  local font
+  if self.textSize then
+    local fontPath = nil
+    if self.fontFamily then
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+        fontPath = themeToUse.fonts[self.fontFamily]
+      else
+        fontPath = self.fontFamily
+      end
+    elseif self.themeComponent then
+      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
+        fontPath = themeToUse.fonts.default
+      end
+    end
+    font = FONT_CACHE.get(self.textSize, fontPath)
+  else
+    font = love.graphics.getFont()
+  end
+  local height = font:getHeight()
+  if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
+    local availableWidth = self.width
+    if (not availableWidth or availableWidth <= 0) and self.parent then
+      availableWidth = self.parent.width
+    end
+    if availableWidth and availableWidth > 0 then
+      local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
+      height = height * #wrappedLines
+    end
+  end
+  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
+    height = height * self.contentAutoSizingMultiplier.height
+  end
+  return height
+end
+-- Delegate auto-size calculations to LayoutEngine
+function Element:calculateAutoWidth()
+  if self._layoutEngine then
+    return self._layoutEngine:calculateAutoWidth()
+  end
+  return self:calculateTextWidth()
+end
+function Element:calculateAutoHeight()
+  if self._layoutEngine then
+    return self._layoutEngine:calculateAutoHeight()
+  end
+  return self:calculateTextHeight()
+end
+
+-- ============================================
+-- Element Constructor
+-- ============================================
+
 ---@return Element
 function Element.new(props)
-  local self = setmetatable({}, Element)
+  local self = setmetatable({}, Element_mt)
   self.children = {}
   self.onEvent = props.onEvent
 
@@ -325,61 +521,10 @@ function Element.new(props)
   self.cursorBlinkRate = props.cursorBlinkRate or 0.5
 
   -- Initialize cursor and selection state (only if editable)
+  -- NOTE: This is now handled by TextEditor module
   if self.editable then
-    self._cursorPosition = 0 -- Character index (0 = before first char)
-    self._cursorLine = 1 -- Current line number (1-based)
-    self._cursorColumn = 0 -- Column within current line
-    self._cursorBlinkTimer = 0
-    self._cursorVisible = true
-    self._cursorBlinkPaused = false
-    self._cursorBlinkPauseTimer = 0
-
-    -- Selection state
-    self._selectionStart = nil -- nil = no selection
-    self._selectionEnd = nil
-    self._selectionAnchor = nil -- Anchor point for shift+arrow selection
-
-    -- Focus state
-    self._focused = false
-
-    -- Text buffer state (initialized after self.text is set below)
-    self._textBuffer = props.text or "" -- Actual text content
-    self._lines = nil -- Split lines (for multiline)
-    self._wrappedLines = nil -- Wrapped line data
-    self._textDirty = true -- Flag to recalculate lines/wrapping
-
-    -- Scroll state for text overflow
-    self._textScrollX = 0 -- Horizontal scroll offset in pixels
-
-    -- Restore state from StateManager in immediate mode
-    if Gui._immediateMode and self._stateId then
-      local state = StateManager.getState(self._stateId)
-      if state then
-        -- Restore focus state
-        if state._focused then
-          self._focused = true
-          Gui._focusedElement = self
-        end
-
-        -- Restore text buffer (prefer state over props for immediate mode)
-        if state._textBuffer and state._textBuffer ~= "" then
-          self._textBuffer = state._textBuffer
-        end
-
-        -- Restore cursor position
-        if state._cursorPosition then
-          self._cursorPosition = state._cursorPosition
-        end
-
-        -- Restore selection
-        if state._selectionStart then
-          self._selectionStart = state._selectionStart
-        end
-        if state._selectionEnd then
-          self._selectionEnd = state._selectionEnd
-        end
-      end
-    end
+    -- These fields are now managed by TextEditor and proxied through __index/__newindex
+    -- Keeping minimal state for backward compatibility with non-TextEditor code paths
   end
 
   -- Set parent first so it's available for size calculations
@@ -438,9 +583,10 @@ function Element.new(props)
   end
 
   -- Sync self.text with restored _textBuffer for editable elements in immediate mode
-  if self.editable and Gui._immediateMode and self._textBuffer then
-    self.text = self._textBuffer
-  end
+  -- NOTE: This is now handled by TextEditor module after initialization
+  -- if self.editable and Gui._immediateMode and self._textBuffer then
+  --   self.text = self._textBuffer
+  -- end
 
   self.textAlign = props.textAlign or TextAlign.START
 
@@ -1244,6 +1390,93 @@ function Element.new(props)
   self._scrollbarDragOffset = 0 -- Offset from thumb top when drag started
   self._scrollbarPressHandled = false -- Track if scrollbar press was handled this frame
 
+  -- ============================================
+  -- Initialize Manager Modules
+  -- ============================================
+
+  -- Initialize ThemeManager if using theme component
+  if self.themeComponent then
+    self._themeManager = ThemeManager.new({
+      theme = self.theme,
+      themeComponent = self.themeComponent,
+      scaleCorners = self.scaleCorners,
+      scalingAlgorithm = self.scalingAlgorithm,
+    })
+    self._themeManager:initialize(self)
+  end
+
+  -- Initialize LayoutEngine
+  self._layoutEngine = LayoutEngine.new({
+    positioning = self.positioning,
+    flexDirection = self.flexDirection,
+    justifyContent = self.justifyContent,
+    alignItems = self.alignItems,
+    alignContent = self.alignContent,
+    flexWrap = self.flexWrap,
+    gridRows = self.gridRows,
+    gridColumns = self.gridColumns,
+    columnGap = self.columnGap,
+    rowGap = self.rowGap,
+  })
+  self._layoutEngine:initialize(self)
+
+  -- Initialize Renderer
+  self._renderer = Renderer.new({
+    backgroundColor = self.backgroundColor,
+    borderColor = self.borderColor,
+    cornerRadius = self.cornerRadius,
+    imagePath = self.imagePath,
+    image = self.image,
+    objectFit = self.objectFit,
+    objectPosition = self.objectPosition,
+    imageOpacity = self.imageOpacity,
+  })
+  self._renderer:initialize(self)
+
+  -- Initialize ScrollManager if needed
+  if self.overflow ~= "visible" or self.overflowX or self.overflowY then
+    self._scrollManager = ScrollManager.new({
+      overflow = self.overflow,
+      overflowX = self.overflowX,
+      overflowY = self.overflowY,
+      scrollbarWidth = self.scrollbarWidth,
+      scrollbarColor = self.scrollbarColor,
+      scrollbarTrackColor = self.scrollbarTrackColor,
+      scrollbarRadius = self.scrollbarRadius,
+      scrollbarPadding = self.scrollbarPadding,
+      scrollSpeed = self.scrollSpeed,
+      hideScrollbars = self.hideScrollbars,
+    })
+    self._scrollManager:initialize(self)
+  end
+
+  -- Initialize TextEditor if editable
+  if self.editable then
+    self._textEditor = TextEditor.new({
+      text = props.text or "",
+      editable = self.editable,
+      multiline = self.multiline,
+      passwordMode = self.passwordMode,
+      textWrap = self.textWrap,
+      maxLines = self.maxLines,
+      maxLength = self.maxLength,
+      placeholder = self.placeholder,
+      inputType = self.inputType,
+      textOverflow = self.textOverflow,
+      scrollable = self.scrollable,
+      autoGrow = self.autoGrow,
+      selectOnFocus = self.selectOnFocus,
+      cursorColor = self.cursorColor,
+      selectionColor = self.selectionColor,
+      cursorBlinkRate = self.cursorBlinkRate,
+    })
+    self._textEditor:initialize(self)
+  end
+
+  -- Initialize EventHandler
+  self._eventHandler = EventHandler.new({})
+  self._eventHandler:initialize(self)
+
   -- Register element in z-index tracking for immediate mode
   if Gui._immediateMode then
     GuiState.registerElement(self)
@@ -1252,34 +1485,10 @@ function Element.new(props)
   return self
 end
 
---- Get element bounds (content box)
----@return { x:number, y:number, width:number, height:number }
-function Element:getBounds()
-  return { x = self.x, y = self.y, width = self:getBorderBoxWidth(), height = self:getBorderBoxHeight() }
-end
+-- ============================================
+-- Delegation Methods (Auto-generated)
+-- ============================================
 
---- Check if point is inside element bounds
---- @param x number
---- @param y number
---- @return boolean
-function Element:contains(x, y)
-  local bounds = self:getBounds()
-  return bounds.x <= x and bounds.y <= y and bounds.x + bounds.width >= x and bounds.y + bounds.height >= y
-end
-
---- Get border-box width (including padding)
----@return number
-function Element:getBorderBoxWidth()
-  return self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-end
-
---- Get border-box height (including padding)
----@return number
-function Element:getBorderBoxHeight()
-  return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-end
-
---- Detect if content overflows container bounds
 function Element:_detectOverflow()
   -- Reset overflow state
   self._overflowX = false
@@ -1341,502 +1550,134 @@ function Element:_detectOverflow()
   self._scrollY = math.max(0, math.min(self._scrollY, self._maxScrollY))
 end
 
---- Set scroll position with bounds clamping
----@param x number? -- X scroll position (nil to keep current)
----@param y number? -- Y scroll position (nil to keep current)
 function Element:setScrollPosition(x, y)
-  if x ~= nil then
-    self._scrollX = math.max(0, math.min(x, self._maxScrollX))
+  if self._scrollManager then
+    self._scrollManager:setScroll(x, y)
   end
-  if y ~= nil then
-    self._scrollY = math.max(0, math.min(y, self._maxScrollY))
-  end
-
-  -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
-  -- No need to save here
 end
 
---- Calculate scrollbar dimensions and positions
----@return table -- {vertical: {visible, trackHeight, thumbHeight, thumbY}, horizontal: {visible, trackWidth, thumbWidth, thumbX}}
 function Element:_calculateScrollbarDimensions()
-  local result = {
+  if self._scrollManager then
+    return self._scrollManager:calculateScrollbarDimensions()
+  end
+  return {
     vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
     horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
   }
-
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-
-  -- Vertical scrollbar
-  -- Note: overflow="scroll" always shows scrollbar; overflow="auto" only when content overflows
-  if overflowY == "scroll" then
-    -- Always show scrollbar for "scroll" mode
-    result.vertical.visible = true
-    result.vertical.trackHeight = self.height - (self.scrollbarPadding * 2)
-
-    if self._overflowY then
-      -- Content overflows, calculate proper thumb size
-      local contentRatio = self.height / math.max(self._contentHeight, self.height)
-      result.vertical.thumbHeight = math.max(20, result.vertical.trackHeight * contentRatio)
-
-      -- Calculate thumb position based on scroll ratio
-      local scrollRatio = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
-      local maxThumbY = result.vertical.trackHeight - result.vertical.thumbHeight
-      result.vertical.thumbY = maxThumbY * scrollRatio
-    else
-      -- No overflow, thumb fills entire track
-      result.vertical.thumbHeight = result.vertical.trackHeight
-      result.vertical.thumbY = 0
-    end
-  elseif self._overflowY and overflowY == "auto" then
-    -- Only show scrollbar when content actually overflows
-    result.vertical.visible = true
-    result.vertical.trackHeight = self.height - (self.scrollbarPadding * 2)
-
-    -- Calculate thumb height based on content ratio
-    local contentRatio = self.height / math.max(self._contentHeight, self.height)
-    result.vertical.thumbHeight = math.max(20, result.vertical.trackHeight * contentRatio)
-
-    -- Calculate thumb position based on scroll ratio
-    local scrollRatio = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
-    local maxThumbY = result.vertical.trackHeight - result.vertical.thumbHeight
-    result.vertical.thumbY = maxThumbY * scrollRatio
-  end
-
-  -- Horizontal scrollbar
-  -- Note: overflow="scroll" always shows scrollbar; overflow="auto" only when content overflows
-  if overflowX == "scroll" then
-    -- Always show scrollbar for "scroll" mode
-    result.horizontal.visible = true
-    result.horizontal.trackWidth = self.width - (self.scrollbarPadding * 2)
-
-    if self._overflowX then
-      -- Content overflows, calculate proper thumb size
-      local contentRatio = self.width / math.max(self._contentWidth, self.width)
-      result.horizontal.thumbWidth = math.max(20, result.horizontal.trackWidth * contentRatio)
-
-      -- Calculate thumb position based on scroll ratio
-      local scrollRatio = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
-      local maxThumbX = result.horizontal.trackWidth - result.horizontal.thumbWidth
-      result.horizontal.thumbX = maxThumbX * scrollRatio
-    else
-      -- No overflow, thumb fills entire track
-      result.horizontal.thumbWidth = result.horizontal.trackWidth
-      result.horizontal.thumbX = 0
-    end
-  elseif self._overflowX and overflowX == "auto" then
-    -- Only show scrollbar when content actually overflows
-    result.horizontal.visible = true
-    result.horizontal.trackWidth = self.width - (self.scrollbarPadding * 2)
-
-    -- Calculate thumb width based on content ratio
-    local contentRatio = self.width / math.max(self._contentWidth, self.width)
-    result.horizontal.thumbWidth = math.max(20, result.horizontal.trackWidth * contentRatio)
-
-    -- Calculate thumb position based on scroll ratio
-    local scrollRatio = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
-    local maxThumbX = result.horizontal.trackWidth - result.horizontal.thumbWidth
-    result.horizontal.thumbX = maxThumbX * scrollRatio
-  end
-
-  return result
 end
 
---- Draw scrollbars
----@param dims table -- Scrollbar dimensions from _calculateScrollbarDimensions()
 function Element:_drawScrollbars(dims)
-  local x, y = self.x, self.y
-  local w, h = self.width, self.height
-
-  -- Vertical scrollbar
-  if dims.vertical.visible and not self.hideScrollbars.vertical then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + w - self.scrollbarWidth - self.scrollbarPadding
-    local trackY = contentY + self.scrollbarPadding
-
-    -- Determine thumb color based on state (independent for vertical)
-    local thumbColor = self.scrollbarColor
-    if self._scrollbarDragging and self._hoveredScrollbar == "vertical" then
-      -- Active state: brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
-    elseif self._scrollbarHoveredVertical then
-      -- Hover state: slightly brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
-    end
-
-    -- Draw track
-    love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, self.scrollbarWidth, dims.vertical.trackHeight, self.scrollbarRadius)
-
-    -- Draw thumb with state-based color
-    love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY, self.scrollbarWidth, dims.vertical.thumbHeight, self.scrollbarRadius)
+  if self._scrollManager then
+    return self._scrollManager:_drawScrollbars(dims)
   end
-
-  -- Horizontal scrollbar
-  if dims.horizontal.visible and not self.hideScrollbars.horizontal then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + self.scrollbarPadding
-    local trackY = contentY + h - self.scrollbarWidth - self.scrollbarPadding
-
-    -- Determine thumb color based on state (independent for horizontal)
-    local thumbColor = self.scrollbarColor
-    if self._scrollbarDragging and self._hoveredScrollbar == "horizontal" then
-      -- Active state: brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
-    elseif self._scrollbarHoveredHorizontal then
-      -- Hover state: slightly brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
-    end
-
-    -- Draw track
-    love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, dims.horizontal.trackWidth, self.scrollbarWidth, self.scrollbarRadius)
-
-    -- Draw thumb with state-based color
-    love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY, dims.horizontal.thumbWidth, self.scrollbarWidth, self.scrollbarRadius)
-  end
-
-  -- Reset color
-  love.graphics.setColor(1, 1, 1, 1)
 end
 
---- Get scrollbar at mouse position
----@param mouseX number
----@param mouseY number
----@return table|nil -- {component: "vertical"|"horizontal", region: "thumb"|"track"}
 function Element:_getScrollbarAtPosition(mouseX, mouseY)
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-
-  if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
-    return nil
+  if self._scrollManager then
+    return self._scrollManager:_getScrollbarAtPosition(mouseX, mouseY)
   end
-
-  local dims = self:_calculateScrollbarDimensions()
-  local x, y = self.x, self.y
-  local w, h = self.width, self.height
-
-  -- Check vertical scrollbar (only if not hidden)
-  if dims.vertical.visible and not self.hideScrollbars.vertical then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + w - self.scrollbarWidth - self.scrollbarPadding
-    local trackY = contentY + self.scrollbarPadding
-    local trackW = self.scrollbarWidth
-    local trackH = dims.vertical.trackHeight
-
-    if mouseX >= trackX and mouseX <= trackX + trackW and mouseY >= trackY and mouseY <= trackY + trackH then
-      -- Check if over thumb
-      local thumbY = trackY + dims.vertical.thumbY
-      local thumbH = dims.vertical.thumbHeight
-      if mouseY >= thumbY and mouseY <= thumbY + thumbH then
-        return { component = "vertical", region = "thumb" }
-      else
-        return { component = "vertical", region = "track" }
-      end
-    end
-  end
-
-  -- Check horizontal scrollbar (only if not hidden)
-  if dims.horizontal.visible and not self.hideScrollbars.horizontal then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + self.scrollbarPadding
-    local trackY = contentY + h - self.scrollbarWidth - self.scrollbarPadding
-    local trackW = dims.horizontal.trackWidth
-    local trackH = self.scrollbarWidth
-
-    if mouseX >= trackX and mouseX <= trackX + trackW and mouseY >= trackY and mouseY <= trackY + trackH then
-      -- Check if over thumb
-      local thumbX = trackX + dims.horizontal.thumbX
-      local thumbW = dims.horizontal.thumbWidth
-      if mouseX >= thumbX and mouseX <= thumbX + thumbW then
-        return { component = "horizontal", region = "thumb" }
-      else
-        return { component = "horizontal", region = "track" }
-      end
-    end
-  end
-
-  return nil
 end
 
---- Handle scrollbar mouse press
----@param mouseX number
----@param mouseY number
----@param button number
----@return boolean -- True if event was consumed
 function Element:_handleScrollbarPress(mouseX, mouseY, button)
-  if button ~= 1 then
-    return false
-  end -- Only left click
-
-  local scrollbar = self:_getScrollbarAtPosition(mouseX, mouseY)
-  if not scrollbar then
-    return false
+  if self._scrollManager then
+    return self._scrollManager:handleMousePress(mouseX, mouseY, button)
   end
-
-  if scrollbar.region == "thumb" then
-    -- Start dragging thumb
-    self._scrollbarDragging = true
-    self._hoveredScrollbar = scrollbar.component
-    local dims = self:_calculateScrollbarDimensions()
-
-    if scrollbar.component == "vertical" then
-      local contentY = self.y + self.padding.top
-      local trackY = contentY + self.scrollbarPadding
-      local thumbY = trackY + dims.vertical.thumbY
-      self._scrollbarDragOffset = mouseY - thumbY
-    elseif scrollbar.component == "horizontal" then
-      local contentX = self.x + self.padding.left
-      local trackX = contentX + self.scrollbarPadding
-      local thumbX = trackX + dims.horizontal.thumbX
-      self._scrollbarDragOffset = mouseX - thumbX
-    end
-
-    -- Update StateManager if in immediate mode
-    if self._stateId and Gui._immediateMode then
-      StateManager.updateState(self._stateId, {
-        scrollbarDragging = self._scrollbarDragging,
-        hoveredScrollbar = self._hoveredScrollbar,
-        scrollbarDragOffset = self._scrollbarDragOffset,
-      })
-    end
-
-    return true -- Event consumed
-  elseif scrollbar.region == "track" then
-    -- Click on track - jump to position
-    self:_scrollToTrackPosition(mouseX, mouseY, scrollbar.component)
-    return true
-  end
-
   return false
 end
 
---- Handle scrollbar drag
----@param mouseX number
----@param mouseY number
----@return boolean -- True if event was consumed
 function Element:_handleScrollbarDrag(mouseX, mouseY)
-  if not self._scrollbarDragging then
-    return false
+  if self._scrollManager then
+    return self._scrollManager:handleMouseMove(mouseX, mouseY)
   end
-
-  local dims = self:_calculateScrollbarDimensions()
-
-  if self._hoveredScrollbar == "vertical" then
-    local contentY = self.y + self.padding.top
-    local trackY = contentY + self.scrollbarPadding
-    local trackH = dims.vertical.trackHeight
-    local thumbH = dims.vertical.thumbHeight
-
-    -- Calculate new thumb position
-    local newThumbY = mouseY - self._scrollbarDragOffset - trackY
-    newThumbY = math.max(0, math.min(newThumbY, trackH - thumbH))
-
-    -- Convert thumb position to scroll position
-    local scrollRatio = (trackH - thumbH) > 0 and (newThumbY / (trackH - thumbH)) or 0
-    local newScrollY = scrollRatio * self._maxScrollY
-
-    self:setScrollPosition(nil, newScrollY)
-    return true
-  elseif self._hoveredScrollbar == "horizontal" then
-    local contentX = self.x + self.padding.left
-    local trackX = contentX + self.scrollbarPadding
-    local trackW = dims.horizontal.trackWidth
-    local thumbW = dims.horizontal.thumbWidth
-
-    -- Calculate new thumb position
-    local newThumbX = mouseX - self._scrollbarDragOffset - trackX
-    newThumbX = math.max(0, math.min(newThumbX, trackW - thumbW))
-
-    -- Convert thumb position to scroll position
-    local scrollRatio = (trackW - thumbW) > 0 and (newThumbX / (trackW - thumbW)) or 0
-    local newScrollX = scrollRatio * self._maxScrollX
-
-    self:setScrollPosition(newScrollX, nil)
-    return true
-  end
-
   return false
 end
 
---- Handle scrollbar release
----@param button number
----@return boolean -- True if event was consumed
 function Element:_handleScrollbarRelease(button)
-  if button ~= 1 then
-    return false
+  if self._scrollManager then
+    return self._scrollManager:handleMouseRelease(nil, nil, button)
   end
-
-  if self._scrollbarDragging then
-    self._scrollbarDragging = false
-
-    -- Update StateManager if in immediate mode
-    if self._stateId and Gui._immediateMode then
-      StateManager.updateState(self._stateId, {
-        scrollbarDragging = false,
-      })
-    end
-
-    return true
-  end
-
   return false
 end
 
---- Scroll to track click position
----@param mouseX number
----@param mouseY number
----@param component string -- "vertical" or "horizontal"
 function Element:_scrollToTrackPosition(mouseX, mouseY, component)
-  local dims = self:_calculateScrollbarDimensions()
-
-  if component == "vertical" then
-    local contentY = self.y + self.padding.top
-    local trackY = contentY + self.scrollbarPadding
-    local trackH = dims.vertical.trackHeight
-    local thumbH = dims.vertical.thumbHeight
-
-    -- Calculate target thumb position (centered on click)
-    local targetThumbY = mouseY - trackY - (thumbH / 2)
-    targetThumbY = math.max(0, math.min(targetThumbY, trackH - thumbH))
-
-    -- Convert to scroll position
-    local scrollRatio = (trackH - thumbH) > 0 and (targetThumbY / (trackH - thumbH)) or 0
-    local newScrollY = scrollRatio * self._maxScrollY
-
-    self:setScrollPosition(nil, newScrollY)
-  elseif component == "horizontal" then
-    local contentX = self.x + self.padding.left
-    local trackX = contentX + self.scrollbarPadding
-    local trackW = dims.horizontal.trackWidth
-    local thumbW = dims.horizontal.thumbWidth
-
-    -- Calculate target thumb position (centered on click)
-    local targetThumbX = mouseX - trackX - (thumbW / 2)
-    targetThumbX = math.max(0, math.min(targetThumbX, trackW - thumbW))
-
-    -- Convert to scroll position
-    local scrollRatio = (trackW - thumbW) > 0 and (targetThumbX / (trackW - thumbW)) or 0
-    local newScrollX = scrollRatio * self._maxScrollX
-
-    self:setScrollPosition(newScrollX, nil)
+  if self._scrollManager then
+    return self._scrollManager:_scrollToTrackPosition(mouseX, mouseY, component)
   end
 end
 
---- Handle mouse wheel scrolling
----@param x number -- Horizontal scroll amount
----@param y number -- Vertical scroll amount
----@return boolean -- True if scroll was handled
 function Element:_handleWheelScroll(x, y)
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-
-  if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
-    return false
+  if self._scrollManager then
+    return self._scrollManager:handleWheel(x, y)
   end
-
-  local hasVerticalOverflow = self._overflowY and self._maxScrollY > 0
-  local hasHorizontalOverflow = self._overflowX and self._maxScrollX > 0
-
-  local scrolled = false
-
-  -- Vertical scrolling
-  if y ~= 0 and hasVerticalOverflow then
-    local delta = -y * self.scrollSpeed -- Negative because wheel up = scroll up
-    local newScrollY = self._scrollY + delta
-    self:setScrollPosition(nil, newScrollY)
-    scrolled = true
-  end
-
-  -- Horizontal scrolling
-  if x ~= 0 and hasHorizontalOverflow then
-    local delta = -x * self.scrollSpeed
-    local newScrollX = self._scrollX + delta
-    self:setScrollPosition(newScrollX, nil)
-    scrolled = true
-  end
-
-  -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
-  return scrolled
+  return false
 end
 
---- Get current scroll position
----@return number scrollX, number scrollY
 function Element:getScrollPosition()
-  return self._scrollX, self._scrollY
+  if self._scrollManager then
+    return self._scrollManager:getScroll()
+  end
+  return 0, 0
 end
 
---- Get maximum scroll bounds
----@return number maxScrollX, number maxScrollY
 function Element:getMaxScroll()
-  return self._maxScrollX, self._maxScrollY
+  if self._scrollManager then
+    local _, _, maxScrollX, maxScrollY = self._scrollManager:getContentBounds()
+    return maxScrollX, maxScrollY
+  end
+  return 0, 0
 end
 
---- Get scroll percentage (0-1)
----@return number percentX, number percentY
 function Element:getScrollPercentage()
-  local percentX = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
-  local percentY = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
-  return percentX, percentY
+  if self._scrollManager then
+    local scrollX, scrollY = self._scrollManager:getScroll()
+    local _, _, maxScrollX, maxScrollY = self._scrollManager:getContentBounds()
+    local percentX = maxScrollX > 0 and (scrollX / maxScrollX) or 0
+    local percentY = maxScrollY > 0 and (scrollY / maxScrollY) or 0
+    return percentX, percentY
+  end
+  return 0, 0
 end
 
---- Check if element has overflow
----@return boolean hasOverflowX, boolean hasOverflowY
 function Element:hasOverflow()
   return self._overflowX, self._overflowY
 end
 
---- Get content dimensions (including overflow)
----@return number contentWidth, number contentHeight
 function Element:getContentSize()
-  return self._contentWidth, self._contentHeight
+  if self._scrollManager then
+    local contentWidth, contentHeight = self._scrollManager:getContentBounds()
+    return contentWidth, contentHeight
+  end
+  return self.width, self.height
 end
 
---- Scroll by delta amount
----@param dx number? -- X delta (nil for no change)
----@param dy number? -- Y delta (nil for no change)
 function Element:scrollBy(dx, dy)
-  if dx then
-    self._scrollX = math.max(0, math.min(self._scrollX + dx, self._maxScrollX))
-  end
-  if dy then
-    self._scrollY = math.max(0, math.min(self._scrollY + dy, self._maxScrollY))
+  if self._scrollManager then
+    self._scrollManager:scroll(dx, dy)
   end
 end
 
---- Scroll to top
 function Element:scrollToTop()
   self:setScrollPosition(nil, 0)
 end
 
---- Scroll to bottom
 function Element:scrollToBottom()
-  self:setScrollPosition(nil, self._maxScrollY)
+  if self._scrollManager then
+    local _, _, _, maxScrollY = self._scrollManager:getContentBounds()
+    self:setScrollPosition(nil, maxScrollY)
+  end
 end
 
---- Scroll to left
 function Element:scrollToLeft()
   self:setScrollPosition(0, nil)
 end
 
---- Scroll to right
 function Element:scrollToRight()
-  self:setScrollPosition(self._maxScrollX, nil)
+  if self._scrollManager then
+    local _, _, maxScrollX = self._scrollManager:getContentBounds()
+    self:setScrollPosition(maxScrollX, nil)
+  end
 end
 
---- Get the current state's scaled content padding
---- Returns the contentPadding for the current theme state, scaled to the element's size
----@return table|nil -- {left, top, right, bottom} or nil if no contentPadding
 function Element:getScaledContentPadding()
   if not self.themeComponent then
     return nil
@@ -1887,8 +1728,6 @@ function Element:getScaledContentPadding()
   end
 end
 
---- Get or create blur instance for this element
----@return table? -- Blur instance or nil if no blur configured
 function Element:getBlurInstance()
   -- Determine quality from contentBlur or backdropBlur
   local quality = 5 -- Default quality
@@ -1906,56 +1745,18 @@ function Element:getBlurInstance()
   return self._blurInstance
 end
 
---- Get available content width for children (accounting for 9-patch content padding)
---- This is the width that children should use when calculating percentage widths
----@return number
 function Element:getAvailableContentWidth()
-  local availableWidth = self.width
-
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    -- Check if the element is using the scaled 9-patch contentPadding as its padding
-    -- Allow small floating point differences (within 0.1 pixels)
-    local usingContentPaddingAsPadding = (
-      math.abs(self.padding.left - scaledContentPadding.left) < 0.1 and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
-    )
-
-    if not usingContentPaddingAsPadding then
-      -- Element has explicit padding different from contentPadding
-      -- Subtract scaled contentPadding to get the area children should use
-      availableWidth = availableWidth - scaledContentPadding.left - scaledContentPadding.right
-    end
+  if self._layoutEngine then
+    return self._layoutEngine:getAvailableContentWidth()
   end
-
-  return math.max(0, availableWidth)
 end
 
---- Get available content height for children (accounting for 9-patch content padding)
---- This is the height that children should use when calculating percentage heights
----@return number
 function Element:getAvailableContentHeight()
-  local availableHeight = self.height
-
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    -- Check if the element is using the scaled 9-patch contentPadding as its padding
-    -- Allow small floating point differences (within 0.1 pixels)
-    local usingContentPaddingAsPadding = (
-      math.abs(self.padding.top - scaledContentPadding.top) < 0.1 and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
-    )
-
-    if not usingContentPaddingAsPadding then
-      -- Element has explicit padding different from contentPadding
-      -- Subtract scaled contentPadding to get the area children should use
-      availableHeight = availableHeight - scaledContentPadding.top - scaledContentPadding.bottom
-    end
+  if self._layoutEngine then
+    return self._layoutEngine:getAvailableContentHeight()
   end
-
-  return math.max(0, availableHeight)
 end
 
---- Add child to element
----@param child Element
 function Element:addChild(child)
   child.parent = self
 
@@ -2026,447 +1827,18 @@ function Element:addChild(child)
   end
 end
 
---- Apply positioning offsets (top, right, bottom, left) to an element
--- @param element The element to apply offsets to
 function Element:applyPositioningOffsets(element)
-  if not element then
-    return
-  end
-
-  -- For CSS-style positioning, we need the parent's bounds
-  local parent = element.parent
-  if not parent then
-    return
-  end
-
-  -- Only apply offsets to explicitly absolute children or children in relative/absolute containers
-  -- Flex/grid children ignore positioning offsets as they participate in layout
-  local isFlexChild = element.positioning == Positioning.FLEX
-    or element.positioning == Positioning.GRID
-    or (element.positioning == Positioning.ABSOLUTE and not element._explicitlyAbsolute)
-
-  if not isFlexChild then
-    -- Apply absolute positioning for explicitly absolute children
-    -- Apply top offset (distance from parent's content box top edge)
-    if element.top then
-      element.y = parent.y + parent.padding.top + element.top
-    end
-
-    -- Apply bottom offset (distance from parent's content box bottom edge)
-    -- BORDER-BOX MODEL: Use border-box dimensions for positioning
-    if element.bottom then
-      local elementBorderBoxHeight = element:getBorderBoxHeight()
-      element.y = parent.y + parent.padding.top + parent.height - element.bottom - elementBorderBoxHeight
-    end
-
-    -- Apply left offset (distance from parent's content box left edge)
-    if element.left then
-      element.x = parent.x + parent.padding.left + element.left
-    end
-
-    -- Apply right offset (distance from parent's content box right edge)
-    -- BORDER-BOX MODEL: Use border-box dimensions for positioning
-    if element.right then
-      local elementBorderBoxWidth = element:getBorderBoxWidth()
-      element.x = parent.x + parent.padding.left + parent.width - element.right - elementBorderBoxWidth
-    end
+  if self._layoutEngine then
+    return self._layoutEngine:applyPositioningOffsets(element)
   end
 end
 
 function Element:layoutChildren()
-  if self.positioning == Positioning.ABSOLUTE or self.positioning == Positioning.RELATIVE then
-    -- Absolute/Relative positioned containers don't layout their children according to flex rules,
-    -- but they should still apply CSS positioning offsets to their children
-    for _, child in ipairs(self.children) do
-      if child.top or child.right or child.bottom or child.left then
-        self:applyPositioningOffsets(child)
-      end
-    end
-    return
+  if self._layoutEngine then
+    return self._layoutEngine:layoutChildren()
   end
-
-  -- Handle grid layout
-  if self.positioning == Positioning.GRID then
-    Grid.layoutGridItems(self)
-    return
-  end
-
-  local childCount = #self.children
-
-  if childCount == 0 then
-    return
-  end
-
-  -- Get flex children (children that participate in flex layout)
-  local flexChildren = {}
-  for _, child in ipairs(self.children) do
-    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
-    if isFlexChild then
-      table.insert(flexChildren, child)
-    end
-  end
-
-  if #flexChildren == 0 then
-    return
-  end
-
-  -- Calculate space reserved by absolutely positioned siblings with explicit positioning
-  local reservedMainStart = 0 -- Space reserved at the start of main axis (left for horizontal, top for vertical)
-  local reservedMainEnd = 0 -- Space reserved at the end of main axis (right for horizontal, bottom for vertical)
-  local reservedCrossStart = 0 -- Space reserved at the start of cross axis (top for horizontal, left for vertical)
-  local reservedCrossEnd = 0 -- Space reserved at the end of cross axis (bottom for horizontal, right for vertical)
-
-  for _, child in ipairs(self.children) do
-    -- Only consider absolutely positioned children with explicit positioning
-    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
-      local childBorderBoxWidth = child:getBorderBoxWidth()
-      local childBorderBoxHeight = child:getBorderBoxHeight()
-
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        -- Horizontal layout: main axis is X, cross axis is Y
-        -- Check for left positioning (reserves space at main axis start)
-        if child.left then
-          local spaceNeeded = child.left + childBorderBoxWidth
-          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
-        end
-        -- Check for right positioning (reserves space at main axis end)
-        if child.right then
-          local spaceNeeded = child.right + childBorderBoxWidth
-          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
-        end
-        -- Check for top positioning (reserves space at cross axis start)
-        if child.top then
-          local spaceNeeded = child.top + childBorderBoxHeight
-          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
-        end
-        -- Check for bottom positioning (reserves space at cross axis end)
-        if child.bottom then
-          local spaceNeeded = child.bottom + childBorderBoxHeight
-          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
-        end
-      else
-        -- Vertical layout: main axis is Y, cross axis is X
-        -- Check for top positioning (reserves space at main axis start)
-        if child.top then
-          local spaceNeeded = child.top + childBorderBoxHeight
-          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
-        end
-        -- Check for bottom positioning (reserves space at main axis end)
-        if child.bottom then
-          local spaceNeeded = child.bottom + childBorderBoxHeight
-          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
-        end
-        -- Check for left positioning (reserves space at cross axis start)
-        if child.left then
-          local spaceNeeded = child.left + childBorderBoxWidth
-          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
-        end
-        -- Check for right positioning (reserves space at cross axis end)
-        if child.right then
-          local spaceNeeded = child.right + childBorderBoxWidth
-          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
-        end
-      end
-    end
-  end
-
-  -- Calculate available space (accounting for padding and reserved space)
-  -- BORDER-BOX MODEL: self.width and self.height are already content dimensions (padding subtracted)
-  local availableMainSize = 0
-  local availableCrossSize = 0
-  if self.flexDirection == FlexDirection.HORIZONTAL then
-    availableMainSize = self.width - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.height - reservedCrossStart - reservedCrossEnd
-  else
-    availableMainSize = self.height - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.width - reservedCrossStart - reservedCrossEnd
-  end
-
-  -- Handle flex wrap: create lines of children
-  local lines = {}
-
-  if self.flexWrap == FlexWrap.NOWRAP then
-    -- All children go on one line
-    lines[1] = flexChildren
-  else
-    -- Wrap children into multiple lines
-    local currentLine = {}
-    local currentLineSize = 0
-
-    for _, child in ipairs(flexChildren) do
-      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-      -- Include margins in size calculations
-      local childMainSize = 0
-      local childMainMargin = 0
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        childMainSize = child:getBorderBoxWidth()
-        childMainMargin = child.margin.left + child.margin.right
-      else
-        childMainSize = child:getBorderBoxHeight()
-        childMainMargin = child.margin.top + child.margin.bottom
-      end
-      local childTotalMainSize = childMainSize + childMainMargin
-
-      -- Check if adding this child would exceed the available space
-      local lineSpacing = #currentLine > 0 and self.gap or 0
-      if #currentLine > 0 and currentLineSize + lineSpacing + childTotalMainSize > availableMainSize then
-        -- Start a new line
-        if #currentLine > 0 then
-          table.insert(lines, currentLine)
-        end
-        currentLine = { child }
-        currentLineSize = childTotalMainSize
-      else
-        -- Add to current line
-        table.insert(currentLine, child)
-        currentLineSize = currentLineSize + lineSpacing + childTotalMainSize
-      end
-    end
-
-    -- Add the last line if it has children
-    if #currentLine > 0 then
-      table.insert(lines, currentLine)
-    end
-
-    -- Handle wrap-reverse: reverse the order of lines
-    if self.flexWrap == FlexWrap.WRAP_REVERSE then
-      local reversedLines = {}
-      for i = #lines, 1, -1 do
-        table.insert(reversedLines, lines[i])
-      end
-      lines = reversedLines
-    end
-  end
-
-  -- Calculate line positions and heights (including child padding)
-  local lineHeights = {}
-  local totalLinesHeight = 0
-
-  for lineIndex, line in ipairs(lines) do
-    local maxCrossSize = 0
-    for _, child in ipairs(line) do
-      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-      -- Include margins in cross-axis size calculations
-      local childCrossSize = 0
-      local childCrossMargin = 0
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        childCrossSize = child:getBorderBoxHeight()
-        childCrossMargin = child.margin.top + child.margin.bottom
-      else
-        childCrossSize = child:getBorderBoxWidth()
-        childCrossMargin = child.margin.left + child.margin.right
-      end
-      local childTotalCrossSize = childCrossSize + childCrossMargin
-      maxCrossSize = math.max(maxCrossSize, childTotalCrossSize)
-    end
-    lineHeights[lineIndex] = maxCrossSize
-    totalLinesHeight = totalLinesHeight + maxCrossSize
-  end
-
-  -- Account for gaps between lines
-  local lineGaps = math.max(0, #lines - 1) * self.gap
-  totalLinesHeight = totalLinesHeight + lineGaps
-
-  -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
-  if #lines == 1 then
-    if self.alignItems == AlignItems.STRETCH or self.alignItems == AlignItems.CENTER or self.alignItems == AlignItems.FLEX_END then
-      -- STRETCH, CENTER, and FLEX_END should use full available cross size
-      lineHeights[1] = availableCrossSize
-      totalLinesHeight = availableCrossSize
-    end
-    -- CENTER and FLEX_END should preserve natural child dimensions
-    -- and only affect positioning within the available space
-  end
-
-  -- Calculate starting position for lines based on alignContent
-  local lineStartPos = 0
-  local lineSpacing = self.gap
-  local freeLineSpace = availableCrossSize - totalLinesHeight
-
-  -- Apply AlignContent logic for both single and multiple lines
-  if self.alignContent == AlignContent.FLEX_START then
-    lineStartPos = 0
-  elseif self.alignContent == AlignContent.CENTER then
-    lineStartPos = freeLineSpace / 2
-  elseif self.alignContent == AlignContent.FLEX_END then
-    lineStartPos = freeLineSpace
-  elseif self.alignContent == AlignContent.SPACE_BETWEEN then
-    lineStartPos = 0
-    if #lines > 1 then
-      lineSpacing = self.gap + (freeLineSpace / (#lines - 1))
-    end
-  elseif self.alignContent == AlignContent.SPACE_AROUND then
-    local spaceAroundEach = freeLineSpace / #lines
-    lineStartPos = spaceAroundEach / 2
-    lineSpacing = self.gap + spaceAroundEach
-  elseif self.alignContent == AlignContent.STRETCH then
-    lineStartPos = 0
-    if #lines > 1 and freeLineSpace > 0 then
-      lineSpacing = self.gap + (freeLineSpace / #lines)
-      -- Distribute extra space to line heights (only if positive)
-      local extraPerLine = freeLineSpace / #lines
-      for i = 1, #lineHeights do
-        lineHeights[i] = lineHeights[i] + extraPerLine
-      end
-    end
-  end
-
-  -- Position children within each line
-  local currentCrossPos = lineStartPos
-
-  for lineIndex, line in ipairs(lines) do
-    local lineHeight = lineHeights[lineIndex]
-
-    -- Calculate total size of children in this line (including padding and margins)
-    -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-    local totalChildrenSize = 0
-    for _, child in ipairs(line) do
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        totalChildrenSize = totalChildrenSize + child:getBorderBoxWidth() + child.margin.left + child.margin.right
-      else
-        totalChildrenSize = totalChildrenSize + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom
-      end
-    end
-
-    local totalGapSize = math.max(0, #line - 1) * self.gap
-    local totalContentSize = totalChildrenSize + totalGapSize
-    local freeSpace = availableMainSize - totalContentSize
-
-    -- Calculate initial position and spacing based on justifyContent
-    local startPos = 0
-    local itemSpacing = self.gap
-
-    if self.justifyContent == JustifyContent.FLEX_START then
-      startPos = 0
-    elseif self.justifyContent == JustifyContent.CENTER then
-      startPos = freeSpace / 2
-    elseif self.justifyContent == JustifyContent.FLEX_END then
-      startPos = freeSpace
-    elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
-      startPos = 0
-      if #line > 1 then
-        itemSpacing = self.gap + (freeSpace / (#line - 1))
-      end
-    elseif self.justifyContent == JustifyContent.SPACE_AROUND then
-      local spaceAroundEach = freeSpace / #line
-      startPos = spaceAroundEach / 2
-      itemSpacing = self.gap + spaceAroundEach
-    elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
-      local spaceBetween = freeSpace / (#line + 1)
-      startPos = spaceBetween
-      itemSpacing = self.gap + spaceBetween
-    end
-
-    -- Position children in this line
-    local currentMainPos = startPos
-
-    for _, child in ipairs(line) do
-      -- Determine effective cross-axis alignment
-      local effectiveAlign = child.alignSelf
-      if effectiveAlign == nil or effectiveAlign == AlignSelf.AUTO then
-        effectiveAlign = self.alignItems
-      end
-
-      if self.flexDirection == FlexDirection.HORIZONTAL then
-        -- Horizontal layout: main axis is X, cross axis is Y
-        -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart and left margin to account for absolutely positioned siblings and margins
-        child.x = self.x + self.padding.left + reservedMainStart + currentMainPos + child.margin.left
-
-        -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
-        local childBorderBoxHeight = child:getBorderBoxHeight()
-        local childTotalCrossSize = childBorderBoxHeight + child.margin.top + child.margin.bottom
-
-        if effectiveAlign == AlignItems.FLEX_START then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
-        elseif effectiveAlign == AlignItems.CENTER then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.top
-        elseif effectiveAlign == AlignItems.FLEX_END then
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.top
-        elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH: Only apply if height was not explicitly set
-          if child.autosizing and child.autosizing.height then
-            -- STRETCH: Set border-box height to lineHeight minus margins, content area shrinks to fit
-            local availableHeight = lineHeight - child.margin.top - child.margin.bottom
-            child._borderBoxHeight = availableHeight
-            child.height = math.max(0, availableHeight - child.padding.top - child.padding.bottom)
-          end
-          child.y = self.y + self.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
-        end
-
-        -- Apply positioning offsets (top, right, bottom, left)
-        self:applyPositioningOffsets(child)
-
-        -- If child has children, re-layout them after position change
-        if #child.children > 0 then
-          child:layoutChildren()
-        end
-
-        -- Advance position by child's border-box width plus margins
-        currentMainPos = currentMainPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + itemSpacing
-      else
-        -- Vertical layout: main axis is Y, cross axis is X
-        -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart and top margin to account for absolutely positioned siblings and margins
-        child.y = self.y + self.padding.top + reservedMainStart + currentMainPos + child.margin.top
-
-        -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
-        local childBorderBoxWidth = child:getBorderBoxWidth()
-        local childTotalCrossSize = childBorderBoxWidth + child.margin.left + child.margin.right
-
-        if effectiveAlign == AlignItems.FLEX_START then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
-        elseif effectiveAlign == AlignItems.CENTER then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.left
-        elseif effectiveAlign == AlignItems.FLEX_END then
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.left
-        elseif effectiveAlign == AlignItems.STRETCH then
-          -- STRETCH: Only apply if width was not explicitly set
-          if child.autosizing and child.autosizing.width then
-            -- STRETCH: Set border-box width to lineHeight minus margins, content area shrinks to fit
-            local availableWidth = lineHeight - child.margin.left - child.margin.right
-            child._borderBoxWidth = availableWidth
-            child.width = math.max(0, availableWidth - child.padding.left - child.padding.right)
-          end
-          child.x = self.x + self.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
-        end
-
-        -- Apply positioning offsets (top, right, bottom, left)
-        self:applyPositioningOffsets(child)
-
-        -- If child has children, re-layout them after position change
-        if #child.children > 0 then
-          child:layoutChildren()
-        end
-
-        -- Advance position by child's border-box height plus margins
-        currentMainPos = currentMainPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + itemSpacing
-      end
-    end
-
-    -- Move to next line position
-    currentCrossPos = currentCrossPos + lineHeight + lineSpacing
-  end
-
-  -- Position explicitly absolute children after flex layout
-  for _, child in ipairs(self.children) do
-    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
-      -- Apply positioning offsets (top, right, bottom, left)
-      self:applyPositioningOffsets(child)
-
-      -- If child has children, layout them after position change
-      if #child.children > 0 then
-        child:layoutChildren()
-      end
-    end
-  end
-
-  -- Detect overflow after children are laid out
-  self:_detectOverflow()
 end
 
---- Destroy element and its children
 function Element:destroy()
   -- Remove from global elements list
   for i, win in ipairs(Gui.topElements) do
@@ -2501,985 +1873,20 @@ function Element:destroy()
 
   -- Clear animation reference
   self.animation = nil
-
-  -- Clear onEvent to prevent closure leaks
-  self.onEvent = nil
 end
 
---- Draw element and its children
 function Element:draw(backdropCanvas)
-  -- Early exit if element is invisible (optimization)
-  if self.opacity <= 0 then
-    return
-  end
-
-  -- Handle opacity during animation
-  local drawBackgroundColor = self.backgroundColor
-  if self.animation then
-    local anim = self.animation:interpolate()
-    if anim.opacity then
-      drawBackgroundColor = Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
-    end
-  end
-
-  -- Cache border box dimensions for this draw call (optimization)
-  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-
-  -- LAYER 0.5: Draw backdrop blur if configured (before background)
-  if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
-    local blurInstance = self:getBlurInstance()
-    if blurInstance then
-      Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
-    end
-  end
-
-  -- LAYER 1: Draw backgroundColor first (behind everything)
-  -- Apply opacity to all drawing operations
-  -- (x, y) represents border box, so draw background from (x, y)
-  -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
-  local backgroundWithOpacity = Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
-  love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-
-  -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
-  if self._loadedImage then
-    -- Calculate image bounds (content area - respects padding)
-    local imageX = self.x + self.padding.left
-    local imageY = self.y + self.padding.top
-    local imageWidth = self.width
-    local imageHeight = self.height
-
-    -- Combine element opacity with imageOpacity
-    local finalOpacity = self.opacity * self.imageOpacity
-
-    -- Apply cornerRadius clipping if set
-    local hasCornerRadius = self.cornerRadius.topLeft > 0
-      or self.cornerRadius.topRight > 0
-      or self.cornerRadius.bottomLeft > 0
-      or self.cornerRadius.bottomRight > 0
-
-    if hasCornerRadius then
-      -- Use stencil to clip image to rounded corners
-      love.graphics.stencil(function()
-        RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-      end, "replace", 1)
-      love.graphics.setStencilTest("greater", 0)
-    end
-
-    -- Draw the image
-    ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
-
-    -- Clear stencil if it was used
-    if hasCornerRadius then
-      love.graphics.setStencilTest()
-    end
-  end
-
-  -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
-  if self.themeComponent then
-    -- Get the theme to use
-    local themeToUse = nil
-    if self.theme then
-      -- Element specifies a specific theme - load it if needed
-      if Theme.get(self.theme) then
-        themeToUse = Theme.get(self.theme)
-      else
-        -- Try to load the theme
-        pcall(function()
-          Theme.load(self.theme)
-        end)
-        themeToUse = Theme.get(self.theme)
-      end
-    else
-      -- Use active theme
-      themeToUse = Theme.getActive()
-    end
-
-    if themeToUse then
-      -- Get the component from the theme
-      local component = themeToUse.components[self.themeComponent]
-      if component then
-        -- Check for state-specific override
-        local state = self._themeState
-        if state and component.states and component.states[state] then
-          component = component.states[state]
-        end
-
-        -- Use component-specific atlas if available, otherwise use theme atlas
-        local atlasToUse = component._loadedAtlas or themeToUse.atlas
-
-        if atlasToUse and component.regions then
-          -- Validate component has required structure
-          local hasAllRegions = component.regions.topLeft
-            and component.regions.topCenter
-            and component.regions.topRight
-            and component.regions.middleLeft
-            and component.regions.middleCenter
-            and component.regions.middleRight
-            and component.regions.bottomLeft
-            and component.regions.bottomCenter
-            and component.regions.bottomRight
-          if hasAllRegions then
-            -- Calculate border-box dimensions (content + padding)
-            local borderBoxWidth = self.width + self.padding.left + self.padding.right
-            local borderBoxHeight = self.height + self.padding.top + self.padding.bottom
-            -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-            NinePatch.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.scaleCorners, self.scalingAlgorithm)
-          else
-            -- Silently skip drawing if component structure is invalid
-          end
-        end
-      else
-        -- Component not found in theme
-      end
-    else
-      -- No theme available for themeComponent
-    end
-  end
-
-  -- LAYER 3: Draw borders on top of theme (always render if specified)
-  local borderColorWithOpacity = Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
-  love.graphics.setColor(borderColorWithOpacity:toRGBA())
-
-  -- Check if all borders are enabled
-  local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
-
-  if allBorders then
-    -- Draw complete rounded rectangle border
-    RoundedRect.draw("line", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-  else
-    -- Draw individual borders (without rounded corners for partial borders)
-    if self.border.top then
-      love.graphics.line(self.x, self.y, self.x + borderBoxWidth, self.y)
-    end
-    if self.border.bottom then
-      love.graphics.line(self.x, self.y + borderBoxHeight, self.x + borderBoxWidth, self.y + borderBoxHeight)
-    end
-    if self.border.left then
-      love.graphics.line(self.x, self.y, self.x, self.y + borderBoxHeight)
-    end
-    if self.border.right then
-      love.graphics.line(self.x + borderBoxWidth, self.y, self.x + borderBoxWidth, self.y + borderBoxHeight)
-    end
-  end
-
-  -- Draw element text if present
-  -- For editable elements, also handle placeholder
-  -- Update text layout if dirty (for multiline auto-grow)
-  if self.editable then
-    self:_updateTextIfDirty()
-    self:_updateAutoGrowHeight()
-  end
-
-  -- For editable elements, use _textBuffer; for non-editable, use text
-  local displayText = self.editable and self._textBuffer or self.text
-  local isPlaceholder = false
-  local isPasswordMasked = false
-
-  -- Show placeholder if editable and empty
-  if self.editable and (not displayText or displayText == "") and self.placeholder then
-    displayText = self.placeholder
-    isPlaceholder = true
-  end
-
-  -- Apply password masking if enabled
-  if self.passwordMode and displayText and displayText ~= "" and not isPlaceholder then
-    local maskedText = string.rep("•", utf8.len(displayText))
-    displayText = maskedText
-    isPasswordMasked = true
-  end
-
-  if displayText and displayText ~= "" then
-    local textColor = isPlaceholder and Color.new(self.textColor.r * 0.5, self.textColor.g * 0.5, self.textColor.b * 0.5, self.textColor.a * 0.5)
-      or self.textColor
-    local textColorWithOpacity = Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
-    love.graphics.setColor(textColorWithOpacity:toRGBA())
-
-    local origFont = love.graphics.getFont()
-    if self.textSize then
-      -- Resolve font path from font family
-      local fontPath = nil
-      if self.fontFamily then
-        -- Check if fontFamily is a theme font name
-        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-          fontPath = themeToUse.fonts[self.fontFamily]
-        else
-          -- Treat as direct path to font file
-          fontPath = self.fontFamily
-        end
-      elseif self.themeComponent then
-        -- If using themeComponent but no fontFamily specified, check for default font in theme
-        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-          fontPath = themeToUse.fonts.default
-        end
-      end
-
-      -- Use cached font instead of creating new one every frame
-      local font = FONT_CACHE.get(self.textSize, fontPath)
-      love.graphics.setFont(font)
-    end
-    local font = love.graphics.getFont()
-    local textWidth = font:getWidth(displayText)
-    local textHeight = font:getHeight()
-    local tx, ty
-
-    -- Text is drawn in the content box (inside padding)
-    -- For 9-patch components, use contentPadding if available
-    local textPaddingLeft = self.padding.left
-    local textPaddingTop = self.padding.top
-    local textAreaWidth = self.width
-    local textAreaHeight = self.height
-
-    -- Check if we should use 9-patch contentPadding for text positioning
-    local scaledContentPadding = self:getScaledContentPadding()
-    if scaledContentPadding then
-      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-
-      textPaddingLeft = scaledContentPadding.left
-      textPaddingTop = scaledContentPadding.top
-      textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-      textAreaHeight = borderBoxHeight - scaledContentPadding.top - scaledContentPadding.bottom
-    end
-
-    local contentX = self.x + textPaddingLeft
-    local contentY = self.y + textPaddingTop
-
-    -- Check if text wrapping is enabled
-    if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
-      -- Use printf for wrapped text
-      local align = "left"
-      if self.textAlign == TextAlign.CENTER then
-        align = "center"
-      elseif self.textAlign == TextAlign.END then
-        align = "right"
-      elseif self.textAlign == TextAlign.JUSTIFY then
-        align = "justify"
-      end
-
-      tx = contentX
-      ty = contentY
-
-      -- Use printf with the available width for wrapping
-      love.graphics.printf(displayText, tx, ty, textAreaWidth, align)
-    else
-      -- Use regular print for non-wrapped text
-      if self.textAlign == TextAlign.START then
-        tx = contentX
-        ty = contentY
-      elseif self.textAlign == TextAlign.CENTER then
-        tx = contentX + (textAreaWidth - textWidth) / 2
-        ty = contentY + (textAreaHeight - textHeight) / 2
-      elseif self.textAlign == TextAlign.END then
-        tx = contentX + textAreaWidth - textWidth - 10
-        ty = contentY + textAreaHeight - textHeight - 10
-      elseif self.textAlign == TextAlign.JUSTIFY then
-        --- need to figure out spreading
-        tx = contentX
-        ty = contentY
-      end
-
-      -- Apply scroll offset for editable single-line inputs
-      if self.editable and not self.multiline and self._textScrollX then
-        tx = tx - self._textScrollX
-      end
-
-      -- Use scissor to clip text to content area for editable inputs
-      if self.editable and not self.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      love.graphics.print(displayText, tx, ty)
-
-      -- Reset scissor
-      if self.editable and not self.multiline then
-        love.graphics.setScissor()
-      end
-    end
-
-    -- Draw cursor for focused editable elements (even if text is empty)
-    if self.editable and self._focused and self._cursorVisible then
-      local cursorColor = self.cursorColor or self.textColor
-      local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
-      love.graphics.setColor(cursorWithOpacity:toRGBA())
-
-      -- Calculate cursor position using new method that handles multiline
-      local cursorRelX, cursorRelY = self:_getCursorScreenPosition()
-      local cursorX = contentX + cursorRelX
-      local cursorY = contentY + cursorRelY
-      local cursorHeight = textHeight
-
-      -- Apply scroll offset for single-line inputs
-      if not self.multiline and self._textScrollX then
-        cursorX = cursorX - self._textScrollX
-      end
-
-      -- Apply scissor for single-line editable inputs
-      if not self.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      -- Draw cursor line
-      love.graphics.rectangle("fill", cursorX, cursorY, 2, cursorHeight)
-
-      -- Reset scissor
-      if not self.multiline then
-        love.graphics.setScissor()
-      end
-    end
-
-    -- Draw selection highlight for editable elements
-    if self.editable and self._focused and self:hasSelection() and self.text and self.text ~= "" then
-      local selStart, selEnd = self:getSelection()
-      local selectionColor = self.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
-      local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
-
-      -- Get selection rectangles (handles multiline and wrapping)
-      local selectionRects = self:_getSelectionRects(selStart, selEnd)
-
-      -- Apply scissor for single-line editable inputs
-      if not self.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      -- Draw selection background rectangles
-      love.graphics.setColor(selectionWithOpacity:toRGBA())
-      for _, rect in ipairs(selectionRects) do
-        local rectX = contentX + rect.x
-        local rectY = contentY + rect.y
-        if not self.multiline and self._textScrollX then
-          rectX = rectX - self._textScrollX
-        end
-        love.graphics.rectangle("fill", rectX, rectY, rect.width, rect.height)
-      end
-
-      -- Reset scissor
-      if not self.multiline then
-        love.graphics.setScissor()
-      end
-    end
-
-    if self.textSize then
-      love.graphics.setFont(origFont)
-    end
-  end
-
-  -- Draw cursor for focused editable elements even when empty
-  if self.editable and self._focused and self._cursorVisible and (not displayText or displayText == "") then
-    -- Set up font for cursor rendering
-    local origFont = love.graphics.getFont()
-    if self.textSize then
-      local fontPath = nil
-      if self.fontFamily then
-        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-          fontPath = themeToUse.fonts[self.fontFamily]
-        else
-          fontPath = self.fontFamily
-        end
-      end
-      local font = FONT_CACHE.get(self.textSize, fontPath)
-      love.graphics.setFont(font)
-    end
-
-    local font = love.graphics.getFont()
-    local textHeight = font:getHeight()
-
-    -- Calculate text area position
-    local textPaddingLeft = self.padding.left
-    local textPaddingTop = self.padding.top
-    local scaledContentPadding = self:getScaledContentPadding()
-    if scaledContentPadding then
-      textPaddingLeft = scaledContentPadding.left
-      textPaddingTop = scaledContentPadding.top
-    end
-
-    local contentX = self.x + textPaddingLeft
-    local contentY = self.y + textPaddingTop
-
-    -- Draw cursor
-    local cursorColor = self.cursorColor or self.textColor
-    local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
-    love.graphics.setColor(cursorWithOpacity:toRGBA())
-    love.graphics.rectangle("fill", contentX, contentY, 2, textHeight)
-
-    if self.textSize then
-      love.graphics.setFont(origFont)
-    end
-  end
-
-  -- Draw visual feedback when element is pressed (if it has an onEvent handler and highlight is not disabled)
-  if self.onEvent and not self.disableHighlight then
-    -- Check if any button is pressed
-    local anyPressed = false
-    for _, pressed in pairs(self._pressed) do
-      if pressed then
-        anyPressed = true
-        break
-      end
-    end
-    if anyPressed then
-      -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
-      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-      RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-    end
-  end
-
-  -- Sort children by z-index before drawing
-  local sortedChildren = {}
-  for _, child in ipairs(self.children) do
-    table.insert(sortedChildren, child)
-  end
-  table.sort(sortedChildren, function(a, b)
-    return a.z < b.z
-  end)
-
-  -- Check if we need to clip children to rounded corners
-  local hasRoundedCorners = self.cornerRadius.topLeft > 0
-    or self.cornerRadius.topRight > 0
-    or self.cornerRadius.bottomLeft > 0
-    or self.cornerRadius.bottomRight > 0
-
-  -- Helper function to draw children (with or without clipping)
-  local function drawChildren()
-    -- Determine overflow behavior per axis (matches HTML/CSS behavior)
-    -- Priority: axis-specific (overflowX/Y) > general (overflow) > default (hidden)
-    local overflowX = self.overflowX or self.overflow
-    local overflowY = self.overflowY or self.overflow
-    local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible") and (overflowX ~= nil or overflowY ~= nil)
-
-    -- Apply scroll offset if overflow is not visible
-    local hasScrollOffset = needsOverflowClipping and (self._scrollX ~= 0 or self._scrollY ~= 0)
-
-    if hasRoundedCorners and #sortedChildren > 0 then
-      -- Use stencil to clip children to rounded rectangle
-      -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
-      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      local stencilFunc = RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-
-      -- Temporarily disable canvas for stencil operation (LÖVE 11.5 workaround)
-      local currentCanvas = love.graphics.getCanvas()
-      love.graphics.setCanvas()
-      love.graphics.stencil(stencilFunc, "replace", 1)
-      love.graphics.setCanvas(currentCanvas)
-
-      love.graphics.setStencilTest("greater", 0)
-
-      -- Apply scroll offset AFTER clipping is set
-      if hasScrollOffset then
-        love.graphics.push()
-        love.graphics.translate(-self._scrollX, -self._scrollY)
-      end
-
-      for _, child in ipairs(sortedChildren) do
-        child:draw(backdropCanvas)
-      end
-
-      if hasScrollOffset then
-        love.graphics.pop()
-      end
-
-      love.graphics.setStencilTest()
-    elseif needsOverflowClipping and #sortedChildren > 0 then
-      -- Clip content for overflow hidden/scroll/auto without rounded corners
-      local contentX = self.x + self.padding.left
-      local contentY = self.y + self.padding.top
-      local contentWidth = self.width
-      local contentHeight = self.height
-
-      love.graphics.setScissor(contentX, contentY, contentWidth, contentHeight)
-
-      -- Apply scroll offset AFTER clipping is set
-      if hasScrollOffset then
-        love.graphics.push()
-        love.graphics.translate(-self._scrollX, -self._scrollY)
-      end
-
-      for _, child in ipairs(sortedChildren) do
-        child:draw(backdropCanvas)
-      end
-
-      if hasScrollOffset then
-        love.graphics.pop()
-      end
-
-      love.graphics.setScissor()
-    else
-      -- No clipping needed
-      for _, child in ipairs(sortedChildren) do
-        child:draw(backdropCanvas)
-      end
-    end
-  end
-
-  -- Apply content blur if configured
-  if self.contentBlur and self.contentBlur.intensity > 0 and #sortedChildren > 0 then
-    local blurInstance = self:getBlurInstance()
-    if blurInstance then
-      Blur.applyToRegion(blurInstance, self.contentBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
-    else
-      drawChildren()
-    end
-  else
-    drawChildren()
-  end
-
-  -- Draw scrollbars if overflow is scroll or auto
-  -- IMPORTANT: Scrollbars must be drawn without parent clipping
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-  if overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" then
-    local scrollbarDims = self:_calculateScrollbarDimensions()
-    if scrollbarDims.vertical.visible or scrollbarDims.horizontal.visible then
-      -- Clear any parent scissor clipping before drawing scrollbars
-      love.graphics.setScissor()
-      self:_drawScrollbars(scrollbarDims)
-    end
+  if self._renderer then
+    return self._renderer:draw(backdropCanvas)
   end
 end
 
---- Update element (propagate to children)
----@param dt number
 function Element:update(dt)
-  -- Restore scrollbar state from StateManager in immediate mode
-  if self._stateId and Gui._immediateMode then
-    local state = StateManager.getState(self._stateId)
-    if state then
-      self._scrollbarHoveredVertical = state.scrollbarHoveredVertical or false
-      self._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal or false
-      self._scrollbarDragging = state.scrollbarDragging or false
-      self._hoveredScrollbar = state.hoveredScrollbar
-      self._scrollbarDragOffset = state.scrollbarDragOffset or 0
-    end
-  end
-
-  for _, child in ipairs(self.children) do
-    child:update(dt)
-  end
-
-  -- Update cursor blink timer (only if editable and focused)
-  if self.editable and self._focused then
-    -- If blink is paused, increment pause timer
-    if self._cursorBlinkPaused then
-      self._cursorBlinkPauseTimer = (self._cursorBlinkPauseTimer or 0) + dt
-      -- Unpause after 0.5 seconds of no typing
-      if self._cursorBlinkPauseTimer >= 0.5 then
-        self._cursorBlinkPaused = false
-        self._cursorBlinkPauseTimer = 0
-      end
-    else
-      -- Normal blinking
-      self._cursorBlinkTimer = self._cursorBlinkTimer + dt
-      if self._cursorBlinkTimer >= self.cursorBlinkRate then
-        self._cursorBlinkTimer = 0
-        self._cursorVisible = not self._cursorVisible
-      end
-    end
-  end
-
-  -- Update animation if exists
-  if self.animation then
-    local finished = self.animation:update(dt)
-    if finished then
-      self.animation = nil -- remove finished animation
-    else
-      -- Apply animation interpolation during update
-      local anim = self.animation:interpolate()
-      self.width = anim.width or self.width
-      self.height = anim.height or self.height
-      self.opacity = anim.opacity or self.opacity
-      -- Update background color with interpolated opacity
-      if anim.opacity then
-        self.backgroundColor.a = anim.opacity
-      end
-    end
-  end
-
-  local mx, my = love.mouse.getPosition()
-
-  local scrollbar = self:_getScrollbarAtPosition(mx, my)
-
-  -- Update independent hover states for vertical and horizontal scrollbars
-  if scrollbar and scrollbar.component == "vertical" then
-    self._scrollbarHoveredVertical = true
-    self._hoveredScrollbar = "vertical"
-  else
-    if not (self._scrollbarDragging and self._hoveredScrollbar == "vertical") then
-      self._scrollbarHoveredVertical = false
-    end
-  end
-
-  if scrollbar and scrollbar.component == "horizontal" then
-    self._scrollbarHoveredHorizontal = true
-    self._hoveredScrollbar = "horizontal"
-  else
-    if not (self._scrollbarDragging and self._hoveredScrollbar == "horizontal") then
-      self._scrollbarHoveredHorizontal = false
-    end
-  end
-
-  -- Clear hoveredScrollbar if neither is hovered
-  if not scrollbar and not self._scrollbarDragging then
-    self._hoveredScrollbar = nil
-  end
-
-  -- Update scrollbar state in StateManager if in immediate mode
-  if self._stateId and Gui._immediateMode then
-    StateManager.updateState(self._stateId, {
-      scrollbarHoveredVertical = self._scrollbarHoveredVertical,
-      scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal,
-      scrollbarDragging = self._scrollbarDragging,
-      hoveredScrollbar = self._hoveredScrollbar,
-    })
-  end
-
-  -- Handle scrollbar dragging
-  if self._scrollbarDragging and love.mouse.isDown(1) then
-    self:_handleScrollbarDrag(mx, my)
-  elseif self._scrollbarDragging then
-    -- Mouse button released
-    self._scrollbarDragging = false
-
-    -- Update StateManager if in immediate mode
-    if self._stateId and Gui._immediateMode then
-      StateManager.updateState(self._stateId, {
-        scrollbarDragging = false,
-      })
-    end
-  end
-
-  -- Handle scrollbar click/press (independent of onEvent)
-  -- Check if we should handle scrollbar press for elements with overflow
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-  local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
-
-  if hasScrollableOverflow and not self._scrollbarDragging then
-    -- Check for scrollbar press on left mouse button
-    if love.mouse.isDown(1) and not self._scrollbarPressHandled then
-      local scrollbarPressed = self:_handleScrollbarPress(mx, my, 1)
-      if scrollbarPressed then
-        self._scrollbarPressHandled = true
-      end
-    elseif not love.mouse.isDown(1) then
-      -- Reset press handled flag when button is released
-      self._scrollbarPressHandled = false
-    end
-  end
-
-  if self.onEvent or self.themeComponent or self.editable then
-    -- Clickable area is the border box (x, y already includes padding)
-    -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection
-    local bx = self.x
-    local by = self.y
-    local bw = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    local bh = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-
-    -- Account for scroll offsets from parent containers
-    -- Walk up the parent chain and accumulate scroll offsets
-    local scrollOffsetX = 0
-    local scrollOffsetY = 0
-    local current = self.parent
-    while current do
-      local overflowX = current.overflowX or current.overflow
-      local overflowY = current.overflowY or current.overflow
-      local hasScrollableOverflow = (
-        overflowX == "scroll"
-        or overflowX == "auto"
-        or overflowY == "scroll"
-        or overflowY == "auto"
-        or overflowX == "hidden"
-        or overflowY == "hidden"
-      )
-      if hasScrollableOverflow then
-        scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
-        scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
-      end
-      current = current.parent
-    end
-
-    -- Adjust mouse position by accumulated scroll offset for hit testing
-    local adjustedMx = mx + scrollOffsetX
-    local adjustedMy = my + scrollOffsetY
-    local isHovering = adjustedMx >= bx and adjustedMx <= bx + bw and adjustedMy >= by and adjustedMy <= by + bh
-
-    -- Check if this is the topmost element at the mouse position (z-index ordering)
-    -- This prevents blocked elements from receiving interactions or visual feedback
-    local isActiveElement
-    if Gui._immediateMode then
-      -- In immediate mode, use z-index occlusion detection
-      local topElement = GuiState.getTopElementAt(mx, my)
-      isActiveElement = (topElement == self or topElement == nil)
-    else
-      -- In retained mode, use the old _activeEventElement mechanism
-      isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
-    end
-
-    -- Update theme state based on interaction
-    if self.themeComponent then
-      local newThemeState = "normal"
-
-      -- Disabled state takes priority
-      if self.disabled then
-        newThemeState = "disabled"
-      -- Active state (for inputs when focused/typing)
-      elseif self.active then
-        newThemeState = "active"
-      -- Only show hover/pressed states if this element is active (not blocked)
-      elseif isHovering and isActiveElement then
-        -- Check if any button is pressed
-        local anyPressed = false
-        for _, pressed in pairs(self._pressed) do
-          if pressed then
-            anyPressed = true
-            break
-          end
-        end
-
-        if anyPressed then
-          newThemeState = "pressed"
-        else
-          newThemeState = "hover"
-        end
-      end
-
-      -- Update state (in StateManager if in immediate mode, otherwise locally)
-      if self._stateId and Gui._immediateMode then
-        -- Update in StateManager for immediate mode
-        local hover = newThemeState == "hover"
-        local pressed = newThemeState == "pressed"
-        local focused = newThemeState == "active" or self._focused
-
-        StateManager.updateState(self._stateId, {
-          hover = hover,
-          pressed = pressed,
-          focused = focused,
-          disabled = self.disabled,
-          active = self.active,
-        })
-      end
-
-      -- Always update local state for backward compatibility
-      self._themeState = newThemeState
-    end
-
-    -- Only process button events if onEvent handler exists, element is not disabled,
-    -- and this is the topmost element at the mouse position (z-index ordering)
-    -- Exception: Allow drag continuation even if occluded (once drag starts, it continues)
-    local isDragging = false
-    for _, button in ipairs({ 1, 2, 3 }) do
-      if self._pressed[button] and love.mouse.isDown(button) then
-        isDragging = true
-        break
-      end
-    end
-
-    local canProcessEvents = (self.onEvent or self.editable) and not self.disabled and (isActiveElement or isDragging)
-
-    if canProcessEvents then
-      -- Check all three mouse buttons
-      local buttons = { 1, 2, 3 } -- left, right, middle
-
-      for _, button in ipairs(buttons) do
-        if isHovering or isDragging then
-          if love.mouse.isDown(button) then
-            -- Button is pressed down
-            if not self._pressed[button] then
-              -- Check if press is on scrollbar first (skip if already handled)
-              if button == 1 and not self._scrollbarPressHandled and self:_handleScrollbarPress(mx, my, button) then
-                -- Scrollbar consumed the event, mark as pressed to prevent onEvent
-                self._pressed[button] = true
-                self._scrollbarPressHandled = true
-              else
-                -- Just pressed - fire press event and record drag start position
-                local modifiers = getModifiers()
-                if self.onEvent then
-                  local pressEvent = InputEvent.new({
-                    type = "press",
-                    button = button,
-                    x = mx,
-                    y = my,
-                    modifiers = modifiers,
-                    clickCount = 1,
-                  })
-                  self.onEvent(self, pressEvent)
-                end
-                self._pressed[button] = true
-
-                -- Set mouse down position for text selection on left click
-                if button == 1 and self.editable then
-                  self._mouseDownPosition = self:_mouseToTextPosition(mx, my)
-                  self._textDragOccurred = false -- Reset drag flag on press
-                end
-              end
-
-              -- Record drag start position per button
-              self._dragStartX[button] = mx
-              self._dragStartY[button] = my
-              self._lastMouseX[button] = mx
-              self._lastMouseY[button] = my
-            else
-              -- Button is still pressed - check for mouse movement (drag)
-              local lastX = self._lastMouseX[button] or mx
-              local lastY = self._lastMouseY[button] or my
-
-              if lastX ~= mx or lastY ~= my then
-                -- Mouse has moved - fire drag event only if still hovering
-                if self.onEvent and isHovering then
-                  local modifiers = getModifiers()
-                  local dx = mx - self._dragStartX[button]
-                  local dy = my - self._dragStartY[button]
-
-                  local dragEvent = InputEvent.new({
-                    type = "drag",
-                    button = button,
-                    x = mx,
-                    y = my,
-                    dx = dx,
-                    dy = dy,
-                    modifiers = modifiers,
-                    clickCount = 1,
-                  })
-                  self.onEvent(self, dragEvent)
-                end
-
-                -- Handle text selection drag for editable elements
-                if button == 1 and self.editable and self._focused then
-                  self:_handleTextDrag(mx, my)
-                end
-
-                -- Update last known position for this button
-                self._lastMouseX[button] = mx
-                self._lastMouseY[button] = my
-              end
-            end
-          elseif self._pressed[button] then
-            -- Button was just released - fire click event
-            local currentTime = love.timer.getTime()
-            local modifiers = getModifiers()
-
-            -- Determine click count (double-click detection)
-            local clickCount = 1
-            local doubleClickThreshold = 0.3 -- 300ms for double-click
-
-            if self._lastClickTime and self._lastClickButton == button and (currentTime - self._lastClickTime) < doubleClickThreshold then
-              clickCount = self._clickCount + 1
-            else
-              clickCount = 1
-            end
-
-            self._clickCount = clickCount
-            self._lastClickTime = currentTime
-            self._lastClickButton = button
-
-            -- Determine event type based on button
-            local eventType = "click"
-            if button == 2 then
-              eventType = "rightclick"
-            elseif button == 3 then
-              eventType = "middleclick"
-            end
-
-            if self.onEvent then
-              local clickEvent = InputEvent.new({
-                type = eventType,
-                button = button,
-                x = mx,
-                y = my,
-                modifiers = modifiers,
-                clickCount = clickCount,
-              })
-
-              self.onEvent(self, clickEvent)
-            end
-            self._pressed[button] = false
-
-            -- Clean up drag tracking
-            self._dragStartX[button] = nil
-            self._dragStartY[button] = nil
-
-            -- Clean up text selection drag tracking
-            if button == 1 then
-              self._mouseDownPosition = nil
-            end
-
-            -- Focus editable elements on left click
-            if button == 1 and self.editable then
-              -- Only focus if not already focused (to avoid moving cursor to end)
-              local wasFocused = self:isFocused()
-              if not wasFocused then
-                self:focus()
-              end
-
-              -- Handle text click for cursor positioning and word selection
-              -- Only process click if no text drag occurred (to preserve drag selection)
-              if not self._textDragOccurred then
-                self:_handleTextClick(mx, my, clickCount)
-              end
-
-              -- Reset drag flag after release
-              self._textDragOccurred = false
-            elseif button == 1 then
-            end
-
-            -- Fire release event
-            if self.onEvent then
-              local releaseEvent = InputEvent.new({
-                type = "release",
-                button = button,
-                x = mx,
-                y = my,
-                modifiers = modifiers,
-                clickCount = clickCount,
-              })
-              self.onEvent(self, releaseEvent)
-            end
-          end
-        else
-          -- Mouse left the element - reset pressed state and drag tracking
-          if self._pressed[button] then
-            self._pressed[button] = false
-            self._dragStartX[button] = nil
-            self._dragStartY[button] = nil
-          end
-        end
-      end
-    end -- end if self.onEvent
-
-    -- Handle touch events (maintain backward compatibility)
-    if self.onEvent then
-      local touches = love.touch.getTouches()
-      for _, id in ipairs(touches) do
-        local tx, ty = love.touch.getPosition(id)
-        if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
-          self._touchPressed[id] = true
-        elseif self._touchPressed[id] then
-          -- Create touch event (treat as left click)
-          local touchEvent = InputEvent.new({
-            type = "click",
-            button = 1,
-            x = tx,
-            y = ty,
-            modifiers = getModifiers(),
-            clickCount = 1,
-          })
-          self.onEvent(self, touchEvent)
-          self._touchPressed[id] = false
-        end
-      end
-    end
+  if self._eventHandler then
+    return self._eventHandler:update(dt)
   end
 end
 
---- Recalculate units based on new viewport dimensions (for vw, vh, % units)
----@param newViewportWidth number
----@param newViewportHeight number
 function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Get updated scale factors
   local scaleX, scaleY = Gui.getScaleFactors()
@@ -3732,9 +2139,6 @@ function Element:recalculateUnits(newViewportWidth, newViewportHeight)
   self:_detectOverflow()
 end
 
---- Resize element and its children based on game window size change
----@param newGameWidth number
----@param newGameHeight number
 function Element:resize(newGameWidth, newGameHeight)
   self:recalculateUnits(newGameWidth, newGameHeight)
 
@@ -3812,191 +2216,14 @@ function Element:resize(newGameWidth, newGameHeight)
   self.prevGameSize.height = newGameHeight
 end
 
---- Calculate text width for button
----@return number
-function Element:calculateTextWidth()
-  if self.text == nil then
-    return 0
-  end
-
-  if self.textSize then
-    -- Resolve font path from font family (same logic as in draw)
-    local fontPath = nil
-    if self.fontFamily then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-        fontPath = themeToUse.fonts[self.fontFamily]
-      else
-        fontPath = self.fontFamily
-      end
-    elseif self.themeComponent then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-        fontPath = themeToUse.fonts.default
-      end
-    end
-
-    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
-    local width = tempFont:getWidth(self.text)
-    -- Apply contentAutoSizingMultiplier if set
-    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
-      width = width * self.contentAutoSizingMultiplier.width
-    end
-    return width
-  end
-
-  local font = love.graphics.getFont()
-  local width = font:getWidth(self.text)
-  -- Apply contentAutoSizingMultiplier if set
-  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
-    width = width * self.contentAutoSizingMultiplier.width
-  end
-  return width
-end
-
----@return number
-function Element:calculateTextHeight()
-  if self.text == nil then
-    return 0
-  end
-
-  -- Get the font
-  local font
-  if self.textSize then
-    -- Resolve font path from font family (same logic as in draw)
-    local fontPath = nil
-    if self.fontFamily then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-        fontPath = themeToUse.fonts[self.fontFamily]
-      else
-        fontPath = self.fontFamily
-      end
-    elseif self.themeComponent then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-        fontPath = themeToUse.fonts.default
-      end
-    end
-    font = FONT_CACHE.get(self.textSize, fontPath)
-  else
-    font = love.graphics.getFont()
-  end
-
-  local height = font:getHeight()
-
-  -- If text wrapping is enabled, calculate height based on wrapped lines
-  if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
-    -- Calculate available width for wrapping
-    local availableWidth = self.width
-
-    -- If width is not set or is 0, try to use parent's content width
-    if (not availableWidth or availableWidth <= 0) and self.parent then
-      -- Use parent's content width (excluding padding)
-      availableWidth = self.parent.width
-    end
-
-    if availableWidth and availableWidth > 0 then
-      -- Get the wrapped text lines using getWrap (returns width and table of lines)
-      local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
-      -- Height is line height * number of lines
-      height = height * #wrappedLines
-    end
-  end
-
-  -- Apply contentAutoSizingMultiplier if set
-  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
-    height = height * self.contentAutoSizingMultiplier.height
-  end
-
-  return height
-end
-
-function Element:calculateAutoWidth()
-  -- BORDER-BOX MODEL: Calculate content width, caller will add padding to get border-box
-  local contentWidth = self:calculateTextWidth()
-  if not self.children or #self.children == 0 then
-    return contentWidth
-  end
-
-  -- For HORIZONTAL flex: sum children widths + gaps
-  -- For VERTICAL flex: max of children widths
-  local isHorizontal = self.flexDirection == "horizontal"
-  local totalWidth = contentWidth
-  local maxWidth = contentWidth
-  local participatingChildren = 0
-
-  for _, child in ipairs(self.children) do
-    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    if not child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box width for auto-sizing calculations
-      local childBorderBoxWidth = child:getBorderBoxWidth()
-      if isHorizontal then
-        totalWidth = totalWidth + childBorderBoxWidth
-      else
-        maxWidth = math.max(maxWidth, childBorderBoxWidth)
-      end
-      participatingChildren = participatingChildren + 1
-    end
-  end
-
-  if isHorizontal then
-    -- Add gaps between children (n-1 gaps for n children)
-    local gapCount = math.max(0, participatingChildren - 1)
-    return totalWidth + (self.gap * gapCount)
-  else
-    return maxWidth
-  end
-end
-
---- Calculate auto height based on children
-function Element:calculateAutoHeight()
-  local height = self:calculateTextHeight()
-  if not self.children or #self.children == 0 then
-    return height
-  end
-
-  -- For VERTICAL flex: sum children heights + gaps
-  -- For HORIZONTAL flex: max of children heights
-  local isVertical = self.flexDirection == "vertical"
-  local totalHeight = height
-  local maxHeight = height
-  local participatingChildren = 0
-
-  for _, child in ipairs(self.children) do
-    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
-    if not child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box height for auto-sizing calculations
-      local childBorderBoxHeight = child:getBorderBoxHeight()
-      if isVertical then
-        totalHeight = totalHeight + childBorderBoxHeight
-      else
-        maxHeight = math.max(maxHeight, childBorderBoxHeight)
-      end
-      participatingChildren = participatingChildren + 1
-    end
-  end
-
-  if isVertical then
-    -- Add gaps between children (n-1 gaps for n children)
-    local gapCount = math.max(0, participatingChildren - 1)
-    return totalHeight + (self.gap * gapCount)
-  else
-    return maxHeight
-  end
-end
-
----@param newText string
----@param autoresize boolean? --default: false
 function Element:updateText(newText, autoresize)
-  self.text = newText or self.text
-  if autoresize then
-    self.width = self:calculateTextWidth()
-    self.height = self:calculateTextHeight()
+  self.text = newText
+  if self._textEditor then
+    self._textEditor:setText(newText)
   end
+  -- TODO: Handle autoresize parameter if needed
 end
 
----@param newOpacity number
 function Element:updateOpacity(newOpacity)
   self.opacity = newOpacity
   for _, child in ipairs(self.children) do
@@ -4014,609 +2241,186 @@ function Element:show()
   self:updateOpacity(1)
 end
 
--- ====================
--- Input Handling - Cursor Management
--- ====================
-
---- Set cursor position
----@param position number -- Character index (0-based)
 function Element:setCursorPosition(position)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:setCursorPosition(position)
   end
-  self._cursorPosition = position
-  self:_validateCursorPosition()
-  self:_resetCursorBlink()
 end
 
---- Get cursor position
----@return number -- Character index (0-based)
 function Element:getCursorPosition()
-  if not self.editable then
-    return 0
+  if self._textEditor then
+    return self._textEditor:getCursorPosition()
   end
-  return self._cursorPosition
 end
 
---- Move cursor by delta characters
----@param delta number -- Number of characters to move (positive or negative)
 function Element:moveCursorBy(delta)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorBy(delta)
   end
-  self._cursorPosition = self._cursorPosition + delta
-  self:_validateCursorPosition()
-  self:_resetCursorBlink()
 end
 
---- Move cursor to start of text
 function Element:moveCursorToStart()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorToStart()
   end
-  self._cursorPosition = 0
-  self:_resetCursorBlink()
 end
 
---- Move cursor to end of text
 function Element:moveCursorToEnd()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorToEnd()
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._cursorPosition = textLength
-  self:_resetCursorBlink()
 end
 
---- Move cursor to start of current line
 function Element:moveCursorToLineStart()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorToLineStart()
   end
-  -- For now, just move to start (will be enhanced for multi-line)
-  self:moveCursorToStart()
 end
 
---- Move cursor to end of current line
 function Element:moveCursorToLineEnd()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorToLineEnd()
   end
-  -- For now, just move to end (will be enhanced for multi-line)
-  self:moveCursorToEnd()
 end
 
---- Move cursor to start of previous word
 function Element:moveCursorToPreviousWord()
-  if not self.editable or not self._textBuffer then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorToPreviousWord()
   end
-
-  local text = self._textBuffer
-  local pos = self._cursorPosition
-
-  if pos <= 0 then
-    return
-  end
-
-  -- Helper function to get character at position
-  local function getCharAt(p)
-    if p < 0 or p >= utf8.len(text) then
-      return nil
-    end
-    local offset1 = utf8.offset(text, p + 1)
-    local offset2 = utf8.offset(text, p + 2)
-    if not offset1 then
-      return nil
-    end
-    if not offset2 then
-      -- Last character in string
-      return text:sub(offset1)
-    end
-    return text:sub(offset1, offset2 - 1)
-  end
-
-  -- Skip any whitespace/punctuation before current position
-  while pos > 0 do
-    local char = getCharAt(pos - 1)
-    if char and char:match("[%w]") then
-      break
-    end
-    pos = pos - 1
-  end
-
-  -- Move to start of current word
-  while pos > 0 do
-    local char = getCharAt(pos - 1)
-    if not char or not char:match("[%w]") then
-      break
-    end
-    pos = pos - 1
-  end
-
-  self._cursorPosition = pos
-  self:_validateCursorPosition()
 end
 
---- Move cursor to start of next word
 function Element:moveCursorToNextWord()
-  if not self.editable or not self._textBuffer then
-    return
+  if self._textEditor then
+    return self._textEditor:moveCursorToNextWord()
   end
-
-  local text = self._textBuffer
-  local textLength = utf8.len(text) or 0
-  local pos = self._cursorPosition
-
-  if pos >= textLength then
-    return
-  end
-
-  -- Helper function to get character at position
-  local function getCharAt(p)
-    if p < 0 or p >= textLength then
-      return nil
-    end
-    local offset1 = utf8.offset(text, p + 1)
-    local offset2 = utf8.offset(text, p + 2)
-    if not offset1 then
-      return nil
-    end
-    if not offset2 then
-      -- Last character in string
-      return text:sub(offset1)
-    end
-    return text:sub(offset1, offset2 - 1)
-  end
-
-  -- Skip current word
-  while pos < textLength do
-    local char = getCharAt(pos)
-    if not char or not char:match("[%w]") then
-      break
-    end
-    pos = pos + 1
-  end
-
-  -- Skip any whitespace/punctuation
-  while pos < textLength do
-    local char = getCharAt(pos)
-    if char and char:match("[%w]") then
-      break
-    end
-    pos = pos + 1
-  end
-
-  self._cursorPosition = pos
-  self:_validateCursorPosition()
 end
 
---- Validate cursor position (ensure it's within text bounds)
 function Element:_validateCursorPosition()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:_validateCursorPosition()
   end
-  local textLength = utf8.len(self._textBuffer or "") or 0
-  local cursorPos = tonumber(self._cursorPosition) or 0
-  self._cursorPosition = math.max(0, math.min(cursorPos, textLength))
 end
 
---- Reset cursor blink (show cursor immediately)
----@param pauseBlink boolean|nil -- Whether to pause blinking (for typing)
 function Element:_resetCursorBlink(pauseBlink)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:_resetCursorBlink(pauseBlink)
   end
-  self._cursorBlinkTimer = 0
-  self._cursorVisible = true
-
-  if pauseBlink then
-    self._cursorBlinkPaused = true -- Pause blinking while typing
-    self._cursorBlinkPauseTimer = 0 -- Reset pause timer
-  end
-
-  -- Update scroll to keep cursor visible
-  self:_updateTextScroll()
 end
 
---- Update text scroll offset to keep cursor visible
 function Element:_updateTextScroll()
-  if not self.editable or self.multiline then
-    return
+  if self._textEditor then
+    return self._textEditor:_updateTextScroll()
   end
-
-  -- Get font for measuring text
-  local font = self:_getFont()
-  if not font then
-    return
-  end
-
-  -- Calculate cursor X position in text coordinates
-  local cursorText = ""
-  if self._textBuffer and self._textBuffer ~= "" and self._cursorPosition > 0 then
-    local byteOffset = utf8.offset(self._textBuffer, self._cursorPosition + 1)
-    if byteOffset then
-      cursorText = self._textBuffer:sub(1, byteOffset - 1)
-    end
-  end
-  local cursorX = font:getWidth(cursorText)
-
-  -- Get available text area width (accounting for padding)
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Add some padding on the right for the cursor
-  local cursorPadding = 4
-  local visibleWidth = textAreaWidth - cursorPadding
-
-  -- Adjust scroll to keep cursor visible
-  if cursorX - self._textScrollX < 0 then
-    -- Cursor is to the left of visible area - scroll left
-    self._textScrollX = cursorX
-  elseif cursorX - self._textScrollX > visibleWidth then
-    -- Cursor is to the right of visible area - scroll right
-    self._textScrollX = cursorX - visibleWidth
-  end
-
-  -- Ensure we don't scroll past the beginning
-  self._textScrollX = math.max(0, self._textScrollX)
 end
 
--- ====================
--- Input Handling - Selection Management
--- ====================
-
---- Set selection range
----@param startPos number -- Start position (inclusive)
----@param endPos number -- End position (inclusive)
 function Element:setSelection(startPos, endPos)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:setSelection(startPos, endPos)
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._selectionStart = math.max(0, math.min(startPos, textLength))
-  self._selectionEnd = math.max(0, math.min(endPos, textLength))
-
-  -- Ensure start <= end
-  if self._selectionStart > self._selectionEnd then
-    self._selectionStart, self._selectionEnd = self._selectionEnd, self._selectionStart
-  end
-
-  self:_resetCursorBlink()
 end
 
---- Get selection range
----@return number?, number? -- Start and end positions, or nil if no selection
 function Element:getSelection()
-  if not self.editable then
-    return nil, nil
+  if self._textEditor then
+    return self._textEditor:getSelection()
   end
-  if not self:hasSelection() then
-    return nil, nil
-  end
-  return self._selectionStart, self._selectionEnd
 end
 
---- Check if there is an active selection
----@return boolean
 function Element:hasSelection()
-  if not self.editable then
-    return false
+  if self._textEditor then
+    return self._textEditor:hasSelection()
   end
-  return self._selectionStart ~= nil and self._selectionEnd ~= nil and self._selectionStart ~= self._selectionEnd
 end
 
---- Clear selection
 function Element:clearSelection()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:clearSelection()
   end
-  self._selectionStart = nil
-  self._selectionEnd = nil
-  self._selectionAnchor = nil
 end
 
---- Select all text
 function Element:selectAll()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:selectAll()
   end
-  local textLength = utf8.len(self._textBuffer or "")
-  self._selectionStart = 0
-  self._selectionEnd = textLength
-  self:_resetCursorBlink()
 end
 
---- Get selected text
----@return string? -- Selected text or nil if no selection
 function Element:getSelectedText()
-  if not self.editable or not self:hasSelection() then
-    return nil
+  if self._textEditor then
+    return self._textEditor:getSelectedText()
   end
-  local startPos, endPos = self:getSelection()
-  if not startPos or not endPos then
-    return nil
-  end
-
-  -- Convert character indices to byte offsets for string.sub
-  local text = self._textBuffer or ""
-  local startByte = utf8.offset(text, startPos + 1)
-  local endByte = utf8.offset(text, endPos + 1)
-
-  if not startByte then
-    return ""
-  end
-
-  -- If endByte is nil, it means we want to the end of the string
-  if endByte then
-    endByte = endByte - 1 -- Adjust to get the last byte of the character
-  end
-
-  return string.sub(text, startByte, endByte)
 end
 
---- Delete selected text
----@return boolean -- True if text was deleted
 function Element:deleteSelection()
-  if not self.editable or not self:hasSelection() then
-    return false
+  if self._textEditor then
+    return self._textEditor:deleteSelection()
   end
-  local startPos, endPos = self:getSelection()
-  if not startPos or not endPos then
-    return false
-  end
-
-  self:deleteText(startPos, endPos)
-  self:clearSelection()
-  self._cursorPosition = startPos
-  self:_validateCursorPosition()
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
-
-  return true
 end
 
--- ====================
--- Input Handling - Focus Management
--- ====================
-
---- Focus this element for keyboard input
 function Element:focus()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:focus()
   end
-
-  if Gui._focusedElement and Gui._focusedElement ~= self then
-    Gui._focusedElement:blur()
-  end
-
-  -- Set focus state
-  self._focused = true
-  Gui._focusedElement = self
-
-  self:_resetCursorBlink()
-
-  if self.selectOnFocus then
-    self:selectAll()
-  else
-    self:moveCursorToEnd()
-  end
-
-  -- Trigger onFocus callback if defined
-  if self.onFocus then
-    self.onFocus(self)
-  end
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
---- Remove focus from this element
 function Element:blur()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:blur()
   end
-
-  self._focused = false
-
-  -- Clear global focused element if it's this element
-  if Gui._focusedElement == self then
-    Gui._focusedElement = nil
-  end
-
-  -- Trigger onBlur callback if defined
-  if self.onBlur then
-    self.onBlur(self)
-  end
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
---- Check if this element is focused
----@return boolean
 function Element:isFocused()
-  if not self.editable then
-    return false
+  if self._textEditor then
+    return self._textEditor:isFocused()
   end
-  return self._focused == true
 end
 
---- Save editable element state to StateManager (for immediate mode)
 function Element:_saveEditableState()
-  if not self.editable or not self._stateId or not Gui._immediateMode then
-    return
+  if self._themeManager then
+    return self._themeManager:_saveEditableState()
   end
-
-  StateManager.updateState(self._stateId, {
-    _focused = self._focused,
-    _textBuffer = self._textBuffer,
-    _cursorPosition = self._cursorPosition,
-    _selectionStart = self._selectionStart,
-    _selectionEnd = self._selectionEnd,
-    _cursorBlinkTimer = self._cursorBlinkTimer,
-    _cursorVisible = self._cursorVisible,
-    _cursorBlinkPaused = self._cursorBlinkPaused,
-    _cursorBlinkPauseTimer = self._cursorBlinkPauseTimer,
-  })
 end
 
--- ====================
--- Input Handling - Text Buffer Management
--- ====================
-
---- Get current text buffer
----@return string
 function Element:getText()
-  if not self.editable then
-    return self.text or ""
+  if self._textEditor then
+    return self._textEditor:getText()
   end
-  return self._textBuffer or ""
 end
 
---- Set text buffer and mark dirty
----@param text string
 function Element:setText(text)
-  if not self.editable then
-    self.text = text
-    return
+  if self._textEditor then
+    return self._textEditor:setText(text)
   end
-
-  self._textBuffer = text or ""
-  self.text = self._textBuffer -- Sync display text
-  self:_markTextDirty()
-  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
-  self:_updateAutoGrowHeight() -- Then update height based on new content
-  self:_validateCursorPosition()
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
---- Insert text at position
----@param text string -- Text to insert
----@param position number? -- Position to insert at (default: cursor position)
 function Element:insertText(text, position)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:insertText(text, position)
   end
-
-  position = position or self._cursorPosition
-  local buffer = self._textBuffer or ""
-
-  -- Check maxLength constraint before inserting
-  if self.maxLength then
-    local currentLength = utf8.len(buffer) or 0
-    local textLength = utf8.len(text) or 0
-    local newLength = currentLength + textLength
-
-    if newLength > self.maxLength then
-      -- Don't insert if it would exceed maxLength
-      return
-    end
-  end
-
-  -- Convert character position to byte offset
-  local byteOffset = utf8.offset(buffer, position + 1) or (#buffer + 1)
-
-  -- Insert text
-  local before = buffer:sub(1, byteOffset - 1)
-  local after = buffer:sub(byteOffset)
-  self._textBuffer = before .. text .. after
-  self.text = self._textBuffer -- Sync display text
-
-  self._cursorPosition = position + utf8.len(text)
-
-  self:_markTextDirty()
-  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
-  self:_updateAutoGrowHeight() -- Then update height based on new content
-  self:_validateCursorPosition()
-
-  -- Reset cursor blink to show cursor and pause blinking while typing
-  self:_resetCursorBlink(true)
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
----@param startPos number -- Start position (inclusive)
----@param endPos number -- End position (inclusive)
 function Element:deleteText(startPos, endPos)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:deleteText(startPos, endPos)
   end
-
-  local buffer = self._textBuffer or ""
-
-  -- Ensure valid range
-  local textLength = utf8.len(buffer)
-  startPos = math.max(0, math.min(startPos, textLength))
-  endPos = math.max(0, math.min(endPos, textLength))
-
-  if startPos > endPos then
-    startPos, endPos = endPos, startPos
-  end
-
-  -- Convert character positions to byte offsets
-  local startByte = utf8.offset(buffer, startPos + 1) or 1
-  local endByte = utf8.offset(buffer, endPos + 1) or (#buffer + 1)
-
-  -- Delete text
-  local before = buffer:sub(1, startByte - 1)
-  local after = buffer:sub(endByte)
-  self._textBuffer = before .. after
-  self.text = self._textBuffer -- Sync display text
-
-  self:_markTextDirty()
-  self:_updateTextIfDirty() -- Update immediately to recalculate lines/wrapping
-  self:_updateAutoGrowHeight() -- Then update height based on new content
-
-  -- Reset cursor blink to show cursor and pause blinking while deleting
-  self:_resetCursorBlink(true)
-
-  -- Save state to StateManager in immediate mode
-  self:_saveEditableState()
 end
 
---- Replace text in range
----@param startPos number -- Start position (inclusive)
----@param endPos number -- End position (inclusive)
----@param newText string -- Replacement text
 function Element:replaceText(startPos, endPos, newText)
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:replaceText(startPos, endPos, newText)
   end
-
-  self:deleteText(startPos, endPos)
-  self:insertText(newText, startPos)
 end
 
---- Mark text as dirty (needs recalculation)
 function Element:_markTextDirty()
-  if not self.editable then
-    return
+  if self._textEditor then
+    return self._textEditor:_markTextDirty()
   end
-  self._textDirty = true
 end
 
---- Update text if dirty (recalculate lines and wrapping)
 function Element:_updateTextIfDirty()
-  if not self.editable or not self._textDirty then
-    return
+  if self._textEditor then
+    return self._textEditor:_updateTextIfDirty()
   end
-
-  self:_splitLines()
-  self:_calculateWrapping()
-  self:_validateCursorPosition()
-  self._textDirty = false
 end
 
---- Split text into lines (for multi-line text)
 function Element:_splitLines()
   if not self.editable then
     return
@@ -4875,283 +2679,18 @@ function Element:_getFont()
   return FONT_CACHE.getFont(self.textSize, fontPath)
 end
 
---- Get cursor screen position for rendering (handles multiline text)
----@return number, number -- Cursor X and Y position relative to content area
 function Element:_getCursorScreenPosition()
-  if not self.editable then
-    return 0, 0
+  if self._textEditor then
+    return self._textEditor:_getCursorScreenPosition()
   end
-
-  local font = self:_getFont()
-  if not font then
-    return 0, 0
-  end
-
-  local text = self._textBuffer or ""
-  local cursorPos = self._cursorPosition or 0
-
-  -- Apply password masking for cursor position calculation
-  local textForMeasurement = text
-  if self.passwordMode and text ~= "" then
-    textForMeasurement = string.rep("•", utf8.len(text))
-  end
-
-  -- For single-line text, calculate simple X position
-  if not self.multiline then
-    local cursorText = ""
-    if textForMeasurement ~= "" and cursorPos > 0 then
-      local byteOffset = utf8.offset(textForMeasurement, cursorPos + 1)
-      if byteOffset then
-        cursorText = textForMeasurement:sub(1, byteOffset - 1)
-      end
-    end
-    return font:getWidth(cursorText), 0
-  end
-
-  -- For multiline text, we need to find which wrapped line the cursor is on
-  -- Update text wrapping if dirty
-  self:_updateTextIfDirty()
-
-  -- Get text area width for wrapping
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Split text by actual newlines first
-  local lines = {}
-  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    table.insert(lines, line)
-  end
-  if #lines == 0 then
-    lines = { "" }
-  end
-
-  -- Track character position as we iterate through lines
-  local charCount = 0
-  local cursorX = 0
-  local cursorY = 0
-  local lineHeight = font:getHeight()
-
-  for lineNum, line in ipairs(lines) do
-    local lineLength = utf8.len(line) or 0
-
-    -- Check if cursor is on this line (before the newline)
-    if cursorPos <= charCount + lineLength then
-      -- Cursor is on this line
-      local posInLine = cursorPos - charCount
-
-      -- If text wrapping is enabled, find which wrapped segment
-      if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-
-        for segmentIdx, segment in ipairs(wrappedSegments) do
-          -- Check if cursor is within this segment's character range
-          if posInLine >= segment.startIdx and posInLine <= segment.endIdx then
-            -- Cursor is in this segment
-            local posInSegment = posInLine - segment.startIdx
-            local segmentText = ""
-            if posInSegment > 0 and segment.text ~= "" then
-              -- Extract substring by character positions using byte offsets
-              local endByte = utf8.offset(segment.text, posInSegment + 1)
-              if endByte then
-                segmentText = segment.text:sub(1, endByte - 1)
-              else
-                segmentText = segment.text
-              end
-            end
-            cursorX = font:getWidth(segmentText)
-            cursorY = (lineNum - 1) * lineHeight + (segmentIdx - 1) * lineHeight
-
-            return cursorX, cursorY
-          end
-        end
-      else
-        -- No wrapping, simple calculation
-        local lineText = ""
-        if posInLine > 0 then
-          -- Extract substring by character positions using byte offsets
-          local endByte = utf8.offset(line, posInLine + 1)
-          if endByte then
-            lineText = line:sub(1, endByte - 1)
-          else
-            lineText = line
-          end
-        end
-        cursorX = font:getWidth(lineText)
-        cursorY = (lineNum - 1) * lineHeight
-        return cursorX, cursorY
-      end
-    end
-
-    charCount = charCount + lineLength + 1
-  end
-
-  -- Cursor is at the very end
-  return 0, #lines * lineHeight
 end
 
---- Get selection rectangles for rendering (handles multiline and wrapped text)
----@param selStart number -- Selection start position (character index)
----@param selEnd number -- Selection end position (character index)
----@return table -- Array of rectangles {x, y, width, height} relative to content area
 function Element:_getSelectionRects(selStart, selEnd)
-  if not self.editable then
-    return {}
+  if self._textEditor then
+    return self._textEditor:_getSelectionRects(selStart, selEnd)
   end
-
-  local font = self:_getFont()
-  if not font then
-    return {}
-  end
-
-  local text = self._textBuffer or ""
-  local rects = {}
-
-  -- Apply password masking for selection rectangle calculation
-  local textForMeasurement = text
-  if self.passwordMode and text ~= "" then
-    textForMeasurement = string.rep("•", utf8.len(text))
-  end
-
-  -- For single-line text, calculate simple rectangle
-  if not self.multiline then
-    local startByte = utf8.offset(textForMeasurement, selStart + 1)
-    local endByte = utf8.offset(textForMeasurement, selEnd + 1)
-
-    if startByte and endByte then
-      local beforeSelection = textForMeasurement:sub(1, startByte - 1)
-      local selectedText = textForMeasurement:sub(startByte, endByte - 1)
-      local selX = font:getWidth(beforeSelection)
-      local selWidth = font:getWidth(selectedText)
-      local selY = 0
-      local selHeight = font:getHeight()
-
-      table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
-    end
-
-    return rects
-  end
-
-  -- For multiline text, we need to handle line wrapping
-  self:_updateTextIfDirty()
-
-  -- Get text area width for wrapping
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Split text by actual newlines first
-  local lines = {}
-  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    table.insert(lines, line)
-  end
-  if #lines == 0 then
-    lines = { "" }
-  end
-
-  local lineHeight = font:getHeight()
-  local charCount = 0
-  local visualLineNum = 0
-
-  for lineNum, line in ipairs(lines) do
-    local lineLength = utf8.len(line) or 0
-
-    -- Check if selection intersects with this line
-    local lineStartChar = charCount
-    local lineEndChar = charCount + lineLength
-
-    if selEnd > lineStartChar and selStart <= lineEndChar then
-      -- Selection intersects with this line
-      local selStartInLine = math.max(0, selStart - charCount)
-      local selEndInLine = math.min(lineLength, selEnd - charCount)
-
-      -- If text wrapping is enabled, handle wrapped segments
-      if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-
-        for segmentIdx, segment in ipairs(wrappedSegments) do
-          -- Check if selection intersects with this segment
-          if selEndInLine > segment.startIdx and selStartInLine <= segment.endIdx then
-            -- Selection intersects with this segment
-            local segSelStart = math.max(segment.startIdx, selStartInLine)
-            local segSelEnd = math.min(segment.endIdx, selEndInLine)
-
-            -- Calculate X position and width
-            local beforeText = ""
-            local selectedText = ""
-
-            if segSelStart > segment.startIdx then
-              local startByte = utf8.offset(segment.text, segSelStart - segment.startIdx + 1)
-              if startByte then
-                beforeText = segment.text:sub(1, startByte - 1)
-              end
-            end
-
-            local selStartByte = utf8.offset(segment.text, segSelStart - segment.startIdx + 1)
-            local selEndByte = utf8.offset(segment.text, segSelEnd - segment.startIdx + 1)
-            if selStartByte and selEndByte then
-              selectedText = segment.text:sub(selStartByte, selEndByte - 1)
-            end
-
-            local selX = font:getWidth(beforeText)
-            local selWidth = font:getWidth(selectedText)
-            local selY = visualLineNum * lineHeight
-            local selHeight = lineHeight
-
-            table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
-          end
-
-          visualLineNum = visualLineNum + 1
-        end
-      else
-        -- No wrapping, simple calculation
-        local beforeText = ""
-        local selectedText = ""
-
-        if selStartInLine > 0 then
-          local startByte = utf8.offset(line, selStartInLine + 1)
-          if startByte then
-            beforeText = line:sub(1, startByte - 1)
-          end
-        end
-
-        local selStartByte = utf8.offset(line, selStartInLine + 1)
-        local selEndByte = utf8.offset(line, selEndInLine + 1)
-        if selStartByte and selEndByte then
-          selectedText = line:sub(selStartByte, selEndByte - 1)
-        end
-
-        local selX = font:getWidth(beforeText)
-        local selWidth = font:getWidth(selectedText)
-        local selY = visualLineNum * lineHeight
-        local selHeight = lineHeight
-
-        table.insert(rects, { x = selX, y = selY, width = selWidth, height = selHeight })
-        visualLineNum = visualLineNum + 1
-      end
-    else
-      -- Selection doesn't intersect, but we still need to count visual lines
-      if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
-        visualLineNum = visualLineNum + #wrappedSegments
-      else
-        visualLineNum = visualLineNum + 1
-      end
-    end
-
-    charCount = charCount + lineLength + 1
-  end
-
-  return rects
 end
 
---- Update element height based on text content (for autoGrow multiline fields)
 function Element:_updateAutoGrowHeight()
   if not self.editable or not self.multiline or not self.autoGrow then
     return
@@ -5210,160 +2749,12 @@ function Element:_updateAutoGrowHeight()
   end
 end
 
--- ====================
--- Input Handling - Mouse Selection
--- ====================
-
---- Convert mouse coordinates to cursor position in text
----@param mouseX number -- Mouse X coordinate (absolute)
----@param mouseY number -- Mouse Y coordinate (absolute)
----@return number -- Cursor position (character index)
 function Element:_mouseToTextPosition(mouseX, mouseY)
-  if not self.editable or not self._textBuffer then
-    return 0
+  if self._textEditor then
+    return self._textEditor:_mouseToTextPosition(mouseX, mouseY)
   end
-
-  -- Get content area bounds
-  local contentX = (self._absoluteX or self.x) + self.padding.left
-  local contentY = (self._absoluteY or self.y) + self.padding.top
-
-  -- Calculate relative position within text area
-  local relativeX = mouseX - contentX
-  local relativeY = mouseY - contentY
-
-  -- Get font for measuring text
-  local font = self:_getFont()
-  if not font then
-    return 0
-  end
-
-  local text = self._textBuffer
-  local textLength = utf8.len(text) or 0
-
-  -- === SINGLE-LINE TEXT HANDLING ===
-  if not self.multiline then
-    -- Account for horizontal scroll offset in single-line inputs
-    if self._textScrollX then
-      relativeX = relativeX + self._textScrollX
-    end
-
-    -- Find the character position closest to the click
-    local closestPos = 0
-    local closestDist = math.huge
-
-    -- Check each position in the text
-    for i = 0, textLength do
-      -- Get text up to this position
-      local offset = utf8.offset(text, i + 1)
-      local beforeText = offset and text:sub(1, offset - 1) or text
-      local textWidth = font:getWidth(beforeText)
-
-      -- Calculate distance from click to this position
-      local dist = math.abs(relativeX - textWidth)
-
-      if dist < closestDist then
-        closestDist = dist
-        closestPos = i
-      end
-    end
-
-    return closestPos
-  end
-
-  -- === MULTILINE TEXT HANDLING ===
-
-  -- Update text wrapping if dirty
-  self:_updateTextIfDirty()
-
-  -- Split text into lines
-  local lines = {}
-  for line in (text .. "\n"):gmatch("([^\n]*)\n") do
-    table.insert(lines, line)
-  end
-  if #lines == 0 then
-    lines = { "" }
-  end
-
-  local lineHeight = font:getHeight()
-
-  -- Get text area width for wrapping calculations
-  local textAreaWidth = self.width
-  local scaledContentPadding = self:getScaledContentPadding()
-  if scaledContentPadding then
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-  end
-
-  -- Determine which line the click is on based on Y coordinate
-  local clickedLineNum = math.floor(relativeY / lineHeight) + 1
-  clickedLineNum = math.max(1, math.min(clickedLineNum, #lines))
-
-  -- Calculate character offset for lines before the clicked line
-  local charOffset = 0
-  for i = 1, clickedLineNum - 1 do
-    local lineLen = utf8.len(lines[i]) or 0
-    charOffset = charOffset + lineLen + 1 -- +1 for newline character
-  end
-
-  -- Get the clicked line
-  local clickedLine = lines[clickedLineNum]
-  local lineLen = utf8.len(clickedLine) or 0
-
-  -- If text wrapping is enabled, handle wrapped segments
-  if self.textWrap and textAreaWidth > 0 then
-    local wrappedSegments = self:_wrapLine(clickedLine, textAreaWidth)
-
-    -- Determine which wrapped segment was clicked
-    local lineYOffset = (clickedLineNum - 1) * lineHeight
-    local segmentNum = math.floor((relativeY - lineYOffset) / lineHeight) + 1
-    segmentNum = math.max(1, math.min(segmentNum, #wrappedSegments))
-
-    local segment = wrappedSegments[segmentNum]
-
-    -- Find closest position within the segment
-    local segmentText = segment.text
-    local segmentLen = utf8.len(segmentText) or 0
-    local closestPos = segment.startIdx
-    local closestDist = math.huge
-
-    for i = 0, segmentLen do
-      local offset = utf8.offset(segmentText, i + 1)
-      local beforeText = offset and segmentText:sub(1, offset - 1) or segmentText
-      local textWidth = font:getWidth(beforeText)
-      local dist = math.abs(relativeX - textWidth)
-
-      if dist < closestDist then
-        closestDist = dist
-        closestPos = segment.startIdx + i
-      end
-    end
-
-    return charOffset + closestPos
-  end
-
-  -- No wrapping - find closest position in the clicked line
-  local closestPos = 0
-  local closestDist = math.huge
-
-  for i = 0, lineLen do
-    local offset = utf8.offset(clickedLine, i + 1)
-    local beforeText = offset and clickedLine:sub(1, offset - 1) or clickedLine
-    local textWidth = font:getWidth(beforeText)
-    local dist = math.abs(relativeX - textWidth)
-
-    if dist < closestDist then
-      closestDist = dist
-      closestPos = i
-    end
-  end
-
-  return charOffset + closestPos
 end
 
---- Handle mouse click on text (set cursor position or start selection)
----@param mouseX number -- Mouse X coordinate
----@param mouseY number -- Mouse Y coordinate
----@param clickCount number -- Number of clicks (1=single, 2=double, 3=triple)
 function Element:_handleTextClick(mouseX, mouseY, clickCount)
   if not self.editable or not self._focused then
     return
@@ -5410,8 +2801,6 @@ function Element:_handleTextDrag(mouseX, mouseY)
   self:_resetCursorBlink()
 end
 
---- Select word at given position
----@param position number -- Character position
 function Element:_selectWordAtPosition(position)
   if not self.editable or not self._textBuffer then
     return
@@ -5457,12 +2846,6 @@ function Element:_selectWordAtPosition(position)
   end
 end
 
--- ====================
--- Input Handling - Keyboard Input
--- ====================
-
---- Handle text input (character input)
----@param text string -- Character(s) to insert
 function Element:textinput(text)
   if not self.editable or not self._focused then
     return
@@ -5498,10 +2881,6 @@ function Element:textinput(text)
   self:_saveEditableState()
 end
 
---- Handle key press (special keys)
----@param key string -- Key name
----@param scancode string -- Scancode
----@param isrepeat boolean -- Whether this is a key repeat
 function Element:keypressed(key, scancode, isrepeat)
   if not self.editable or not self._focused then
     return

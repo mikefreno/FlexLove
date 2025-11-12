@@ -579,9 +579,8 @@ lua testing/runAll.lua
 lua testing/__tests__/<specific_test>
 ```
 
-## Version & Compatibility
+## Compatibility
 
-**Current Version**: 1.0.0
 
 **Compatibility:**
 - **Lua**: 5.1+

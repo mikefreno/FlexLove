@@ -39,10 +39,6 @@ ScrollManager.__index = ScrollManager
 ---@param deps table Dependencies {Color: Color module}
 ---@return ScrollManager
 function ScrollManager.new(config, deps)
-  -- Pure DI: Dependencies must be injected
-  assert(deps, "ScrollManager.new: deps parameter is required")
-  assert(deps.Color, "ScrollManager.new: deps.Color is required")
-  
   local Color = deps.Color
   local self = setmetatable({}, ScrollManager)
   

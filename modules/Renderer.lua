@@ -23,17 +23,6 @@ Renderer.__index = Renderer
 ---@param deps table Dependencies {Color, RoundedRect, NinePatch, ImageRenderer, ImageCache, Theme, Blur, utils}
 ---@return table Renderer instance
 function Renderer.new(config, deps)
-  -- Pure DI: Dependencies must be injected
-  assert(deps, "Renderer.new: deps parameter is required")
-  assert(deps.Color, "Renderer.new: deps.Color is required")
-  assert(deps.RoundedRect, "Renderer.new: deps.RoundedRect is required")
-  assert(deps.NinePatch, "Renderer.new: deps.NinePatch is required")
-  assert(deps.ImageRenderer, "Renderer.new: deps.ImageRenderer is required")
-  assert(deps.ImageCache, "Renderer.new: deps.ImageCache is required")
-  assert(deps.Theme, "Renderer.new: deps.Theme is required")
-  assert(deps.Blur, "Renderer.new: deps.Blur is required")
-  assert(deps.utils, "Renderer.new: deps.utils is required")
-  
   local Color = deps.Color
   local ImageCache = deps.ImageCache
   

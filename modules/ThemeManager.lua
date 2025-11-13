@@ -23,10 +23,6 @@ ThemeManager.__index = ThemeManager
 ---@param deps table Dependencies {Theme: Theme module}
 ---@return ThemeManager
 function ThemeManager.new(config, deps)
-  -- Pure DI: Dependencies must be injected
-  assert(deps, "ThemeManager.new: deps parameter is required")
-  assert(deps.Theme, "ThemeManager.new: deps.Theme is required")
-  
   local Theme = deps.Theme
   local self = setmetatable({}, ThemeManager)
 

@@ -32,11 +32,6 @@ EventHandler.__index = EventHandler
 ---@param deps table Dependencies {InputEvent, GuiState}
 ---@return EventHandler
 function EventHandler.new(config, deps)
-  -- Pure DI: Dependencies must be injected
-  assert(deps, "EventHandler.new: deps parameter is required")
-  assert(deps.InputEvent, "EventHandler.new: deps.InputEvent is required")
-  assert(deps.GuiState, "EventHandler.new: deps.GuiState is required")
-  
   config = config or {}
   
   local self = setmetatable({}, EventHandler)

@@ -12,7 +12,6 @@ local Blur = req("Blur")
 local ImageRenderer = req("ImageRenderer")
 local NinePatch = req("NinePatch")
 local RoundedRect = req("RoundedRect")
---local Animation = req("Animation")
 local ImageCache = req("ImageCache")
 local utils = req("utils")
 local Grid = req("Grid")
@@ -1149,6 +1148,8 @@ function Element.new(props)
   }, {
     utils = utils,
     Grid = Grid,
+    Units = Units,
+    Gui = Gui,
   })
   -- Initialize immediately so it can be used for auto-sizing calculations
   self._layoutEngine:initialize(self)

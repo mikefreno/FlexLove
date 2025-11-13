@@ -170,15 +170,19 @@ Legend:
 ```lua
 local FlexLove = require("FlexLove")
 local Theme = FlexLove.Theme
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 
--- Load theme
-Theme.load("my_theme")
-Theme.setActive("my_theme")
+FlexLove.init({
+  baseScale = { width = 1920, height = 1080 },
+  theme = "my_theme" -- only supports autoload of one theme
+  immediateMode = true -- Optional: enable immediate mode (default: false)
+})
+
+-- you can dynamically add more
+Theme.load("my_theme2")
 
 -- Create themed button
-local button = Gui.new({
+local button_my_theme = FlexLove.new({
   width = 150,
   height = 40,
   text = "Click Me",
@@ -193,13 +197,24 @@ local button = Gui.new({
   end
 })
 
--- Create themed panel
-local panel = Gui.new({
-  width = 300,
-  height = 200,
-  backgroundColor = Color.new(0.1, 0.1, 0.2, 0.5),  -- Background tint
-  themeComponent = "panel"
+-- set active to switch between
+Theme.setActive("my_theme2")
+
+local button_my_theme2 = FlexLove.new({
+  width = 150,
+  height = 40,
+  text = "Click Me",
+  textAlign = "center",
+  textColor = Color.new(1, 1, 1, 1),
+  backgroundColor = Color.new(0.2, 0.4, 0.8, 0.3),  -- Shows behind theme
+  themeComponent = "button",  -- Uses button component from active theme
+  onEvent = function(element, event)
+    if event.type == "click" then
+      print("Clicked!")
+    end
+  end
 })
+
 ```
 
 ## Rendering Layers

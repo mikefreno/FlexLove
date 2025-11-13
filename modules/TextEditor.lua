@@ -38,7 +38,7 @@ local utf8 = utf8 or require("utf8")
 ---@field onTextChange fun(element:Element, text:string)?
 ---@field onEnter fun(element:Element)?
 ---@field _element Element?
----@field _GuiState table
+---@field _Context table
 ---@field _StateManager table
 ---@field _Color table
 ---@field _FONT_CACHE table
@@ -66,13 +66,13 @@ TextEditor.__index = TextEditor
 
 ---Create a new TextEditor instance
 ---@param config TextEditorConfig
----@param deps table Dependencies {GuiState, StateManager, Color, utils}
+---@param deps table Dependencies {Context, StateManager, Color, utils}
 ---@return table TextEditor instance
 function TextEditor.new(config, deps)
   local self = setmetatable({}, TextEditor)
 
   -- Store dependencies
-  self._GuiState = deps.GuiState
+  self._Context = deps.Context
   self._StateManager = deps.StateManager
   self._Color = deps.Color
   self._FONT_CACHE = deps.utils.FONT_CACHE
@@ -140,12 +140,12 @@ function TextEditor:initialize(element)
   self._element = element
 
   -- Restore state from StateManager if in immediate mode
-  if element._stateId and self._GuiState._immediateMode then
+  if element._stateId and self._Context._immediateMode then
     local state = self._StateManager.getState(element._stateId)
     if state then
       if state._focused then
         self._focused = true
-        self._GuiState._focusedElement = element
+        self._Context._focusedElement = element
       end
       if state._textBuffer and state._textBuffer ~= "" then
         self._textBuffer = state._textBuffer
@@ -935,16 +935,16 @@ end
 
 ---Focus this element for keyboard input
 function TextEditor:focus()
-  if self._GuiState._focusedElement and self._GuiState._focusedElement ~= self._element then
+  if self._Context._focusedElement and self._Context._focusedElement ~= self._element then
     -- Blur the previously focused element's text editor if it has one
-    if self._GuiState._focusedElement._textEditor then
-      self._GuiState._focusedElement._textEditor:blur()
+    if self._Context._focusedElement._textEditor then
+      self._Context._focusedElement._textEditor:blur()
     end
   end
 
   self._focused = true
   if self._element then
-    self._GuiState._focusedElement = self._element
+    self._Context._focusedElement = self._element
   end
 
   self:_resetCursorBlink()
@@ -966,8 +966,8 @@ end
 function TextEditor:blur()
   self._focused = false
 
-  if self._element and self._GuiState._focusedElement == self._element then
-    self._GuiState._focusedElement = nil
+  if self._element and self._Context._focusedElement == self._element then
+    self._Context._focusedElement = nil
   end
 
   if self.onBlur and self._element then
@@ -1560,7 +1560,7 @@ end
 
 ---Save state to StateManager (for immediate mode)
 function TextEditor:_saveState()
-  if not self._element or not self._element._stateId or not self._GuiState._immediateMode then
+  if not self._element or not self._element._stateId or not self._Context._immediateMode then
     return
   end
 

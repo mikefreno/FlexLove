@@ -28,16 +28,11 @@ The following features are currently being actively developed:
 - **Corner Radius**: Rounded corners with individual corner control
 - **Advanced Positioning**: Absolute, relative, flex, and grid positioning modes
 
-## Installation
-
-Add the `modules` directory and `FlexLove.lua` into your project and require it:
-
-```lua
-local FlexLove = require("FlexLove")
-local Color = FlexLove.Color
-```
-
 ## Quick Start
+
+Add the `modules` directory and `FlexLove.lua` into your project. I recommend going to the
+RELEASES page, but you can clone the repo if you want the latest features, but bugs are more
+likely. 
 
 ```lua
 local FlexLove = require("FlexLove")
@@ -53,7 +48,7 @@ FlexLove.init({
 local button = FlexLove.new({
   width = "20vw",
   height = "10vh",
-  backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.8, 1),
+  backgroundColor = Color.new(0.2, 0.2, 0.8, 1),
   text = "Click Me",
   textSize = "md",
   themeComponent = "button",

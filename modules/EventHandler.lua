@@ -22,13 +22,13 @@ end
 ---@field _element Element?
 ---@field _scrollbarPressHandled boolean
 ---@field _InputEvent table
----@field _GuiState table
+---@field _Context table
 local EventHandler = {}
 EventHandler.__index = EventHandler
 
 --- Create a new EventHandler instance
 ---@param config table Configuration options
----@param deps table Dependencies {InputEvent, GuiState}
+---@param deps table Dependencies {InputEvent, Context}
 ---@return EventHandler
 function EventHandler.new(config, deps)
   config = config or {}
@@ -36,7 +36,7 @@ function EventHandler.new(config, deps)
   local self = setmetatable({}, EventHandler)
 
   self._InputEvent = deps.InputEvent
-  self._GuiState = deps.GuiState
+  self._Context = deps.Context
 
   self.onEvent = config.onEvent
 

@@ -7,7 +7,7 @@ end
 local Blur = req("Blur")
 local utils = req("utils")
 local Units = req("Units")
-local GuiState = req("GuiState")
+local Context = req("Context")
 local StateManager = req("StateManager")
 ---@type Element
 local Element = req("Element")
@@ -22,7 +22,7 @@ local Theme = req("Theme")
 local enums = utils.enums
 
 ---@class FlexLove
-local flexlove = GuiState
+local flexlove = Context
 
 -- Add version and metadata
 flexlove._VERSION = "0.1.0"
@@ -153,7 +153,7 @@ function flexlove.beginFrame()
   flexlove._frameStarted = true
   flexlove.topElements = {}
 
-  GuiState.clearFrameElements()
+  Context.clearFrameElements()
 end
 
 function flexlove.endFrame()
@@ -161,7 +161,7 @@ function flexlove.endFrame()
     return
   end
 
-  GuiState.sortElementsByZIndex()
+  Context.sortElementsByZIndex()
 
   -- Layout all top-level elements now that all children have been added
   -- This ensures overflow detection happens with complete child lists
@@ -510,8 +510,8 @@ function flexlove.wheelmoved(x, y)
 
   if flexlove._immediateMode then
     -- Find topmost scrollable element at mouse position using z-index ordering
-    for i = #GuiState._zIndexOrderedElements, 1, -1 do
-      local element = GuiState._zIndexOrderedElements[i]
+    for i = #Context._zIndexOrderedElements, 1, -1 do
+      local element = Context._zIndexOrderedElements[i]
 
       local bx = element.x
       local by = element.y

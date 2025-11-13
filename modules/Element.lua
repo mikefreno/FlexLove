@@ -4,7 +4,7 @@ local function req(name)
 end
 
 -- Module dependencies
-local GuiState = req("GuiState")
+local Context = req("Context")
 local Theme = req("Theme")
 local Color = req("Color")
 local Units = req("Units")
@@ -41,8 +41,8 @@ local AlignSelf = enums.AlignSelf
 local JustifySelf = enums.JustifySelf
 local FlexWrap = enums.FlexWrap
 
--- Reference to Gui (via GuiState)
-local Gui = GuiState
+-- Reference to Gui (via Context)
+local Gui = Context
 
 -- UTF-8 support (available in LÖVE/Lua 5.3+)
 local utf8 = utf8 or require("utf8")
@@ -284,7 +284,7 @@ function Element.new(props)
     onEvent = self.onEvent,
   }, {
     InputEvent = InputEvent,
-    GuiState = GuiState,
+    Context = Context,
   })
   self._eventHandler:initialize(self)
 
@@ -397,7 +397,7 @@ function Element.new(props)
       onTextChange = props.onTextChange,
       onEnter = props.onEnter,
     }, {
-      GuiState = GuiState,
+      Context = Context,
       StateManager = StateManager,
       Color = Color,
       utils = utils,
@@ -1328,7 +1328,7 @@ function Element.new(props)
 
   -- Register element in z-index tracking for immediate mode
   if Gui._immediateMode then
-    GuiState.registerElement(self)
+    Context.registerElement(self)
   end
 
   -- Initialize TextEditor after element is fully constructed
@@ -2082,7 +2082,7 @@ function Element:update(dt)
     local isActiveElement
     if Gui._immediateMode then
       -- In immediate mode, use z-index occlusion detection
-      local topElement = GuiState.getTopElementAt(mx, my)
+      local topElement = Context.getTopElementAt(mx, my)
       isActiveElement = (topElement == self or topElement == nil)
     else
       -- In retained mode, use the old _activeEventElement mechanism

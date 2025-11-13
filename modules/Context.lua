@@ -1,5 +1,5 @@
----@class GuiState
-local GuiState = {
+---@class Context
+local Context = {
   -- Top-level elements
   topElements = {},
 
@@ -35,30 +35,30 @@ local GuiState = {
 
 --- Get current scale factors
 ---@return number, number -- scaleX, scaleY
-function GuiState.getScaleFactors()
-  return GuiState.scaleFactors.x, GuiState.scaleFactors.y
+function Context.getScaleFactors()
+  return Context.scaleFactors.x, Context.scaleFactors.y
 end
 
 --- Register an element in the z-index ordered tree (for immediate mode)
 ---@param element Element The element to register
-function GuiState.registerElement(element)
-  if not GuiState._immediateMode then
+function Context.registerElement(element)
+  if not Context._immediateMode then
     return
   end
 
-  table.insert(GuiState._zIndexOrderedElements, element)
+  table.insert(Context._zIndexOrderedElements, element)
 end
 
 --- Clear frame elements (called at start of each immediate mode frame)
-function GuiState.clearFrameElements()
-  GuiState._zIndexOrderedElements = {}
+function Context.clearFrameElements()
+  Context._zIndexOrderedElements = {}
 end
 
 --- Sort elements by z-index (called after all elements are registered)
-function GuiState.sortElementsByZIndex()
+function Context.sortElementsByZIndex()
   -- Sort elements by z-index (lowest to highest)
   -- We need to consider parent-child relationships and z-index
-  table.sort(GuiState._zIndexOrderedElements, function(a, b)
+  table.sort(Context._zIndexOrderedElements, function(a, b)
     -- Calculate effective z-index considering parent hierarchy
     local function getEffectiveZIndex(elem)
       local z = elem.z or 0
@@ -113,8 +113,8 @@ end
 ---@param x number Screen X coordinate
 ---@param y number Screen Y coordinate
 ---@return Element|nil The topmost element at the position, or nil if none
-function GuiState.getTopElementAt(x, y)
-  if not GuiState._immediateMode then
+function Context.getTopElementAt(x, y)
+  if not Context._immediateMode then
     return nil
   end
 
@@ -132,8 +132,8 @@ function GuiState.getTopElementAt(x, y)
   end
 
   -- Traverse from highest to lowest z-index (reverse order)
-  for i = #GuiState._zIndexOrderedElements, 1, -1 do
-    local element = GuiState._zIndexOrderedElements[i]
+  for i = #Context._zIndexOrderedElements, 1, -1 do
+    local element = Context._zIndexOrderedElements[i]
 
     if isPointInElement(element, x, y) then
       local interactive = findInteractiveAncestor(element)
@@ -148,4 +148,4 @@ function GuiState.getTopElementAt(x, y)
   return nil
 end
 
-return GuiState
+return Context

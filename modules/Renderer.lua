@@ -1,10 +1,38 @@
+---@class Renderer
+---@field backgroundColor Color
+---@field borderColor Color
+---@field opacity number
+---@field border {top:boolean, right:boolean, bottom:boolean, left:boolean}
+---@field cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+---@field theme string?
+---@field themeComponent string?
+---@field _themeState string
+---@field imagePath string?
+---@field image love.Image?
+---@field _loadedImage love.Image?
+---@field objectFit string
+---@field objectPosition string
+---@field imageOpacity number
+---@field contentBlur {intensity:number, quality:number}?
+---@field backdropBlur {intensity:number, quality:number}?
+---@field _blurInstance table?
+---@field _element Element?
+---@field _Color table
+---@field _RoundedRect table
+---@field _NinePatch table
+---@field _ImageRenderer table
+---@field _ImageCache table
+---@field _Theme table
+---@field _Blur table
+---@field _utils table
+---@field _FONT_CACHE table
+---@field _TextAlign table
 local Renderer = {}
 Renderer.__index = Renderer
 
 --- Create a new Renderer instance
 ---@param config table Configuration table with rendering properties
 ---@param deps table Dependencies {Color, RoundedRect, NinePatch, ImageRenderer, ImageCache, Theme, Blur, utils}
----@return table Renderer instance
 function Renderer.new(config, deps)
   local Color = deps.Color
   local ImageCache = deps.ImageCache

@@ -9,7 +9,7 @@
 ---@field scrollbarPadding number -- Padding around scrollbar
 ---@field scrollSpeed number -- Scroll speed for wheel events (pixels per wheel unit)
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
----@field _element table? -- Reference to parent Element (set via initialize)
+---@field _element Element? -- Reference to parent Element (set via initialize)
 ---@field _overflowX boolean -- True if content overflows horizontally
 ---@field _overflowY boolean -- True if content overflows vertically
 ---@field _contentWidth number -- Total content width (including overflow)
@@ -24,6 +24,7 @@
 ---@field _hoveredScrollbar string? -- "vertical" or "horizontal" when dragging
 ---@field _scrollbarDragOffset number -- Offset from thumb top when drag started
 ---@field _scrollbarPressHandled boolean -- Track if scrollbar press was handled this frame
+---@field _Color table
 local ScrollManager = {}
 ScrollManager.__index = ScrollManager
 

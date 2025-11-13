@@ -1,5 +1,49 @@
 local utf8 = utf8 or require("utf8")
 
+---@class TextEditor
+---@field editable boolean
+---@field multiline boolean
+---@field passwordMode boolean
+---@field textWrap boolean|"word"|"char"
+---@field maxLines number?
+---@field maxLength number?
+---@field placeholder string?
+---@field inputType "text"|"number"|"email"|"url"
+---@field textOverflow "clip"|"ellipsis"|"scroll"
+---@field scrollable boolean
+---@field autoGrow boolean
+---@field selectOnFocus boolean
+---@field cursorColor Color?
+---@field selectionColor Color?
+---@field cursorBlinkRate number
+---@field _textBuffer string
+---@field _lines table?
+---@field _wrappedLines table?
+---@field _textDirty boolean
+---@field _cursorPosition number
+---@field _cursorLine number
+---@field _cursorColumn number
+---@field _cursorBlinkTimer number
+---@field _cursorVisible boolean
+---@field _cursorBlinkPaused boolean
+---@field _cursorBlinkPauseTimer number
+---@field _selectionStart number?
+---@field _selectionEnd number?
+---@field _selectionAnchor number?
+---@field _focused boolean
+---@field _textScrollX number
+---@field onFocus fun(element:Element)?
+---@field onBlur fun(element:Element)?
+---@field onTextInput fun(element:Element, text:string)?
+---@field onTextChange fun(element:Element, text:string)?
+---@field onEnter fun(element:Element)?
+---@field _element Element?
+---@field _GuiState table
+---@field _StateManager table
+---@field _Color table
+---@field _FONT_CACHE table
+---@field _getModifiers function
+---@field _textDragOccurred boolean?
 local TextEditor = {}
 TextEditor.__index = TextEditor
 

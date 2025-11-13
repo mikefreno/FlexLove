@@ -1,5 +1,5 @@
 ---@class LayoutEngine
----@field element Element Reference to the parent element
+---@field element Element? Reference to the parent element
 ---@field positioning Positioning Layout positioning mode
 ---@field flexDirection FlexDirection Direction of flex layout
 ---@field justifyContent JustifyContent Alignment of items along main axis
@@ -11,6 +11,16 @@
 ---@field gridColumns number? Number of columns in the grid
 ---@field columnGap number? Gap between grid columns
 ---@field rowGap number? Gap between grid rows
+---@field _Grid table
+---@field _Units table
+---@field _Gui table
+---@field _Positioning table
+---@field _FlexDirection table
+---@field _JustifyContent table
+---@field _AlignContent table
+---@field _AlignItems table
+---@field _AlignSelf table
+---@field _FlexWrap table
 local LayoutEngine = {}
 LayoutEngine.__index = LayoutEngine
 

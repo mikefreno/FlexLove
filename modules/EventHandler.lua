@@ -8,6 +8,21 @@ local function getModifiers()
 end
 
 ---@class EventHandler
+---@field onEvent fun(element:Element, event:InputEvent)?
+---@field _pressed table<number, boolean>
+---@field _lastClickTime number?
+---@field _lastClickButton number?
+---@field _clickCount number
+---@field _dragStartX table<number, number>
+---@field _dragStartY table<number, number>
+---@field _lastMouseX table<number, number>
+---@field _lastMouseY table<number, number>
+---@field _touchPressed table<number, boolean>
+---@field _hovered boolean
+---@field _element Element?
+---@field _scrollbarPressHandled boolean
+---@field _InputEvent table
+---@field _GuiState table
 local EventHandler = {}
 EventHandler.__index = EventHandler
 

@@ -111,9 +111,15 @@ Public API methods to access internal state:
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
+---@field onFocus fun(element:Element)? -- Callback function when element receives focus
+---@field onBlur fun(element:Element)? -- Callback function when element loses focus
+---@field onTextInput fun(element:Element, text:string)? -- Callback function for text input
+---@field onTextChange fun(element:Element, text:string)? -- Callback function when text changes
+---@field onEnter fun(element:Element)? -- Callback function when Enter key is pressed
 ---@field units table -- Original unit specifications for responsive behavior
 ---@field _eventHandler EventHandler -- Event handler instance for input processing
 ---@field _explicitlyAbsolute boolean?
+---@field _originalPositioning Positioning? -- Original positioning value set by user
 ---@field gridRows number? -- Number of rows in the grid
 ---@field gridColumns number? -- Number of columns in the grid
 ---@field columnGap number|string? -- Gap between grid columns
@@ -121,6 +127,7 @@ Public API methods to access internal state:
 ---@field theme string? -- Theme component to use for rendering
 ---@field themeComponent string?
 ---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
+---@field _themeManager ThemeManager -- Internal: theme manager instance
 ---@field _stateId string? -- State manager ID for this element
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
@@ -161,6 +168,7 @@ Public API methods to access internal state:
 ---@field _lines table? -- Internal: split lines for multi-line text
 ---@field _wrappedLines table? -- Internal: wrapped line data
 ---@field _textDirty boolean? -- Internal: flag to recalculate lines/wrapping
+---@field _textEditor TextEditor? -- Internal: TextEditor instance for editable elements
 ---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
 ---@field image love.Image? -- Image object to display
 ---@field objectFit "fill"|"contain"|"cover"|"scale-down"|"none"? -- Image fit mode (default: "fill")
@@ -169,6 +177,38 @@ Public API methods to access internal state:
 ---@field _loadedImage love.Image? -- Internal: cached loaded image
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
 ---@field userdata table?
+---@field _renderer Renderer -- Internal: Renderer instance for visual rendering
+---@field _layoutEngine LayoutEngine -- Internal: LayoutEngine instance for layout calculations
+---@field _scrollManager ScrollManager? -- Internal: ScrollManager instance for scroll handling
+---@field _borderBoxWidth number? -- Internal: cached border-box width
+---@field _borderBoxHeight number? -- Internal: cached border-box height
+---@field overflow string? -- Overflow behavior for both axes
+---@field overflowX string? -- Overflow behavior for horizontal axis
+---@field overflowY string? -- Overflow behavior for vertical axis
+---@field scrollbarWidth number? -- Scrollbar width in pixels
+---@field scrollbarColor Color? -- Scrollbar thumb color
+---@field scrollbarTrackColor Color? -- Scrollbar track color
+---@field scrollbarRadius number? -- Scrollbar corner radius
+---@field scrollbarPadding number? -- Scrollbar padding from edges
+---@field scrollSpeed number? -- Scroll speed multiplier
+---@field _overflowX boolean? -- Internal: whether content overflows horizontally
+---@field _overflowY boolean? -- Internal: whether content overflows vertically
+---@field _contentWidth number? -- Internal: total content width
+---@field _contentHeight number? -- Internal: total content height
+---@field _scrollX number? -- Internal: horizontal scroll position
+---@field _scrollY number? -- Internal: vertical scroll position
+---@field _maxScrollX number? -- Internal: maximum horizontal scroll
+---@field _maxScrollY number? -- Internal: maximum vertical scroll
+---@field _scrollbarHoveredVertical boolean? -- Internal: vertical scrollbar hover state
+---@field _scrollbarHoveredHorizontal boolean? -- Internal: horizontal scrollbar hover state
+---@field _scrollbarDragging boolean? -- Internal: scrollbar dragging state
+---@field _hoveredScrollbar table? -- Internal: currently hovered scrollbar info
+---@field _scrollbarDragOffset number? -- Internal: scrollbar drag offset
+---@field _scrollbarPressHandled boolean? -- Internal: scrollbar press handled flag
+---@field _pressed table? -- Internal: button press state tracking
+---@field _mouseDownPosition number? -- Internal: mouse down position for drag tracking
+---@field _textDragOccurred boolean? -- Internal: whether text drag occurred
+---@field animation table? -- Animation instance for this element
 local Element = {}
 Element.__index = Element
 

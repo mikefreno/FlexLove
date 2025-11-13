@@ -7,7 +7,8 @@
 ---@field disableHighlight boolean -- If true, disable pressed highlight overlay
 ---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges
 ---@field scalingAlgorithm string? -- "nearest" or "bilinear" scaling for 9-patch
----@field _element table? -- Reference to parent Element
+---@field _element Element? -- Reference to parent Element
+---@field _Theme table
 local ThemeManager = {}
 ThemeManager.__index = ThemeManager
 

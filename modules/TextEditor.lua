@@ -1,28 +1,3 @@
--- ====================
--- TextEditor Module
--- ====================
--- Handles all text editing functionality including:
--- - Text buffer management
--- - Cursor positioning and navigation
--- - Text selection
--- - Multi-line text with wrapping
--- - Focus management
--- - Keyboard input handling
--- - Text rendering (cursor, selection highlights)
----
---- Dependencies (must be injected via deps parameter):
----   - GuiState: GUI state manager
----   - StateManager: State persistence for immediate mode
----   - Color: Color utility class (reserved for future use)
----   - utils: Utility functions (FONT_CACHE, getModifiers)
-
--- Setup module path for relative requires
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
--- UTF-8 support
 local utf8 = utf8 or require("utf8")
 
 local TextEditor = {}

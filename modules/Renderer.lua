@@ -1,20 +1,3 @@
---- Renderer Module
--- Handles all visual rendering for Elements including backgrounds, borders,
--- images, themes, blur effects, and text rendering.
---
--- This module is responsible for the visual presentation layer of Elements,
--- delegating from Element's draw() method to keep rendering concerns separated.
----
---- Dependencies (must be injected via deps parameter):
----   - Color: Color module for color manipulation
----   - RoundedRect: Rounded rectangle drawing module
----   - NinePatch: 9-patch rendering module
----   - ImageRenderer: Image rendering module
----   - ImageCache: Image caching module
----   - Theme: Theme management module
----   - Blur: Blur effects module
----   - utils: Utility functions (FONT_CACHE, enums)
-
 local Renderer = {}
 Renderer.__index = Renderer
 
@@ -25,9 +8,9 @@ Renderer.__index = Renderer
 function Renderer.new(config, deps)
   local Color = deps.Color
   local ImageCache = deps.ImageCache
-  
+
   local self = setmetatable({}, Renderer)
-  
+
   -- Store dependencies for instance methods
   self._Color = Color
   self._RoundedRect = deps.RoundedRect
@@ -39,36 +22,36 @@ function Renderer.new(config, deps)
   self._utils = deps.utils
   self._FONT_CACHE = deps.utils.FONT_CACHE
   self._TextAlign = deps.utils.enums.TextAlign
-  
+
   -- Store reference to parent element (will be set via initialize)
   self._element = nil
-  
+
   -- Visual properties
   self.backgroundColor = config.backgroundColor or Color.new(0, 0, 0, 0)
   self.borderColor = config.borderColor or Color.new(0, 0, 0, 1)
   self.opacity = config.opacity or 1
-  
+
   -- Border configuration
   self.border = config.border or {
     top = false,
     right = false,
     bottom = false,
-    left = false
+    left = false,
   }
-  
+
   -- Corner radius
   self.cornerRadius = config.cornerRadius or {
     topLeft = 0,
     topRight = 0,
     bottomLeft = 0,
-    bottomRight = 0
+    bottomRight = 0,
   }
-  
+
   -- Theme properties
   self.theme = config.theme
   self.themeComponent = config.themeComponent
   self._themeState = "normal"
-  
+
   -- Image properties
   self.imagePath = config.imagePath
   self.image = config.image
@@ -76,12 +59,12 @@ function Renderer.new(config, deps)
   self.objectFit = config.objectFit or "fill"
   self.objectPosition = config.objectPosition or "center center"
   self.imageOpacity = config.imageOpacity or 1
-  
+
   -- Blur effects
   self.contentBlur = config.contentBlur
   self.backdropBlur = config.backdropBlur
   self._blurInstance = nil
-  
+
   -- Load image if path provided
   if self.imagePath and not self.image then
     local loadedImage, err = ImageCache.load(self.imagePath)
@@ -95,7 +78,7 @@ function Renderer.new(config, deps)
   else
     self._loadedImage = nil
   end
-  
+
   return self
 end
 
@@ -115,12 +98,12 @@ function Renderer:getBlurInstance()
   elseif self.backdropBlur and self.backdropBlur.quality then
     quality = self.backdropBlur.quality
   end
-  
+
   -- Create or reuse blur instance
   if not self._blurInstance or self._blurInstance.quality ~= quality then
     self._blurInstance = self._Blur.new(quality)
   end
-  
+
   return self._blurInstance
 end
 
@@ -137,12 +120,7 @@ end
 ---@param height number Height
 ---@param drawBackgroundColor table Background color (may have animation applied)
 function Renderer:_drawBackground(x, y, width, height, drawBackgroundColor)
-  local backgroundWithOpacity = self._Color.new(
-    drawBackgroundColor.r,
-    drawBackgroundColor.g,
-    drawBackgroundColor.b,
-    drawBackgroundColor.a * self.opacity
-  )
+  local backgroundWithOpacity = self._Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
   self._RoundedRect.draw("fill", x, y, width, height, self.cornerRadius)
 end
@@ -160,22 +138,22 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
   if not self._loadedImage then
     return
   end
-  
+
   -- Calculate image bounds (content area - respects padding)
   local imageX = x + paddingLeft
   local imageY = y + paddingTop
   local imageWidth = contentWidth
   local imageHeight = contentHeight
-  
+
   -- Combine element opacity with imageOpacity
   local finalOpacity = self.opacity * self.imageOpacity
-  
+
   -- Apply cornerRadius clipping if set
   local hasCornerRadius = self.cornerRadius.topLeft > 0
     or self.cornerRadius.topRight > 0
     or self.cornerRadius.bottomLeft > 0
     or self.cornerRadius.bottomRight > 0
-  
+
   if hasCornerRadius then
     -- Use stencil to clip image to rounded corners
     love.graphics.stencil(function()
@@ -183,10 +161,10 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
     end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
   end
-  
+
   -- Draw the image
   self._ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
-  
+
   -- Clear stencil if it was used
   if hasCornerRadius then
     love.graphics.setStencilTest()
@@ -204,7 +182,7 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
   if not self.themeComponent then
     return
   end
-  
+
   -- Get the theme to use
   local themeToUse = nil
   if self.theme then
@@ -222,26 +200,26 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
     -- Use active theme
     themeToUse = self._Theme.getActive()
   end
-  
+
   if not themeToUse then
     return
   end
-  
+
   -- Get the component from the theme
   local component = themeToUse.components[self.themeComponent]
   if not component then
     return
   end
-  
+
   -- Check for state-specific override
   local state = self._themeState
   if state and component.states and component.states[state] then
     component = component.states[state]
   end
-  
+
   -- Use component-specific atlas if available, otherwise use theme atlas
   local atlasToUse = component._loadedAtlas or themeToUse.atlas
-  
+
   if atlasToUse and component.regions then
     -- Validate component has required structure
     local hasAllRegions = component.regions.topLeft
@@ -253,7 +231,7 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
       and component.regions.bottomLeft
       and component.regions.bottomCenter
       and component.regions.bottomRight
-    
+
     if hasAllRegions then
       -- Pass element-level overrides for scaleCorners and scalingAlgorithm
       self._NinePatch.draw(component, atlasToUse, x, y, borderBoxWidth, borderBoxHeight, self.opacity, scaleCorners, scalingAlgorithm)
@@ -267,17 +245,12 @@ end
 ---@param borderBoxWidth number Border box width
 ---@param borderBoxHeight number Border box height
 function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
-  local borderColorWithOpacity = self._Color.new(
-    self.borderColor.r,
-    self.borderColor.g,
-    self.borderColor.b,
-    self.borderColor.a * self.opacity
-  )
+  local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
-  
+
   -- Check if all borders are enabled
   local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
-  
+
   if allBorders then
     -- Draw complete rounded rectangle border
     self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
@@ -305,14 +278,14 @@ function Renderer:draw(backdropCanvas)
   if self.opacity <= 0 then
     return
   end
-  
+
   -- Element must be initialized before drawing
   if not self._element then
     error("Renderer:draw() called before initialize(). Call renderer:initialize(element) first.")
   end
-  
+
   local element = self._element
-  
+
   -- Handle opacity during animation
   local drawBackgroundColor = self.backgroundColor
   if element.animation then
@@ -321,11 +294,11 @@ function Renderer:draw(backdropCanvas)
       drawBackgroundColor = self._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
-  
+
   -- Cache border box dimensions for this draw call (optimization)
   local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
   local borderBoxHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-  
+
   -- LAYER 0.5: Draw backdrop blur if configured (before background)
   if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
     local blurInstance = self:getBlurInstance()
@@ -333,25 +306,16 @@ function Renderer:draw(backdropCanvas)
       self._Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, element.x, element.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
     end
   end
-  
+
   -- LAYER 1: Draw backgroundColor first (behind everything)
   self:_drawBackground(element.x, element.y, borderBoxWidth, borderBoxHeight, drawBackgroundColor)
-  
+
   -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
-  self:_drawImage(
-    element.x,
-    element.y,
-    element.padding.left,
-    element.padding.top,
-    element.width,
-    element.height,
-    borderBoxWidth,
-    borderBoxHeight
-  )
-  
+  self:_drawImage(element.x, element.y, element.padding.left, element.padding.top, element.width, element.height, borderBoxWidth, borderBoxHeight)
+
   -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
   self:_drawTheme(element.x, element.y, borderBoxWidth, borderBoxHeight, element.scaleCorners, element.scalingAlgorithm)
-  
+
   -- LAYER 3: Draw borders on top of theme
   self:_drawBorders(element.x, element.y, borderBoxWidth, borderBoxHeight)
 end
@@ -382,7 +346,7 @@ end
 function Renderer:wrapLine(element, line, maxWidth)
   -- UTF-8 support
   local utf8 = utf8 or require("utf8")
-  
+
   if not element.editable then
     return { { text = line, startIdx = 0, endIdx = utf8.len(line) } }
   end
@@ -596,7 +560,8 @@ function Renderer:drawText(element)
   end
 
   if displayText and displayText ~= "" then
-    local textColor = isPlaceholder and self._Color.new(element.textColor.r * 0.5, element.textColor.g * 0.5, element.textColor.b * 0.5, element.textColor.a * 0.5)
+    local textColor = isPlaceholder
+        and self._Color.new(element.textColor.r * 0.5, element.textColor.g * 0.5, element.textColor.b * 0.5, element.textColor.a * 0.5)
       or element.textColor
     local textColorWithOpacity = self._Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())

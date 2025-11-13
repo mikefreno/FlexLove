@@ -1,19 +1,3 @@
--- ====================
--- Event Handler Module
--- ====================
--- Handles all user input events (mouse, keyboard, touch) for UI elements
--- Manages event state, click detection, drag tracking, hover, and focus
----
---- Dependencies (must be injected via deps parameter):
----   - InputEvent: Input event class for creating event objects
----   - GuiState: GUI state manager (unused currently, reserved for future use)
-
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
--- Get keyboard modifiers helper
 local function getModifiers()
   return {
     shift = love.keyboard.isDown("lshift") or love.keyboard.isDown("rshift"),
@@ -33,42 +17,42 @@ EventHandler.__index = EventHandler
 ---@return EventHandler
 function EventHandler.new(config, deps)
   config = config or {}
-  
+
   local self = setmetatable({}, EventHandler)
-  
+
   -- Store dependencies
   self._InputEvent = deps.InputEvent
   self._GuiState = deps.GuiState
-  
+
   -- Event callback
   self.onEvent = config.onEvent
-  
+
   -- Mouse button state tracking {button -> boolean}
   self._pressed = config._pressed or {}
-  
+
   -- Click detection state
   self._lastClickTime = config._lastClickTime
   self._lastClickButton = config._lastClickButton
   self._clickCount = config._clickCount or 0
-  
+
   -- Drag tracking per button {button -> position}
   self._dragStartX = config._dragStartX or {}
   self._dragStartY = config._dragStartY or {}
   self._lastMouseX = config._lastMouseX or {}
   self._lastMouseY = config._lastMouseY or {}
-  
+
   -- Touch state tracking {touchId -> boolean}
   self._touchPressed = config._touchPressed or {}
-  
+
   -- Hover state
   self._hovered = config._hovered or false
-  
+
   -- Reference to parent element (set via initialize)
   self._element = nil
-  
+
   -- Scrollbar press tracking flag
   self._scrollbarPressHandled = false
-  
+
   return self
 end
 
@@ -97,8 +81,10 @@ end
 --- Restore state from persistence (for immediate mode)
 ---@param state table State data
 function EventHandler:setState(state)
-  if not state then return end
-  
+  if not state then
+    return
+  end
+
   self._pressed = state._pressed or {}
   self._lastClickTime = state._lastClickTime
   self._lastClickButton = state._lastClickButton
@@ -119,9 +105,9 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
   if not self._element then
     return
   end
-  
+
   local element = self._element
-  
+
   -- Check if currently dragging (allows drag continuation even if occluded)
   local isDragging = false
   for _, button in ipairs({ 1, 2, 3 }) do
@@ -130,17 +116,17 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
       break
     end
   end
-  
+
   -- Can only process events if we have handler, element is enabled, and is active or dragging
   local canProcessEvents = (self.onEvent or element.editable) and not element.disabled and (isActiveElement or isDragging)
-  
+
   if not canProcessEvents then
     return
   end
-  
+
   -- Process all three mouse buttons
   local buttons = { 1, 2, 3 } -- left, right, middle
-  
+
   for _, button in ipairs(buttons) do
     if isHovering or isDragging then
       if love.mouse.isDown(button) then
@@ -172,10 +158,12 @@ end
 ---@param my number Mouse Y position
 ---@param button number Mouse button (1=left, 2=right, 3=middle)
 function EventHandler:_handleMousePress(mx, my, button)
-  if not self._element then return end
-  
+  if not self._element then
+    return
+  end
+
   local element = self._element
-  
+
   -- Check if press is on scrollbar first (skip if already handled)
   if button == 1 and not self._scrollbarPressHandled and element._handleScrollbarPress then
     if element:_handleScrollbarPress(mx, my, button) then
@@ -185,7 +173,7 @@ function EventHandler:_handleMousePress(mx, my, button)
       return
     end
   end
-  
+
   -- Fire press event
   if self.onEvent then
     local modifiers = getModifiers()
@@ -199,15 +187,15 @@ function EventHandler:_handleMousePress(mx, my, button)
     })
     self.onEvent(element, pressEvent)
   end
-  
+
   self._pressed[button] = true
-  
+
   -- Set mouse down position for text selection on left click
   if button == 1 and element._textEditor then
     element._mouseDownPosition = element._textEditor:mouseToTextPosition(mx, my)
     element._textDragOccurred = false -- Reset drag flag on press
   end
-  
+
   -- Record drag start position per button
   self._dragStartX[button] = mx
   self._dragStartY[button] = my
@@ -221,20 +209,22 @@ end
 ---@param button number Mouse button
 ---@param isHovering boolean Whether mouse is over element
 function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
-  if not self._element then return end
-  
+  if not self._element then
+    return
+  end
+
   local element = self._element
-  
+
   local lastX = self._lastMouseX[button] or mx
   local lastY = self._lastMouseY[button] or my
-  
-    if lastX ~= mx or lastY ~= my then
+
+  if lastX ~= mx or lastY ~= my then
     -- Mouse has moved - fire drag event only if still hovering
     if self.onEvent and isHovering then
       local modifiers = getModifiers()
       local dx = mx - self._dragStartX[button]
       local dy = my - self._dragStartY[button]
-      
+
       local dragEvent = self._InputEvent.new({
         type = "drag",
         button = button,
@@ -247,12 +237,12 @@ function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
       })
       self.onEvent(element, dragEvent)
     end
-    
+
     -- Handle text selection drag for editable elements
     if button == 1 and element.editable and element._focused and element._handleTextDrag then
       element:_handleTextDrag(mx, my)
     end
-    
+
     -- Update last known position for this button
     self._lastMouseX[button] = mx
     self._lastMouseY[button] = my
@@ -264,27 +254,29 @@ end
 ---@param my number Mouse Y position
 ---@param button number Mouse button
 function EventHandler:_handleMouseRelease(mx, my, button)
-  if not self._element then return end
-  
+  if not self._element then
+    return
+  end
+
   local element = self._element
-  
+
   local currentTime = love.timer.getTime()
   local modifiers = getModifiers()
-  
+
   -- Determine click count (double-click detection)
   local clickCount = 1
   local doubleClickThreshold = 0.3 -- 300ms for double-click
-  
+
   if self._lastClickTime and self._lastClickButton == button and (currentTime - self._lastClickTime) < doubleClickThreshold then
     clickCount = self._clickCount + 1
   else
     clickCount = 1
   end
-  
+
   self._clickCount = clickCount
   self._lastClickTime = currentTime
   self._lastClickButton = button
-  
+
   -- Determine event type based on button
   local eventType = "click"
   if button == 2 then
@@ -292,7 +284,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   elseif button == 3 then
     eventType = "middleclick"
   end
-  
+
   -- Fire click event
   if self.onEvent then
     local clickEvent = self._InputEvent.new({
@@ -305,18 +297,18 @@ function EventHandler:_handleMouseRelease(mx, my, button)
     })
     self.onEvent(element, clickEvent)
   end
-  
+
   self._pressed[button] = false
-  
+
   -- Clean up drag tracking
   self._dragStartX[button] = nil
   self._dragStartY[button] = nil
-  
+
   -- Clean up text selection drag tracking
   if button == 1 then
     element._mouseDownPosition = nil
   end
-  
+
   -- Focus editable elements on left click
   if button == 1 and element.editable then
     -- Only focus if not already focused (to avoid moving cursor to end)
@@ -324,17 +316,17 @@ function EventHandler:_handleMouseRelease(mx, my, button)
     if not wasFocused then
       element:focus()
     end
-    
+
     -- Handle text click for cursor positioning and word selection
     -- Only process click if no text drag occurred (to preserve drag selection)
     if element._handleTextClick and not element._textDragOccurred then
       element:_handleTextClick(mx, my, clickCount)
     end
-    
+
     -- Reset drag flag after release
     element._textDragOccurred = false
   end
-  
+
   -- Fire release event
   if self.onEvent then
     local releaseEvent = self._InputEvent.new({
@@ -354,14 +346,14 @@ function EventHandler:processTouchEvents()
   if not self._element or not self.onEvent then
     return
   end
-  
+
   local element = self._element
-  
+
   local bx = element.x
   local by = element.y
   local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
   local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-  
+
   local touches = love.touch.getTouches()
   for _, id in ipairs(touches) do
     local tx, ty = love.touch.getPosition(id)

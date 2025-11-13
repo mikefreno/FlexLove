@@ -1,9 +1,3 @@
---[[
-NinePatch - 9-Patch Renderer for FlexLove
-Handles rendering of 9-patch components with Android-style scaling.
-Corners can be scaled independently while edges stretch in one dimension.
-]]
-
 local modulePath = (...):match("(.-)[^%.]+$")
 local ImageScaler = require(modulePath .. "ImageScaler")
 

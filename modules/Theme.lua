@@ -1,16 +1,9 @@
---[[
-Theme - Theme System for FlexLove
-Manages theme loading, registration, and component/color/font access.
-Supports 9-patch images, component states, and dynamic theme switching.
-]]
-
 local modulePath = (...):match("(.-)[^%.]+$")
 local function req(name)
   return require(modulePath .. name)
 end
 
 local NinePatchParser = req("NinePatchParser")
-local ImageScaler = req("ImageScaler")
 
 --- Standardized error message formatter
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")

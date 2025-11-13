@@ -1,10 +1,3 @@
----@class Animation
----@field duration number
----@field start {width?:number, height?:number, opacity?:number}
----@field final {width?:number, height?:number, opacity?:number}
----@field elapsed number
----@field transform table?
----@field transition table?
 --- Easing functions for animations
 local Easing = {
   linear = function(t)
@@ -47,27 +40,15 @@ local Easing = {
     return t == 1 and 1 or 1 - math.pow(2, -10 * t)
   end,
 }
-
-local Animation = {}
-Animation.__index = Animation
-
----@class AnimationProps
+---@class Animation
 ---@field duration number
 ---@field start {width?:number, height?:number, opacity?:number}
 ---@field final {width?:number, height?:number, opacity?:number}
+---@field elapsed number
 ---@field transform table?
 ---@field transition table?
-local AnimationProps = {}
-
----@class TransformProps
----@field scale {x?:number, y?:number}?
----@field rotate number?
----@field translate {x?:number, y?:number}?
----@field skew {x?:number, y?:number}?
-
----@class TransitionProps
----@field duration number?
----@field easing string?
+local Animation = {}
+Animation.__index = Animation
 
 ---@param props AnimationProps
 ---@return Animation

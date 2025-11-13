@@ -1,12 +1,3 @@
---[[
-ImageCache.lua - Image caching system for FlexLove
-Provides efficient image loading and caching with memory management
-]]
-
--- ====================
--- ImageCache
--- ====================
-
 ---@class ImageCache
 ---@field _cache table<string, {image: love.Image, imageData: love.ImageData?}>
 local ImageCache = {}

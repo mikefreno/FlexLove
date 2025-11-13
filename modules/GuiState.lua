@@ -1,8 +1,3 @@
--- ====================
--- GUI State Module
--- ====================
--- Shared state between Gui and Element to avoid circular dependencies
-
 ---@class GuiState
 local GuiState = {
   -- Top-level elements

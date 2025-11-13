@@ -1,8 +1,3 @@
---[[
-FlexLove Blur Module
-Fast Gaussian blur implementation with canvas caching
-]]
-
 local Blur = {}
 
 -- Canvas cache to avoid recreating canvases every frame

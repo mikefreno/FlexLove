@@ -1,8 +1,3 @@
---[[
-RoundedRect - Rounded Rectangle Helper for FlexLove
-Provides functions for generating and drawing rounded rectangles with per-corner radius control.
-]]
-
 local RoundedRect = {}
 
 --- Generate points for a rounded rectangle

@@ -1,7 +1,3 @@
--- ====================
--- Input Event System
--- ====================
-
 ---@class InputEvent
 ---@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"
 ---@field button number -- Mouse button: 1 (left), 2 (right), 3 (middle)

@@ -1,8 +1,3 @@
--- ====================
--- Units System
--- ====================
-
---- Unit parsing and viewport calculations
 local Units = {}
 
 --- Parse a unit value (string or number) into value and unit type

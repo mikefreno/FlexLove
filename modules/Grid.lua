@@ -1,7 +1,3 @@
--- ====================
--- Grid Layout System
--- ====================
-
 local modulePath = (...):match("(.-)[^%.]+$")
 local utils = require(modulePath .. "utils")
 local enums = utils.enums

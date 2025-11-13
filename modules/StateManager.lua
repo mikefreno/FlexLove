@@ -1,10 +1,3 @@
--- ====================
--- State Manager Module
--- ====================
--- Unified state management system for immediate mode GUI elements
--- Combines ID-based state persistence with interactive state tracking
--- Handles all element state: interaction, scroll, input, click tracking, etc.
-
 ---@class StateManager
 local StateManager = {}
 
@@ -23,7 +16,7 @@ local callSiteCounters = {}
 -- Configuration
 local config = {
   stateRetentionFrames = 60, -- Keep unused state for 60 frames (~1 second at 60fps)
-  maxStateEntries = 1000,    -- Maximum state entries before forced GC
+  maxStateEntries = 1000, -- Maximum state entries before forced GC
 }
 
 -- ====================
@@ -36,28 +29,30 @@ local config = {
 ---@param depth number|nil Current recursion depth
 ---@return string
 local function hashProps(props, visited, depth)
-  if not props then return "" end
+  if not props then
+    return ""
+  end
 
   -- Initialize visited table on first call
   visited = visited or {}
   depth = depth or 0
-  
+
   -- Limit recursion depth to prevent deep nesting issues
   if depth > 3 then
     return "[deep]"
   end
-  
+
   -- Check if we've already visited this table (circular reference)
   if visited[props] then
     return "[circular]"
   end
-  
+
   -- Mark this table as visited
   visited[props] = true
 
   local parts = {}
   local keys = {}
-  
+
   -- Properties to skip (they cause issues or aren't relevant for ID generation)
   local skipKeys = {
     onEvent = true,
@@ -70,12 +65,12 @@ local function hashProps(props, visited, depth)
     onEnter = true,
     userdata = true,
     -- Dynamic input/state properties that should not affect ID stability
-    text = true,           -- Text content changes as user types
-    placeholder = true,    -- Placeholder text is presentational
-    editable = true,       -- Editable state can be toggled dynamically
-    selectOnFocus = true,  -- Input behavior flag
-    autoGrow = true,       -- Auto-grow behavior flag
-    passwordMode = true,   -- Password mode can be toggled
+    text = true, -- Text content changes as user types
+    placeholder = true, -- Placeholder text is presentational
+    editable = true, -- Editable state can be toggled dynamically
+    selectOnFocus = true, -- Input behavior flag
+    autoGrow = true, -- Auto-grow behavior flag
+    passwordMode = true, -- Password mode can be toggled
   }
 
   -- Collect and sort keys for consistent ordering
@@ -121,17 +116,17 @@ function StateManager.generateID(props, parent)
   local filename = source:match("([^/\\]+)$") or source -- Get filename
   filename = filename:gsub("%.lua$", "") -- Remove .lua extension
   local locationKey = filename .. "_L" .. line
-  
+
   -- If we have a parent, use tree-based ID generation for stability
   if parent and parent.id and parent.id ~= "" then
     -- Count how many children the parent currently has
     -- This gives us a stable sibling index
     local siblingIndex = #(parent.children or {})
-    
+
     -- Generate ID based on parent ID + sibling position (NO line number for stability)
     -- This ensures the same position in the tree always gets the same ID
     local baseID = parent.id .. "_child" .. siblingIndex
-    
+
     -- Add property hash if provided (for additional differentiation at same position)
     if props then
       local propHash = hashProps(props)
@@ -144,17 +139,17 @@ function StateManager.generateID(props, parent)
         baseID = baseID .. "_" .. hash
       end
     end
-    
+
     return baseID
   end
-  
+
   -- No parent (top-level element): use call-site counter approach
   -- Track how many elements have been created at this location
   callSiteCounters[locationKey] = (callSiteCounters[locationKey] or 0) + 1
   local instanceNum = callSiteCounters[locationKey]
-  
+
   local baseID = locationKey
-  
+
   -- Add instance number if multiple elements created at same location (e.g., in loops)
   if instanceNum > 1 then
     baseID = baseID .. "_" .. instanceNum
@@ -193,48 +188,100 @@ function StateManager.getState(id, defaultState)
   if not stateStore[id] then
     -- Merge default state with standard structure
     stateStore[id] = defaultState or {}
-    
+
     -- Ensure all standard properties exist with defaults
     local state = stateStore[id]
-    
+
     -- Interaction states
-    if state.hover == nil then state.hover = false end
-    if state.pressed == nil then state.pressed = false end
-    if state.focused == nil then state.focused = false end
-    if state.disabled == nil then state.disabled = false end
-    if state.active == nil then state.active = false end
-    
+    if state.hover == nil then
+      state.hover = false
+    end
+    if state.pressed == nil then
+      state.pressed = false
+    end
+    if state.focused == nil then
+      state.focused = false
+    end
+    if state.disabled == nil then
+      state.disabled = false
+    end
+    if state.active == nil then
+      state.active = false
+    end
+
     -- Scrollbar states
-    if state.scrollbarHoveredVertical == nil then state.scrollbarHoveredVertical = false end
-    if state.scrollbarHoveredHorizontal == nil then state.scrollbarHoveredHorizontal = false end
-    if state.scrollbarDragging == nil then state.scrollbarDragging = false end
-    if state.hoveredScrollbar == nil then state.hoveredScrollbar = nil end
-    if state.scrollbarDragOffset == nil then state.scrollbarDragOffset = 0 end
-    
+    if state.scrollbarHoveredVertical == nil then
+      state.scrollbarHoveredVertical = false
+    end
+    if state.scrollbarHoveredHorizontal == nil then
+      state.scrollbarHoveredHorizontal = false
+    end
+    if state.scrollbarDragging == nil then
+      state.scrollbarDragging = false
+    end
+    if state.hoveredScrollbar == nil then
+      state.hoveredScrollbar = nil
+    end
+    if state.scrollbarDragOffset == nil then
+      state.scrollbarDragOffset = 0
+    end
+
     -- Scroll position
-    if state.scrollX == nil then state.scrollX = 0 end
-    if state.scrollY == nil then state.scrollY = 0 end
-    
+    if state.scrollX == nil then
+      state.scrollX = 0
+    end
+    if state.scrollY == nil then
+      state.scrollY = 0
+    end
+
     -- Click tracking
-    if state._pressed == nil then state._pressed = {} end
-    if state._lastClickTime == nil then state._lastClickTime = nil end
-    if state._lastClickButton == nil then state._lastClickButton = nil end
-    if state._clickCount == nil then state._clickCount = 0 end
-    
+    if state._pressed == nil then
+      state._pressed = {}
+    end
+    if state._lastClickTime == nil then
+      state._lastClickTime = nil
+    end
+    if state._lastClickButton == nil then
+      state._lastClickButton = nil
+    end
+    if state._clickCount == nil then
+      state._clickCount = 0
+    end
+
     -- Drag tracking
-    if state._dragStartX == nil then state._dragStartX = {} end
-    if state._dragStartY == nil then state._dragStartY = {} end
-    if state._lastMouseX == nil then state._lastMouseX = {} end
-    if state._lastMouseY == nil then state._lastMouseY = {} end
-    
+    if state._dragStartX == nil then
+      state._dragStartX = {}
+    end
+    if state._dragStartY == nil then
+      state._dragStartY = {}
+    end
+    if state._lastMouseX == nil then
+      state._lastMouseX = {}
+    end
+    if state._lastMouseY == nil then
+      state._lastMouseY = {}
+    end
+
     -- Input/focus state
-    if state._hovered == nil then state._hovered = nil end
-    if state._focused == nil then state._focused = nil end
-    if state._cursorPosition == nil then state._cursorPosition = nil end
-    if state._selectionStart == nil then state._selectionStart = nil end
-    if state._selectionEnd == nil then state._selectionEnd = nil end
-    if state._textBuffer == nil then state._textBuffer = "" end
-    
+    if state._hovered == nil then
+      state._hovered = nil
+    end
+    if state._focused == nil then
+      state._focused = nil
+    end
+    if state._cursorPosition == nil then
+      state._cursorPosition = nil
+    end
+    if state._selectionStart == nil then
+      state._selectionStart = nil
+    end
+    if state._selectionEnd == nil then
+      state._selectionEnd = nil
+    end
+    if state._textBuffer == nil then
+      state._textBuffer = ""
+    end
+
     -- Create metadata
     stateMetadata[id] = {
       lastFrame = frameNumber,
@@ -278,12 +325,12 @@ end
 ---@param newState table New state values to merge
 function StateManager.updateState(id, newState)
   local state = StateManager.getState(id)
-  
+
   -- Merge new state into existing state
   for key, value in pairs(newState) do
     state[key] = value
   end
-  
+
   -- Update metadata
   stateMetadata[id].lastFrame = frameNumber
 end
@@ -468,7 +515,7 @@ end
 ---@return table state Active state values
 function StateManager.getActiveState(id)
   local state = StateManager.getState(id)
-  
+
   -- Return only the active state properties (not tracking frames or internal state)
   return {
     hover = state.hover,

@@ -690,12 +690,12 @@ function TestInputField:testMultilineTextSplitting()
   })
 
   -- Trigger line splitting
-  element:_splitLines()
+  element._textEditor:_splitLines()
 
-  lu.assertEquals(#element._lines, 3)
-  lu.assertEquals(element._lines[1], "Line 1")
-  lu.assertEquals(element._lines[2], "Line 2")
-  lu.assertEquals(element._lines[3], "Line 3")
+  lu.assertEquals(#element._textEditor._lines, 3)
+  lu.assertEquals(element._textEditor._lines[1], "Line 1")
+  lu.assertEquals(element._textEditor._lines[2], "Line 2")
+  lu.assertEquals(element._textEditor._lines[3], "Line 3")
 end
 
 -- ====================
@@ -1155,11 +1155,11 @@ function TestInputField:testMouseToTextPosition()
   element:focus()
   
   -- Test conversion at start of element
-  local pos = element:_mouseToTextPosition(10, 10)
+  local pos = element._textEditor:mouseToTextPosition(10, 10)
   lu.assertEquals(pos, 0)
   
   -- Test conversion far to the right (should be at end)
-  pos = element:_mouseToTextPosition(200, 10)
+  pos = element._textEditor:mouseToTextPosition(200, 10)
   lu.assertEquals(pos, 5) -- "Hello" has 5 characters
 end
 
@@ -1822,15 +1822,15 @@ function TestInputField:testMultilineMouseToTextPositionBasic()
   local lineHeight = font:getHeight()
   
   -- Click at start (should be position 0)
-  local pos = element:_mouseToTextPosition(10, 10)
+  local pos = element._textEditor:mouseToTextPosition(10, 10)
   lu.assertEquals(pos, 0)
   
   -- Click on second line start (should be after "Line 1\n" = position 7)
-  pos = element:_mouseToTextPosition(10, 10 + lineHeight)
+  pos = element._textEditor:mouseToTextPosition(10, 10 + lineHeight)
   lu.assertEquals(pos, 7)
   
   -- Click on third line start (should be after "Line 1\nLine 2\n" = position 14)
-  pos = element:_mouseToTextPosition(10, 10 + lineHeight * 2)
+  pos = element._textEditor:mouseToTextPosition(10, 10 + lineHeight * 2)
   lu.assertEquals(pos, 14)
 end
 
@@ -1852,12 +1852,12 @@ function TestInputField:testMultilineMouseToTextPositionXCoordinate()
   local charWidth = font:getWidth("A")
   
   -- Click in middle of first line (should be around position 1-2)
-  local pos = element:_mouseToTextPosition(10 + charWidth * 1.5, 10)
+  local pos = element._textEditor:mouseToTextPosition(10 + charWidth * 1.5, 10)
   lu.assertTrue(pos >= 1 and pos <= 2)
   
   -- Click at end of second line (should be around position 6-7)
   -- Text is "ABC\nDEF\nGHI", so second line "DEF" ends at position 6 or 7 (newline)
-  pos = element:_mouseToTextPosition(10 + charWidth * 3, 10 + lineHeight)
+  pos = element._textEditor:mouseToTextPosition(10 + charWidth * 3, 10 + lineHeight)
   lu.assertTrue(pos >= 6 and pos <= 7)
 end
 
@@ -2076,11 +2076,11 @@ function TestInputField:testMultilineEmptyLinesHandling()
   local lineHeight = font:getHeight()
   
   -- Click on empty line (second line)
-  local pos = element:_mouseToTextPosition(10, 10 + lineHeight)
+  local pos = element._textEditor:mouseToTextPosition(10, 10 + lineHeight)
   lu.assertEquals(pos, 7) -- After "Line 1\n"
   
   -- Click on third line
-  pos = element:_mouseToTextPosition(10, 10 + lineHeight * 2)
+  pos = element._textEditor:mouseToTextPosition(10, 10 + lineHeight * 2)
   lu.assertEquals(pos, 8) -- After "Line 1\n\n"
 end
 
@@ -2101,7 +2101,7 @@ function TestInputField:testMultilineYCoordinateBeyondText()
   local lineHeight = font:getHeight()
   
   -- Click way below the text (should clamp to last line)
-  local pos = element:_mouseToTextPosition(10, 10 + lineHeight * 10)
+  local pos = element._textEditor:mouseToTextPosition(10, 10 + lineHeight * 10)
   local textLen = utf8.len(element.text)
   
   -- Should be at or near end of text

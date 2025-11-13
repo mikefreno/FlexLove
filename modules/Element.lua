@@ -22,7 +22,6 @@ local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
-local ThemeManager = req("ThemeManager")
 
 -- Extract utilities
 local enums = utils.enums
@@ -245,7 +244,7 @@ function Element.new(props)
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
-  self._themeManager = ThemeManager.new({
+  self._themeManager = Theme.Manager.new({
     theme = props.theme or Gui.defaultTheme,
     themeComponent = props.themeComponent or nil,
     disabled = props.disabled or false,
@@ -253,8 +252,6 @@ function Element.new(props)
     disableHighlight = props.disableHighlight,
     scaleCorners = props.scaleCorners,
     scalingAlgorithm = props.scalingAlgorithm,
-  }, {
-    Theme = Theme,
   })
   self._themeManager:initialize(self)
 

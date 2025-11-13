@@ -29,7 +29,7 @@ local enums = utils.enums
 local flexlove = {
   _VERSION = "FlexLove v0.1.0",
   _DESCRIPTION = "UI Library for LÖVE Framework based on flexbox",
-  _URL = "https://github.com/Station-Alpha/FlexLove",
+  _URL = "https://github.com/mikefreno/FlexLove",
   _LICENSE = [[
     MIT License
 

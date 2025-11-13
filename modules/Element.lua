@@ -26,6 +26,8 @@ local StateManager = req("StateManager")
 local TextEditor = req("TextEditor")
 local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
+local EventHandler = req("EventHandler")
+local ScrollManager = req("ScrollManager")
 
 -- Extract utilities
 local enums = utils.enums
@@ -55,11 +57,7 @@ INTERNAL FIELD NAMING CONVENTIONS:
 ---------------------------------
 Fields prefixed with underscore (_) are internal/private and should not be accessed directly:
 
-- _pressed: Internal state tracking for mouse button presses
-- _lastClickTime: Internal timestamp for double-click detection
-- _lastClickButton: Internal button tracking for click events
-- _clickCount: Internal counter for multi-click detection
-- _touchPressed: Internal touch state tracking
+- _eventHandler: Internal EventHandler instance for input event processing
 - _themeState: Internal current theme state (managed automatically)
 - _borderBoxWidth: Internal cached border-box width (optimization)
 - _borderBoxHeight: Internal cached border-box height (optimization)
@@ -119,15 +117,7 @@ Public API methods to access internal state:
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
 ---@field units table -- Original unit specifications for responsive behavior
----@field _pressed table<number, boolean> -- Track pressed state per mouse button
----@field _lastClickTime number? -- Timestamp of last click for double-click detection
----@field _lastClickButton number? -- Button of last click
----@field _clickCount number -- Current click count for multi-click detection
----@field _touchPressed table<any, boolean> -- Track touch pressed state
----@field _dragStartX table<number, number>? -- Track drag start X position per mouse button
----@field _dragStartY table<number, number>? -- Track drag start Y position per mouse button
----@field _lastMouseX table<number, number>? -- Last known mouse X position per button for drag tracking
----@field _lastMouseY table<number, number>? -- Last known mouse Y position per button for drag tracking
+---@field _eventHandler EventHandler -- Event handler instance for input processing
 ---@field _explicitlyAbsolute boolean?
 ---@field gridRows number? -- Number of rows in the grid
 ---@field gridColumns number? -- Number of columns in the grid
@@ -210,18 +200,11 @@ function Element.new(props)
   self.onTextChange = props.onTextChange
   self.onEnter = props.onEnter
 
-  -- Initialize click tracking for event system
-  self._pressed = {} -- Track pressed state per mouse button
-  self._lastClickTime = nil
-  self._lastClickButton = nil
-  self._clickCount = 0
-  self._touchPressed = {}
-
-  -- Initialize drag tracking for event system
-  self._dragStartX = {} -- Track drag start X position per mouse button
-  self._dragStartY = {} -- Track drag start Y position per mouse button
-  self._lastMouseX = {} -- Track last mouse X position per button
-  self._lastMouseY = {} -- Track last mouse Y position per button
+  -- Initialize EventHandler for event processing
+  self._eventHandler = EventHandler.new({
+    onEvent = self.onEvent,
+  })
+  self._eventHandler:initialize(self)
 
   -- Initialize theme state (will be managed by StateManager in immediate mode)
   self._themeState = "normal"
@@ -1208,54 +1191,53 @@ function Element.new(props)
   self.transform = props.transform or {}
   self.transition = props.transition or {}
 
-  -- Overflow and scroll properties
-  self.overflow = props.overflow or "hidden"
-  self.overflowX = props.overflowX
-  self.overflowY = props.overflowY
-
-  -- Scrollbar configuration
-  self.scrollbarWidth = props.scrollbarWidth or 12
-  self.scrollbarColor = props.scrollbarColor or Color.new(0.5, 0.5, 0.5, 0.8)
-  self.scrollbarTrackColor = props.scrollbarTrackColor or Color.new(0.2, 0.2, 0.2, 0.5)
-  self.scrollbarRadius = props.scrollbarRadius or 6
-  self.scrollbarPadding = props.scrollbarPadding or 2
-  self.scrollSpeed = props.scrollSpeed or 20
-
-  -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
-  if props.hideScrollbars ~= nil then
-    if type(props.hideScrollbars) == "boolean" then
-      self.hideScrollbars = { vertical = props.hideScrollbars, horizontal = props.hideScrollbars }
-    elseif type(props.hideScrollbars) == "table" then
-      self.hideScrollbars = {
-        vertical = props.hideScrollbars.vertical ~= nil and props.hideScrollbars.vertical or false,
-        horizontal = props.hideScrollbars.horizontal ~= nil and props.hideScrollbars.horizontal or false,
-      }
-    else
-      self.hideScrollbars = { vertical = false, horizontal = false }
-    end
+  -- Initialize ScrollManager if any overflow properties are set
+  if props.overflow or props.overflowX or props.overflowY then
+    self._scrollManager = ScrollManager.new({
+      overflow = props.overflow,
+      overflowX = props.overflowX,
+      overflowY = props.overflowY,
+      scrollbarWidth = props.scrollbarWidth,
+      scrollbarColor = props.scrollbarColor,
+      scrollbarTrackColor = props.scrollbarTrackColor,
+      scrollbarRadius = props.scrollbarRadius,
+      scrollbarPadding = props.scrollbarPadding,
+      scrollSpeed = props.scrollSpeed,
+      hideScrollbars = props.hideScrollbars,
+      _scrollX = props._scrollX,
+      _scrollY = props._scrollY,
+    })
+    self._scrollManager:initialize(self)
+    
+    -- Expose ScrollManager properties for backward compatibility (Renderer access)
+    self.overflow = self._scrollManager.overflow
+    self.overflowX = self._scrollManager.overflowX
+    self.overflowY = self._scrollManager.overflowY
+    self.scrollbarWidth = self._scrollManager.scrollbarWidth
+    self.scrollbarColor = self._scrollManager.scrollbarColor
+    self.scrollbarTrackColor = self._scrollManager.scrollbarTrackColor
+    self.scrollbarRadius = self._scrollManager.scrollbarRadius
+    self.scrollbarPadding = self._scrollManager.scrollbarPadding
+    self.scrollSpeed = self._scrollManager.scrollSpeed
+    self.hideScrollbars = self._scrollManager.hideScrollbars
+    
+    -- Initialize state properties (will be synced from ScrollManager)
+    self._overflowX = false
+    self._overflowY = false
+    self._contentWidth = 0
+    self._contentHeight = 0
+    self._scrollX = 0
+    self._scrollY = 0
+    self._maxScrollX = 0
+    self._maxScrollY = 0
+    self._scrollbarHoveredVertical = false
+    self._scrollbarHoveredHorizontal = false
+    self._scrollbarDragging = false
+    self._hoveredScrollbar = nil
+    self._scrollbarDragOffset = 0
   else
-    self.hideScrollbars = { vertical = false, horizontal = false }
+    self._scrollManager = nil
   end
-
-  -- Internal overflow state
-  self._overflowX = false
-  self._overflowY = false
-  self._contentWidth = 0
-  self._contentHeight = 0
-
-  -- Scroll state (can be restored from props in immediate mode)
-  self._scrollX = props._scrollX or 0
-  self._scrollY = props._scrollY or 0
-  self._maxScrollX = 0
-  self._maxScrollY = 0
-
-  -- Scrollbar interaction state
-  self._scrollbarHoveredVertical = false
-  self._scrollbarHoveredHorizontal = false
-  self._scrollbarDragging = false
-  self._hoveredScrollbar = nil -- "vertical" or "horizontal"
-  self._scrollbarDragOffset = 0 -- Offset from thumb top when drag started
-  self._scrollbarPressHandled = false -- Track if scrollbar press was handled this frame
 
   -- Register element in z-index tracking for immediate mode
   if Gui._immediateMode then
@@ -1297,231 +1279,70 @@ function Element:getBorderBoxHeight()
   return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 end
 
---- Detect if content overflows container bounds
-function Element:_detectOverflow()
-  -- Reset overflow state
-  self._overflowX = false
-  self._overflowY = false
-  self._contentWidth = self.width
-  self._contentHeight = self.height
-
-  -- Skip detection if overflow is visible (no clipping needed)
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-  if overflowX == "visible" and overflowY == "visible" then
+--- Sync ScrollManager state to Element properties for backward compatibility
+--- This ensures Renderer and StateManager can access scroll state from Element
+function Element:_syncScrollManagerState()
+  if not self._scrollManager then
     return
   end
-
-  -- Calculate content bounds based on children
-  if #self.children == 0 then
-    return -- No children, no overflow
-  end
-
-  local minX, minY = 0, 0
-  local maxX, maxY = 0, 0
-
-  -- Content area starts after padding
-  local contentX = self.x + self.padding.left
-  local contentY = self.y + self.padding.top
-
-  for _, child in ipairs(self.children) do
-    -- Skip absolutely positioned children (they don't contribute to overflow)
-    if not child._explicitlyAbsolute then
-      -- Calculate child position relative to content area
-      local childLeft = child.x - contentX
-      local childTop = child.y - contentY
-      local childRight = childLeft + child:getBorderBoxWidth() + child.margin.right
-      local childBottom = childTop + child:getBorderBoxHeight() + child.margin.bottom
-
-      maxX = math.max(maxX, childRight)
-      maxY = math.max(maxY, childBottom)
-    end
-  end
-
-  -- Calculate content dimensions
-  self._contentWidth = maxX
-  self._contentHeight = maxY
-
-  -- Detect overflow
-  local containerWidth = self.width
-  local containerHeight = self.height
-
-  self._overflowX = self._contentWidth > containerWidth
-  self._overflowY = self._contentHeight > containerHeight
-
-  -- Calculate maximum scroll bounds
-  self._maxScrollX = math.max(0, self._contentWidth - containerWidth)
-  self._maxScrollY = math.max(0, self._contentHeight - containerHeight)
-
-  -- Clamp current scroll position to new bounds
-  -- Note: Scroll position is already restored in Gui.new() from ImmediateModeState
-  self._scrollX = math.max(0, math.min(self._scrollX, self._maxScrollX))
-  self._scrollY = math.max(0, math.min(self._scrollY, self._maxScrollY))
+  
+  -- Sync state properties from ScrollManager
+  self._overflowX = self._scrollManager._overflowX
+  self._overflowY = self._scrollManager._overflowY
+  self._contentWidth = self._scrollManager._contentWidth
+  self._contentHeight = self._scrollManager._contentHeight
+  self._scrollX = self._scrollManager._scrollX
+  self._scrollY = self._scrollManager._scrollY
+  self._maxScrollX = self._scrollManager._maxScrollX
+  self._maxScrollY = self._scrollManager._maxScrollY
+  self._scrollbarHoveredVertical = self._scrollManager._scrollbarHoveredVertical
+  self._scrollbarHoveredHorizontal = self._scrollManager._scrollbarHoveredHorizontal
+  self._scrollbarDragging = self._scrollManager._scrollbarDragging
+  self._hoveredScrollbar = self._scrollManager._hoveredScrollbar
+  self._scrollbarDragOffset = self._scrollManager._scrollbarDragOffset
 end
 
---- Set scroll position with bounds clamping
+--- Detect if content overflows container bounds (delegates to ScrollManager)
+function Element:_detectOverflow()
+  if self._scrollManager then
+    self._scrollManager:detectOverflow()
+    self:_syncScrollManagerState()
+  end
+end
+
+--- Set scroll position with bounds clamping (delegates to ScrollManager)
 ---@param x number? -- X scroll position (nil to keep current)
 ---@param y number? -- Y scroll position (nil to keep current)
 function Element:setScrollPosition(x, y)
-  if x ~= nil then
-    self._scrollX = math.max(0, math.min(x, self._maxScrollX))
+  if self._scrollManager then
+    self._scrollManager:setScroll(x, y)
+    self:_syncScrollManagerState()
   end
-  if y ~= nil then
-    self._scrollY = math.max(0, math.min(y, self._maxScrollY))
-  end
-
-  -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
-  -- No need to save here
 end
 
---- Calculate scrollbar dimensions and positions
+--- Calculate scrollbar dimensions and positions (delegates to ScrollManager)
 ---@return table -- {vertical: {visible, trackHeight, thumbHeight, thumbY}, horizontal: {visible, trackWidth, thumbWidth, thumbX}}
 function Element:_calculateScrollbarDimensions()
-  local result = {
+  if self._scrollManager then
+    return self._scrollManager:calculateScrollbarDimensions()
+  end
+  -- Return empty result if no ScrollManager
+  return {
     vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
     horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
   }
-
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-
-  -- Vertical scrollbar
-  -- Note: overflow="scroll" always shows scrollbar; overflow="auto" only when content overflows
-  if overflowY == "scroll" then
-    -- Always show scrollbar for "scroll" mode
-    result.vertical.visible = true
-    result.vertical.trackHeight = self.height - (self.scrollbarPadding * 2)
-
-    if self._overflowY then
-      -- Content overflows, calculate proper thumb size
-      local contentRatio = self.height / math.max(self._contentHeight, self.height)
-      result.vertical.thumbHeight = math.max(20, result.vertical.trackHeight * contentRatio)
-
-      -- Calculate thumb position based on scroll ratio
-      local scrollRatio = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
-      local maxThumbY = result.vertical.trackHeight - result.vertical.thumbHeight
-      result.vertical.thumbY = maxThumbY * scrollRatio
-    else
-      -- No overflow, thumb fills entire track
-      result.vertical.thumbHeight = result.vertical.trackHeight
-      result.vertical.thumbY = 0
-    end
-  elseif self._overflowY and overflowY == "auto" then
-    -- Only show scrollbar when content actually overflows
-    result.vertical.visible = true
-    result.vertical.trackHeight = self.height - (self.scrollbarPadding * 2)
-
-    -- Calculate thumb height based on content ratio
-    local contentRatio = self.height / math.max(self._contentHeight, self.height)
-    result.vertical.thumbHeight = math.max(20, result.vertical.trackHeight * contentRatio)
-
-    -- Calculate thumb position based on scroll ratio
-    local scrollRatio = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
-    local maxThumbY = result.vertical.trackHeight - result.vertical.thumbHeight
-    result.vertical.thumbY = maxThumbY * scrollRatio
-  end
-
-  -- Horizontal scrollbar
-  -- Note: overflow="scroll" always shows scrollbar; overflow="auto" only when content overflows
-  if overflowX == "scroll" then
-    -- Always show scrollbar for "scroll" mode
-    result.horizontal.visible = true
-    result.horizontal.trackWidth = self.width - (self.scrollbarPadding * 2)
-
-    if self._overflowX then
-      -- Content overflows, calculate proper thumb size
-      local contentRatio = self.width / math.max(self._contentWidth, self.width)
-      result.horizontal.thumbWidth = math.max(20, result.horizontal.trackWidth * contentRatio)
-
-      -- Calculate thumb position based on scroll ratio
-      local scrollRatio = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
-      local maxThumbX = result.horizontal.trackWidth - result.horizontal.thumbWidth
-      result.horizontal.thumbX = maxThumbX * scrollRatio
-    else
-      -- No overflow, thumb fills entire track
-      result.horizontal.thumbWidth = result.horizontal.trackWidth
-      result.horizontal.thumbX = 0
-    end
-  elseif self._overflowX and overflowX == "auto" then
-    -- Only show scrollbar when content actually overflows
-    result.horizontal.visible = true
-    result.horizontal.trackWidth = self.width - (self.scrollbarPadding * 2)
-
-    -- Calculate thumb width based on content ratio
-    local contentRatio = self.width / math.max(self._contentWidth, self.width)
-    result.horizontal.thumbWidth = math.max(20, result.horizontal.trackWidth * contentRatio)
-
-    -- Calculate thumb position based on scroll ratio
-    local scrollRatio = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
-    local maxThumbX = result.horizontal.trackWidth - result.horizontal.thumbWidth
-    result.horizontal.thumbX = maxThumbX * scrollRatio
-  end
-
-  return result
 end
 
 --- Draw scrollbars
 
---- Get scrollbar at mouse position
+--- Get scrollbar at mouse position (delegates to ScrollManager)
 ---@param mouseX number
 ---@param mouseY number
 ---@return table|nil -- {component: "vertical"|"horizontal", region: "thumb"|"track"}
 function Element:_getScrollbarAtPosition(mouseX, mouseY)
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-
-  if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
-    return nil
+  if self._scrollManager then
+    return self._scrollManager:getScrollbarAtPosition(mouseX, mouseY)
   end
-
-  local dims = self:_calculateScrollbarDimensions()
-  local x, y = self.x, self.y
-  local w, h = self.width, self.height
-
-  -- Check vertical scrollbar (only if not hidden)
-  if dims.vertical.visible and not self.hideScrollbars.vertical then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + w - self.scrollbarWidth - self.scrollbarPadding
-    local trackY = contentY + self.scrollbarPadding
-    local trackW = self.scrollbarWidth
-    local trackH = dims.vertical.trackHeight
-
-    if mouseX >= trackX and mouseX <= trackX + trackW and mouseY >= trackY and mouseY <= trackY + trackH then
-      -- Check if over thumb
-      local thumbY = trackY + dims.vertical.thumbY
-      local thumbH = dims.vertical.thumbHeight
-      if mouseY >= thumbY and mouseY <= thumbY + thumbH then
-        return { component = "vertical", region = "thumb" }
-      else
-        return { component = "vertical", region = "track" }
-      end
-    end
-  end
-
-  -- Check horizontal scrollbar (only if not hidden)
-  if dims.horizontal.visible and not self.hideScrollbars.horizontal then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + self.scrollbarPadding
-    local trackY = contentY + h - self.scrollbarWidth - self.scrollbarPadding
-    local trackW = dims.horizontal.trackWidth
-    local trackH = self.scrollbarWidth
-
-    if mouseX >= trackX and mouseX <= trackX + trackW and mouseY >= trackY and mouseY <= trackY + trackH then
-      -- Check if over thumb
-      local thumbX = trackX + dims.horizontal.thumbX
-      local thumbW = dims.horizontal.thumbWidth
-      if mouseX >= thumbX and mouseX <= thumbX + thumbW then
-        return { component = "horizontal", region = "thumb" }
-      else
-        return { component = "horizontal", region = "track" }
-      end
-    end
-  end
-
   return nil
 end
 
@@ -1531,242 +1352,113 @@ end
 ---@param button number
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarPress(mouseX, mouseY, button)
-  if button ~= 1 then
-    return false
-  end -- Only left click
-
-  local scrollbar = self:_getScrollbarAtPosition(mouseX, mouseY)
-  if not scrollbar then
-    return false
+  if self._scrollManager then
+    local consumed = self._scrollManager:handleMousePress(mouseX, mouseY, button)
+    self:_syncScrollManagerState()
+    return consumed
   end
-
-  if scrollbar.region == "thumb" then
-    -- Start dragging thumb
-    self._scrollbarDragging = true
-    self._hoveredScrollbar = scrollbar.component
-    local dims = self:_calculateScrollbarDimensions()
-
-    if scrollbar.component == "vertical" then
-      local contentY = self.y + self.padding.top
-      local trackY = contentY + self.scrollbarPadding
-      local thumbY = trackY + dims.vertical.thumbY
-      self._scrollbarDragOffset = mouseY - thumbY
-    elseif scrollbar.component == "horizontal" then
-      local contentX = self.x + self.padding.left
-      local trackX = contentX + self.scrollbarPadding
-      local thumbX = trackX + dims.horizontal.thumbX
-      self._scrollbarDragOffset = mouseX - thumbX
-    end
-
-    -- Update StateManager if in immediate mode
-    if self._stateId and Gui._immediateMode then
-      StateManager.updateState(self._stateId, {
-        scrollbarDragging = self._scrollbarDragging,
-        hoveredScrollbar = self._hoveredScrollbar,
-        scrollbarDragOffset = self._scrollbarDragOffset,
-      })
-    end
-
-    return true -- Event consumed
-  elseif scrollbar.region == "track" then
-    -- Click on track - jump to position
-    self:_scrollToTrackPosition(mouseX, mouseY, scrollbar.component)
-    return true
-  end
-
   return false
 end
 
---- Handle scrollbar drag
+--- Handle scrollbar drag (delegates to ScrollManager)
 ---@param mouseX number
 ---@param mouseY number
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarDrag(mouseX, mouseY)
-  if not self._scrollbarDragging then
-    return false
+  if self._scrollManager then
+    local consumed = self._scrollManager:handleMouseMove(mouseX, mouseY)
+    self:_syncScrollManagerState()
+    return consumed
   end
-
-  local dims = self:_calculateScrollbarDimensions()
-
-  if self._hoveredScrollbar == "vertical" then
-    local contentY = self.y + self.padding.top
-    local trackY = contentY + self.scrollbarPadding
-    local trackH = dims.vertical.trackHeight
-    local thumbH = dims.vertical.thumbHeight
-
-    -- Calculate new thumb position
-    local newThumbY = mouseY - self._scrollbarDragOffset - trackY
-    newThumbY = math.max(0, math.min(newThumbY, trackH - thumbH))
-
-    -- Convert thumb position to scroll position
-    local scrollRatio = (trackH - thumbH) > 0 and (newThumbY / (trackH - thumbH)) or 0
-    local newScrollY = scrollRatio * self._maxScrollY
-
-    self:setScrollPosition(nil, newScrollY)
-    return true
-  elseif self._hoveredScrollbar == "horizontal" then
-    local contentX = self.x + self.padding.left
-    local trackX = contentX + self.scrollbarPadding
-    local trackW = dims.horizontal.trackWidth
-    local thumbW = dims.horizontal.thumbWidth
-
-    -- Calculate new thumb position
-    local newThumbX = mouseX - self._scrollbarDragOffset - trackX
-    newThumbX = math.max(0, math.min(newThumbX, trackW - thumbW))
-
-    -- Convert thumb position to scroll position
-    local scrollRatio = (trackW - thumbW) > 0 and (newThumbX / (trackW - thumbW)) or 0
-    local newScrollX = scrollRatio * self._maxScrollX
-
-    self:setScrollPosition(newScrollX, nil)
-    return true
-  end
-
   return false
 end
 
---- Handle scrollbar release
+--- Handle scrollbar release (delegates to ScrollManager)
 ---@param button number
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarRelease(button)
-  if button ~= 1 then
-    return false
+  if self._scrollManager then
+    local consumed = self._scrollManager:handleMouseRelease(button)
+    self:_syncScrollManagerState()
+    return consumed
   end
-
-  if self._scrollbarDragging then
-    self._scrollbarDragging = false
-
-    -- Update StateManager if in immediate mode
-    if self._stateId and Gui._immediateMode then
-      StateManager.updateState(self._stateId, {
-        scrollbarDragging = false,
-      })
-    end
-
-    return true
-  end
-
   return false
 end
 
---- Scroll to track click position
+--- Scroll to track click position (internal method used by ScrollManager)
 ---@param mouseX number
 ---@param mouseY number
 ---@param component string -- "vertical" or "horizontal"
 function Element:_scrollToTrackPosition(mouseX, mouseY, component)
-  local dims = self:_calculateScrollbarDimensions()
-
-  if component == "vertical" then
-    local contentY = self.y + self.padding.top
-    local trackY = contentY + self.scrollbarPadding
-    local trackH = dims.vertical.trackHeight
-    local thumbH = dims.vertical.thumbHeight
-
-    -- Calculate target thumb position (centered on click)
-    local targetThumbY = mouseY - trackY - (thumbH / 2)
-    targetThumbY = math.max(0, math.min(targetThumbY, trackH - thumbH))
-
-    -- Convert to scroll position
-    local scrollRatio = (trackH - thumbH) > 0 and (targetThumbY / (trackH - thumbH)) or 0
-    local newScrollY = scrollRatio * self._maxScrollY
-
-    self:setScrollPosition(nil, newScrollY)
-  elseif component == "horizontal" then
-    local contentX = self.x + self.padding.left
-    local trackX = contentX + self.scrollbarPadding
-    local trackW = dims.horizontal.trackWidth
-    local thumbW = dims.horizontal.thumbWidth
-
-    -- Calculate target thumb position (centered on click)
-    local targetThumbX = mouseX - trackX - (thumbW / 2)
-    targetThumbX = math.max(0, math.min(targetThumbX, trackW - thumbW))
-
-    -- Convert to scroll position
-    local scrollRatio = (trackW - thumbW) > 0 and (targetThumbX / (trackW - thumbW)) or 0
-    local newScrollX = scrollRatio * self._maxScrollX
-
-    self:setScrollPosition(newScrollX, nil)
-  end
+  -- This method is now handled internally by ScrollManager
+  -- Keeping empty stub for backward compatibility
 end
 
---- Handle mouse wheel scrolling
+--- Handle mouse wheel scrolling (delegates to ScrollManager)
 ---@param x number -- Horizontal scroll amount
 ---@param y number -- Vertical scroll amount
 ---@return boolean -- True if scroll was handled
 function Element:_handleWheelScroll(x, y)
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-
-  if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
-    return false
+  if self._scrollManager then
+    local consumed = self._scrollManager:handleWheel(x, y)
+    self:_syncScrollManagerState()
+    return consumed
   end
-
-  local hasVerticalOverflow = self._overflowY and self._maxScrollY > 0
-  local hasHorizontalOverflow = self._overflowX and self._maxScrollX > 0
-
-  local scrolled = false
-
-  -- Vertical scrolling
-  if y ~= 0 and hasVerticalOverflow then
-    local delta = -y * self.scrollSpeed -- Negative because wheel up = scroll up
-    local newScrollY = self._scrollY + delta
-    self:setScrollPosition(nil, newScrollY)
-    scrolled = true
-  end
-
-  -- Horizontal scrolling
-  if x ~= 0 and hasHorizontalOverflow then
-    local delta = -x * self.scrollSpeed
-    local newScrollX = self._scrollX + delta
-    self:setScrollPosition(newScrollX, nil)
-    scrolled = true
-  end
-
-  -- Note: Scroll position is saved to ImmediateModeState in Gui.endFrame()
-  return scrolled
+  return false
 end
 
---- Get current scroll position
+--- Get current scroll position (delegates to ScrollManager)
 ---@return number scrollX, number scrollY
 function Element:getScrollPosition()
-  return self._scrollX, self._scrollY
+  if self._scrollManager then
+    return self._scrollManager:getScroll()
+  end
+  return 0, 0
 end
 
---- Get maximum scroll bounds
+--- Get maximum scroll bounds (delegates to ScrollManager)
 ---@return number maxScrollX, number maxScrollY
 function Element:getMaxScroll()
-  return self._maxScrollX, self._maxScrollY
+  if self._scrollManager then
+    return self._scrollManager:getMaxScroll()
+  end
+  return 0, 0
 end
 
---- Get scroll percentage (0-1)
+--- Get scroll percentage (0-1) (delegates to ScrollManager)
 ---@return number percentX, number percentY
 function Element:getScrollPercentage()
-  local percentX = self._maxScrollX > 0 and (self._scrollX / self._maxScrollX) or 0
-  local percentY = self._maxScrollY > 0 and (self._scrollY / self._maxScrollY) or 0
-  return percentX, percentY
+  if self._scrollManager then
+    return self._scrollManager:getScrollPercentage()
+  end
+  return 0, 0
 end
 
---- Check if element has overflow
+--- Check if element has overflow (delegates to ScrollManager)
 ---@return boolean hasOverflowX, boolean hasOverflowY
 function Element:hasOverflow()
-  return self._overflowX, self._overflowY
+  if self._scrollManager then
+    return self._scrollManager:hasOverflow()
+  end
+  return false, false
 end
 
---- Get content dimensions (including overflow)
+--- Get content dimensions (including overflow) (delegates to ScrollManager)
 ---@return number contentWidth, number contentHeight
 function Element:getContentSize()
-  return self._contentWidth, self._contentHeight
+  if self._scrollManager then
+    return self._scrollManager:getContentSize()
+  end
+  return 0, 0
 end
 
---- Scroll by delta amount
+--- Scroll by delta amount (delegates to ScrollManager)
 ---@param dx number? -- X delta (nil for no change)
 ---@param dy number? -- Y delta (nil for no change)
 function Element:scrollBy(dx, dy)
-  if dx then
-    self._scrollX = math.max(0, math.min(self._scrollX + dx, self._maxScrollX))
-  end
-  if dy then
-    self._scrollY = math.max(0, math.min(self._scrollY + dy, self._maxScrollY))
+  if self._scrollManager then
+    self._scrollManager:scrollBy(dx, dy)
+    self:_syncScrollManagerState()
   end
 end
 
@@ -1777,7 +1469,10 @@ end
 
 --- Scroll to bottom
 function Element:scrollToBottom()
-  self:setScrollPosition(nil, self._maxScrollY)
+  if self._scrollManager then
+    local _, maxScrollY = self._scrollManager:getMaxScroll()
+    self:setScrollPosition(nil, maxScrollY)
+  end
 end
 
 --- Scroll to left
@@ -1787,7 +1482,10 @@ end
 
 --- Scroll to right
 function Element:scrollToRight()
-  self:setScrollPosition(self._maxScrollX, nil)
+  if self._scrollManager then
+    local maxScrollX, _ = self._scrollManager:getMaxScroll()
+    self:setScrollPosition(maxScrollX, nil)
+  end
 end
 
 --- Get the current state's scaled content padding
@@ -2200,11 +1898,21 @@ function Element:update(dt)
   if self._stateId and Gui._immediateMode then
     local state = StateManager.getState(self._stateId)
     if state then
+      -- Restore to Element properties (for backward compatibility)
       self._scrollbarHoveredVertical = state.scrollbarHoveredVertical or false
       self._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal or false
       self._scrollbarDragging = state.scrollbarDragging or false
       self._hoveredScrollbar = state.hoveredScrollbar
       self._scrollbarDragOffset = state.scrollbarDragOffset or 0
+      
+      -- Also restore to ScrollManager if it exists
+      if self._scrollManager then
+        self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
+        self._scrollManager._scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal
+        self._scrollManager._scrollbarDragging = self._scrollbarDragging
+        self._scrollManager._hoveredScrollbar = self._hoveredScrollbar
+        self._scrollManager._scrollbarDragOffset = self._scrollbarDragOffset
+      end
     end
   end
 
@@ -2237,30 +1945,10 @@ function Element:update(dt)
 
   local mx, my = love.mouse.getPosition()
 
-  local scrollbar = self:_getScrollbarAtPosition(mx, my)
-
-  -- Update independent hover states for vertical and horizontal scrollbars
-  if scrollbar and scrollbar.component == "vertical" then
-    self._scrollbarHoveredVertical = true
-    self._hoveredScrollbar = "vertical"
-  else
-    if not (self._scrollbarDragging and self._hoveredScrollbar == "vertical") then
-      self._scrollbarHoveredVertical = false
-    end
-  end
-
-  if scrollbar and scrollbar.component == "horizontal" then
-    self._scrollbarHoveredHorizontal = true
-    self._hoveredScrollbar = "horizontal"
-  else
-    if not (self._scrollbarDragging and self._hoveredScrollbar == "horizontal") then
-      self._scrollbarHoveredHorizontal = false
-    end
-  end
-
-  -- Clear hoveredScrollbar if neither is hovered
-  if not scrollbar and not self._scrollbarDragging then
-    self._hoveredScrollbar = nil
+  -- Update scrollbar hover state via ScrollManager
+  if self._scrollManager then
+    self._scrollManager:updateHoverState(mx, my)
+    self:_syncScrollManagerState()
   end
 
   -- Update scrollbar state in StateManager if in immediate mode
@@ -2277,8 +1965,11 @@ function Element:update(dt)
   if self._scrollbarDragging and love.mouse.isDown(1) then
     self:_handleScrollbarDrag(mx, my)
   elseif self._scrollbarDragging then
-    -- Mouse button released
-    self._scrollbarDragging = false
+    -- Mouse button released - delegate to ScrollManager
+    if self._scrollManager then
+      self._scrollManager:handleMouseRelease(1)
+      self:_syncScrollManagerState()
+    end
 
     -- Update StateManager if in immediate mode
     if self._stateId and Gui._immediateMode then
@@ -2367,14 +2058,8 @@ function Element:update(dt)
         newThemeState = "active"
       -- Only show hover/pressed states if this element is active (not blocked)
       elseif isHovering and isActiveElement then
-        -- Check if any button is pressed
-        local anyPressed = false
-        for _, pressed in pairs(self._pressed) do
-          if pressed then
-            anyPressed = true
-            break
-          end
-        end
+        -- Check if any button is pressed via EventHandler
+        local anyPressed = self._eventHandler:isAnyButtonPressed()
 
         if anyPressed then
           newThemeState = "pressed"
@@ -2407,211 +2092,14 @@ function Element:update(dt)
       end
     end
 
-    -- Only process button events if onEvent handler exists, element is not disabled,
-    -- and this is the topmost element at the mouse position (z-index ordering)
-    -- Exception: Allow drag continuation even if occluded (once drag starts, it continues)
-    local isDragging = false
-    for _, button in ipairs({ 1, 2, 3 }) do
-      if self._pressed[button] and love.mouse.isDown(button) then
-        isDragging = true
-        break
-      end
-    end
-
-    local canProcessEvents = (self.onEvent or self.editable) and not self.disabled and (isActiveElement or isDragging)
-
-    if canProcessEvents then
-      -- Check all three mouse buttons
-      local buttons = { 1, 2, 3 } -- left, right, middle
-
-      for _, button in ipairs(buttons) do
-        if isHovering or isDragging then
-          if love.mouse.isDown(button) then
-            -- Button is pressed down
-            if not self._pressed[button] then
-              -- Check if press is on scrollbar first (skip if already handled)
-              if button == 1 and not self._scrollbarPressHandled and self:_handleScrollbarPress(mx, my, button) then
-                -- Scrollbar consumed the event, mark as pressed to prevent onEvent
-                self._pressed[button] = true
-                self._scrollbarPressHandled = true
-              else
-                -- Just pressed - fire press event and record drag start position
-                local modifiers = getModifiers()
-                if self.onEvent then
-                  local pressEvent = InputEvent.new({
-                    type = "press",
-                    button = button,
-                    x = mx,
-                    y = my,
-                    modifiers = modifiers,
-                    clickCount = 1,
-                  })
-                  self.onEvent(self, pressEvent)
-                end
-                self._pressed[button] = true
-
-                -- Set mouse down position for text selection on left click
-                if button == 1 and self._textEditor then
-                  self._mouseDownPosition = self._textEditor:mouseToTextPosition(mx, my)
-                  self._textDragOccurred = false -- Reset drag flag on press
-                end
-              end
-
-              -- Record drag start position per button
-              self._dragStartX[button] = mx
-              self._dragStartY[button] = my
-              self._lastMouseX[button] = mx
-              self._lastMouseY[button] = my
-            else
-              -- Button is still pressed - check for mouse movement (drag)
-              local lastX = self._lastMouseX[button] or mx
-              local lastY = self._lastMouseY[button] or my
-
-              if lastX ~= mx or lastY ~= my then
-                -- Mouse has moved - fire drag event only if still hovering
-                if self.onEvent and isHovering then
-                  local modifiers = getModifiers()
-                  local dx = mx - self._dragStartX[button]
-                  local dy = my - self._dragStartY[button]
-
-                  local dragEvent = InputEvent.new({
-                    type = "drag",
-                    button = button,
-                    x = mx,
-                    y = my,
-                    dx = dx,
-                    dy = dy,
-                    modifiers = modifiers,
-                    clickCount = 1,
-                  })
-                  self.onEvent(self, dragEvent)
-                end
-
-                -- Handle text selection drag for editable elements
-                if button == 1 and self.editable and self._focused then
-                  self:_handleTextDrag(mx, my)
-                end
-
-                -- Update last known position for this button
-                self._lastMouseX[button] = mx
-                self._lastMouseY[button] = my
-              end
-            end
-          elseif self._pressed[button] then
-            -- Button was just released - fire click event
-            local currentTime = love.timer.getTime()
-            local modifiers = getModifiers()
-
-            -- Determine click count (double-click detection)
-            local clickCount = 1
-            local doubleClickThreshold = 0.3 -- 300ms for double-click
-
-            if self._lastClickTime and self._lastClickButton == button and (currentTime - self._lastClickTime) < doubleClickThreshold then
-              clickCount = self._clickCount + 1
-            else
-              clickCount = 1
-            end
-
-            self._clickCount = clickCount
-            self._lastClickTime = currentTime
-            self._lastClickButton = button
-
-            -- Determine event type based on button
-            local eventType = "click"
-            if button == 2 then
-              eventType = "rightclick"
-            elseif button == 3 then
-              eventType = "middleclick"
-            end
-
-            if self.onEvent then
-              local clickEvent = InputEvent.new({
-                type = eventType,
-                button = button,
-                x = mx,
-                y = my,
-                modifiers = modifiers,
-                clickCount = clickCount,
-              })
-
-              self.onEvent(self, clickEvent)
-            end
-            self._pressed[button] = false
-
-            -- Clean up drag tracking
-            self._dragStartX[button] = nil
-            self._dragStartY[button] = nil
-
-            -- Clean up text selection drag tracking
-            if button == 1 then
-              self._mouseDownPosition = nil
-            end
-
-            -- Focus editable elements on left click
-            if button == 1 and self.editable then
-              -- Only focus if not already focused (to avoid moving cursor to end)
-              local wasFocused = self:isFocused()
-              if not wasFocused then
-                self:focus()
-              end
-
-              -- Handle text click for cursor positioning and word selection
-              -- Only process click if no text drag occurred (to preserve drag selection)
-              if not self._textDragOccurred then
-                self:_handleTextClick(mx, my, clickCount)
-              end
-
-              -- Reset drag flag after release
-              self._textDragOccurred = false
-            elseif button == 1 then
-            end
-
-            -- Fire release event
-            if self.onEvent then
-              local releaseEvent = InputEvent.new({
-                type = "release",
-                button = button,
-                x = mx,
-                y = my,
-                modifiers = modifiers,
-                clickCount = clickCount,
-              })
-              self.onEvent(self, releaseEvent)
-            end
-          end
-        else
-          -- Mouse left the element - reset pressed state and drag tracking
-          if self._pressed[button] then
-            self._pressed[button] = false
-            self._dragStartX[button] = nil
-            self._dragStartY[button] = nil
-          end
-        end
-      end
-    end -- end if self.onEvent
-
-    -- Handle touch events (maintain backward compatibility)
-    if self.onEvent then
-      local touches = love.touch.getTouches()
-      for _, id in ipairs(touches) do
-        local tx, ty = love.touch.getPosition(id)
-        if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
-          self._touchPressed[id] = true
-        elseif self._touchPressed[id] then
-          -- Create touch event (treat as left click)
-          local touchEvent = InputEvent.new({
-            type = "click",
-            button = 1,
-            x = tx,
-            y = ty,
-            modifiers = getModifiers(),
-            clickCount = 1,
-          })
-          self.onEvent(self, touchEvent)
-          self._touchPressed[id] = false
-        end
-      end
-    end
+    -- Reset scrollbar press flag at start of each frame
+    self._eventHandler:resetScrollbarPressFlag()
+    
+    -- Process mouse events through EventHandler
+    self._eventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
+    
+    -- Process touch events through EventHandler
+    self._eventHandler:processTouchEvents()
   end
 end
 

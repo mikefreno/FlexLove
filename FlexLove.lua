@@ -202,15 +202,14 @@ function Gui.endFrame()
       local state = StateManager.getState(element.id, {})
 
       -- Save stateful properties back to persistent state
-      state._pressed = element._pressed
-      state._lastClickTime = element._lastClickTime
-      state._lastClickButton = element._lastClickButton
-      state._clickCount = element._clickCount
-      state._dragStartX = element._dragStartX
-      state._dragStartY = element._dragStartY
-      state._lastMouseX = element._lastMouseX
-      state._lastMouseY = element._lastMouseY
-      state._hovered = element._hovered
+      -- Get event handler state
+      if element._eventHandler then
+        local eventState = element._eventHandler:getState()
+        for k, v in pairs(eventState) do
+          state[k] = v
+        end
+      end
+      state._focused = element._focused
       state._focused = element._focused
       state._cursorPosition = element._cursorPosition
       state._selectionStart = element._selectionStart
@@ -619,16 +618,11 @@ function Gui.new(props)
   local element = Element.new(props)
 
   -- Bind persistent state to element (ImmediateModeState)
-  -- Copy stateful properties from persistent state
-  element._pressed = state._pressed or {}
-  element._lastClickTime = state._lastClickTime
-  element._lastClickButton = state._lastClickButton
-  element._clickCount = state._clickCount or 0
-  element._dragStartX = state._dragStartX or element._dragStartX or {}
-  element._dragStartY = state._dragStartY or element._dragStartY or {}
-  element._lastMouseX = state._lastMouseX or element._lastMouseX or {}
-  element._lastMouseY = state._lastMouseY or element._lastMouseY or {}
-  element._hovered = state._hovered
+  -- Restore event handler state
+  if element._eventHandler then
+    element._eventHandler:setState(state)
+  end
+  element._focused = state._focused
   element._focused = state._focused
   element._cursorPosition = state._cursorPosition
   element._selectionStart = state._selectionStart
@@ -639,6 +633,14 @@ function Gui.new(props)
   element._scrollbarDragging = state._scrollbarDragging ~= nil and state._scrollbarDragging or false
   element._hoveredScrollbar = state._hoveredScrollbar
   element._scrollbarDragOffset = state._scrollbarDragOffset ~= nil and state._scrollbarDragOffset or 0
+  
+  -- Sync scrollbar drag state to ScrollManager if it exists
+  if element._scrollManager then
+    element._scrollManager._scrollbarDragging = element._scrollbarDragging
+    element._scrollManager._hoveredScrollbar = element._hoveredScrollbar
+    element._scrollManager._scrollbarDragOffset = element._scrollbarDragOffset
+  end
+  
   -- Restore cursor blink state
   element._cursorBlinkTimer = state._cursorBlinkTimer or element._cursorBlinkTimer or 0
   if state._cursorVisible ~= nil then
@@ -659,6 +661,13 @@ function Gui.new(props)
   element._scrollbarDragging = state.scrollbarDragging
   element._hoveredScrollbar = state.hoveredScrollbar
   element._scrollbarDragOffset = state.scrollbarDragOffset or 0
+  
+  -- Sync interactive scroll state to ScrollManager if it exists
+  if element._scrollManager then
+    element._scrollManager._scrollbarHoveredVertical = element._scrollbarHoveredVertical or false
+    element._scrollManager._scrollbarHoveredHorizontal = element._scrollbarHoveredHorizontal or false
+    -- Note: drag state already synced earlier (lines 633-643)
+  end
 
   -- Set initial theme state based on StateManager state
   -- This will be updated in Element:update() but we need an initial value

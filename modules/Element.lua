@@ -429,6 +429,8 @@ function Element.new(props)
     objectFit = self.objectFit,
     objectPosition = self.objectPosition,
     imageOpacity = self.imageOpacity,
+    contentBlur = self.contentBlur,
+    backdropBlur = self.backdropBlur,
   }, {
     Color = Color,
     RoundedRect = RoundedRect,

@@ -22,6 +22,7 @@ local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
+local ErrorHandler = req("ErrorHandler")
 
 -- Extract utilities
 local enums = utils.enums
@@ -211,6 +212,52 @@ Public API methods to access internal state:
 local Element = {}
 Element.__index = Element
 
+-- Validation helper functions
+local function validateEnum(value, enumTable, propName, moduleName)
+  if value == nil then
+    return true
+  end
+
+  for _, validValue in pairs(enumTable) do
+    if value == validValue then
+      return true
+    end
+  end
+
+  -- Build list of valid options
+  local validOptions = {}
+  for _, v in pairs(enumTable) do
+    table.insert(validOptions, "'" .. v .. "'")
+  end
+  table.sort(validOptions)
+
+  ErrorHandler.error(moduleName or "Element", string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
+end
+
+local function validateRange(value, min, max, propName, moduleName)
+  if value == nil then
+    return true
+  end
+  if type(value) ~= "number" then
+    ErrorHandler.error(moduleName or "Element", string.format("%s must be a number, got %s", propName, type(value)))
+  end
+  if value < min or value > max then
+    ErrorHandler.error(moduleName or "Element", string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value)))
+  end
+  return true
+end
+
+local function validateType(value, expectedType, propName, moduleName)
+  if value == nil then
+    return true
+  end
+  local actualType = type(value)
+  if actualType ~= expectedType then
+    ErrorHandler.error(moduleName or "Element", string.format("%s must be %s, got %s", propName, expectedType, actualType))
+  end
+  return true
+end
+
 ---@param props ElementProps
 ---@return Element
 function Element.new(props)
@@ -292,7 +339,10 @@ function Element.new(props)
   self.passwordMode = props.passwordMode or false
 
   -- Validate property combinations: passwordMode disables multiline
-  if self.passwordMode then
+  if self.passwordMode and props.multiline then
+    ErrorHandler.warn("Element", "passwordMode is enabled, multiline will be disabled")
+    self.multiline = false
+  elseif self.passwordMode then
     self.multiline = false
   end
 
@@ -375,6 +425,11 @@ function Element.new(props)
     }
   self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
   self.backgroundColor = props.backgroundColor or Color.new(0, 0, 0, 0)
+
+  -- Validate and set opacity
+  if props.opacity ~= nil then
+    validateRange(props.opacity, 0, 1, "opacity")
+  end
   self.opacity = props.opacity or 1
 
   -- Handle cornerRadius (can be number or table)
@@ -415,13 +470,28 @@ function Element.new(props)
     self.text = self._textBuffer
   end
 
+  -- Validate and set textAlign
+  if props.textAlign then
+    validateEnum(props.textAlign, TextAlign, "textAlign")
+  end
   self.textAlign = props.textAlign or TextAlign.START
 
   -- Image properties
   self.imagePath = props.imagePath
   self.image = props.image
+
+  -- Validate objectFit
+  if props.objectFit then
+    local validObjectFit = { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
+    validateEnum(props.objectFit, validObjectFit, "objectFit")
+  end
   self.objectFit = props.objectFit or "fill"
   self.objectPosition = props.objectPosition or "center center"
+
+  -- Validate and set imageOpacity
+  if props.imageOpacity ~= nil then
+    validateRange(props.imageOpacity, 0, 1, "imageOpacity")
+  end
   self.imageOpacity = props.imageOpacity or 1
 
   -- Auto-load image if imagePath is provided
@@ -570,12 +640,12 @@ function Element.new(props)
         -- Pixel units
         self.textSize = value
       else
-        error("Unknown textSize unit: " .. unit)
+        ErrorHandler.error("Element", "Unknown textSize unit: " .. unit)
       end
     else
       -- Validate pixel textSize value
       if props.textSize <= 0 then
-        error("textSize must be greater than 0, got: " .. tostring(props.textSize))
+        ErrorHandler.error("Element", "textSize must be greater than 0, got: " .. tostring(props.textSize))
       end
 
       -- Pixel textSize value
@@ -925,6 +995,7 @@ function Element.new(props)
 
     -- Track if positioning was explicitly set
     if props.positioning then
+      validateEnum(props.positioning, Positioning, "positioning")
       self.positioning = props.positioning
       self._originalPositioning = props.positioning
       self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
@@ -1119,6 +1190,26 @@ function Element.new(props)
   end
 
   if self.positioning == Positioning.FLEX then
+    -- Validate enum properties
+    if props.flexDirection then
+      validateEnum(props.flexDirection, FlexDirection, "flexDirection")
+    end
+    if props.flexWrap then
+      validateEnum(props.flexWrap, FlexWrap, "flexWrap")
+    end
+    if props.justifyContent then
+      validateEnum(props.justifyContent, JustifyContent, "justifyContent")
+    end
+    if props.alignItems then
+      validateEnum(props.alignItems, AlignItems, "alignItems")
+    end
+    if props.alignContent then
+      validateEnum(props.alignContent, AlignContent, "alignContent")
+    end
+    if props.justifySelf then
+      validateEnum(props.justifySelf, JustifySelf, "justifySelf")
+    end
+
     self.flexDirection = props.flexDirection or FlexDirection.HORIZONTAL
     self.flexWrap = props.flexWrap or FlexWrap.NOWRAP
     self.justifyContent = props.justifyContent or JustifyContent.FLEX_START

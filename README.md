@@ -34,7 +34,6 @@ Add the `modules` directory and `FlexLove.lua` into your project and require it:
 
 ```lua
 local FlexLove = require("FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 ```
 
@@ -44,14 +43,14 @@ local Color = FlexLove.Color
 local FlexLove = require("FlexLove")
 
 -- Initialize with base scaling and theme
-FlexLove.Gui.init({
+FlexLove.init({
   baseScale = { width = 1920, height = 1080 },
   theme = "space"
   immediateMode = true -- Optional: enable immediate mode (default: false)
 })
 
 -- Create a button with flexbox layout
-local button = FlexLove.Element.new({
+local button = FlexLove.new({
   width = "20vw",
   height = "10vh",
   backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.8, 1),
@@ -65,11 +64,11 @@ local button = FlexLove.Element.new({
 
 -- In your love.update and love.draw:
 function love.update(dt)
-  FlexLove.Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function love.draw()
-  FlexLove.Gui.draw()
+  FlexLove.draw()
 end
 ```
 
@@ -102,7 +101,7 @@ state by .
 ```lua
 local someGameState = true
 -- Create elements once (e.g., in love.load)
-local button1 = FlexLove.Element.new({
+local button1 = FlexLove.new({
   text = "Button 1",
   disabled = someGameState,
   onEvent = function() print("Clicked!") end
@@ -110,7 +109,7 @@ local button1 = FlexLove.Element.new({
 -- ... other things ... --
 local someGameState = false  -- button1 will not change its disabled state, you need a way to update the element
 
-local button2 = FlexLove.Element.new({
+local button2 = FlexLove.new({
   text = "Click to activate button 1",
   onEvent = function(_, event)
     if event.type == "release" then -- only fire on mouse release
@@ -121,7 +120,7 @@ local button2 = FlexLove.Element.new({
 -- ... other things ... --
 local someGameState = false  -- button1 will not change its disabled state, you need a way to update the element
 
-local button2 = FlexLove.Element.new({
+local button2 = FlexLove.new({
   text = "Click to activate button 1",
   onEvent = function(_, event)
     if event.type == "release" then -- only fire on mouse release
@@ -145,7 +144,7 @@ There is of course some overhead for this, which is why it is not the default be
 -- Recreate UI every frame
 local someGameState = true
 -- Create elements once (e.g., in love.load)
-local button1 = FlexLove.Element.new({
+local button1 = FlexLove.new({
   text = "Button 1",
   disabled = someGameState,
   onEvent = function() print("Clicked!") end
@@ -153,7 +152,7 @@ local button1 = FlexLove.Element.new({
 -- ... other things ... --
 local someGameState = false  -- button1 in immediate mode will have its state updated 
 
-local button2 = FlexLove.Element.new({
+local button2 = FlexLove.new({
   text = "Click to activate button 1",
   onEvent = function(_, event)
     if event.type == "release" then -- only fire on mouse release
@@ -235,7 +234,7 @@ Common properties for all elements:
 
 #### Absolute Positioning
 ```lua
-local element = Gui.new({
+local element = FlexLove.new({
   positioning = "absolute",
   x = 100,
   y = 50,
@@ -246,7 +245,7 @@ local element = Gui.new({
 
 #### Flexbox Layout
 ```lua
-local container = Gui.new({
+local container = FlexLove.new({
   positioning = "flex",
   flexDirection = "horizontal",
   justifyContent = "center",
@@ -257,7 +256,7 @@ local container = Gui.new({
 
 #### Grid Layout
 ```lua
-local grid = Gui.new({
+local grid = FlexLove.new({
   positioning = "grid",
   gridRows = 3,
   gridColumns = 3,
@@ -290,14 +289,17 @@ To create a theme explore themes/space.lua as a reference
 Load and apply themes for consistent styling:
 
 ```lua
-local Theme = FlexLove.Theme
+FlexLove.init({
+  theme = "space" -- will use this as the initial theme
+})
 
--- Load a theme
-Theme.load("space")
-Theme.setActive("space")
+-- and if you need dynamic themes
+local Theme = FlexLove.Theme
+Theme.load("metal")
+Theme.setActive("metal")
 
 -- Use theme on elements
-local button = Gui.new({
+local button = Flexlove.new({
   width = 200,
   height = 60,
   text = "Themed Button",
@@ -381,7 +383,7 @@ FlexLöve provides text input support with single-line (and multi-line coming so
 
 ```lua
 -- Create a text input field
-local input = Gui.new({
+local input = FlexLove.new({
   x = 10,
   y = 10,
   width = 200,
@@ -395,7 +397,7 @@ local input = Gui.new({
   end
 })
 
-local textArea = Gui.new({
+local textArea = FlexLove.new({
   x = 10,
   y = 50,
   width = 300,
@@ -460,18 +462,18 @@ Create smooth transitions:
 local Animation = FlexLove.Animation
 
 -- Fade animation
-local fadeIn = FlexLove.Animation.fade(1.0, 0, 1)
+local fadeIn = Animation.fade(1.0, 0, 1)
 fadeIn:apply(element)
 
 -- Scale animation
-local scaleUp = FlexLove.Animation.scale(0.5,
+local scaleUp = Animation.scale(0.5,
   { width = 100, height = 50 },
   { width = 200, height = 100 }
 )
 scaleUp:apply(element)
 
 -- Custom animation with easing
-local customAnim = FlexLove.Animation.new({
+local customAnim = Animation.new({
   duration = 1.0,
   start = { opacity = 0, width = 100 },
   final = { opacity = 1, width = 200 },
@@ -483,23 +485,24 @@ customAnim:apply(element)
 ### Creating Colors
 
 ```lua
+local Color = FlexLove.Color
 -- From RGB values (0-1 range)
-local red = FlexLove.Color.new(1, 0, 0, 1)
+local red = Color.new(1, 0, 0, 1)
 
 -- From hex string
-local blue = FlexLove.Color.fromHex("#0000FF")
-local semiTransparent = FlexLove.Color.fromHex("#FF000080")
+local blue = Color.fromHex("#0000FF")
+local semiTransparent = Color.fromHex("#FF000080")
 ```
 
 ## API Reference
 
-### Gui (Main Module)
+### Flexlove (Main Module)
 
-- `Gui.init(props)` - Initialize GUI system with base scale
-- `Gui.new(props)` - Create a new element
-- `Gui.update(dt)` - Update all elements
-- `Gui.draw()` - Draw all elements
-- `Gui.resize()` - Handle window resize
+- `Flexlove.init(props)` - Initialize GUI system with base scale
+- `Flexlove.new(props)` - Create a new element
+- `Flexlove.update(dt)` - Update all elements
+- `Flexlove.draw()` - Draw all elements
+- `Flexlove.resize()` - Handle window resize
 
 ### Color
 
@@ -508,7 +511,7 @@ local semiTransparent = FlexLove.Color.fromHex("#FF000080")
 - `Color:toHex()` - Convert to hex string
 - `Color:toRGBA()` - Get RGBA values
 
-### Theme
+### Theme (only needed for dynamic changes)
 
 - `Theme.load(name)` - Load theme by name
 - `Theme.setActive(name)` - Set active theme

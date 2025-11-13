@@ -1,8 +1,3 @@
--- ====================
--- Element Object
--- ====================
-
--- Setup module path for relative requires
 local modulePath = (...):match("(.-)[^%.]+$")
 local function req(name)
   return require(modulePath .. name)
@@ -204,6 +199,9 @@ function Element.new(props)
   -- Initialize EventHandler for event processing
   self._eventHandler = EventHandler.new({
     onEvent = self.onEvent,
+  }, {
+    InputEvent = InputEvent,
+    GuiState = GuiState,
   })
   self._eventHandler:initialize(self)
 
@@ -219,6 +217,8 @@ function Element.new(props)
     disableHighlight = props.disableHighlight,
     scaleCorners = props.scaleCorners,
     scalingAlgorithm = props.scalingAlgorithm,
+  }, {
+    Theme = Theme,
   })
   self._themeManager:initialize(self)
 
@@ -320,6 +320,11 @@ function Element.new(props)
       onTextInput = props.onTextInput,
       onTextChange = props.onTextChange,
       onEnter = props.onEnter,
+    }, {
+      GuiState = GuiState,
+      StateManager = StateManager,
+      Color = Color,
+      utils = utils,
     })
     -- Initialize will be called after self is fully constructed
   end
@@ -425,9 +430,15 @@ function Element.new(props)
     objectFit = self.objectFit,
     objectPosition = self.objectPosition,
     imageOpacity = self.imageOpacity,
-    contentBlur = self.contentBlur,
-    backdropBlur = self.backdropBlur,
-    _themeState = self._themeState,
+  }, {
+    Color = Color,
+    RoundedRect = RoundedRect,
+    NinePatch = NinePatch,
+    ImageRenderer = ImageRenderer,
+    ImageCache = ImageCache,
+    Theme = Theme,
+    Blur = Blur,
+    utils = utils,
   })
   self._renderer:initialize(self)
 
@@ -1135,6 +1146,9 @@ function Element.new(props)
     gridColumns = self.gridColumns,
     columnGap = self.columnGap,
     rowGap = self.rowGap,
+  }, {
+    utils = utils,
+    Grid = Grid,
   })
   -- Initialize immediately so it can be used for auto-sizing calculations
   self._layoutEngine:initialize(self)
@@ -1158,6 +1172,8 @@ function Element.new(props)
       hideScrollbars = props.hideScrollbars,
       _scrollX = props._scrollX,
       _scrollY = props._scrollY,
+    }, {
+      utils = utils,
     })
     self._scrollManager:initialize(self)
 
@@ -1958,14 +1974,9 @@ function Element:update(dt)
     if self.themeComponent then
       -- Check if any button is pressed via EventHandler
       local anyPressed = self._eventHandler:isAnyButtonPressed()
-      
+
       -- Update theme state via ThemeManager
-      local newThemeState = self._themeManager:updateState(
-        isHovering and isActiveElement,
-        anyPressed,
-        self._focused,
-        self.disabled
-      )
+      local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
       -- Update state (in StateManager if in immediate mode, otherwise locally)
       if self._stateId and Gui._immediateMode then

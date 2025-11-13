@@ -1,14 +1,9 @@
 --- ThemeManager.lua
 --- Manages theme application, state transitions, and property resolution for Elements
 --- Extracted from Element.lua as part of element-refactor-modularization task 06
-
--- Setup module path for relative requires
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
-local Theme = req("Theme")
+---
+--- Dependencies (must be injected via deps parameter):
+---   - Theme: Theme module for loading and accessing themes
 
 ---@class ThemeManager
 ---@field theme string? -- Theme name to use
@@ -25,9 +20,18 @@ ThemeManager.__index = ThemeManager
 
 --- Create new ThemeManager instance
 ---@param config table Configuration options
+---@param deps table Dependencies {Theme: Theme module}
 ---@return ThemeManager
-function ThemeManager.new(config)
+function ThemeManager.new(config, deps)
+  -- Pure DI: Dependencies must be injected
+  assert(deps, "ThemeManager.new: deps parameter is required")
+  assert(deps.Theme, "ThemeManager.new: deps.Theme is required")
+  
+  local Theme = deps.Theme
   local self = setmetatable({}, ThemeManager)
+
+  -- Store dependency for instance methods
+  self._Theme = Theme
 
   -- Theme configuration
   self.theme = config.theme
@@ -103,9 +107,9 @@ end
 ---@return table? The theme object or nil
 function ThemeManager:getTheme()
   if self.theme then
-    return Theme.get(self.theme)
+    return self._Theme.get(self.theme)
   end
-  return Theme.getActive()
+  return self._Theme.getActive()
 end
 
 --- Get the component definition from the theme

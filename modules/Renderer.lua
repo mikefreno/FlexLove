@@ -4,36 +4,52 @@
 --
 -- This module is responsible for the visual presentation layer of Elements,
 -- delegating from Element's draw() method to keep rendering concerns separated.
-
--- Setup module path for relative requires
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
+---
+--- Dependencies (must be injected via deps parameter):
+---   - Color: Color module for color manipulation
+---   - RoundedRect: Rounded rectangle drawing module
+---   - NinePatch: 9-patch rendering module
+---   - ImageRenderer: Image rendering module
+---   - ImageCache: Image caching module
+---   - Theme: Theme management module
+---   - Blur: Blur effects module
+---   - utils: Utility functions (FONT_CACHE, enums)
 
 local Renderer = {}
 Renderer.__index = Renderer
 
--- Dependencies
-local Color = req("Color")
-local RoundedRect = req("RoundedRect")
-local NinePatch = req("NinePatch")
-local ImageRenderer = req("ImageRenderer")
-local ImageCache = req("ImageCache")
-local Theme = req("Theme")
-local Blur = req("Blur")
-local utils = req("utils")
-
--- Font cache and enums (shared with Element for now - could be refactored later)
-local FONT_CACHE = utils.FONT_CACHE
-local enums = utils.enums
-local TextAlign = enums.TextAlign
-
 --- Create a new Renderer instance
 ---@param config table Configuration table with rendering properties
+---@param deps table Dependencies {Color, RoundedRect, NinePatch, ImageRenderer, ImageCache, Theme, Blur, utils}
 ---@return table Renderer instance
-function Renderer.new(config)
+function Renderer.new(config, deps)
+  -- Pure DI: Dependencies must be injected
+  assert(deps, "Renderer.new: deps parameter is required")
+  assert(deps.Color, "Renderer.new: deps.Color is required")
+  assert(deps.RoundedRect, "Renderer.new: deps.RoundedRect is required")
+  assert(deps.NinePatch, "Renderer.new: deps.NinePatch is required")
+  assert(deps.ImageRenderer, "Renderer.new: deps.ImageRenderer is required")
+  assert(deps.ImageCache, "Renderer.new: deps.ImageCache is required")
+  assert(deps.Theme, "Renderer.new: deps.Theme is required")
+  assert(deps.Blur, "Renderer.new: deps.Blur is required")
+  assert(deps.utils, "Renderer.new: deps.utils is required")
+  
+  local Color = deps.Color
+  local ImageCache = deps.ImageCache
+  
   local self = setmetatable({}, Renderer)
+  
+  -- Store dependencies for instance methods
+  self._Color = Color
+  self._RoundedRect = deps.RoundedRect
+  self._NinePatch = deps.NinePatch
+  self._ImageRenderer = deps.ImageRenderer
+  self._ImageCache = ImageCache
+  self._Theme = deps.Theme
+  self._Blur = deps.Blur
+  self._utils = deps.utils
+  self._FONT_CACHE = deps.utils.FONT_CACHE
+  self._TextAlign = deps.utils.enums.TextAlign
   
   -- Store reference to parent element (will be set via initialize)
   self._element = nil
@@ -113,7 +129,7 @@ function Renderer:getBlurInstance()
   
   -- Create or reuse blur instance
   if not self._blurInstance or self._blurInstance.quality ~= quality then
-    self._blurInstance = Blur.new(quality)
+    self._blurInstance = self._Blur.new(quality)
   end
   
   return self._blurInstance
@@ -132,14 +148,14 @@ end
 ---@param height number Height
 ---@param drawBackgroundColor table Background color (may have animation applied)
 function Renderer:_drawBackground(x, y, width, height, drawBackgroundColor)
-  local backgroundWithOpacity = Color.new(
+  local backgroundWithOpacity = self._Color.new(
     drawBackgroundColor.r,
     drawBackgroundColor.g,
     drawBackgroundColor.b,
     drawBackgroundColor.a * self.opacity
   )
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  RoundedRect.draw("fill", x, y, width, height, self.cornerRadius)
+  self._RoundedRect.draw("fill", x, y, width, height, self.cornerRadius)
 end
 
 --- Draw image layer
@@ -174,13 +190,13 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
   if hasCornerRadius then
     -- Use stencil to clip image to rounded corners
     love.graphics.stencil(function()
-      RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
     end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
   end
   
   -- Draw the image
-  ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
+  self._ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
   
   -- Clear stencil if it was used
   if hasCornerRadius then
@@ -204,18 +220,18 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
   local themeToUse = nil
   if self.theme then
     -- Element specifies a specific theme - load it if needed
-    if Theme.get(self.theme) then
-      themeToUse = Theme.get(self.theme)
+    if self._Theme.get(self.theme) then
+      themeToUse = self._Theme.get(self.theme)
     else
       -- Try to load the theme
       pcall(function()
-        Theme.load(self.theme)
+        self._Theme.load(self.theme)
       end)
-      themeToUse = Theme.get(self.theme)
+      themeToUse = self._Theme.get(self.theme)
     end
   else
     -- Use active theme
-    themeToUse = Theme.getActive()
+    themeToUse = self._Theme.getActive()
   end
   
   if not themeToUse then
@@ -251,7 +267,7 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
     
     if hasAllRegions then
       -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-      NinePatch.draw(component, atlasToUse, x, y, borderBoxWidth, borderBoxHeight, self.opacity, scaleCorners, scalingAlgorithm)
+      self._NinePatch.draw(component, atlasToUse, x, y, borderBoxWidth, borderBoxHeight, self.opacity, scaleCorners, scalingAlgorithm)
     end
   end
 end
@@ -262,7 +278,7 @@ end
 ---@param borderBoxWidth number Border box width
 ---@param borderBoxHeight number Border box height
 function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
-  local borderColorWithOpacity = Color.new(
+  local borderColorWithOpacity = self._Color.new(
     self.borderColor.r,
     self.borderColor.g,
     self.borderColor.b,
@@ -275,7 +291,7 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
   
   if allBorders then
     -- Draw complete rounded rectangle border
-    RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
   else
     -- Draw individual borders (without rounded corners for partial borders)
     if self.border.top then
@@ -313,7 +329,7 @@ function Renderer:draw(backdropCanvas)
   if element.animation then
     local anim = element.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor = Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor = self._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
   
@@ -325,7 +341,7 @@ function Renderer:draw(backdropCanvas)
   if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, element.x, element.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
+      self._Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, element.x, element.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
     end
   end
   
@@ -366,7 +382,7 @@ function Renderer:getFont(element)
     end
   end
 
-  return FONT_CACHE.getFont(element.textSize, fontPath)
+  return self._FONT_CACHE.getFont(element.textSize, fontPath)
 end
 
 --- Wrap a line of text based on element's textWrap mode
@@ -591,9 +607,9 @@ function Renderer:drawText(element)
   end
 
   if displayText and displayText ~= "" then
-    local textColor = isPlaceholder and Color.new(element.textColor.r * 0.5, element.textColor.g * 0.5, element.textColor.b * 0.5, element.textColor.a * 0.5)
+    local textColor = isPlaceholder and self._Color.new(element.textColor.r * 0.5, element.textColor.g * 0.5, element.textColor.b * 0.5, element.textColor.a * 0.5)
       or element.textColor
-    local textColorWithOpacity = Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
+    local textColorWithOpacity = self._Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()
@@ -602,7 +618,7 @@ function Renderer:drawText(element)
       local fontPath = nil
       if element.fontFamily then
         -- Check if fontFamily is a theme font name
-        local themeToUse = element.theme and Theme.get(element.theme) or Theme.getActive()
+        local themeToUse = element.theme and self._Theme.get(element.theme) or self._Theme.getActive()
         if themeToUse and themeToUse.fonts and themeToUse.fonts[element.fontFamily] then
           fontPath = themeToUse.fonts[element.fontFamily]
         else
@@ -611,14 +627,14 @@ function Renderer:drawText(element)
         end
       elseif element.themeComponent then
         -- If using themeComponent but no fontFamily specified, check for default font in theme
-        local themeToUse = element.theme and Theme.get(element.theme) or Theme.getActive()
+        local themeToUse = element.theme and self._Theme.get(element.theme) or self._Theme.getActive()
         if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
           fontPath = themeToUse.fonts.default
         end
       end
 
       -- Use cached font instead of creating new one every frame
-      local font = FONT_CACHE.get(element.textSize, fontPath)
+      local font = self._FONT_CACHE.get(element.textSize, fontPath)
       love.graphics.setFont(font)
     end
     local font = love.graphics.getFont()
@@ -652,11 +668,11 @@ function Renderer:drawText(element)
     if element.textWrap and (element.textWrap == "word" or element.textWrap == "char" or element.textWrap == true) then
       -- Use printf for wrapped text
       local align = "left"
-      if element.textAlign == TextAlign.CENTER then
+      if element.textAlign == self._TextAlign.CENTER then
         align = "center"
-      elseif element.textAlign == TextAlign.END then
+      elseif element.textAlign == self._TextAlign.END then
         align = "right"
-      elseif element.textAlign == TextAlign.JUSTIFY then
+      elseif element.textAlign == self._TextAlign.JUSTIFY then
         align = "justify"
       end
 
@@ -667,16 +683,16 @@ function Renderer:drawText(element)
       love.graphics.printf(displayText, tx, ty, textAreaWidth, align)
     else
       -- Use regular print for non-wrapped text
-      if element.textAlign == TextAlign.START then
+      if element.textAlign == self._TextAlign.START then
         tx = contentX
         ty = contentY
-      elseif element.textAlign == TextAlign.CENTER then
+      elseif element.textAlign == self._TextAlign.CENTER then
         tx = contentX + (textAreaWidth - textWidth) / 2
         ty = contentY + (textAreaHeight - textHeight) / 2
-      elseif element.textAlign == TextAlign.END then
+      elseif element.textAlign == self._TextAlign.END then
         tx = contentX + textAreaWidth - textWidth - 10
         ty = contentY + textAreaHeight - textHeight - 10
-      elseif element.textAlign == TextAlign.JUSTIFY then
+      elseif element.textAlign == self._TextAlign.JUSTIFY then
         --- need to figure out spreading
         tx = contentX
         ty = contentY
@@ -703,7 +719,7 @@ function Renderer:drawText(element)
     -- Draw cursor for focused editable elements (even if text is empty)
     if element._textEditor and element._textEditor:isFocused() and element._textEditor._cursorVisible then
       local cursorColor = element.cursorColor or element.textColor
-      local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+      local cursorWithOpacity = self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
 
       -- Calculate cursor position using TextEditor method
@@ -734,8 +750,8 @@ function Renderer:drawText(element)
     -- Draw selection highlight for editable elements
     if element._textEditor and element._textEditor:isFocused() and element._textEditor:hasSelection() and element.text and element.text ~= "" then
       local selStart, selEnd = element._textEditor:getSelection()
-      local selectionColor = element.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
-      local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
+      local selectionColor = element.selectionColor or self._Color.new(0.3, 0.5, 0.8, 0.5)
+      local selectionWithOpacity = self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
 
       -- Get selection rectangles from TextEditor
       local selectionRects = element._textEditor:_getSelectionRects(selStart, selEnd)
@@ -774,14 +790,14 @@ function Renderer:drawText(element)
     if element.textSize then
       local fontPath = nil
       if element.fontFamily then
-        local themeToUse = element.theme and Theme.get(element.theme) or Theme.getActive()
+        local themeToUse = element.theme and self._Theme.get(element.theme) or self._Theme.getActive()
         if themeToUse and themeToUse.fonts and themeToUse.fonts[element.fontFamily] then
           fontPath = themeToUse.fonts[element.fontFamily]
         else
           fontPath = element.fontFamily
         end
       end
-      local font = FONT_CACHE.get(element.textSize, fontPath)
+      local font = self._FONT_CACHE.get(element.textSize, fontPath)
       love.graphics.setFont(font)
     end
 
@@ -802,7 +818,7 @@ function Renderer:drawText(element)
 
     -- Draw cursor
     local cursorColor = element.cursorColor or element.textColor
-    local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+    local cursorWithOpacity = self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
     love.graphics.setColor(cursorWithOpacity:toRGBA())
     love.graphics.rectangle("fill", contentX, contentY, 2, textHeight)
 
@@ -832,10 +848,10 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
     local thumbColor = element.scrollbarColor
     if element._scrollbarDragging and element._hoveredScrollbar == "vertical" then
       -- Active state: brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
+      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
     elseif element._scrollbarHoveredVertical then
       -- Hover state: slightly brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
+      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
     end
 
     -- Draw track
@@ -859,10 +875,10 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
     local thumbColor = element.scrollbarColor
     if element._scrollbarDragging and element._hoveredScrollbar == "horizontal" then
       -- Active state: brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
+      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
     elseif element._scrollbarHoveredHorizontal then
       -- Hover state: slightly brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
+      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
     end
 
     -- Draw track
@@ -885,7 +901,7 @@ end
 ---@param borderBoxHeight number Border box height
 function Renderer:drawPressedState(x, y, borderBoxWidth, borderBoxHeight)
   love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-  RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+  self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 end
 
 --- Cleanup renderer resources

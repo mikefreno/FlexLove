@@ -3,14 +3,15 @@
 -- ====================
 -- Handles all user input events (mouse, keyboard, touch) for UI elements
 -- Manages event state, click detection, drag tracking, hover, and focus
+---
+--- Dependencies (must be injected via deps parameter):
+---   - InputEvent: Input event class for creating event objects
+---   - GuiState: GUI state manager (unused currently, reserved for future use)
 
 local modulePath = (...):match("(.-)[^%.]+$")
 local function req(name)
   return require(modulePath .. name)
 end
-
-local InputEvent = req("InputEvent")
-local GuiState = req("GuiState")
 
 -- Get keyboard modifiers helper
 local function getModifiers()
@@ -28,11 +29,21 @@ EventHandler.__index = EventHandler
 
 --- Create a new EventHandler instance
 ---@param config table Configuration options
+---@param deps table Dependencies {InputEvent, GuiState}
 ---@return EventHandler
-function EventHandler.new(config)
+function EventHandler.new(config, deps)
+  -- Pure DI: Dependencies must be injected
+  assert(deps, "EventHandler.new: deps parameter is required")
+  assert(deps.InputEvent, "EventHandler.new: deps.InputEvent is required")
+  assert(deps.GuiState, "EventHandler.new: deps.GuiState is required")
+  
   config = config or {}
   
   local self = setmetatable({}, EventHandler)
+  
+  -- Store dependencies
+  self._InputEvent = deps.InputEvent
+  self._GuiState = deps.GuiState
   
   -- Event callback
   self.onEvent = config.onEvent
@@ -183,7 +194,7 @@ function EventHandler:_handleMousePress(mx, my, button)
   -- Fire press event
   if self.onEvent then
     local modifiers = getModifiers()
-    local pressEvent = InputEvent.new({
+    local pressEvent = self._InputEvent.new({
       type = "press",
       button = button,
       x = mx,
@@ -222,14 +233,14 @@ function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
   local lastX = self._lastMouseX[button] or mx
   local lastY = self._lastMouseY[button] or my
   
-  if lastX ~= mx or lastY ~= my then
+    if lastX ~= mx or lastY ~= my then
     -- Mouse has moved - fire drag event only if still hovering
     if self.onEvent and isHovering then
       local modifiers = getModifiers()
       local dx = mx - self._dragStartX[button]
       local dy = my - self._dragStartY[button]
       
-      local dragEvent = InputEvent.new({
+      local dragEvent = self._InputEvent.new({
         type = "drag",
         button = button,
         x = mx,
@@ -289,7 +300,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   
   -- Fire click event
   if self.onEvent then
-    local clickEvent = InputEvent.new({
+    local clickEvent = self._InputEvent.new({
       type = eventType,
       button = button,
       x = mx,
@@ -331,7 +342,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   
   -- Fire release event
   if self.onEvent then
-    local releaseEvent = InputEvent.new({
+    local releaseEvent = self._InputEvent.new({
       type = "release",
       button = button,
       x = mx,
@@ -363,7 +374,7 @@ function EventHandler:processTouchEvents()
       self._touchPressed[id] = true
     elseif self._touchPressed[id] then
       -- Create touch event (treat as left click)
-      local touchEvent = InputEvent.new({
+      local touchEvent = self._InputEvent.new({
         type = "click",
         button = 1,
         x = tx,

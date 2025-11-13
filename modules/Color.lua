@@ -1,5 +1,4 @@
 --[[
-Color.lua - Color utility class for FlexLove
 Provides color handling with RGB/RGBA support and hex string conversion
 ]]
 

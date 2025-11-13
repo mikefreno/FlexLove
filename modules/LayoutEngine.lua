@@ -6,26 +6,10 @@
 -- - Grid layout delegation
 -- - Auto-sizing calculations
 -- - CSS positioning offsets
-
--- Setup module path for relative requires
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
--- Module dependencies
-local utils = req("utils")
-local Grid = req("Grid")
-
--- Extract enum values
-local enums = utils.enums
-local Positioning = enums.Positioning
-local FlexDirection = enums.FlexDirection
-local JustifyContent = enums.JustifyContent
-local AlignContent = enums.AlignContent
-local AlignItems = enums.AlignItems
-local AlignSelf = enums.AlignSelf
-local FlexWrap = enums.FlexWrap
+---
+--- Dependencies (must be injected via deps parameter):
+---   - utils: Utility functions and enums
+---   - Grid: Grid layout module
 
 ---@class LayoutEngine
 ---@field element Element Reference to the parent element
@@ -58,9 +42,35 @@ LayoutEngine.__index = LayoutEngine
 
 --- Create a new LayoutEngine instance
 ---@param props LayoutEngineProps
+---@param deps table Dependencies {utils, Grid}
 ---@return LayoutEngine
-function LayoutEngine.new(props)
+function LayoutEngine.new(props, deps)
+  -- Pure DI: Dependencies must be injected
+  assert(deps, "LayoutEngine.new: deps parameter is required")
+  assert(deps.utils, "LayoutEngine.new: deps.utils is required")
+  assert(deps.Grid, "LayoutEngine.new: deps.Grid is required")
+  
+  -- Extract enums from utils
+  local enums = deps.utils.enums
+  local Positioning = enums.Positioning
+  local FlexDirection = enums.FlexDirection
+  local JustifyContent = enums.JustifyContent
+  local AlignContent = enums.AlignContent
+  local AlignItems = enums.AlignItems
+  local AlignSelf = enums.AlignSelf
+  local FlexWrap = enums.FlexWrap
+  
   local self = setmetatable({}, LayoutEngine)
+  
+  -- Store dependencies for instance methods
+  self._Grid = deps.Grid
+  self._Positioning = Positioning
+  self._FlexDirection = FlexDirection
+  self._JustifyContent = JustifyContent
+  self._AlignContent = AlignContent
+  self._AlignItems = AlignItems
+  self._AlignSelf = AlignSelf
+  self._FlexWrap = FlexWrap
   
   -- Layout configuration
   self.positioning = props.positioning or Positioning.FLEX
@@ -104,9 +114,9 @@ function LayoutEngine:applyPositioningOffsets(child)
 
   -- Only apply offsets to explicitly absolute children or children in relative/absolute containers
   -- Flex/grid children ignore positioning offsets as they participate in layout
-  local isFlexChild = child.positioning == Positioning.FLEX
-    or child.positioning == Positioning.GRID
-    or (child.positioning == Positioning.ABSOLUTE and not child._explicitlyAbsolute)
+  local isFlexChild = child.positioning == self._Positioning.FLEX
+    or child.positioning == self._Positioning.GRID
+    or (child.positioning == self._Positioning.ABSOLUTE and not child._explicitlyAbsolute)
 
   if not isFlexChild then
     -- Apply absolute positioning for explicitly absolute children
@@ -140,7 +150,7 @@ end
 function LayoutEngine:layoutChildren()
   local element = self.element
   
-  if self.positioning == Positioning.ABSOLUTE or self.positioning == Positioning.RELATIVE then
+  if self.positioning == self._Positioning.ABSOLUTE or self.positioning == self._Positioning.RELATIVE then
     -- Absolute/Relative positioned containers don't layout their children according to flex rules,
     -- but they should still apply CSS positioning offsets to their children
     for _, child in ipairs(element.children) do
@@ -152,8 +162,8 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Handle grid layout
-  if self.positioning == Positioning.GRID then
-    Grid.layoutGridItems(element)
+  if self.positioning == self._Positioning.GRID then
+    self._Grid.layoutGridItems(element)
     return
   end
 
@@ -166,7 +176,7 @@ function LayoutEngine:layoutChildren()
   -- Get flex children (children that participate in flex layout)
   local flexChildren = {}
   for _, child in ipairs(element.children) do
-    local isFlexChild = not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute)
+    local isFlexChild = not (child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute)
     if isFlexChild then
       table.insert(flexChildren, child)
     end
@@ -184,12 +194,12 @@ function LayoutEngine:layoutChildren()
 
   for _, child in ipairs(element.children) do
     -- Only consider absolutely positioned children with explicit positioning
-    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+    if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
       -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
       local childBorderBoxWidth = child:getBorderBoxWidth()
       local childBorderBoxHeight = child:getBorderBoxHeight()
 
-      if self.flexDirection == FlexDirection.HORIZONTAL then
+      if self.flexDirection == self._FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Check for left positioning (reserves space at main axis start)
         if child.left then
@@ -241,7 +251,7 @@ function LayoutEngine:layoutChildren()
   -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
   local availableMainSize = 0
   local availableCrossSize = 0
-  if self.flexDirection == FlexDirection.HORIZONTAL then
+  if self.flexDirection == self._FlexDirection.HORIZONTAL then
     availableMainSize = element.width - reservedMainStart - reservedMainEnd
     availableCrossSize = element.height - reservedCrossStart - reservedCrossEnd
   else
@@ -252,7 +262,7 @@ function LayoutEngine:layoutChildren()
   -- Handle flex wrap: create lines of children
   local lines = {}
 
-  if self.flexWrap == FlexWrap.NOWRAP then
+  if self.flexWrap == self._FlexWrap.NOWRAP then
     -- All children go on one line
     lines[1] = flexChildren
   else
@@ -265,7 +275,7 @@ function LayoutEngine:layoutChildren()
       -- Include margins in size calculations
       local childMainSize = 0
       local childMainMargin = 0
-      if self.flexDirection == FlexDirection.HORIZONTAL then
+      if self.flexDirection == self._FlexDirection.HORIZONTAL then
         childMainSize = child:getBorderBoxWidth()
         childMainMargin = child.margin.left + child.margin.right
       else
@@ -296,7 +306,7 @@ function LayoutEngine:layoutChildren()
     end
 
     -- Handle wrap-reverse: reverse the order of lines
-    if self.flexWrap == FlexWrap.WRAP_REVERSE then
+    if self.flexWrap == self._FlexWrap.WRAP_REVERSE then
       local reversedLines = {}
       for i = #lines, 1, -1 do
         table.insert(reversedLines, lines[i])
@@ -316,7 +326,7 @@ function LayoutEngine:layoutChildren()
       -- Include margins in cross-axis size calculations
       local childCrossSize = 0
       local childCrossMargin = 0
-      if self.flexDirection == FlexDirection.HORIZONTAL then
+      if self.flexDirection == self._FlexDirection.HORIZONTAL then
         childCrossSize = child:getBorderBoxHeight()
         childCrossMargin = child.margin.top + child.margin.bottom
       else
@@ -336,7 +346,7 @@ function LayoutEngine:layoutChildren()
 
   -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
   if #lines == 1 then
-    if self.alignItems == AlignItems.STRETCH or self.alignItems == AlignItems.CENTER or self.alignItems == AlignItems.FLEX_END then
+    if self.alignItems == self._AlignItems.STRETCH or self.alignItems == self._AlignItems.CENTER or self.alignItems == self._AlignItems.FLEX_END then
       -- STRETCH, CENTER, and FLEX_END should use full available cross size
       lineHeights[1] = availableCrossSize
       totalLinesHeight = availableCrossSize
@@ -351,22 +361,22 @@ function LayoutEngine:layoutChildren()
   local freeLineSpace = availableCrossSize - totalLinesHeight
 
   -- Apply AlignContent logic for both single and multiple lines
-  if self.alignContent == AlignContent.FLEX_START then
+  if self.alignContent == self._AlignContent.FLEX_START then
     lineStartPos = 0
-  elseif self.alignContent == AlignContent.CENTER then
+  elseif self.alignContent == self._AlignContent.CENTER then
     lineStartPos = freeLineSpace / 2
-  elseif self.alignContent == AlignContent.FLEX_END then
+  elseif self.alignContent == self._AlignContent.FLEX_END then
     lineStartPos = freeLineSpace
-  elseif self.alignContent == AlignContent.SPACE_BETWEEN then
+  elseif self.alignContent == self._AlignContent.SPACE_BETWEEN then
     lineStartPos = 0
     if #lines > 1 then
       lineSpacing = self.gap + (freeLineSpace / (#lines - 1))
     end
-  elseif self.alignContent == AlignContent.SPACE_AROUND then
+  elseif self.alignContent == self._AlignContent.SPACE_AROUND then
     local spaceAroundEach = freeLineSpace / #lines
     lineStartPos = spaceAroundEach / 2
     lineSpacing = self.gap + spaceAroundEach
-  elseif self.alignContent == AlignContent.STRETCH then
+  elseif self.alignContent == self._AlignContent.STRETCH then
     lineStartPos = 0
     if #lines > 1 and freeLineSpace > 0 then
       lineSpacing = self.gap + (freeLineSpace / #lines)
@@ -388,7 +398,7 @@ function LayoutEngine:layoutChildren()
     -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
     local totalChildrenSize = 0
     for _, child in ipairs(line) do
-      if self.flexDirection == FlexDirection.HORIZONTAL then
+      if self.flexDirection == self._FlexDirection.HORIZONTAL then
         totalChildrenSize = totalChildrenSize + child:getBorderBoxWidth() + child.margin.left + child.margin.right
       else
         totalChildrenSize = totalChildrenSize + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom
@@ -403,22 +413,22 @@ function LayoutEngine:layoutChildren()
     local startPos = 0
     local itemSpacing = self.gap
 
-    if self.justifyContent == JustifyContent.FLEX_START then
+    if self.justifyContent == self._JustifyContent.FLEX_START then
       startPos = 0
-    elseif self.justifyContent == JustifyContent.CENTER then
+    elseif self.justifyContent == self._JustifyContent.CENTER then
       startPos = freeSpace / 2
-    elseif self.justifyContent == JustifyContent.FLEX_END then
+    elseif self.justifyContent == self._JustifyContent.FLEX_END then
       startPos = freeSpace
-    elseif self.justifyContent == JustifyContent.SPACE_BETWEEN then
+    elseif self.justifyContent == self._JustifyContent.SPACE_BETWEEN then
       startPos = 0
       if #line > 1 then
         itemSpacing = self.gap + (freeSpace / (#line - 1))
       end
-    elseif self.justifyContent == JustifyContent.SPACE_AROUND then
+    elseif self.justifyContent == self._JustifyContent.SPACE_AROUND then
       local spaceAroundEach = freeSpace / #line
       startPos = spaceAroundEach / 2
       itemSpacing = self.gap + spaceAroundEach
-    elseif self.justifyContent == JustifyContent.SPACE_EVENLY then
+    elseif self.justifyContent == self._JustifyContent.SPACE_EVENLY then
       local spaceBetween = freeSpace / (#line + 1)
       startPos = spaceBetween
       itemSpacing = self.gap + spaceBetween
@@ -430,11 +440,11 @@ function LayoutEngine:layoutChildren()
     for _, child in ipairs(line) do
       -- Determine effective cross-axis alignment
       local effectiveAlign = child.alignSelf
-      if effectiveAlign == nil or effectiveAlign == AlignSelf.AUTO then
+      if effectiveAlign == nil or effectiveAlign == self._AlignSelf.AUTO then
         effectiveAlign = self.alignItems
       end
 
-      if self.flexDirection == FlexDirection.HORIZONTAL then
+      if self.flexDirection == self._FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Position child at border box (x, y represents top-left including padding)
         -- Add reservedMainStart and left margin to account for absolutely positioned siblings and margins
@@ -444,13 +454,13 @@ function LayoutEngine:layoutChildren()
         local childBorderBoxHeight = child:getBorderBoxHeight()
         local childTotalCrossSize = childBorderBoxHeight + child.margin.top + child.margin.bottom
 
-        if effectiveAlign == AlignItems.FLEX_START then
+        if effectiveAlign == self._AlignItems.FLEX_START then
           child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
-        elseif effectiveAlign == AlignItems.CENTER then
+        elseif effectiveAlign == self._AlignItems.CENTER then
           child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.top
-        elseif effectiveAlign == AlignItems.FLEX_END then
+        elseif effectiveAlign == self._AlignItems.FLEX_END then
           child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.top
-        elseif effectiveAlign == AlignItems.STRETCH then
+        elseif effectiveAlign == self._AlignItems.STRETCH then
           -- STRETCH: Only apply if height was not explicitly set
           if child.autosizing and child.autosizing.height then
             -- STRETCH: Set border-box height to lineHeight minus margins, content area shrinks to fit
@@ -481,13 +491,13 @@ function LayoutEngine:layoutChildren()
         local childBorderBoxWidth = child:getBorderBoxWidth()
         local childTotalCrossSize = childBorderBoxWidth + child.margin.left + child.margin.right
 
-        if effectiveAlign == AlignItems.FLEX_START then
+        if effectiveAlign == self._AlignItems.FLEX_START then
           child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
-        elseif effectiveAlign == AlignItems.CENTER then
+        elseif effectiveAlign == self._AlignItems.CENTER then
           child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.left
-        elseif effectiveAlign == AlignItems.FLEX_END then
+        elseif effectiveAlign == self._AlignItems.FLEX_END then
           child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.left
-        elseif effectiveAlign == AlignItems.STRETCH then
+        elseif effectiveAlign == self._AlignItems.STRETCH then
           -- STRETCH: Only apply if width was not explicitly set
           if child.autosizing and child.autosizing.width then
             -- STRETCH: Set border-box width to lineHeight minus margins, content area shrinks to fit
@@ -517,7 +527,7 @@ function LayoutEngine:layoutChildren()
 
   -- Position explicitly absolute children after flex layout
   for _, child in ipairs(element.children) do
-    if child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute then
+    if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
       -- Apply positioning offsets (top, right, bottom, left)
       self:applyPositioningOffsets(child)
 
@@ -547,7 +557,7 @@ function LayoutEngine:calculateAutoWidth()
 
   -- For HORIZONTAL flex: sum children widths + gaps
   -- For VERTICAL flex: max of children widths
-  local isHorizontal = self.flexDirection == FlexDirection.HORIZONTAL
+  local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
   local totalWidth = contentWidth
   local maxWidth = contentWidth
   local participatingChildren = 0
@@ -587,7 +597,7 @@ function LayoutEngine:calculateAutoHeight()
 
   -- For VERTICAL flex: sum children heights + gaps
   -- For HORIZONTAL flex: max of children heights
-  local isVertical = self.flexDirection == FlexDirection.VERTICAL
+  local isVertical = self.flexDirection == self._FlexDirection.VERTICAL
   local totalHeight = height
   local maxHeight = height
   local participatingChildren = 0

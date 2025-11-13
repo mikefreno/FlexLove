@@ -9,22 +9,18 @@
 -- - Focus management
 -- - Keyboard input handling
 -- - Text rendering (cursor, selection highlights)
+---
+--- Dependencies (must be injected via deps parameter):
+---   - GuiState: GUI state manager
+---   - StateManager: State persistence for immediate mode
+---   - Color: Color utility class (reserved for future use)
+---   - utils: Utility functions (FONT_CACHE, getModifiers)
 
 -- Setup module path for relative requires
 local modulePath = (...):match("(.-)[^%.]+$")
 local function req(name)
   return require(modulePath .. name)
 end
-
--- Module dependencies
-local GuiState = req("GuiState")
-local StateManager = req("StateManager")
-local Color = req("Color")
-local utils = req("utils")
-
--- Extract utilities
-local FONT_CACHE = utils.FONT_CACHE
-local getModifiers = utils.getModifiers
 
 -- UTF-8 support
 local utf8 = utf8 or require("utf8")
@@ -51,9 +47,24 @@ TextEditor.__index = TextEditor
 
 ---Create a new TextEditor instance
 ---@param config TextEditorConfig
+---@param deps table Dependencies {GuiState, StateManager, Color, utils}
 ---@return table TextEditor instance
-function TextEditor.new(config)
+function TextEditor.new(config, deps)
+  -- Pure DI: Dependencies must be injected
+  assert(deps, "TextEditor.new: deps parameter is required")
+  assert(deps.GuiState, "TextEditor.new: deps.GuiState is required")
+  assert(deps.StateManager, "TextEditor.new: deps.StateManager is required")
+  assert(deps.Color, "TextEditor.new: deps.Color is required")
+  assert(deps.utils, "TextEditor.new: deps.utils is required")
+  
   local self = setmetatable({}, TextEditor)
+  
+  -- Store dependencies
+  self._GuiState = deps.GuiState
+  self._StateManager = deps.StateManager
+  self._Color = deps.Color
+  self._FONT_CACHE = deps.utils.FONT_CACHE
+  self._getModifiers = deps.utils.getModifiers
   
   -- Store configuration
   self.editable = config.editable or false
@@ -117,12 +128,12 @@ function TextEditor:initialize(element)
   self._element = element
   
   -- Restore state from StateManager if in immediate mode
-  if element._stateId and GuiState._immediateMode then
-    local state = StateManager.getState(element._stateId)
+  if element._stateId and self._GuiState._immediateMode then
+    local state = self._StateManager.getState(element._stateId)
     if state then
       if state._focused then
         self._focused = true
-        GuiState._focusedElement = element
+        self._GuiState._focusedElement = element
       end
       if state._textBuffer and state._textBuffer ~= "" then
         self._textBuffer = state._textBuffer
@@ -912,16 +923,16 @@ end
 
 ---Focus this element for keyboard input
 function TextEditor:focus()
-  if GuiState._focusedElement and GuiState._focusedElement ~= self._element then
+  if self._GuiState._focusedElement and self._GuiState._focusedElement ~= self._element then
     -- Blur the previously focused element's text editor if it has one
-    if GuiState._focusedElement._textEditor then
-      GuiState._focusedElement._textEditor:blur()
+    if self._GuiState._focusedElement._textEditor then
+      self._GuiState._focusedElement._textEditor:blur()
     end
   end
   
   self._focused = true
   if self._element then
-    GuiState._focusedElement = self._element
+    self._GuiState._focusedElement = self._element
   end
   
   self:_resetCursorBlink()
@@ -943,8 +954,8 @@ end
 function TextEditor:blur()
   self._focused = false
   
-  if self._element and GuiState._focusedElement == self._element then
-    GuiState._focusedElement = nil
+  if self._element and self._GuiState._focusedElement == self._element then
+    self._GuiState._focusedElement = nil
   end
   
   if self.onBlur and self._element then
@@ -1006,7 +1017,7 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
     return
   end
   
-  local modifiers = getModifiers()
+  local modifiers = self._getModifiers()
   local ctrl = modifiers.ctrl or modifiers.super
   
   -- Handle cursor movement with selection
@@ -1538,11 +1549,11 @@ end
 
 ---Save state to StateManager (for immediate mode)
 function TextEditor:_saveState()
-  if not self._element or not self._element._stateId or not GuiState._immediateMode then
+  if not self._element or not self._element._stateId or not self._GuiState._immediateMode then
     return
   end
   
-  StateManager.updateState(self._element._stateId, {
+  self._StateManager.updateState(self._element._stateId, {
     _focused = self._focused,
     _textBuffer = self._textBuffer,
     _cursorPosition = self._cursorPosition,

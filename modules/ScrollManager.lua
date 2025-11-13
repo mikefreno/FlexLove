@@ -1,14 +1,9 @@
 --- ScrollManager.lua
 --- Handles scrolling, overflow detection, and scrollbar rendering/interaction for Elements
 --- Extracted from Element.lua as part of element-refactor-modularization task 05
-
--- Setup module path for relative requires
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
-local Color = req("Color")
+---
+--- Dependencies (must be injected via deps parameter):
+---   - Color: Color module for creating color instances
 
 ---@class ScrollManager
 ---@field overflow string -- "visible"|"hidden"|"auto"|"scroll"
@@ -41,9 +36,18 @@ ScrollManager.__index = ScrollManager
 
 --- Create a new ScrollManager instance
 ---@param config table Configuration options
+---@param deps table Dependencies {Color: Color module}
 ---@return ScrollManager
-function ScrollManager.new(config)
+function ScrollManager.new(config, deps)
+  -- Pure DI: Dependencies must be injected
+  assert(deps, "ScrollManager.new: deps parameter is required")
+  assert(deps.Color, "ScrollManager.new: deps.Color is required")
+  
+  local Color = deps.Color
   local self = setmetatable({}, ScrollManager)
+  
+  -- Store dependency for instance methods
+  self._Color = Color
   
   -- Configuration
   self.overflow = config.overflow or "hidden"

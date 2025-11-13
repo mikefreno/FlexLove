@@ -6,10 +6,6 @@ local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
 end
 
--- ====================
--- ImageRenderer
--- ====================
-
 ---@class ImageRenderer
 local ImageRenderer = {}
 
@@ -26,7 +22,6 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
   fitMode = fitMode or "fill"
   objectPosition = objectPosition or "center center"
 
-  -- Validate inputs
   if imageWidth <= 0 or imageHeight <= 0 or boundsWidth <= 0 or boundsHeight <= 0 then
     error(formatError("ImageRenderer", "Dimensions must be positive"))
   end
@@ -44,7 +39,6 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
     scaleY = 1, -- Scale factor Y
   }
 
-  -- Calculate based on fit mode
   if fitMode == "fill" then
     -- Stretch to fill bounds (may distort)
     result.scaleX = boundsWidth / imageWidth

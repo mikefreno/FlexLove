@@ -57,7 +57,6 @@ function Grid.layoutGridItems(element)
   local cellWidth = (availableWidth - totalColumnGaps) / columns
   local cellHeight = (availableHeight - totalRowGaps) / rows
 
-  -- Get children that participate in grid layout
   local gridChildren = {}
   for _, child in ipairs(element.children) do
     if not (child.positioning == Positioning.ABSOLUTE and child._explicitlyAbsolute) then
@@ -65,14 +64,12 @@ function Grid.layoutGridItems(element)
     end
   end
 
-  -- Place children in grid cells
   for i, child in ipairs(gridChildren) do
     -- Calculate row and column (0-indexed for calculation)
     local index = i - 1
     local col = index % columns
     local row = math.floor(index / columns)
 
-    -- Skip if we've exceeded the grid
     if row >= rows then
       break
     end
@@ -84,7 +81,6 @@ function Grid.layoutGridItems(element)
     -- Apply alignment within grid cell (default to stretch)
     local effectiveAlignItems = element.alignItems or AlignItems.STRETCH
 
-    -- Stretch child to fill cell by default
     -- BORDER-BOX MODEL: Set border-box dimensions, content area adjusts automatically
     if effectiveAlignItems == AlignItems.STRETCH or effectiveAlignItems == "stretch" then
       child.x = cellX
@@ -110,7 +106,6 @@ function Grid.layoutGridItems(element)
       child.x = cellX + cellWidth - childBorderBoxWidth
       child.y = cellY + cellHeight - childBorderBoxHeight
     else
-      -- Default to stretch
       child.x = cellX
       child.y = cellY
       child._borderBoxWidth = cellWidth
@@ -122,7 +117,6 @@ function Grid.layoutGridItems(element)
       child.autosizing.height = false
     end
 
-    -- Layout child's children if it has any
     if #child.children > 0 then
       child:layoutChildren()
     end

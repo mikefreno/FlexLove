@@ -35,37 +35,28 @@ function EventHandler.new(config, deps)
 
   local self = setmetatable({}, EventHandler)
 
-  -- Store dependencies
   self._InputEvent = deps.InputEvent
   self._GuiState = deps.GuiState
 
-  -- Event callback
   self.onEvent = config.onEvent
 
-  -- Mouse button state tracking {button -> boolean}
   self._pressed = config._pressed or {}
 
-  -- Click detection state
   self._lastClickTime = config._lastClickTime
   self._lastClickButton = config._lastClickButton
   self._clickCount = config._clickCount or 0
 
-  -- Drag tracking per button {button -> position}
   self._dragStartX = config._dragStartX or {}
   self._dragStartY = config._dragStartY or {}
   self._lastMouseX = config._lastMouseX or {}
   self._lastMouseY = config._lastMouseY or {}
 
-  -- Touch state tracking {touchId -> boolean}
   self._touchPressed = config._touchPressed or {}
 
-  -- Hover state
   self._hovered = config._hovered or false
 
-  -- Reference to parent element (set via initialize)
   self._element = nil
 
-  -- Scrollbar press tracking flag
   self._scrollbarPressHandled = false
 
   return self

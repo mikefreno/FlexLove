@@ -7,11 +7,8 @@ ImageCache._cache = {}
 ---@param path string -- File path to normalize
 ---@return string -- Normalized path
 local function normalizePath(path)
-  -- Remove leading/trailing whitespace
   path = path:match("^%s*(.-)%s*$")
-  -- Convert backslashes to forward slashes
   path = path:gsub("\\", "/")
-  -- Remove redundant slashes
   path = path:gsub("/+", "/")
   return path
 end
@@ -29,12 +26,10 @@ function ImageCache.load(imagePath, loadImageData)
 
   local normalizedPath = normalizePath(imagePath)
 
-  -- Check if already cached
   if ImageCache._cache[normalizedPath] then
     return ImageCache._cache[normalizedPath].image, nil
   end
 
-  -- Try to load the image
   local success, imageOrError = pcall(love.graphics.newImage, normalizedPath)
   if not success then
     return nil, string.format("Failed to load image '%s': %s", imagePath, tostring(imageOrError))
@@ -43,7 +38,6 @@ function ImageCache.load(imagePath, loadImageData)
   local image = imageOrError
   local imgData = nil
 
-  -- Load ImageData if requested
   if loadImageData then
     local dataSuccess, dataOrError = pcall(love.image.newImageData, normalizedPath)
     if dataSuccess then
@@ -51,7 +45,6 @@ function ImageCache.load(imagePath, loadImageData)
     end
   end
 
-  -- Cache the image
   ImageCache._cache[normalizedPath] = {
     image = image,
     imageData = imgData,
@@ -96,7 +89,6 @@ function ImageCache.remove(imagePath)
 
   local normalizedPath = normalizePath(imagePath)
   if ImageCache._cache[normalizedPath] then
-    -- Release the image
     local cached = ImageCache._cache[normalizedPath]
     if cached.image then
       cached.image:release()
@@ -112,7 +104,6 @@ end
 
 --- Clear all cached images
 function ImageCache.clear()
-  -- Release all images
   for path, cached in pairs(ImageCache._cache) do
     if cached.image then
       cached.image:release()

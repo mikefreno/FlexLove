@@ -1,9 +1,9 @@
 ---@class ThemeManager
----@field theme string? -- Theme name to use
----@field themeComponent string? -- Component name from theme (e.g., "button", "panel")
+---@field theme string?
+---@field themeComponent string?
 ---@field _themeState string -- Current theme state (normal, hover, pressed, active, disabled)
----@field disabled boolean -- If true, element is disabled
----@field active boolean -- If true, element is in active state (e.g., focused input)
+---@field disabled boolean
+---@field active boolean
 ---@field disableHighlight boolean -- If true, disable pressed highlight overlay
 ---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges
 ---@field scalingAlgorithm string? -- "nearest" or "bilinear" scaling for 9-patch
@@ -12,7 +12,6 @@
 local ThemeManager = {}
 ThemeManager.__index = ThemeManager
 
---- Create new ThemeManager instance
 ---@param config table Configuration options
 ---@param deps table Dependencies {Theme: Theme module}
 ---@return ThemeManager
@@ -20,10 +19,8 @@ function ThemeManager.new(config, deps)
   local Theme = deps.Theme
   local self = setmetatable({}, ThemeManager)
 
-  -- Store dependency for instance methods
   self._Theme = Theme
 
-  -- Theme configuration
   self.theme = config.theme
   self.themeComponent = config.themeComponent
   self.disabled = config.disabled or false
@@ -32,20 +29,17 @@ function ThemeManager.new(config, deps)
   self.scaleCorners = config.scaleCorners
   self.scalingAlgorithm = config.scalingAlgorithm
 
-  -- Internal state
   self._themeState = "normal"
   self._element = nil
 
   return self
 end
 
---- Initialize ThemeManager with parent element reference
 ---@param element table The parent Element
 function ThemeManager:initialize(element)
   self._element = element
 end
 
---- Update theme state based on interaction state
 ---@param isHovered boolean Whether element is hovered
 ---@param isPressed boolean Whether element is pressed
 ---@param isFocused boolean Whether element is focused
@@ -54,7 +48,6 @@ end
 function ThemeManager:updateState(isHovered, isPressed, isFocused, isDisabled)
   local newState = "normal"
 
-  -- State priority: disabled > active > pressed > hover > normal
   if isDisabled or self.disabled then
     newState = "disabled"
   elseif self.active then
@@ -69,31 +62,21 @@ function ThemeManager:updateState(isHovered, isPressed, isFocused, isDisabled)
   return newState
 end
 
---- Get current theme state
 ---@return string The current theme state
 function ThemeManager:getState()
   return self._themeState
 end
 
---- Set theme state directly
 ---@param state string The theme state to set
 function ThemeManager:setState(state)
   self._themeState = state
 end
 
---- Check if this ThemeManager has a theme component
 ---@return boolean
 function ThemeManager:hasThemeComponent()
   return self.themeComponent ~= nil
 end
 
---- Get the theme component name
----@return string?
-function ThemeManager:getThemeComponent()
-  return self.themeComponent
-end
-
---- Get the theme to use (element-specific or active theme)
 ---@return table? The theme object or nil
 function ThemeManager:getTheme()
   if self.theme then
@@ -102,7 +85,6 @@ function ThemeManager:getTheme()
   return self._Theme.getActive()
 end
 
---- Get the component definition from the theme
 ---@return table? The component definition or nil
 function ThemeManager:getComponent()
   if not self.themeComponent then
@@ -117,7 +99,6 @@ function ThemeManager:getComponent()
   return themeToUse.components[self.themeComponent]
 end
 
---- Get the current state's component definition (including state-specific overrides)
 ---@return table? The component definition for current state or nil
 function ThemeManager:getStateComponent()
   local component = self:getComponent()
@@ -125,7 +106,6 @@ function ThemeManager:getStateComponent()
     return nil
   end
 
-  -- Check for state-specific override
   local state = self._themeState
   if state and state ~= "normal" and component.states and component.states[state] then
     return component.states[state]
@@ -134,7 +114,6 @@ function ThemeManager:getStateComponent()
   return component
 end
 
---- Get property value from theme for current state
 ---@param property string The property name
 ---@return any? The property value or nil
 function ThemeManager:getStyle(property)
@@ -146,9 +125,8 @@ function ThemeManager:getStyle(property)
   return stateComponent[property]
 end
 
---- Get the scaled content padding for current theme state
----@param borderBoxWidth number The element's border box width
----@param borderBoxHeight number The element's border box height
+---@param borderBoxWidth number
+---@param borderBoxHeight number
 ---@return table? {left, top, right, bottom} or nil if no contentPadding
 function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
   if not self.themeComponent then
@@ -162,7 +140,6 @@ function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
 
   local component = themeToUse.components[self.themeComponent]
 
-  -- Check for state-specific override
   local state = self._themeState or "normal"
   if state and state ~= "normal" and component.states and component.states[state] then
     component = component.states[state]
@@ -174,7 +151,6 @@ function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
 
   local contentPadding = component._ninePatchData.contentPadding
 
-  -- Scale contentPadding to match the actual rendered size
   local atlasImage = component._loadedAtlas or themeToUse.atlas
   if atlasImage and type(atlasImage) ~= "string" then
     local originalWidth, originalHeight = atlasImage:getDimensions()
@@ -192,7 +168,6 @@ function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
   return nil
 end
 
---- Get contentAutoSizingMultiplier from theme
 ---@return number? The multiplier or nil
 function ThemeManager:getContentAutoSizingMultiplier()
   if not self.themeComponent then
@@ -204,7 +179,6 @@ function ThemeManager:getContentAutoSizingMultiplier()
     return nil
   end
 
-  -- First check if themeComponent has a multiplier
   if self.themeComponent then
     local component = themeToUse.components[self.themeComponent]
     if component and component.contentAutoSizingMultiplier then
@@ -233,24 +207,11 @@ function ThemeManager:getDefaultFontFamily()
   return nil
 end
 
---- Set theme and component
 ---@param themeName string? The theme name
 ---@param componentName string? The component name
 function ThemeManager:setTheme(themeName, componentName)
   self.theme = themeName
   self.themeComponent = componentName
-end
-
---- Get scale corners multiplier
----@return number?
-function ThemeManager:getScaleCorners()
-  return self.scaleCorners
-end
-
---- Get scaling algorithm
----@return string?
-function ThemeManager:getScalingAlgorithm()
-  return self.scalingAlgorithm
 end
 
 return ThemeManager

@@ -1,6 +1,5 @@
 local Units = {}
 
---- Parse a unit value (string or number) into value and unit type
 ---@param value string|number
 ---@return number, string -- Returns numeric value and unit type ("px", "%", "vw", "vh")
 function Units.parse(value)
@@ -71,7 +70,6 @@ function Units.getViewport()
     return Gui._cachedViewport.width, Gui._cachedViewport.height
   end
 
-  -- Query viewport dimensions normally
   if love.graphics and love.graphics.getDimensions then
     return love.graphics.getDimensions()
   else
@@ -80,9 +78,8 @@ function Units.getViewport()
   end
 end
 
---- Apply base scaling to a value
 ---@param value number
----@param axis "x"|"y" -- Which axis to scale on
+---@param axis "x"|"y"
 ---@param scaleFactors {x:number, y:number}
 ---@return number
 function Units.applyBaseScale(value, axis, scaleFactors)
@@ -93,7 +90,6 @@ function Units.applyBaseScale(value, axis, scaleFactors)
   end
 end
 
---- Resolve units for spacing properties (padding, margin)
 ---@param spacingProps table?
 ---@param parentWidth number
 ---@param parentHeight number
@@ -106,7 +102,6 @@ function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
   local viewportWidth, viewportHeight = Units.getViewport()
   local result = {}
 
-  -- Handle shorthand properties first
   local vertical = spacingProps.vertical
   local horizontal = spacingProps.horizontal
 
@@ -124,7 +119,6 @@ function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
     end
   end
 
-  -- Handle individual sides
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
     local value = spacingProps[side]
     if value then
@@ -136,7 +130,6 @@ function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
         result[side] = value
       end
     else
-      -- Use fallbacks
       if side == "top" or side == "bottom" then
         result[side] = vertical or 0
       else
@@ -148,9 +141,8 @@ function Units.resolveSpacing(spacingProps, parentWidth, parentHeight)
   return result
 end
 
---- Check if a unit string is valid
----@param unitStr string -- Unit string to validate (e.g., "10px", "50%", "20vw")
----@return boolean -- Returns true if unit string is valid
+---@param unitStr string
+---@return boolean
 function Units.isValid(unitStr)
   if type(unitStr) ~= "string" then
     return false
@@ -161,7 +153,6 @@ function Units.isValid(unitStr)
   return validUnits[unit] == true
 end
 
---- Parse and resolve a unit value in one call
 ---@param value string|number -- Value to parse and resolve
 ---@param viewportWidth number -- Current viewport width
 ---@param viewportHeight number -- Current viewport height

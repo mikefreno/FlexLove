@@ -46,7 +46,6 @@ function GuiState.registerElement(element)
     return
   end
 
-  -- Add element to the z-index ordered list
   table.insert(GuiState._zIndexOrderedElements, element)
 end
 
@@ -81,7 +80,6 @@ end
 ---@param y number Screen Y coordinate
 ---@return boolean True if point is inside element bounds
 local function isPointInElement(element, x, y)
-  -- Get element bounds
   local bx = element.x
   local by = element.y
   local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
@@ -95,7 +93,6 @@ local function isPointInElement(element, x, y)
 
     -- Check if parent clips content (overflow: hidden, scroll, auto)
     if overflowX == "hidden" or overflowX == "scroll" or overflowX == "auto" or overflowY == "hidden" or overflowY == "scroll" or overflowY == "auto" then
-      -- Check if point is outside parent's clipping region
       local parentX = current.x + current.padding.left
       local parentY = current.y + current.padding.top
       local parentW = current.width
@@ -109,7 +106,6 @@ local function isPointInElement(element, x, y)
     current = current.parent
   end
 
-  -- Check if point is inside element bounds
   return x >= bx and x <= bx + bw and y >= by and y <= by + bh
 end
 
@@ -139,14 +135,11 @@ function GuiState.getTopElementAt(x, y)
   for i = #GuiState._zIndexOrderedElements, 1, -1 do
     local element = GuiState._zIndexOrderedElements[i]
 
-    -- Check if point is inside this element
     if isPointInElement(element, x, y) then
-      -- Return the first interactive ancestor (or the element itself if interactive)
       local interactive = findInteractiveAncestor(element)
       if interactive then
         return interactive
       end
-      -- If no interactive ancestor, return the element itself
       -- This preserves backward compatibility for non-interactive overlays
       return element
     end

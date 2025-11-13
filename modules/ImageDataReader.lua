@@ -6,13 +6,8 @@ local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
 end
 
--- ====================
--- ImageDataReader
--- ====================
-
 local ImageDataReader = {}
 
---- Load ImageData from a file path
 ---@param imagePath string
 ---@return love.ImageData
 function ImageDataReader.loadImageData(imagePath)

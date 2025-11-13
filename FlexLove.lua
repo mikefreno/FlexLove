@@ -52,7 +52,6 @@ flexlove._LICENSE = [[
   SOFTWARE.
 ]]
 
---- Initialize FlexLove with configuration
 ---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean}
 function flexlove.init(config)
   config = config or {}
@@ -89,10 +88,8 @@ function flexlove.init(config)
   local immediateMode = config.immediateMode or false
   flexlove.setMode(immediateMode and "immediate" or "retained")
 
-  -- Configure auto frame management (defaults to false for manual control)
   flexlove._autoFrameManagement = config.autoFrameManagement or false
 
-  -- Configure state management
   if config.stateRetentionFrames or config.maxStateEntries then
     StateManager.configure({
       stateRetentionFrames = config.stateRetentionFrames,
@@ -120,19 +117,16 @@ function flexlove.resize()
   end
 end
 
---- Set the rendering mode (immediate or retained)
----@param mode "immediate"|"retained" The rendering mode to use
+---@param mode "immediate"|"retained"
 function flexlove.setMode(mode)
   if mode == "immediate" then
     flexlove._immediateMode = true
     flexlove._immediateModeState = StateManager
-    -- Reset frame state
     flexlove._frameStarted = false
     flexlove._autoBeganFrame = false
   elseif mode == "retained" then
     flexlove._immediateMode = false
     flexlove._immediateModeState = nil
-    -- Clear immediate mode state
     flexlove._frameStarted = false
     flexlove._autoBeganFrame = false
     flexlove._currentFrameElements = {}
@@ -142,7 +136,6 @@ function flexlove.setMode(mode)
   end
 end
 
---- Get the current rendering mode
 ---@return "immediate"|"retained"
 function flexlove.getMode()
   return flexlove._immediateMode and "immediate" or "retained"
@@ -154,28 +147,20 @@ function flexlove.beginFrame()
     return
   end
 
-  -- Increment frame counter
   flexlove._frameNumber = flexlove._frameNumber + 1
   StateManager.incrementFrame()
-
-  -- Clear current frame elements
   flexlove._currentFrameElements = {}
   flexlove._frameStarted = true
-
-  -- Clear top elements (they will be recreated this frame)
   flexlove.topElements = {}
 
-  -- Clear z-index ordered elements from previous frame
   GuiState.clearFrameElements()
 end
 
---- End the current immediate mode frame
 function flexlove.endFrame()
   if not flexlove._immediateMode then
     return
   end
 
-  -- Sort elements by z-index for occlusion detection
   GuiState.sortElementsByZIndex()
 
   -- Layout all top-level elements now that all children have been added
@@ -189,8 +174,6 @@ function flexlove.endFrame()
   -- Auto-update all top-level elements (triggers additional state updates)
   -- This must happen BEFORE saving state so that scroll positions and overflow are calculated
   for _, element in ipairs(flexlove._currentFrameElements) do
-    -- Only update top-level elements (those without parents in the current frame)
-    -- Element:update() will recursively update children
     if not element.parent then
       element:update(0) -- dt=0 since we're not doing animation updates here
     end
@@ -220,7 +203,6 @@ function flexlove.endFrame()
       state._scrollbarDragging = element._scrollbarDragging
       state._hoveredScrollbar = element._hoveredScrollbar
       state._scrollbarDragOffset = element._scrollbarDragOffset
-      -- Save cursor blink state
       state._cursorBlinkTimer = element._cursorBlinkTimer
       state._cursorVisible = element._cursorVisible
       state._cursorBlinkPaused = element._cursorBlinkPaused
@@ -230,17 +212,11 @@ function flexlove.endFrame()
     end
   end
 
-  -- Cleanup stale states
   StateManager.cleanup()
-
-  -- Force cleanup if we have too many states
   StateManager.forceCleanupIfNeeded()
-
-  -- Clear frame started flag
   flexlove._frameStarted = false
 end
 
--- Canvas cache for game rendering
 flexlove._gameCanvas = nil
 flexlove._backdropCanvas = nil
 flexlove._canvasDimensions = { width = 0, height = 0 }
@@ -248,7 +224,6 @@ flexlove._canvasDimensions = { width = 0, height = 0 }
 ---@param gameDrawFunc function|nil
 ---@param postDrawFunc function|nil
 function flexlove.draw(gameDrawFunc, postDrawFunc)
-  -- Auto-end frame if it was auto-started in immediate mode
   if flexlove._immediateMode and flexlove._autoBeganFrame then
     flexlove.endFrame()
     flexlove._autoBeganFrame = false
@@ -346,7 +321,6 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   love.graphics.setCanvas(outerCanvas)
 end
 
---- Check if element is an ancestor of target
 ---@param element Element
 ---@param target Element
 ---@return boolean
@@ -487,7 +461,6 @@ function flexlove.update(dt)
   end
 end
 
---- Forward text input to focused element
 ---@param text string
 function flexlove.textinput(text)
   if flexlove._focusedElement then
@@ -495,7 +468,6 @@ function flexlove.textinput(text)
   end
 end
 
---- Forward key press to focused element
 ---@param key string
 ---@param scancode string
 ---@param isrepeat boolean
@@ -505,7 +477,6 @@ function flexlove.keypressed(key, scancode, isrepeat)
   end
 end
 
---- Handle mouse wheel scrolling
 function flexlove.wheelmoved(x, y)
   local mx, my = love.mouse.getPosition()
 
@@ -537,7 +508,6 @@ function flexlove.wheelmoved(x, y)
     return nil
   end
 
-  -- In immediate mode, use z-index ordered elements and respect occlusion
   if flexlove._immediateMode then
     -- Find topmost scrollable element at mouse position using z-index ordering
     for i = #GuiState._zIndexOrderedElements, 1, -1 do
@@ -566,7 +536,6 @@ function flexlove.wheelmoved(x, y)
   end
 end
 
---- Destroy all elements and their children
 function flexlove.destroy()
   for _, win in ipairs(flexlove.topElements) do
     win:destroy()
@@ -581,7 +550,6 @@ function flexlove.destroy()
   flexlove._focusedElement = nil
 end
 
---- Create a new element (supports both immediate and retained mode)
 ---@param props ElementProps
 ---@return Element
 function flexlove.new(props)
@@ -666,7 +634,6 @@ function flexlove.new(props)
   if element._scrollManager then
     element._scrollManager._scrollbarHoveredVertical = element._scrollbarHoveredVertical or false
     element._scrollManager._scrollbarHoveredHorizontal = element._scrollbarHoveredHorizontal or false
-    -- Note: drag state already synced earlier (lines 633-643)
   end
 
   -- Set initial theme state based on StateManager state
@@ -685,18 +652,11 @@ function flexlove.new(props)
     end
   end
 
-  -- Store element in current frame tracking
   table.insert(flexlove._currentFrameElements, element)
-
-  -- Save state back at end of frame (we'll do this in endFrame)
-  -- For now, we need to update the state when properties change
-  -- This is a simplified approach - a full implementation would use
-  -- a more sophisticated state synchronization mechanism
 
   return element
 end
 
---- Get state count (for debugging)
 ---@return number
 function flexlove.getStateCount()
   if not flexlove._immediateMode then
@@ -731,41 +691,6 @@ function flexlove.getStateStats()
   return StateManager.getStats()
 end
 
---- Helper function: Create a button with default styling
----@param props table
----@return Element
-function flexlove.button(props)
-  props = props or {}
-  props.themeComponent = props.themeComponent or "button"
-  return flexlove.new(props)
-end
-
---- Helper function: Create a panel/container
----@param props table
----@return Element
-function flexlove.panel(props)
-  props = props or {}
-  return flexlove.new(props)
-end
-
---- Helper function: Create a text label
----@param props table
----@return Element
-function flexlove.text(props)
-  props = props or {}
-  return flexlove.new(props)
-end
-
---- Helper function: Create an input field
----@param props table
----@return Element
-function flexlove.input(props)
-  props = props or {}
-  props.editable = true
-  return flexlove.new(props)
-end
-
--- only export what should be used externally
 flexlove.Animation = Animation
 flexlove.Color = Color
 flexlove.Theme = Theme

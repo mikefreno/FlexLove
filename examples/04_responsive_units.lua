@@ -14,17 +14,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -39,7 +38,7 @@ function Lv.load()
   -- Section 1: Viewport Width Units (vw)
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "96vw",
@@ -49,7 +48,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local vwContainer = Gui.new({
+  local vwContainer = FlexLove.new({
     x = "2vw",
     y = "14vh",
     width = "96vw",
@@ -73,7 +72,7 @@ function Lv.load()
   }
   
   for i, width in ipairs(vwWidths) do
-    Gui.new({
+    FlexLove.new({
       parent = vwContainer,
       width = width,
       height = "8vh",
@@ -89,7 +88,7 @@ function Lv.load()
   -- Section 2: Viewport Height Units (vh)
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "28vh",
     width = "96vw",
@@ -99,7 +98,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local vhContainer = Gui.new({
+  local vhContainer = FlexLove.new({
     x = "2vw",
     y = "32vh",
     width = "96vw",
@@ -118,7 +117,7 @@ function Lv.load()
   
   for i, height in ipairs(vhHeights) do
     local hue = (i - 1) / 4
-    Gui.new({
+    FlexLove.new({
       parent = vhContainer,
       width = "16vw",
       height = height,
@@ -134,7 +133,7 @@ function Lv.load()
   -- Section 3: Percentage Units (%)
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "64vh",
     width = "46vw",
@@ -144,7 +143,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local percentContainer = Gui.new({
+  local percentContainer = FlexLove.new({
     x = "2vw",
     y = "68vh",
     width = "46vw",
@@ -164,7 +163,7 @@ function Lv.load()
   
   for i, width in ipairs(percentWidths) do
     local progress = (i - 1) / 3
-    Gui.new({
+    FlexLove.new({
       parent = percentContainer,
       width = width,
       height = "5vh",
@@ -180,7 +179,7 @@ function Lv.load()
   -- Section 4: Pixel Units (px) - Fixed Size
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "64vh",
     width = "48vw",
@@ -190,7 +189,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local pxContainer = Gui.new({
+  local pxContainer = FlexLove.new({
     x = "50vw",
     y = "68vh",
     width = "48vw",
@@ -213,7 +212,7 @@ function Lv.load()
   }
   
   for i, size in ipairs(pxSizes) do
-    Gui.new({
+    FlexLove.new({
       parent = pxContainer,
       width = size.w,
       height = size.h,
@@ -228,14 +227,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

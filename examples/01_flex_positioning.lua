@@ -1,12 +1,12 @@
 --[[
   FlexLove Example 01: Flex Positioning
-  
+
   This example demonstrates flexbox layouts in FlexLove:
   - Flex direction (horizontal/vertical)
   - Justify content (main axis alignment)
   - Align items (cross axis alignment)
   - Flex wrap behavior
-  
+
   Run with: love /path/to/libs/examples/01_flex_positioning.lua
 ]]
 
@@ -15,18 +15,17 @@ local Lv = love
 
 -- Load FlexLove from parent directory
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
   -- Initialize FlexLove with base scaling
-  Gui.init({
-    baseScale = { width = 1920, height = 1080 }
+  FlexLove.init({
+    baseScale = { width = 1920, height = 1080 },
   })
-  
+
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -36,15 +35,15 @@ function Lv.load()
     textColor = Color.new(1, 1, 1, 1),
     textAlign = enums.TextAlign.CENTER,
   })
-  
+
   -- ========================================
   -- Section 1: Horizontal Flex with Different JustifyContent Values
   -- ========================================
-  
+
   local yOffset = 10
-  
+
   -- Label for justify-content section
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = yOffset .. "vh",
     width = "96vw",
@@ -53,9 +52,9 @@ function Lv.load()
     textSize = "2.5vh",
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
-  
+
   yOffset = yOffset + 4
-  
+
   -- Demonstrate each justify-content option
   local justifyOptions = {
     { name = "flex-start", value = enums.JustifyContent.FLEX_START },
@@ -65,10 +64,10 @@ function Lv.load()
     { name = "space-around", value = enums.JustifyContent.SPACE_AROUND },
     { name = "space-evenly", value = enums.JustifyContent.SPACE_EVENLY },
   }
-  
+
   for _, option in ipairs(justifyOptions) do
     -- Label for this justify option
-    Gui.new({
+    FlexLove.new({
       x = "2vw",
       y = yOffset .. "vh",
       width = "15vw",
@@ -78,9 +77,9 @@ function Lv.load()
       textColor = Color.new(0.8, 0.8, 1, 1),
       textAlign = enums.TextAlign.START,
     })
-    
+
     -- Container demonstrating this justify-content value
-    local container = Gui.new({
+    local container = FlexLove.new({
       x = "18vw",
       y = yOffset .. "vh",
       width = "78vw",
@@ -93,7 +92,7 @@ function Lv.load()
       border = { top = true, right = true, bottom = true, left = true },
       borderColor = Color.new(0.3, 0.3, 0.4, 1),
     })
-    
+
     -- Add child elements
     local colors = {
       Color.new(0.8, 0.3, 0.3, 1),
@@ -101,9 +100,9 @@ function Lv.load()
       Color.new(0.3, 0.3, 0.8, 1),
       Color.new(0.8, 0.8, 0.3, 1),
     }
-    
+
     for j = 1, 4 do
-      Gui.new({
+      FlexLove.new({
         parent = container,
         width = "8vw",
         height = "5vh",
@@ -114,18 +113,18 @@ function Lv.load()
         textAlign = enums.TextAlign.CENTER,
       })
     end
-    
+
     yOffset = yOffset + 9
   end
-  
+
   -- ========================================
   -- Section 2: Vertical Flex with Different AlignItems Values
   -- ========================================
-  
+
   yOffset = yOffset + 2
-  
+
   -- Label for align-items section
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = yOffset .. "vh",
     width = "96vw",
@@ -134,9 +133,9 @@ function Lv.load()
     textSize = "2.5vh",
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
-  
+
   yOffset = yOffset + 4
-  
+
   -- Note: Due to space constraints, we'll show a subset in a horizontal layout
   local alignOptions = {
     { name = "stretch", value = enums.AlignItems.STRETCH },
@@ -144,13 +143,13 @@ function Lv.load()
     { name = "center", value = enums.AlignItems.CENTER },
     { name = "flex-end", value = enums.AlignItems.FLEX_END },
   }
-  
+
   local xOffset = 2
   local containerWidth = 22
-  
+
   for _, option in ipairs(alignOptions) do
     -- Label for this align option
-    Gui.new({
+    FlexLove.new({
       x = xOffset .. "vw",
       y = yOffset .. "vh",
       width = containerWidth .. "vw",
@@ -160,9 +159,9 @@ function Lv.load()
       textColor = Color.new(0.8, 1, 0.8, 1),
       textAlign = enums.TextAlign.CENTER,
     })
-    
+
     -- Container demonstrating this align-items value
-    local container = Gui.new({
+    local container = FlexLove.new({
       x = xOffset .. "vw",
       y = (yOffset + 3) .. "vh",
       width = containerWidth .. "vw",
@@ -176,7 +175,7 @@ function Lv.load()
       border = { top = true, right = true, bottom = true, left = true },
       borderColor = Color.new(0.3, 0.4, 0.3, 1),
     })
-    
+
     -- Add child elements with varying widths
     local widths = { "8vw", "12vw", "6vw" }
     local colors = {
@@ -184,9 +183,9 @@ function Lv.load()
       Color.new(0.4, 0.9, 0.4, 1),
       Color.new(0.4, 0.4, 0.9, 1),
     }
-    
+
     for j = 1, 3 do
-      Gui.new({
+      FlexLove.new({
         parent = container,
         width = option.value == enums.AlignItems.STRETCH and "auto" or widths[j],
         height = "4vh",
@@ -197,23 +196,20 @@ function Lv.load()
         textAlign = enums.TextAlign.CENTER,
       })
     end
-    
+
     xOffset = xOffset + containerWidth + 2
   end
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
-  -- Dark background
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end
-
--- Note: Mouse event handlers would be added here if needed for interactivity

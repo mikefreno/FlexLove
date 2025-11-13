@@ -14,17 +14,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -36,7 +35,7 @@ function Lv.load()
   })
   
   -- Section 1: Padding Examples
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "9vh",
     width = "46vw",
@@ -47,7 +46,7 @@ function Lv.load()
   })
   
   -- Uniform padding
-  local container1 = Gui.new({
+  local container1 = FlexLove.new({
     x = "2vw",
     y = "13vh",
     width = "22vw",
@@ -56,7 +55,7 @@ function Lv.load()
     padding = { top = 20, right = 20, bottom = 20, left = 20 },
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = container1,
     width = "auto",
     height = "auto",
@@ -68,7 +67,7 @@ function Lv.load()
   })
   
   -- Individual padding sides
-  local container2 = Gui.new({
+  local container2 = FlexLove.new({
     x = "26vw",
     y = "13vh",
     width = "22vw",
@@ -77,7 +76,7 @@ function Lv.load()
     padding = { top = 30, right = 10, bottom = 30, left = 10 },
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = container2,
     width = "auto",
     height = "auto",
@@ -89,7 +88,7 @@ function Lv.load()
   })
   
   -- Section 2: Margin Examples
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "9vh",
     width = "48vw",
@@ -100,7 +99,7 @@ function Lv.load()
   })
   
   -- Container to show margins
-  local marginContainer = Gui.new({
+  local marginContainer = FlexLove.new({
     x = "50vw",
     y = "13vh",
     width = "46vw",
@@ -111,7 +110,7 @@ function Lv.load()
   })
   
   -- Elements with different margins
-  Gui.new({
+  FlexLove.new({
     parent = marginContainer,
     width = "40vw",
     height = "6vh",
@@ -123,7 +122,7 @@ function Lv.load()
     textAlign = enums.TextAlign.CENTER,
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = marginContainer,
     width = "40vw",
     height = "6vh",
@@ -135,7 +134,7 @@ function Lv.load()
     textAlign = enums.TextAlign.CENTER,
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = marginContainer,
     width = "40vw",
     height = "6vh",
@@ -148,7 +147,7 @@ function Lv.load()
   })
   
   -- Section 3: Combined Padding and Margins
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "33vh",
     width = "46vw",
@@ -158,7 +157,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local combinedContainer = Gui.new({
+  local combinedContainer = FlexLove.new({
     x = "2vw",
     y = "37vh",
     width = "46vw",
@@ -170,7 +169,7 @@ function Lv.load()
   })
   
   for i = 1, 3 do
-    local box = Gui.new({
+    local box = FlexLove.new({
       parent = combinedContainer,
       width = "auto",
       height = "14vh",
@@ -179,7 +178,7 @@ function Lv.load()
       padding = { top = 15, right = 15, bottom = 15, left = 15 },
     })
     
-    Gui.new({
+    FlexLove.new({
       parent = box,
       width = "auto",
       height = "auto",
@@ -193,14 +192,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

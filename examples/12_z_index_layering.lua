@@ -12,17 +12,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -34,7 +33,7 @@ function Lv.load()
   })
   
   -- Description
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "96vw",
@@ -46,7 +45,7 @@ function Lv.load()
   })
   
   -- Section 1: Overlapping boxes with different z-index
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "15vh",
     width = "46vw",
@@ -57,7 +56,7 @@ function Lv.load()
   })
   
   -- Box 1 (z-index: 1)
-  Gui.new({
+  FlexLove.new({
     x = "5vw",
     y = "20vh",
     width = "20vw",
@@ -72,7 +71,7 @@ function Lv.load()
   })
   
   -- Box 2 (z-index: 2) - overlaps Box 1
-  Gui.new({
+  FlexLove.new({
     x = "12vw",
     y = "25vh",
     width = "20vw",
@@ -87,7 +86,7 @@ function Lv.load()
   })
   
   -- Box 3 (z-index: 3) - overlaps Box 1 and 2
-  Gui.new({
+  FlexLove.new({
     x = "19vw",
     y = "30vh",
     width = "20vw",
@@ -102,7 +101,7 @@ function Lv.load()
   })
   
   -- Section 2: Cards with different layers
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "15vh",
     width = "48vw",
@@ -114,7 +113,7 @@ function Lv.load()
   
   -- Create a stack of cards
   for i = 1, 5 do
-    Gui.new({
+    FlexLove.new({
       x = (52 + i * 2) .. "vw",
       y = (18 + i * 3) .. "vh",
       width = "22vw",
@@ -132,7 +131,7 @@ function Lv.load()
   end
   
   -- Section 3: Interactive z-index demo
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "53vh",
     width = "96vw",
@@ -146,7 +145,7 @@ function Lv.load()
   
   -- Create interactive boxes
   for i = 1, 4 do
-    local box = Gui.new({
+    local box = FlexLove.new({
       x = (5 + (i - 1) * 22) .. "vw",
       y = "58vh",
       width = "20vw",
@@ -174,7 +173,7 @@ function Lv.load()
   end
   
   -- Info text
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "82vh",
     width = "96vw",
@@ -191,14 +190,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

@@ -13,17 +13,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -38,7 +37,7 @@ function Lv.load()
   -- Section 1: Absolute Positioning
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "46vw",
@@ -48,7 +47,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local absoluteContainer = Gui.new({
+  local absoluteContainer = FlexLove.new({
     x = "2vw",
     y = "14vh",
     width = "46vw",
@@ -60,7 +59,7 @@ function Lv.load()
   })
   
   -- Absolute positioned children
-  Gui.new({
+  FlexLove.new({
     parent = absoluteContainer,
     x = 20,
     y = 20,
@@ -75,7 +74,7 @@ function Lv.load()
     cornerRadius = 5,
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = absoluteContainer,
     x = 200,
     y = 50,
@@ -90,7 +89,7 @@ function Lv.load()
     cornerRadius = 5,
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = absoluteContainer,
     x = 100,
     y = 150,
@@ -105,7 +104,7 @@ function Lv.load()
     cornerRadius = 5,
   })
   
-  Gui.new({
+  FlexLove.new({
     parent = absoluteContainer,
     x = 280,
     y = 180,
@@ -124,7 +123,7 @@ function Lv.load()
   -- Section 2: Relative Positioning
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "10vh",
     width = "48vw",
@@ -134,7 +133,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local relativeContainer = Gui.new({
+  local relativeContainer = FlexLove.new({
     x = "50vw",
     y = "14vh",
     width = "48vw",
@@ -155,7 +154,7 @@ function Lv.load()
   }
   
   for i = 1, 4 do
-    Gui.new({
+    FlexLove.new({
       parent = relativeContainer,
       width = "45%",
       height = "8vh",
@@ -174,7 +173,7 @@ function Lv.load()
   -- Section 3: Comparison with Overlapping
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "56vh",
     width = "96vw",
@@ -184,7 +183,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local overlapContainer = Gui.new({
+  local overlapContainer = FlexLove.new({
     x = "2vw",
     y = "60vh",
     width = "96vw",
@@ -204,7 +203,7 @@ function Lv.load()
   }
   
   for i = 1, 4 do
-    Gui.new({
+    FlexLove.new({
       parent = overlapContainer,
       x = 50 + (i - 1) * 60,
       y = 30 + (i - 1) * 40,
@@ -223,14 +222,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

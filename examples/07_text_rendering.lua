@@ -13,17 +13,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -38,7 +37,7 @@ function Lv.load()
   -- Section 1: Text Alignment
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "96vw",
@@ -57,7 +56,7 @@ function Lv.load()
   local yOffset = 14
   
   for _, align in ipairs(alignments) do
-    Gui.new({
+    FlexLove.new({
       x = "2vw",
       y = yOffset .. "vh",
       width = "30vw",
@@ -78,7 +77,7 @@ function Lv.load()
   -- Section 2: Text Size Presets
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "34vw",
     y = "10vh",
     width = "64vw",
@@ -100,7 +99,7 @@ function Lv.load()
     { name = "4XL", value = "4xl" },
   }
   
-  local sizeContainer = Gui.new({
+  local sizeContainer = FlexLove.new({
     x = "34vw",
     y = "14vh",
     width = "64vw",
@@ -118,7 +117,7 @@ function Lv.load()
   
   for i, size in ipairs(textSizes) do
     local hue = (i - 1) / 8
-    Gui.new({
+    FlexLove.new({
       parent = sizeContainer,
       height = "7vh",
       backgroundColor = Color.new(0.2 + hue * 0.3, 0.3 + hue * 0.2, 0.5 - hue * 0.2, 1),
@@ -134,7 +133,7 @@ function Lv.load()
   -- Section 3: Custom Font Sizes (vh units)
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "41vh",
     width = "30vw",
@@ -146,7 +145,7 @@ function Lv.load()
   
   local customSizes = { "1vh", "2vh", "3vh", "4vh", "5vh" }
   
-  local customContainer = Gui.new({
+  local customContainer = FlexLove.new({
     x = "2vw",
     y = "45vh",
     width = "30vw",
@@ -162,7 +161,7 @@ function Lv.load()
   })
   
   for i, size in ipairs(customSizes) do
-    Gui.new({
+    FlexLove.new({
       parent = customContainer,
       backgroundColor = Color.new(0.3, 0.4 + i * 0.08, 0.6 - i * 0.08, 1),
       text = size .. " text",
@@ -176,14 +175,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

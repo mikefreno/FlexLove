@@ -1,19 +1,18 @@
 -- Example 15: Scrollable Elements
 -- Demonstrates scrollable containers with overflow detection and visual scrollbars
 
-local FlexLove = require("FlexLove")
-local Gui = FlexLove.Gui
+local FlexLove = require("../FlexLove")
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 local Lv = love
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 },
   })
 
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -25,7 +24,7 @@ function Lv.load()
   })
 
   -- Example 1: Vertical scroll with auto scrollbars
-  local verticalScroll = Gui.new({
+  local verticalScroll = FlexLove.new({
     x = "5vw",
     y = "12vh",
     width = "25vw",
@@ -41,7 +40,7 @@ function Lv.load()
 
   -- Add many items to create overflow
   for i = 1, 20 do
-    Gui.new({
+    FlexLove.new({
       parent = verticalScroll,
       height = "5vh",
       backgroundColor = Color.new(0.3 + (i % 3) * 0.1, 0.4, 0.6, 1),
@@ -53,7 +52,7 @@ function Lv.load()
   end
 
   -- Example 2: Custom styled scrollbar
-  local customScroll = Gui.new({
+  local customScroll = FlexLove.new({
     x = "35vw",
     y = "12vh",
     width = "60vw",
@@ -73,7 +72,7 @@ function Lv.load()
 
   -- Add content
   for i = 1, 25 do
-    Gui.new({
+    FlexLove.new({
       parent = customScroll,
       height = "6vh",
       backgroundColor = Color.new(0.2, 0.25, 0.3, 1),
@@ -85,7 +84,7 @@ function Lv.load()
   end
 
   -- Instructions
-  Gui.new({
+  FlexLove.new({
     x = "5vw",
     y = "52vh",
     width = "90vw",
@@ -110,18 +109,18 @@ Scrollbar colors change on hover and when dragging!]],
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   love.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end
 
 function Lv.wheelmoved(x, y)
-  Gui.wheelmoved(x, y)
+  FlexLove.wheelmoved(x, y)
 end

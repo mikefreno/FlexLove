@@ -14,7 +14,6 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
@@ -30,12 +29,12 @@ local function addLogEntry(text)
 end
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -50,7 +49,7 @@ function Lv.load()
   -- Section 1: Click Events
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "46vw",
@@ -60,7 +59,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local clickBox = Gui.new({
+  local clickBox = FlexLove.new({
     x = "2vw",
     y = "14vh",
     width = "46vw",
@@ -92,7 +91,7 @@ function Lv.load()
   -- Section 2: Keyboard Modifiers
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "10vh",
     width = "48vw",
@@ -102,7 +101,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local modifierBox = Gui.new({
+  local modifierBox = FlexLove.new({
     x = "50vw",
     y = "14vh",
     width = "48vw",
@@ -131,7 +130,7 @@ function Lv.load()
   -- Section 3: Double-Click Detection
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "36vh",
     width = "46vw",
@@ -141,7 +140,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local doubleClickBox = Gui.new({
+  local doubleClickBox = FlexLove.new({
     x = "2vw",
     y = "40vh",
     width = "46vw",
@@ -175,7 +174,7 @@ function Lv.load()
   -- Section 4: Event Log Display
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "36vh",
     width = "48vw",
@@ -186,7 +185,7 @@ function Lv.load()
   })
   
   -- Event log container
-  local logContainer = Gui.new({
+  local logContainer = FlexLove.new({
     x = "50vw",
     y = "40vh",
     width = "48vw",
@@ -201,7 +200,7 @@ function Lv.load()
   -- Section 5: Interactive Buttons
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "57vh",
     width = "46vw",
@@ -211,7 +210,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local buttonContainer = Gui.new({
+  local buttonContainer = FlexLove.new({
     x = "2vw",
     y = "61vh",
     width = "46vw",
@@ -228,7 +227,7 @@ function Lv.load()
   })
   
   -- Button 1: Press/Release events
-  Gui.new({
+  FlexLove.new({
     parent = buttonContainer,
     height = "8vh",
     backgroundColor = Color.new(0.4, 0.5, 0.8, 1),
@@ -250,7 +249,7 @@ function Lv.load()
   
   -- Button 2: Click counter
   local clickCounter = 0
-  Gui.new({
+  FlexLove.new({
     parent = buttonContainer,
     height = "8vh",
     backgroundColor = Color.new(0.8, 0.5, 0.4, 1),
@@ -269,7 +268,7 @@ function Lv.load()
   })
   
   -- Button 3: Clear log
-  Gui.new({
+  FlexLove.new({
     parent = buttonContainer,
     height = "8vh",
     backgroundColor = Color.new(0.6, 0.4, 0.6, 1),
@@ -294,12 +293,12 @@ function Lv.update(dt)
     doubleClickBox._resetTime = nil
   end
   
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
   
   -- Draw event log
   Lv.graphics.setColor(0.8, 0.9, 1, 1)
@@ -315,5 +314,5 @@ function Lv.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

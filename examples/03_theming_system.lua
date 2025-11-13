@@ -13,20 +13,19 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Load the space theme
-  Gui.loadTheme("space", "../themes/space")
+  FlexLove.loadTheme("space", "../themes/space")
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -41,7 +40,7 @@ function Lv.load()
   -- Section 1: Theme Components
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "96vw",
@@ -52,7 +51,7 @@ function Lv.load()
   })
   
   -- Card component
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "14vh",
     width = "30vw",
@@ -66,7 +65,7 @@ function Lv.load()
   })
   
   -- Panel component
-  Gui.new({
+  FlexLove.new({
     x = "34vw",
     y = "14vh",
     width = "30vw",
@@ -80,7 +79,7 @@ function Lv.load()
   })
   
   -- Panel red component
-  Gui.new({
+  FlexLove.new({
     x = "66vw",
     y = "14vh",
     width = "32vw",
@@ -97,7 +96,7 @@ function Lv.load()
   -- Section 2: Button States
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "36vh",
     width = "96vw",
@@ -108,7 +107,7 @@ function Lv.load()
   })
   
   -- Normal button (hover to see hover state, click to see pressed state)
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "40vh",
     width = "22vw",
@@ -127,7 +126,7 @@ function Lv.load()
   })
   
   -- Active button (simulating active state)
-  local activeButton = Gui.new({
+  local activeButton = FlexLove.new({
     x = "26vw",
     y = "40vh",
     width = "22vw",
@@ -148,7 +147,7 @@ function Lv.load()
   })
   
   -- Disabled button
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "40vh",
     width = "22vw",
@@ -168,7 +167,7 @@ function Lv.load()
   
   -- Button with callback feedback
   local clickCount = 0
-  local counterButton = Gui.new({
+  local counterButton = FlexLove.new({
     x = "74vw",
     y = "40vh",
     width = "24vw",
@@ -191,7 +190,7 @@ function Lv.load()
   -- Section 3: Theme Colors and Fonts
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "50vh",
     width = "96vw",
@@ -202,7 +201,7 @@ function Lv.load()
   })
   
   -- Container showing theme colors
-  local colorContainer = Gui.new({
+  local colorContainer = FlexLove.new({
     x = "2vw",
     y = "54vh",
     width = "96vw",
@@ -217,7 +216,7 @@ function Lv.load()
   })
   
   -- Primary color swatch
-  Gui.new({
+  FlexLove.new({
     parent = colorContainer,
     width = "20vw",
     height = "15vh",
@@ -230,7 +229,7 @@ function Lv.load()
   })
   
   -- Secondary color swatch
-  Gui.new({
+  FlexLove.new({
     parent = colorContainer,
     width = "20vw",
     height = "15vh",
@@ -243,7 +242,7 @@ function Lv.load()
   })
   
   -- Text color swatch
-  Gui.new({
+  FlexLove.new({
     parent = colorContainer,
     width = "20vw",
     height = "15vh",
@@ -256,7 +255,7 @@ function Lv.load()
   })
   
   -- Text dark color swatch
-  Gui.new({
+  FlexLove.new({
     parent = colorContainer,
     width = "20vw",
     height = "15vh",
@@ -272,7 +271,7 @@ function Lv.load()
   -- Section 4: Font Family from Theme
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "76vh",
     width = "96vw",
@@ -288,14 +287,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

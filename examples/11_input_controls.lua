@@ -12,17 +12,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -34,7 +33,7 @@ function Lv.load()
   })
   
   -- Note: Input controls may require additional setup in FlexLove
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "96vw",
@@ -47,7 +46,7 @@ function Lv.load()
   
   -- Interactive buttons
   local counter = 0
-  local counterDisplay = Gui.new({
+  local counterDisplay = FlexLove.new({
     x = "35vw",
     y = "20vh",
     width = "30vw",
@@ -61,7 +60,7 @@ function Lv.load()
   })
   
   -- Increment button
-  Gui.new({
+  FlexLove.new({
     x = "20vw",
     y = "35vh",
     width = "20vw",
@@ -79,7 +78,7 @@ function Lv.load()
   })
   
   -- Decrement button
-  Gui.new({
+  FlexLove.new({
     x = "60vw",
     y = "35vh",
     width = "20vw",
@@ -97,7 +96,7 @@ function Lv.load()
   })
   
   -- Reset button
-  Gui.new({
+  FlexLove.new({
     x = "40vw",
     y = "46vh",
     width = "20vw",
@@ -115,7 +114,7 @@ function Lv.load()
   })
   
   -- Keyboard input info
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "60vh",
     width = "96vw",
@@ -136,14 +135,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

@@ -4,7 +4,7 @@ Simple input field demo - multiple fields to test all features
 Uses retained mode - elements are created once and reused
 --]]
 
-local FlexLove = require("libs.FlexLove")
+local FlexLove = require("../FlexLove")
 local Element = FlexLove.Element
 local Color = FlexLove.Color
 

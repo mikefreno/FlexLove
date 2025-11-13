@@ -14,19 +14,18 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local Animation = FlexLove.Animation
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 },
     theme = "space"
   })
   
   -- Header
-  local header = Gui.new({
+  local header = FlexLove.new({
     x = 0,
     y = 0,
     width = "100vw",
@@ -42,7 +41,7 @@ function Lv.load()
   })
   
   -- Logo/Title
-  Gui.new({
+  FlexLove.new({
     parent = header,
     width = "auto",
     height = "auto",
@@ -52,7 +51,7 @@ function Lv.load()
   })
   
   -- Header buttons
-  local headerButtons = Gui.new({
+  local headerButtons = FlexLove.new({
     parent = header,
     width = "auto",
     height = "auto",
@@ -63,7 +62,7 @@ function Lv.load()
   
   local buttonNames = { "Home", "Features", "About" }
   for _, name in ipairs(buttonNames) do
-    Gui.new({
+    FlexLove.new({
       parent = headerButtons,
       width = "8vw",
       height = "6vh",
@@ -78,7 +77,7 @@ function Lv.load()
   end
   
   -- Main content area
-  local mainContent = Gui.new({
+  local mainContent = FlexLove.new({
     x = 0,
     y = "12vh",
     width = "100vw",
@@ -89,7 +88,7 @@ function Lv.load()
   })
   
   -- Sidebar
-  local sidebar = Gui.new({
+  local sidebar = FlexLove.new({
     parent = mainContent,
     width = "20vw",
     height = "88vh",
@@ -112,7 +111,7 @@ function Lv.load()
   }
   
   for _, item in ipairs(menuItems) do
-    local menuButton = Gui.new({
+    local menuButton = FlexLove.new({
       parent = sidebar,
       width = "auto",
       height = "7vh",
@@ -124,7 +123,7 @@ function Lv.load()
       cornerRadius = 5,
     })
     
-    Gui.new({
+    FlexLove.new({
       parent = menuButton,
       width = "auto",
       height = "auto",
@@ -135,7 +134,7 @@ function Lv.load()
   end
   
   -- Content panel
-  local contentPanel = Gui.new({
+  local contentPanel = FlexLove.new({
     parent = mainContent,
     width = "80vw",
     height = "88vh",
@@ -146,7 +145,7 @@ function Lv.load()
   })
   
   -- Welcome section
-  Gui.new({
+  FlexLove.new({
     parent = contentPanel,
     width = "auto",
     height = "auto",
@@ -156,7 +155,7 @@ function Lv.load()
   })
   
   -- Stats grid
-  local statsGrid = Gui.new({
+  local statsGrid = FlexLove.new({
     parent = contentPanel,
     width = "auto",
     height = "20vh",
@@ -174,7 +173,7 @@ function Lv.load()
   }
   
   for _, stat in ipairs(stats) do
-    local statCard = Gui.new({
+    local statCard = FlexLove.new({
       parent = statsGrid,
       positioning = enums.Positioning.FLEX,
       flexDirection = enums.FlexDirection.VERTICAL,
@@ -185,7 +184,7 @@ function Lv.load()
       padding = { top = 15, right = 15, bottom = 15, left = 15 },
     })
     
-    Gui.new({
+    FlexLove.new({
       parent = statCard,
       width = "auto",
       height = "auto",
@@ -195,7 +194,7 @@ function Lv.load()
       textAlign = enums.TextAlign.CENTER,
     })
     
-    Gui.new({
+    FlexLove.new({
       parent = statCard,
       width = "auto",
       height = "auto",
@@ -207,7 +206,7 @@ function Lv.load()
   end
   
   -- Feature cards
-  local cardsContainer = Gui.new({
+  local cardsContainer = FlexLove.new({
     parent = contentPanel,
     width = "auto",
     height = "auto",
@@ -228,7 +227,7 @@ function Lv.load()
   }
   
   for i, feature in ipairs(features) do
-    local card = Gui.new({
+    local card = FlexLove.new({
       parent = cardsContainer,
       positioning = enums.Positioning.FLEX,
       justifyContent = enums.JustifyContent.CENTER,
@@ -238,7 +237,7 @@ function Lv.load()
       padding = { top = 20, right = 20, bottom = 20, left = 20 },
     })
     
-    Gui.new({
+    FlexLove.new({
       parent = card,
       width = "auto",
       height = "auto",
@@ -261,14 +260,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

@@ -14,17 +14,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -39,7 +38,7 @@ function Lv.load()
   -- Section 1: Corner Radius
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "9vh",
     width = "46vw",
@@ -50,7 +49,7 @@ function Lv.load()
   })
   
   -- Uniform corner radius
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "13vh",
     width = "14vw",
@@ -63,7 +62,7 @@ function Lv.load()
     textAlign = enums.TextAlign.CENTER,
   })
   
-  Gui.new({
+  FlexLove.new({
     x = "17vw",
     y = "13vh",
     width = "14vw",
@@ -77,7 +76,7 @@ function Lv.load()
   })
   
   -- Individual corner radius
-  Gui.new({
+  FlexLove.new({
     x = "32vw",
     y = "13vh",
     width = "16vw",
@@ -99,7 +98,7 @@ function Lv.load()
   -- Section 2: Borders
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "9vh",
     width = "48vw",
@@ -110,7 +109,7 @@ function Lv.load()
   })
   
   -- All borders
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "13vh",
     width = "14vw",
@@ -125,7 +124,7 @@ function Lv.load()
   })
   
   -- Top and bottom borders
-  Gui.new({
+  FlexLove.new({
     x = "65vw",
     y = "13vh",
     width = "14vw",
@@ -140,7 +139,7 @@ function Lv.load()
   })
   
   -- Left border only
-  Gui.new({
+  FlexLove.new({
     x = "80vw",
     y = "13vh",
     width = "16vw",
@@ -158,7 +157,7 @@ function Lv.load()
   -- Section 3: Opacity
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "27vh",
     width = "96vw",
@@ -171,7 +170,7 @@ function Lv.load()
   local opacityLevels = { 1.0, 0.75, 0.5, 0.25 }
   
   for i, opacity in ipairs(opacityLevels) do
-    Gui.new({
+    FlexLove.new({
       x = (2 + (i - 1) * 24) .. "vw",
       y = "31vh",
       width = "22vw",
@@ -190,7 +189,7 @@ function Lv.load()
   -- Section 4: Background Colors
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "45vh",
     width = "96vw",
@@ -203,7 +202,7 @@ function Lv.load()
   -- Gradient-like colors
   for i = 1, 8 do
     local hue = (i - 1) / 7
-    Gui.new({
+    FlexLove.new({
       x = (2 + (i - 1) * 12) .. "vw",
       y = "49vh",
       width = "11vw",
@@ -226,7 +225,7 @@ function Lv.load()
   -- Section 5: Blur Effects (if supported)
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "69vh",
     width = "96vw",
@@ -237,7 +236,7 @@ function Lv.load()
   })
   
   -- Content blur example
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "73vh",
     width = "46vw",
@@ -252,7 +251,7 @@ function Lv.load()
   })
   
   -- Backdrop blur example
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "73vh",
     width = "46vw",
@@ -268,14 +267,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

@@ -13,7 +13,6 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local Animation = FlexLove.Animation
 local enums = FlexLove.enums
@@ -22,12 +21,12 @@ local enums = FlexLove.enums
 local fadeBox, scaleBox, easingBoxes
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -42,7 +41,7 @@ function Lv.load()
   -- Section 1: Fade Animation
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "46vw",
@@ -52,7 +51,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  fadeBox = Gui.new({
+  fadeBox = FlexLove.new({
     x = "2vw",
     y = "14vh",
     width = "46vw",
@@ -88,7 +87,7 @@ function Lv.load()
   -- Section 2: Scale Animation
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "50vw",
     y = "10vh",
     width = "48vw",
@@ -98,7 +97,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  scaleBox = Gui.new({
+  scaleBox = FlexLove.new({
     x = "50vw",
     y = "14vh",
     width = 400,
@@ -142,7 +141,7 @@ function Lv.load()
   -- Section 3: Easing Functions Comparison
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "36vh",
     width = "96vw",
@@ -152,7 +151,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local easingContainer = Gui.new({
+  local easingContainer = FlexLove.new({
     x = "2vw",
     y = "40vh",
     width = "96vw",
@@ -185,7 +184,7 @@ function Lv.load()
   
   for i, easing in ipairs(easings) do
     local hue = (i - 1) / 8
-    local box = Gui.new({
+    local box = FlexLove.new({
       parent = easingContainer,
       backgroundColor = Color.new(0.2 + hue * 0.6, 0.4 + math.sin(hue * 3.14) * 0.4, 0.8 - hue * 0.4, 1),
       text = easing.name,
@@ -234,14 +233,14 @@ function Lv.update(dt)
     end
   end
   
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

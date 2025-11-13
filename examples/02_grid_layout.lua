@@ -13,17 +13,16 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 }
   })
   
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -38,7 +37,7 @@ function Lv.load()
   -- Section 1: 2x2 Grid with Gaps
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "10vh",
     width = "30vw",
@@ -48,7 +47,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local grid2x2 = Gui.new({
+  local grid2x2 = FlexLove.new({
     x = "2vw",
     y = "14vh",
     width = "30vw",
@@ -72,7 +71,7 @@ function Lv.load()
   }
   
   for j = 1, 4 do
-    Gui.new({
+    FlexLove.new({
       parent = grid2x2,
       backgroundColor = colors2x2[j],
       text = "Cell " .. j,
@@ -86,7 +85,7 @@ function Lv.load()
   -- Section 2: 3x3 Grid with Different Gap Sizes
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "34vw",
     y = "10vh",
     width = "30vw",
@@ -96,7 +95,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local grid3x3 = Gui.new({
+  local grid3x3 = FlexLove.new({
     x = "34vw",
     y = "14vh",
     width = "30vw",
@@ -114,7 +113,7 @@ function Lv.load()
   -- Add 9 cells to 3x3 grid
   for j = 1, 9 do
     local hue = (j - 1) / 9
-    Gui.new({
+    FlexLove.new({
       parent = grid3x3,
       backgroundColor = Color.new(0.3 + hue * 0.5, 0.5, 0.7 - hue * 0.4, 1),
       text = tostring(j),
@@ -128,7 +127,7 @@ function Lv.load()
   -- Section 3: 4x2 Grid with AlignItems
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "66vw",
     y = "10vh",
     width = "32vw",
@@ -138,7 +137,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local grid4x2 = Gui.new({
+  local grid4x2 = FlexLove.new({
     x = "66vw",
     y = "14vh",
     width = "32vw",
@@ -156,7 +155,7 @@ function Lv.load()
   
   -- Add 8 cells with varying content
   for j = 1, 8 do
-    Gui.new({
+    FlexLove.new({
       parent = grid4x2,
       backgroundColor = Color.new(0.6, 0.4 + j * 0.05, 0.7 - j * 0.05, 1),
       text = "Item " .. j,
@@ -170,7 +169,7 @@ function Lv.load()
   -- Section 4: Grid with Responsive Units (vw/vh gaps)
   -- ========================================
   
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "46vh",
     width = "96vw",
@@ -180,7 +179,7 @@ function Lv.load()
     textColor = Color.new(0.9, 0.9, 0.9, 1),
   })
   
-  local gridResponsive = Gui.new({
+  local gridResponsive = FlexLove.new({
     x = "2vw",
     y = "50vh",
     width = "96vw",
@@ -198,7 +197,7 @@ function Lv.load()
   -- Add 10 cells with gradient colors
   for j = 1, 10 do
     local progress = (j - 1) / 9
-    Gui.new({
+    FlexLove.new({
       parent = gridResponsive,
       backgroundColor = Color.new(
         0.2 + progress * 0.6,
@@ -216,14 +215,14 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

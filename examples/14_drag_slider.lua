@@ -16,7 +16,6 @@
 local Lv = love
 
 local FlexLove = require("../FlexLove")
-local Gui = FlexLove.Gui
 local Color = FlexLove.Color
 local enums = FlexLove.enums
 
@@ -45,7 +44,7 @@ local temperatureHandle
 ---@return table -- Returns { bg, handle, valueText }
 local function createSlider(x, y, width, label, min, max, initialValue, onValueChange)
   -- Container for the slider
-  local container = Gui.new({
+  local container = FlexLove.new({
     x = x,
     y = y,
     width = width,
@@ -56,7 +55,7 @@ local function createSlider(x, y, width, label, min, max, initialValue, onValueC
   })
 
   -- Label
-  Gui.new({
+  FlexLove.new({
     parent = container,
     height = "3vh",
     text = label,
@@ -65,7 +64,7 @@ local function createSlider(x, y, width, label, min, max, initialValue, onValueC
   })
 
   -- Slider track background
-  local sliderBg = Gui.new({
+  local sliderBg = FlexLove.new({
     parent = container,
     height = "4vh",
     backgroundColor = Color.new(0.2, 0.2, 0.25, 1),
@@ -75,7 +74,7 @@ local function createSlider(x, y, width, label, min, max, initialValue, onValueC
 
   -- Slider handle
   local normalized = (initialValue - min) / (max - min)
-  local handle = Gui.new({
+  local handle = FlexLove.new({
     parent = sliderBg,
     x = (normalized * 95) .. "%",
     y = "50%",
@@ -89,7 +88,7 @@ local function createSlider(x, y, width, label, min, max, initialValue, onValueC
   })
 
   -- Value display
-  local valueText = Gui.new({
+  local valueText = FlexLove.new({
     parent = container,
     height = "3vh",
     text = string.format("%.2f", initialValue),
@@ -144,12 +143,12 @@ local function createSlider(x, y, width, label, min, max, initialValue, onValueC
 end
 
 function Lv.load()
-  Gui.init({
+  FlexLove.init({
     baseScale = { width = 1920, height = 1080 },
   })
 
   -- Title
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "2vh",
     width = "96vw",
@@ -161,7 +160,7 @@ function Lv.load()
   })
 
   -- Subtitle
-  Gui.new({
+  FlexLove.new({
     x = "2vw",
     y = "9vh",
     width = "96vw",
@@ -194,7 +193,7 @@ function Lv.load()
   temperatureHandle = temperatureSlider.handle
 
   -- Visual feedback section
-  Gui.new({
+  FlexLove.new({
     x = "10vw",
     y = "70vh",
     width = "80vw",
@@ -205,7 +204,7 @@ function Lv.load()
   })
 
   -- Volume visualization
-  Gui.new({
+  FlexLove.new({
     x = "10vw",
     y = "75vh",
     width = "25vw",
@@ -217,7 +216,7 @@ function Lv.load()
   })
 
   -- Brightness visualization
-  Gui.new({
+  FlexLove.new({
     x = "37.5vw",
     y = "75vh",
     width = "25vw",
@@ -229,7 +228,7 @@ function Lv.load()
   })
 
   -- Temperature visualization
-  Gui.new({
+  FlexLove.new({
     x = "65vw",
     y = "75vh",
     width = "25vw",
@@ -242,12 +241,12 @@ function Lv.load()
 end
 
 function Lv.update(dt)
-  Gui.update(dt)
+  FlexLove.update(dt)
 end
 
 function Lv.draw()
   Lv.graphics.clear(0.05, 0.05, 0.08, 1)
-  Gui.draw()
+  FlexLove.draw()
 
   -- Draw volume visualization (speaker icon with bars)
   local volumeX = Lv.graphics.getWidth() * 0.10 + 20
@@ -302,5 +301,5 @@ function Lv.draw()
 end
 
 function Lv.resize(w, h)
-  Gui.resize(w, h)
+  FlexLove.resize(w, h)
 end

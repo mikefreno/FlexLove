@@ -25,6 +25,7 @@ local InputEvent = req("InputEvent")
 local StateManager = req("StateManager")
 local TextEditor = req("TextEditor")
 local LayoutEngine = req("LayoutEngine")
+local Renderer = req("Renderer")
 
 -- Extract utilities
 local enums = utils.enums
@@ -437,6 +438,29 @@ function Element.new(props)
   else
     self._loadedImage = nil
   end
+
+  -- Initialize Renderer module for visual rendering
+  self._renderer = Renderer.new({
+    backgroundColor = self.backgroundColor,
+    borderColor = self.borderColor,
+    opacity = self.opacity,
+    border = self.border,
+    cornerRadius = self.cornerRadius,
+    theme = self.theme,
+    themeComponent = self.themeComponent,
+    scaleCorners = self.scaleCorners,
+    scalingAlgorithm = self.scalingAlgorithm,
+    imagePath = self.imagePath,
+    image = self.image,
+    _loadedImage = self._loadedImage,
+    objectFit = self.objectFit,
+    objectPosition = self.objectPosition,
+    imageOpacity = self.imageOpacity,
+    contentBlur = self.contentBlur,
+    backdropBlur = self.backdropBlur,
+    _themeState = self._themeState,
+  })
+  self._renderer:initialize(self)
 
   --- self positioning ---
   local viewportWidth, viewportHeight = Units.getViewport()
@@ -1437,68 +1461,6 @@ function Element:_calculateScrollbarDimensions()
 end
 
 --- Draw scrollbars
----@param dims table -- Scrollbar dimensions from _calculateScrollbarDimensions()
-function Element:_drawScrollbars(dims)
-  local x, y = self.x, self.y
-  local w, h = self.width, self.height
-
-  -- Vertical scrollbar
-  if dims.vertical.visible and not self.hideScrollbars.vertical then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + w - self.scrollbarWidth - self.scrollbarPadding
-    local trackY = contentY + self.scrollbarPadding
-
-    -- Determine thumb color based on state (independent for vertical)
-    local thumbColor = self.scrollbarColor
-    if self._scrollbarDragging and self._hoveredScrollbar == "vertical" then
-      -- Active state: brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
-    elseif self._scrollbarHoveredVertical then
-      -- Hover state: slightly brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
-    end
-
-    -- Draw track
-    love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, self.scrollbarWidth, dims.vertical.trackHeight, self.scrollbarRadius)
-
-    -- Draw thumb with state-based color
-    love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY, self.scrollbarWidth, dims.vertical.thumbHeight, self.scrollbarRadius)
-  end
-
-  -- Horizontal scrollbar
-  if dims.horizontal.visible and not self.hideScrollbars.horizontal then
-    -- Position scrollbar within content area (x, y is border-box origin)
-    local contentX = x + self.padding.left
-    local contentY = y + self.padding.top
-    local trackX = contentX + self.scrollbarPadding
-    local trackY = contentY + h - self.scrollbarWidth - self.scrollbarPadding
-
-    -- Determine thumb color based on state (independent for horizontal)
-    local thumbColor = self.scrollbarColor
-    if self._scrollbarDragging and self._hoveredScrollbar == "horizontal" then
-      -- Active state: brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
-    elseif self._scrollbarHoveredHorizontal then
-      -- Hover state: slightly brighter
-      thumbColor = Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
-    end
-
-    -- Draw track
-    love.graphics.setColor(self.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, dims.horizontal.trackWidth, self.scrollbarWidth, self.scrollbarRadius)
-
-    -- Draw thumb with state-based color
-    love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY, dims.horizontal.thumbWidth, self.scrollbarWidth, self.scrollbarRadius)
-  end
-
-  -- Reset color
-  love.graphics.setColor(1, 1, 1, 1)
-end
 
 --- Get scrollbar at mouse position
 ---@param mouseX number
@@ -2092,390 +2054,11 @@ function Element:draw(backdropCanvas)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
-  -- LAYER 0.5: Draw backdrop blur if configured (before background)
-  if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
-    local blurInstance = self:getBlurInstance()
-    if blurInstance then
-      Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
-    end
-  end
+  -- LAYERS 0.5-3: Delegate visual rendering (backdrop blur, background, image, theme, borders) to Renderer module
+  self._renderer:draw(backdropCanvas)
 
-  -- LAYER 1: Draw backgroundColor first (behind everything)
-  -- Apply opacity to all drawing operations
-  -- (x, y) represents border box, so draw background from (x, y)
-  -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
-  local backgroundWithOpacity = Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
-  love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-
-  -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
-  if self._loadedImage then
-    -- Calculate image bounds (content area - respects padding)
-    local imageX = self.x + self.padding.left
-    local imageY = self.y + self.padding.top
-    local imageWidth = self.width
-    local imageHeight = self.height
-
-    -- Combine element opacity with imageOpacity
-    local finalOpacity = self.opacity * self.imageOpacity
-
-    -- Apply cornerRadius clipping if set
-    local hasCornerRadius = self.cornerRadius.topLeft > 0
-      or self.cornerRadius.topRight > 0
-      or self.cornerRadius.bottomLeft > 0
-      or self.cornerRadius.bottomRight > 0
-
-    if hasCornerRadius then
-      -- Use stencil to clip image to rounded corners
-      love.graphics.stencil(function()
-        RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-      end, "replace", 1)
-      love.graphics.setStencilTest("greater", 0)
-    end
-
-    -- Draw the image
-    ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
-
-    -- Clear stencil if it was used
-    if hasCornerRadius then
-      love.graphics.setStencilTest()
-    end
-  end
-
-  -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
-  if self.themeComponent then
-    -- Get the theme to use
-    local themeToUse = nil
-    if self.theme then
-      -- Element specifies a specific theme - load it if needed
-      if Theme.get(self.theme) then
-        themeToUse = Theme.get(self.theme)
-      else
-        -- Try to load the theme
-        pcall(function()
-          Theme.load(self.theme)
-        end)
-        themeToUse = Theme.get(self.theme)
-      end
-    else
-      -- Use active theme
-      themeToUse = Theme.getActive()
-    end
-
-    if themeToUse then
-      -- Get the component from the theme
-      local component = themeToUse.components[self.themeComponent]
-      if component then
-        -- Check for state-specific override
-        local state = self._themeState
-        if state and component.states and component.states[state] then
-          component = component.states[state]
-        end
-
-        -- Use component-specific atlas if available, otherwise use theme atlas
-        local atlasToUse = component._loadedAtlas or themeToUse.atlas
-
-        if atlasToUse and component.regions then
-          -- Validate component has required structure
-          local hasAllRegions = component.regions.topLeft
-            and component.regions.topCenter
-            and component.regions.topRight
-            and component.regions.middleLeft
-            and component.regions.middleCenter
-            and component.regions.middleRight
-            and component.regions.bottomLeft
-            and component.regions.bottomCenter
-            and component.regions.bottomRight
-          if hasAllRegions then
-            -- Calculate border-box dimensions (content + padding)
-            local borderBoxWidth = self.width + self.padding.left + self.padding.right
-            local borderBoxHeight = self.height + self.padding.top + self.padding.bottom
-            -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-            NinePatch.draw(component, atlasToUse, self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.scaleCorners, self.scalingAlgorithm)
-          else
-            -- Silently skip drawing if component structure is invalid
-          end
-        end
-      else
-        -- Component not found in theme
-      end
-    else
-      -- No theme available for themeComponent
-    end
-  end
-
-  -- LAYER 3: Draw borders on top of theme (always render if specified)
-  local borderColorWithOpacity = Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
-  love.graphics.setColor(borderColorWithOpacity:toRGBA())
-
-  -- Check if all borders are enabled
-  local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
-
-  if allBorders then
-    -- Draw complete rounded rectangle border
-    RoundedRect.draw("line", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-  else
-    -- Draw individual borders (without rounded corners for partial borders)
-    if self.border.top then
-      love.graphics.line(self.x, self.y, self.x + borderBoxWidth, self.y)
-    end
-    if self.border.bottom then
-      love.graphics.line(self.x, self.y + borderBoxHeight, self.x + borderBoxWidth, self.y + borderBoxHeight)
-    end
-    if self.border.left then
-      love.graphics.line(self.x, self.y, self.x, self.y + borderBoxHeight)
-    end
-    if self.border.right then
-      love.graphics.line(self.x + borderBoxWidth, self.y, self.x + borderBoxWidth, self.y + borderBoxHeight)
-    end
-  end
-
-  -- Draw element text if present
-  -- For editable elements, also handle placeholder
-  -- Update text layout if dirty (for multiline auto-grow)
-  if self._textEditor then
-    self._textEditor:_updateTextIfDirty()
-    self._textEditor:updateAutoGrowHeight()
-  end
-
-  -- For editable elements, use TextEditor buffer; for non-editable, use text
-  local displayText = self._textEditor and self._textEditor:getText() or self.text
-  local isPlaceholder = false
-  local isPasswordMasked = false
-
-  -- Show placeholder if editable and empty
-  if self.editable and (not displayText or displayText == "") and self.placeholder then
-    displayText = self.placeholder
-    isPlaceholder = true
-  end
-
-  -- Apply password masking if enabled
-  if self.passwordMode and displayText and displayText ~= "" and not isPlaceholder then
-    local maskedText = string.rep("•", utf8.len(displayText))
-    displayText = maskedText
-    isPasswordMasked = true
-  end
-
-  if displayText and displayText ~= "" then
-    local textColor = isPlaceholder and Color.new(self.textColor.r * 0.5, self.textColor.g * 0.5, self.textColor.b * 0.5, self.textColor.a * 0.5)
-      or self.textColor
-    local textColorWithOpacity = Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
-    love.graphics.setColor(textColorWithOpacity:toRGBA())
-
-    local origFont = love.graphics.getFont()
-    if self.textSize then
-      -- Resolve font path from font family
-      local fontPath = nil
-      if self.fontFamily then
-        -- Check if fontFamily is a theme font name
-        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-          fontPath = themeToUse.fonts[self.fontFamily]
-        else
-          -- Treat as direct path to font file
-          fontPath = self.fontFamily
-        end
-      elseif self.themeComponent then
-        -- If using themeComponent but no fontFamily specified, check for default font in theme
-        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-          fontPath = themeToUse.fonts.default
-        end
-      end
-
-      -- Use cached font instead of creating new one every frame
-      local font = FONT_CACHE.get(self.textSize, fontPath)
-      love.graphics.setFont(font)
-    end
-    local font = love.graphics.getFont()
-    local textWidth = font:getWidth(displayText)
-    local textHeight = font:getHeight()
-    local tx, ty
-
-    -- Text is drawn in the content box (inside padding)
-    -- For 9-patch components, use contentPadding if available
-    local textPaddingLeft = self.padding.left
-    local textPaddingTop = self.padding.top
-    local textAreaWidth = self.width
-    local textAreaHeight = self.height
-
-    -- Check if we should use 9-patch contentPadding for text positioning
-    local scaledContentPadding = self:getScaledContentPadding()
-    if scaledContentPadding then
-      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-
-      textPaddingLeft = scaledContentPadding.left
-      textPaddingTop = scaledContentPadding.top
-      textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
-      textAreaHeight = borderBoxHeight - scaledContentPadding.top - scaledContentPadding.bottom
-    end
-
-    local contentX = self.x + textPaddingLeft
-    local contentY = self.y + textPaddingTop
-
-    -- Check if text wrapping is enabled
-    if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
-      -- Use printf for wrapped text
-      local align = "left"
-      if self.textAlign == TextAlign.CENTER then
-        align = "center"
-      elseif self.textAlign == TextAlign.END then
-        align = "right"
-      elseif self.textAlign == TextAlign.JUSTIFY then
-        align = "justify"
-      end
-
-      tx = contentX
-      ty = contentY
-
-      -- Use printf with the available width for wrapping
-      love.graphics.printf(displayText, tx, ty, textAreaWidth, align)
-    else
-      -- Use regular print for non-wrapped text
-      if self.textAlign == TextAlign.START then
-        tx = contentX
-        ty = contentY
-      elseif self.textAlign == TextAlign.CENTER then
-        tx = contentX + (textAreaWidth - textWidth) / 2
-        ty = contentY + (textAreaHeight - textHeight) / 2
-      elseif self.textAlign == TextAlign.END then
-        tx = contentX + textAreaWidth - textWidth - 10
-        ty = contentY + textAreaHeight - textHeight - 10
-      elseif self.textAlign == TextAlign.JUSTIFY then
-        --- need to figure out spreading
-        tx = contentX
-        ty = contentY
-      end
-
-      -- Apply scroll offset for editable single-line inputs
-      if self.editable and not self.multiline and self._textScrollX then
-        tx = tx - self._textScrollX
-      end
-
-      -- Use scissor to clip text to content area for editable inputs
-      if self.editable and not self.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      love.graphics.print(displayText, tx, ty)
-
-      -- Reset scissor
-      if self.editable and not self.multiline then
-        love.graphics.setScissor()
-      end
-    end
-
-    -- Draw cursor for focused editable elements (even if text is empty)
-    if self._textEditor and self._textEditor:isFocused() and self._textEditor._cursorVisible then
-      local cursorColor = self.cursorColor or self.textColor
-      local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
-      love.graphics.setColor(cursorWithOpacity:toRGBA())
-
-      -- Calculate cursor position using TextEditor method
-      local cursorRelX, cursorRelY = self._textEditor:_getCursorScreenPosition()
-      local cursorX = contentX + cursorRelX
-      local cursorY = contentY + cursorRelY
-      local cursorHeight = textHeight
-
-      -- Apply scroll offset for single-line inputs
-      if not self.multiline and self._textEditor._textScrollX then
-        cursorX = cursorX - self._textEditor._textScrollX
-      end
-
-      -- Apply scissor for single-line editable inputs
-      if not self.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      -- Draw cursor line
-      love.graphics.rectangle("fill", cursorX, cursorY, 2, cursorHeight)
-
-      -- Reset scissor
-      if not self.multiline then
-        love.graphics.setScissor()
-      end
-    end
-
-    -- Draw selection highlight for editable elements
-    if self._textEditor and self._textEditor:isFocused() and self._textEditor:hasSelection() and self.text and self.text ~= "" then
-      local selStart, selEnd = self._textEditor:getSelection()
-      local selectionColor = self.selectionColor or Color.new(0.3, 0.5, 0.8, 0.5)
-      local selectionWithOpacity = Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
-
-      -- Get selection rectangles from TextEditor
-      local selectionRects = self._textEditor:_getSelectionRects(selStart, selEnd)
-
-      -- Apply scissor for single-line editable inputs
-      if not self.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      -- Draw selection background rectangles
-      love.graphics.setColor(selectionWithOpacity:toRGBA())
-      for _, rect in ipairs(selectionRects) do
-        local rectX = contentX + rect.x
-        local rectY = contentY + rect.y
-        if not self.multiline and self._textEditor._textScrollX then
-          rectX = rectX - self._textEditor._textScrollX
-        end
-        love.graphics.rectangle("fill", rectX, rectY, rect.width, rect.height)
-      end
-
-      -- Reset scissor
-      if not self.multiline then
-        love.graphics.setScissor()
-      end
-    end
-
-    if self.textSize then
-      love.graphics.setFont(origFont)
-    end
-  end
-
-  -- Draw cursor for focused editable elements even when empty
-  if self._textEditor and self._textEditor:isFocused() and self._textEditor._cursorVisible and (not displayText or displayText == "") then
-    -- Set up font for cursor rendering
-    local origFont = love.graphics.getFont()
-    if self.textSize then
-      local fontPath = nil
-      if self.fontFamily then
-        local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-          fontPath = themeToUse.fonts[self.fontFamily]
-        else
-          fontPath = self.fontFamily
-        end
-      end
-      local font = FONT_CACHE.get(self.textSize, fontPath)
-      love.graphics.setFont(font)
-    end
-
-    local font = love.graphics.getFont()
-    local textHeight = font:getHeight()
-
-    -- Calculate text area position
-    local textPaddingLeft = self.padding.left
-    local textPaddingTop = self.padding.top
-    local scaledContentPadding = self:getScaledContentPadding()
-    if scaledContentPadding then
-      textPaddingLeft = scaledContentPadding.left
-      textPaddingTop = scaledContentPadding.top
-    end
-
-    local contentX = self.x + textPaddingLeft
-    local contentY = self.y + textPaddingTop
-
-    -- Draw cursor
-    local cursorColor = self.cursorColor or self.textColor
-    local cursorWithOpacity = Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
-    love.graphics.setColor(cursorWithOpacity:toRGBA())
-    love.graphics.rectangle("fill", contentX, contentY, 2, textHeight)
-
-    if self.textSize then
-      love.graphics.setFont(origFont)
-    end
-  end
+  -- LAYER 4: Delegate text rendering (text, cursor, selection, placeholder, password masking) to Renderer module
+  self._renderer:drawText(self)
 
   -- Draw visual feedback when element is pressed (if it has an onEvent handler and highlight is not disabled)
   if self.onEvent and not self.disableHighlight then
@@ -2491,8 +2074,7 @@ function Element:draw(backdropCanvas)
       -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-      RoundedRect.draw("fill", self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      self._renderer:drawPressedState(self.x, self.y, borderBoxWidth, borderBoxHeight)
     end
   end
 
@@ -2605,7 +2187,8 @@ function Element:draw(backdropCanvas)
     if scrollbarDims.vertical.visible or scrollbarDims.horizontal.visible then
       -- Clear any parent scissor clipping before drawing scrollbars
       love.graphics.setScissor()
-      self:_drawScrollbars(scrollbarDims)
+      -- Delegate scrollbar rendering to Renderer module
+      self._renderer:drawScrollbars(self, self.x, self.y, self.width, self.height, scrollbarDims)
     end
   end
 end
@@ -2818,6 +2401,10 @@ function Element:update(dt)
 
       -- Always update local state for backward compatibility
       self._themeState = newThemeState
+      -- Sync theme state with Renderer module
+      if self._renderer then
+        self._renderer:setThemeState(newThemeState)
+      end
     end
 
     -- Only process button events if onEvent handler exists, element is not disabled,

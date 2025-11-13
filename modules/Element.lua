@@ -2095,18 +2095,95 @@ end
 --- Calculate text width for button
 ---@return number
 function Element:calculateTextWidth()
-  if not self._layoutEngine then
+  if self.text == nil then
     return 0
   end
-  return self._layoutEngine:calculateTextWidth()
+
+  if self.textSize then
+    -- Resolve font path from font family (same logic as in draw)
+    local fontPath = nil
+    if self.fontFamily then
+      local themeToUse = self._themeManager:getTheme()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+        fontPath = themeToUse.fonts[self.fontFamily]
+      else
+        fontPath = self.fontFamily
+      end
+    elseif self.themeComponent then
+      fontPath = self._themeManager:getDefaultFontFamily()
+    end
+
+    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
+    local width = tempFont:getWidth(self.text)
+    -- Apply contentAutoSizingMultiplier if set
+    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
+      width = width * self.contentAutoSizingMultiplier.width
+    end
+    return width
+  end
+
+  local font = love.graphics.getFont()
+  local width = font:getWidth(self.text)
+  -- Apply contentAutoSizingMultiplier if set
+  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
+    width = width * self.contentAutoSizingMultiplier.width
+  end
+  return width
 end
 
 ---@return number
 function Element:calculateTextHeight()
-  if not self._layoutEngine then
+  if self.text == nil then
     return 0
   end
-  return self._layoutEngine:calculateTextHeight()
+
+  -- Get the font
+  local font
+  if self.textSize then
+    -- Resolve font path from font family (same logic as in draw)
+    local fontPath = nil
+    if self.fontFamily then
+      local themeToUse = self._themeManager:getTheme()
+      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+        fontPath = themeToUse.fonts[self.fontFamily]
+      else
+        fontPath = self.fontFamily
+      end
+    elseif self.themeComponent then
+      fontPath = self._themeManager:getDefaultFontFamily()
+    end
+    font = FONT_CACHE.get(self.textSize, fontPath)
+  else
+    font = love.graphics.getFont()
+  end
+
+  local height = font:getHeight()
+
+  -- If text wrapping is enabled, calculate height based on wrapped lines
+  if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
+    -- Calculate available width for wrapping
+    local availableWidth = self.width
+
+    -- If width is not set or is 0, try to use parent's content width
+    if (not availableWidth or availableWidth <= 0) and self.parent then
+      -- Use parent's content width (excluding padding)
+      availableWidth = self.parent.width
+    end
+
+    if availableWidth and availableWidth > 0 then
+      -- Get the wrapped text lines using getWrap (returns width and table of lines)
+      local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
+      -- Height is line height * number of lines
+      height = height * #wrappedLines
+    end
+  end
+
+  -- Apply contentAutoSizingMultiplier if set
+  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
+    height = height * self.contentAutoSizingMultiplier.height
+  end
+
+  return height
 end
 
 function Element:calculateAutoWidth()
@@ -2439,17 +2516,206 @@ end
 ---@param line string -- Line to wrap
 ---@param maxWidth number -- Maximum width in pixels
 ---@return table -- Array of wrapped line parts
---- Wrap a line of text (delegates to Renderer)
----@param line string The line of text to wrap
----@param maxWidth number Maximum width for wrapping
----@return table Array of {text, startIdx, endIdx}
 function Element:_wrapLine(line, maxWidth)
-  return self._renderer:wrapLine(self, line, maxWidth)
+  if not self.editable then
+    return { { text = line, startIdx = 0, endIdx = utf8.len(line) } }
+  end
+
+  local font = self:_getFont()
+  local wrappedParts = {}
+  local currentLine = ""
+  local startIdx = 0
+
+  -- Helper function to extract a UTF-8 character by character index
+  local function getUtf8Char(str, charIndex)
+    local byteStart = utf8.offset(str, charIndex)
+    if not byteStart then
+      return ""
+    end
+    local byteEnd = utf8.offset(str, charIndex + 1)
+    if byteEnd then
+      return str:sub(byteStart, byteEnd - 1)
+    else
+      return str:sub(byteStart)
+    end
+  end
+
+  if self.textWrap == "word" then
+    -- Tokenize into words and whitespace, preserving exact spacing
+    local tokens = {}
+    local pos = 1
+    local lineLen = utf8.len(line)
+
+    while pos <= lineLen do
+      -- Check if current position is whitespace
+      local char = getUtf8Char(line, pos)
+      if char:match("%s") then
+        -- Collect whitespace sequence
+        local wsStart = pos
+        while pos <= lineLen and getUtf8Char(line, pos):match("%s") do
+          pos = pos + 1
+        end
+        table.insert(tokens, {
+          type = "space",
+          text = line:sub(utf8.offset(line, wsStart), utf8.offset(line, pos) and utf8.offset(line, pos) - 1 or #line),
+          startPos = wsStart - 1,
+          length = pos - wsStart,
+        })
+      else
+        -- Collect word (non-whitespace sequence)
+        local wordStart = pos
+        while pos <= lineLen and not getUtf8Char(line, pos):match("%s") do
+          pos = pos + 1
+        end
+        table.insert(tokens, {
+          type = "word",
+          text = line:sub(utf8.offset(line, wordStart), utf8.offset(line, pos) and utf8.offset(line, pos) - 1 or #line),
+          startPos = wordStart - 1,
+          length = pos - wordStart,
+        })
+      end
+    end
+
+    -- Process tokens and wrap
+    local charPos = 0 -- Track our position in the original line
+    for i, token in ipairs(tokens) do
+      if token.type == "word" then
+        local testLine = currentLine .. token.text
+        local width = font:getWidth(testLine)
+
+        if width > maxWidth and currentLine ~= "" then
+          -- Current line is full, wrap before this word
+          local currentLineLen = utf8.len(currentLine)
+          table.insert(wrappedParts, {
+            text = currentLine,
+            startIdx = startIdx,
+            endIdx = startIdx + currentLineLen,
+          })
+          startIdx = charPos
+          currentLine = token.text
+          charPos = charPos + token.length
+
+          -- Check if the word itself is too long - if so, break it with character wrapping
+          if font:getWidth(token.text) > maxWidth then
+            local wordLen = utf8.len(token.text)
+            local charLine = ""
+            local charStartIdx = startIdx
+
+            for j = 1, wordLen do
+              local char = getUtf8Char(token.text, j)
+              local testCharLine = charLine .. char
+              local charWidth = font:getWidth(testCharLine)
+
+              if charWidth > maxWidth and charLine ~= "" then
+                table.insert(wrappedParts, {
+                  text = charLine,
+                  startIdx = charStartIdx,
+                  endIdx = charStartIdx + utf8.len(charLine),
+                })
+                charStartIdx = charStartIdx + utf8.len(charLine)
+                charLine = char
+              else
+                charLine = testCharLine
+              end
+            end
+
+            currentLine = charLine
+            startIdx = charStartIdx
+          end
+        elseif width > maxWidth and currentLine == "" then
+          -- Word is too long to fit on a line by itself - use character wrapping
+          local wordLen = utf8.len(token.text)
+          local charLine = ""
+          local charStartIdx = startIdx
+
+          for j = 1, wordLen do
+            local char = getUtf8Char(token.text, j)
+            local testCharLine = charLine .. char
+            local charWidth = font:getWidth(testCharLine)
+
+            if charWidth > maxWidth and charLine ~= "" then
+              table.insert(wrappedParts, {
+                text = charLine,
+                startIdx = charStartIdx,
+                endIdx = charStartIdx + utf8.len(charLine),
+              })
+              charStartIdx = charStartIdx + utf8.len(charLine)
+              charLine = char
+            else
+              charLine = testCharLine
+            end
+          end
+
+          currentLine = charLine
+          startIdx = charStartIdx
+          charPos = charPos + token.length
+        else
+          currentLine = testLine
+          charPos = charPos + token.length
+        end
+      else
+        -- It's whitespace - add to current line
+        currentLine = currentLine .. token.text
+        charPos = charPos + token.length
+      end
+    end
+  else
+    -- Character wrapping
+    local lineLength = utf8.len(line)
+    for i = 1, lineLength do
+      local char = getUtf8Char(line, i)
+      local testLine = currentLine .. char
+      local width = font:getWidth(testLine)
+
+      if width > maxWidth and currentLine ~= "" then
+        table.insert(wrappedParts, {
+          text = currentLine,
+          startIdx = startIdx,
+          endIdx = startIdx + utf8.len(currentLine),
+        })
+        currentLine = char
+        startIdx = i - 1
+      else
+        currentLine = testLine
+      end
+    end
+  end
+
+  -- Add remaining text
+  if currentLine ~= "" then
+    table.insert(wrappedParts, {
+      text = currentLine,
+      startIdx = startIdx,
+      endIdx = startIdx + utf8.len(currentLine),
+    })
+  end
+
+  -- Ensure at least one part
+  if #wrappedParts == 0 then
+    table.insert(wrappedParts, {
+      text = "",
+      startIdx = 0,
+      endIdx = 0,
+    })
+  end
+
+  return wrappedParts
 end
 
 ---@return love.Font
 function Element:_getFont()
-  return self._renderer:getFont(self)
+  -- Get font path from theme or element
+  local fontPath = nil
+  if self.fontFamily then
+    local themeToUse = self._themeManager:getTheme()
+    if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
+      fontPath = themeToUse.fonts[self.fontFamily]
+    else
+      fontPath = self.fontFamily
+    end
+  end
+
+  return FONT_CACHE.getFont(self.textSize, fontPath)
 end
 
 -- ====================

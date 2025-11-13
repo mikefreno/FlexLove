@@ -534,89 +534,13 @@ function LayoutEngine:layoutChildren()
   end
 end
 
---- Calculate text width
----@return number The calculated text width
-function LayoutEngine:calculateTextWidth()
-  local element = self.element
-  
-  if element.text == nil then
-    return 0
-  end
-
-  if element.textSize then
-    -- Get font from Renderer (Phase 1 integration)
-    local font = element._renderer:getFont(element)
-    local width = font:getWidth(element.text)
-    -- Apply contentAutoSizingMultiplier if set
-    if element.contentAutoSizingMultiplier and element.contentAutoSizingMultiplier.width then
-      width = width * element.contentAutoSizingMultiplier.width
-    end
-    return width
-  end
-
-  local font = love.graphics.getFont()
-  local width = font:getWidth(element.text)
-  -- Apply contentAutoSizingMultiplier if set
-  if element.contentAutoSizingMultiplier and element.contentAutoSizingMultiplier.width then
-    width = width * element.contentAutoSizingMultiplier.width
-  end
-  return width
-end
-
---- Calculate text height
----@return number The calculated text height
-function LayoutEngine:calculateTextHeight()
-  local element = self.element
-  
-  if element.text == nil then
-    return 0
-  end
-
-  -- Get the font
-  local font
-  if element.textSize then
-    -- Get font from Renderer (Phase 1 integration)
-    font = element._renderer:getFont(element)
-  else
-    font = love.graphics.getFont()
-  end
-
-  local height = font:getHeight()
-
-  -- If text wrapping is enabled, calculate height based on wrapped lines
-  if element.textWrap and (element.textWrap == "word" or element.textWrap == "char" or element.textWrap == true) then
-    -- Calculate available width for wrapping
-    local availableWidth = element.width
-
-    -- If width is not set or is 0, try to use parent's content width
-    if (not availableWidth or availableWidth <= 0) and element.parent then
-      -- Use parent's content width (excluding padding)
-      availableWidth = element.parent.width
-    end
-
-    if availableWidth and availableWidth > 0 then
-      -- Get the wrapped text lines using getWrap (returns width and table of lines)
-      local wrappedWidth, wrappedLines = font:getWrap(element.text, availableWidth)
-      -- Height is line height * number of lines
-      height = height * #wrappedLines
-    end
-  end
-
-  -- Apply contentAutoSizingMultiplier if set
-  if element.contentAutoSizingMultiplier and element.contentAutoSizingMultiplier.height then
-    height = height * element.contentAutoSizingMultiplier.height
-  end
-
-  return height
-end
-
 --- Calculate auto width based on children
 ---@return number The calculated width
 function LayoutEngine:calculateAutoWidth()
   local element = self.element
   
   -- BORDER-BOX MODEL: Calculate content width, caller will add padding to get border-box
-  local contentWidth = self:calculateTextWidth()
+  local contentWidth = element:calculateTextWidth()
   if not element.children or #element.children == 0 then
     return contentWidth
   end
@@ -656,7 +580,7 @@ end
 function LayoutEngine:calculateAutoHeight()
   local element = self.element
   
-  local height = self:calculateTextHeight()
+  local height = element:calculateTextHeight()
   if not element.children or #element.children == 0 then
     return height
   end

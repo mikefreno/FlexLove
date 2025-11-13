@@ -334,31 +334,6 @@ Gui.new({
 })
 ```
 
-### Combining with Corner Radius
-
-You can use cornerRadius with themed elements:
-
-```lua
-Gui.new({
-  themeComponent = "button",
-  cornerRadius = 10,  -- Clips theme to rounded corners
-  -- ...
-})
-```
-
-### Border Overlay
-
-Add custom borders on top of themes:
-
-```lua
-Gui.new({
-  themeComponent = "panel",
-  border = { top = true, bottom = true, left = true, right = true },
-  borderColor = Color.new(1, 1, 0, 1),  -- Yellow border on top of theme
-  -- ...
-})
-```
-
 ## Corner Scaling
 
 By default, 9-patch corners and non-stretched edges are rendered at their original pixel size (1:1). You can scale corners using a numeric multiplier:

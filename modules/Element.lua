@@ -28,6 +28,7 @@ local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
+local ThemeManager = req("ThemeManager")
 
 -- Extract utilities
 local enums = utils.enums
@@ -206,22 +207,27 @@ function Element.new(props)
   })
   self._eventHandler:initialize(self)
 
-  -- Initialize theme state (will be managed by StateManager in immediate mode)
-  self._themeState = "normal"
-
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
-  -- Handle theme property:
-  -- - theme: which theme to use (defaults to Gui.defaultTheme if not specified)
-  -- - themeComponent: which component from the theme (e.g., "panel", "button", "input")
-  -- If themeComponent is nil, no theme is applied (manual styling)
-  self.theme = props.theme or Gui.defaultTheme
-  self.themeComponent = props.themeComponent or nil
+  -- Initialize ThemeManager for theme management
+  self._themeManager = ThemeManager.new({
+    theme = props.theme or Gui.defaultTheme,
+    themeComponent = props.themeComponent or nil,
+    disabled = props.disabled or false,
+    active = props.active or false,
+    disableHighlight = props.disableHighlight,
+    scaleCorners = props.scaleCorners,
+    scalingAlgorithm = props.scalingAlgorithm,
+  })
+  self._themeManager:initialize(self)
 
-  -- Initialize state properties
-  self.disabled = props.disabled or false
-  self.active = props.active or false
+  -- Expose theme properties for backward compatibility
+  self.theme = self._themeManager.theme
+  self.themeComponent = self._themeManager.themeComponent
+  self.disabled = self._themeManager.disabled
+  self.active = self._themeManager.active
+  self._themeState = self._themeManager:getState()
 
   -- disableHighlight defaults to true when using themeComponent (themes handle their own visual feedback)
   -- Can be explicitly overridden by setting props.disableHighlight
@@ -237,34 +243,14 @@ function Element.new(props)
     -- Explicitly set on element
     self.contentAutoSizingMultiplier = props.contentAutoSizingMultiplier
   else
-    -- Try to source from theme
-    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-    if themeToUse then
-      -- First check if themeComponent has a multiplier
-      if self.themeComponent then
-        local component = themeToUse.components[self.themeComponent]
-        if component and component.contentAutoSizingMultiplier then
-          self.contentAutoSizingMultiplier = component.contentAutoSizingMultiplier
-        elseif themeToUse.contentAutoSizingMultiplier then
-          -- Fall back to theme default
-          self.contentAutoSizingMultiplier = themeToUse.contentAutoSizingMultiplier
-        else
-          self.contentAutoSizingMultiplier = { 1, 1 }
-        end
-      elseif themeToUse.contentAutoSizingMultiplier then
-        self.contentAutoSizingMultiplier = themeToUse.contentAutoSizingMultiplier
-      else
-        self.contentAutoSizingMultiplier = { 1, 1 }
-      end
-    else
-      self.contentAutoSizingMultiplier = { 1, 1 }
-    end
+    -- Try to source from theme via ThemeManager
+    local multiplier = self._themeManager:getContentAutoSizingMultiplier()
+    self.contentAutoSizingMultiplier = multiplier or { 1, 1 }
   end
 
-  -- Initialize 9-patch corner scaling properties
-  -- These override theme component settings when specified
-  self.scaleCorners = props.scaleCorners
-  self.scalingAlgorithm = props.scalingAlgorithm
+  -- Expose 9-patch corner scaling properties for backward compatibility
+  self.scaleCorners = self._themeManager.scaleCorners
+  self.scalingAlgorithm = self._themeManager.scalingAlgorithm
 
   -- Initialize blur properties
   self.contentBlur = props.contentBlur
@@ -502,13 +488,9 @@ function Element.new(props)
     -- Inherit from parent if parent has fontFamily set
     self.fontFamily = self.parent.fontFamily
   elseif props.themeComponent then
-    -- If using themeComponent, try to get default from theme
-    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-    if themeToUse and themeToUse.fonts and themeToUse.fonts["default"] then
-      self.fontFamily = "default"
-    else
-      self.fontFamily = nil
-    end
+    -- If using themeComponent, try to get default from theme via ThemeManager
+    local defaultFont = self._themeManager:getDefaultFontFamily()
+    self.fontFamily = defaultFont and "default" or nil
   else
     self.fontFamily = nil
   end
@@ -671,26 +653,23 @@ function Element.new(props)
   -- Check if we should use 9-patch content padding for auto-sizing
   local use9PatchPadding = false
   local ninePatchContentPadding = nil
-  if self.themeComponent then
-    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-    if themeToUse and themeToUse.components[self.themeComponent] then
-      local component = themeToUse.components[self.themeComponent]
-      if component._ninePatchData and component._ninePatchData.contentPadding then
-        -- Only use 9-patch padding if no explicit padding was provided
-        if
-          not props.padding
-          or (
-            not props.padding.top
-            and not props.padding.right
-            and not props.padding.bottom
-            and not props.padding.left
-            and not props.padding.horizontal
-            and not props.padding.vertical
-          )
-        then
-          use9PatchPadding = true
-          ninePatchContentPadding = component._ninePatchData.contentPadding
-        end
+  if self._themeManager:hasThemeComponent() then
+    local component = self._themeManager:getComponent()
+    if component and component._ninePatchData and component._ninePatchData.contentPadding then
+      -- Only use 9-patch padding if no explicit padding was provided
+      if
+        not props.padding
+        or (
+          not props.padding.top
+          and not props.padding.right
+          and not props.padding.bottom
+          and not props.padding.left
+          and not props.padding.horizontal
+          and not props.padding.vertical
+        )
+      then
+        use9PatchPadding = true
+        ninePatchContentPadding = component._ninePatchData.contentPadding
       end
     end
   end
@@ -699,39 +678,12 @@ function Element.new(props)
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
   local tempPadding
   if use9PatchPadding then
-    -- Scale 9-patch content padding to match the actual rendered size
-    -- The contentPadding values are in the original image's pixel coordinates,
-    -- but we need to scale them proportionally to the element's actual size
-    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-    if themeToUse and themeToUse.components[self.themeComponent] then
-      local component = themeToUse.components[self.themeComponent]
-      local atlasImage = component._loadedAtlas or themeToUse.atlas
-
-      if atlasImage and type(atlasImage) ~= "string" then
-        local originalWidth, originalHeight = atlasImage:getDimensions()
-
-        -- Calculate the scale factor based on the element's border-box size vs original image size
-        -- For explicit sizing, tempWidth/tempHeight represent the border-box dimensions
-        local scaleX = tempWidth / originalWidth
-        local scaleY = tempHeight / originalHeight
-
-        tempPadding = {
-          left = ninePatchContentPadding.left * scaleX,
-          top = ninePatchContentPadding.top * scaleY,
-          right = ninePatchContentPadding.right * scaleX,
-          bottom = ninePatchContentPadding.bottom * scaleY,
-        }
-      else
-        -- Fallback if atlas image not available
-        tempPadding = {
-          left = ninePatchContentPadding.left,
-          top = ninePatchContentPadding.top,
-          right = ninePatchContentPadding.right,
-          bottom = ninePatchContentPadding.bottom,
-        }
-      end
+    -- Get scaled 9-patch content padding from ThemeManager
+    local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
+    if scaledPadding then
+      tempPadding = scaledPadding
     else
-      -- Fallback if theme not found
+      -- Fallback if scaling fails
       tempPadding = {
         left = ninePatchContentPadding.left,
         top = ninePatchContentPadding.top,
@@ -924,8 +876,8 @@ function Element.new(props)
     if props.textColor then
       self.textColor = props.textColor
     else
-      -- Try to get text color from theme
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      -- Try to get text color from theme via ThemeManager
+      local themeToUse = self._themeManager:getTheme()
       if themeToUse and themeToUse.colors and themeToUse.colors.text then
         self.textColor = themeToUse.colors.text
       else
@@ -1055,8 +1007,8 @@ function Element.new(props)
     elseif self.parent.textColor then
       self.textColor = self.parent.textColor
     else
-      -- Try to get text color from theme
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      -- Try to get text color from theme via ThemeManager
+      local themeToUse = self._themeManager:getTheme()
       if themeToUse and themeToUse.colors and themeToUse.colors.text then
         self.textColor = themeToUse.colors.text
       else
@@ -1208,7 +1160,7 @@ function Element.new(props)
       _scrollY = props._scrollY,
     })
     self._scrollManager:initialize(self)
-    
+
     -- Expose ScrollManager properties for backward compatibility (Renderer access)
     self.overflow = self._scrollManager.overflow
     self.overflowX = self._scrollManager.overflowX
@@ -1220,7 +1172,7 @@ function Element.new(props)
     self.scrollbarPadding = self._scrollManager.scrollbarPadding
     self.scrollSpeed = self._scrollManager.scrollSpeed
     self.hideScrollbars = self._scrollManager.hideScrollbars
-    
+
     -- Initialize state properties (will be synced from ScrollManager)
     self._overflowX = false
     self._overflowY = false
@@ -1285,7 +1237,7 @@ function Element:_syncScrollManagerState()
   if not self._scrollManager then
     return
   end
-  
+
   -- Sync state properties from ScrollManager
   self._overflowX = self._scrollManager._overflowX
   self._overflowY = self._scrollManager._overflowY
@@ -1492,53 +1444,9 @@ end
 --- Returns the contentPadding for the current theme state, scaled to the element's size
 ---@return table|nil -- {left, top, right, bottom} or nil if no contentPadding
 function Element:getScaledContentPadding()
-  if not self.themeComponent then
-    return nil
-  end
-
-  local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-  if not themeToUse or not themeToUse.components[self.themeComponent] then
-    return nil
-  end
-
-  local component = themeToUse.components[self.themeComponent]
-
-  -- Check for state-specific override
-  local state = self._themeState or "normal"
-  if state and state ~= "normal" and component.states and component.states[state] then
-    component = component.states[state]
-  end
-
-  if not component._ninePatchData or not component._ninePatchData.contentPadding then
-    return nil
-  end
-
-  local contentPadding = component._ninePatchData.contentPadding
-
-  -- Scale contentPadding to match the actual rendered size
-  local atlasImage = component._loadedAtlas or themeToUse.atlas
-  if atlasImage and type(atlasImage) ~= "string" then
-    local originalWidth, originalHeight = atlasImage:getDimensions()
-    local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-    local scaleX = borderBoxWidth / originalWidth
-    local scaleY = borderBoxHeight / originalHeight
-
-    return {
-      left = contentPadding.left * scaleX,
-      top = contentPadding.top * scaleY,
-      right = contentPadding.right * scaleX,
-      bottom = contentPadding.bottom * scaleY,
-    }
-  else
-    -- Return unscaled values as fallback
-    return {
-      left = contentPadding.left,
-      top = contentPadding.top,
-      right = contentPadding.right,
-      bottom = contentPadding.bottom,
-    }
-  end
+  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+  return self._themeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
 end
 
 --- Get or create blur instance for this element
@@ -1904,7 +1812,7 @@ function Element:update(dt)
       self._scrollbarDragging = state.scrollbarDragging or false
       self._hoveredScrollbar = state.hoveredScrollbar
       self._scrollbarDragOffset = state.scrollbarDragOffset or 0
-      
+
       -- Also restore to ScrollManager if it exists
       if self._scrollManager then
         self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
@@ -2048,25 +1956,16 @@ function Element:update(dt)
 
     -- Update theme state based on interaction
     if self.themeComponent then
-      local newThemeState = "normal"
-
-      -- Disabled state takes priority
-      if self.disabled then
-        newThemeState = "disabled"
-      -- Active state (for inputs when focused/typing)
-      elseif self.active then
-        newThemeState = "active"
-      -- Only show hover/pressed states if this element is active (not blocked)
-      elseif isHovering and isActiveElement then
-        -- Check if any button is pressed via EventHandler
-        local anyPressed = self._eventHandler:isAnyButtonPressed()
-
-        if anyPressed then
-          newThemeState = "pressed"
-        else
-          newThemeState = "hover"
-        end
-      end
+      -- Check if any button is pressed via EventHandler
+      local anyPressed = self._eventHandler:isAnyButtonPressed()
+      
+      -- Update theme state via ThemeManager
+      local newThemeState = self._themeManager:updateState(
+        isHovering and isActiveElement,
+        anyPressed,
+        self._focused,
+        self.disabled
+      )
 
       -- Update state (in StateManager if in immediate mode, otherwise locally)
       if self._stateId and Gui._immediateMode then
@@ -2094,10 +1993,10 @@ function Element:update(dt)
 
     -- Reset scrollbar press flag at start of each frame
     self._eventHandler:resetScrollbarPressFlag()
-    
+
     -- Process mouse events through EventHandler
     self._eventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
-    
+
     -- Process touch events through EventHandler
     self._eventHandler:processTouchEvents()
   end
@@ -2107,255 +2006,10 @@ end
 ---@param newViewportWidth number
 ---@param newViewportHeight number
 function Element:recalculateUnits(newViewportWidth, newViewportHeight)
-  -- Get updated scale factors
-  local scaleX, scaleY = Gui.getScaleFactors()
-
-  -- Recalculate border-box width if using viewport or percentage units (skip auto-sized)
-  -- Store in _borderBoxWidth temporarily, will calculate content width after padding is resolved
-  if self.units.width.unit ~= "px" and self.units.width.unit ~= "auto" then
-    local parentWidth = self.parent and self.parent.width or newViewportWidth
-    self._borderBoxWidth = Units.resolve(self.units.width.value, self.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
-  elseif self.units.width.unit == "px" and self.units.width.value and Gui.baseScale then
-    -- Reapply base scaling to pixel widths (border-box)
-    self._borderBoxWidth = self.units.width.value * scaleX
+  -- Delegate to LayoutEngine
+  if self._layoutEngine then
+    self._layoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
   end
-
-  -- Recalculate border-box height if using viewport or percentage units (skip auto-sized)
-  -- Store in _borderBoxHeight temporarily, will calculate content height after padding is resolved
-  if self.units.height.unit ~= "px" and self.units.height.unit ~= "auto" then
-    local parentHeight = self.parent and self.parent.height or newViewportHeight
-    self._borderBoxHeight = Units.resolve(self.units.height.value, self.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
-  elseif self.units.height.unit == "px" and self.units.height.value and Gui.baseScale then
-    -- Reapply base scaling to pixel heights (border-box)
-    self._borderBoxHeight = self.units.height.value * scaleY
-  end
-
-  -- Recalculate position if using viewport or percentage units
-  if self.units.x.unit ~= "px" then
-    local parentWidth = self.parent and self.parent.width or newViewportWidth
-    local baseX = self.parent and self.parent.x or 0
-    local offsetX = Units.resolve(self.units.x.value, self.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
-    self.x = baseX + offsetX
-  else
-    -- For pixel units, update position relative to parent's new position (with base scaling)
-    if self.parent then
-      local baseX = self.parent.x
-      local scaledOffset = Gui.baseScale and (self.units.x.value * scaleX) or self.units.x.value
-      self.x = baseX + scaledOffset
-    elseif Gui.baseScale then
-      -- Top-level element with pixel position - apply base scaling
-      self.x = self.units.x.value * scaleX
-    end
-  end
-
-  if self.units.y.unit ~= "px" then
-    local parentHeight = self.parent and self.parent.height or newViewportHeight
-    local baseY = self.parent and self.parent.y or 0
-    local offsetY = Units.resolve(self.units.y.value, self.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
-    self.y = baseY + offsetY
-  else
-    -- For pixel units, update position relative to parent's new position (with base scaling)
-    if self.parent then
-      local baseY = self.parent.y
-      local scaledOffset = Gui.baseScale and (self.units.y.value * scaleY) or self.units.y.value
-      self.y = baseY + scaledOffset
-    elseif Gui.baseScale then
-      -- Top-level element with pixel position - apply base scaling
-      self.y = self.units.y.value * scaleY
-    end
-  end
-
-  -- Recalculate textSize if auto-scaling is enabled or using viewport/element-relative units
-  if self.autoScaleText and self.units.textSize.value then
-    local unit = self.units.textSize.unit
-    local value = self.units.textSize.value
-
-    if unit == "px" and Gui.baseScale then
-      -- With base scaling: scale pixel values relative to base resolution
-      self.textSize = value * scaleY
-    elseif unit == "px" then
-      -- Without base scaling but auto-scaling enabled: text doesn't scale
-      self.textSize = value
-    elseif unit == "%" or unit == "vh" then
-      -- Percentage and vh are relative to viewport height
-      self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
-    elseif unit == "vw" then
-      -- vw is relative to viewport width
-      self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportWidth)
-    elseif unit == "ew" then
-      -- Element width relative
-      self.textSize = (value / 100) * self.width
-    elseif unit == "eh" then
-      -- Element height relative
-      self.textSize = (value / 100) * self.height
-    else
-      self.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
-    end
-
-    -- Apply min/max constraints (with base scaling)
-    local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-    local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
-
-    if minSize and self.textSize < minSize then
-      self.textSize = minSize
-    end
-    if maxSize and self.textSize > maxSize then
-      self.textSize = maxSize
-    end
-
-    -- Protect against too-small text sizes (minimum 1px)
-    if self.textSize < 1 then
-      self.textSize = 1 -- Minimum 1px
-    end
-  elseif self.units.textSize.unit == "px" and self.units.textSize.value and Gui.baseScale then
-    -- No auto-scaling but base scaling is set: reapply base scaling to pixel text sizes
-    self.textSize = self.units.textSize.value * scaleY
-
-    -- Protect against too-small text sizes (minimum 1px)
-    if self.textSize < 1 then
-      self.textSize = 1 -- Minimum 1px
-    end
-  end
-
-  -- Final protection: ensure textSize is always at least 1px (catches all edge cases)
-  if self.text and self.textSize and self.textSize < 1 then
-    self.textSize = 1 -- Minimum 1px
-  end
-
-  -- Recalculate gap if using viewport or percentage units
-  if self.units.gap.unit ~= "px" then
-    local containerSize = (self.flexDirection == FlexDirection.HORIZONTAL) and (self.parent and self.parent.width or newViewportWidth)
-      or (self.parent and self.parent.height or newViewportHeight)
-    self.gap = Units.resolve(self.units.gap.value, self.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
-  end
-
-  -- Recalculate spacing (padding/margin) if using viewport or percentage units
-  -- For percentage-based padding:
-  -- - If element has a parent: use parent's border-box dimensions (CSS spec for child elements)
-  -- - If element has no parent: use element's own border-box dimensions (CSS spec for root elements)
-  local parentBorderBoxWidth = self.parent and self.parent._borderBoxWidth or self._borderBoxWidth or newViewportWidth
-  local parentBorderBoxHeight = self.parent and self.parent._borderBoxHeight or self._borderBoxHeight or newViewportHeight
-
-  -- Handle shorthand properties first (horizontal/vertical)
-  local resolvedHorizontalPadding = nil
-  local resolvedVerticalPadding = nil
-
-  if self.units.padding.horizontal and self.units.padding.horizontal.unit ~= "px" then
-    resolvedHorizontalPadding =
-      Units.resolve(self.units.padding.horizontal.value, self.units.padding.horizontal.unit, newViewportWidth, newViewportHeight, parentBorderBoxWidth)
-  elseif self.units.padding.horizontal and self.units.padding.horizontal.value then
-    resolvedHorizontalPadding = self.units.padding.horizontal.value
-  end
-
-  if self.units.padding.vertical and self.units.padding.vertical.unit ~= "px" then
-    resolvedVerticalPadding =
-      Units.resolve(self.units.padding.vertical.value, self.units.padding.vertical.unit, newViewportWidth, newViewportHeight, parentBorderBoxHeight)
-  elseif self.units.padding.vertical and self.units.padding.vertical.value then
-    resolvedVerticalPadding = self.units.padding.vertical.value
-  end
-
-  -- Resolve individual padding sides (with fallback to shorthand)
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    -- Check if this side was explicitly set or if we should use shorthand
-    local useShorthand = false
-    if not self.units.padding[side].explicit then
-      -- Not explicitly set, check if we have shorthand
-      if side == "left" or side == "right" then
-        useShorthand = resolvedHorizontalPadding ~= nil
-      elseif side == "top" or side == "bottom" then
-        useShorthand = resolvedVerticalPadding ~= nil
-      end
-    end
-
-    if useShorthand then
-      -- Use shorthand value
-      if side == "left" or side == "right" then
-        self.padding[side] = resolvedHorizontalPadding
-      else
-        self.padding[side] = resolvedVerticalPadding
-      end
-    elseif self.units.padding[side].unit ~= "px" then
-      -- Recalculate non-pixel units
-      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      self.padding[side] = Units.resolve(self.units.padding[side].value, self.units.padding[side].unit, newViewportWidth, newViewportHeight, parentSize)
-    end
-    -- If unit is "px" and not using shorthand, value stays the same
-  end
-
-  -- Handle margin shorthand properties
-  local resolvedHorizontalMargin = nil
-  local resolvedVerticalMargin = nil
-
-  if self.units.margin.horizontal and self.units.margin.horizontal.unit ~= "px" then
-    resolvedHorizontalMargin =
-      Units.resolve(self.units.margin.horizontal.value, self.units.margin.horizontal.unit, newViewportWidth, newViewportHeight, parentBorderBoxWidth)
-  elseif self.units.margin.horizontal and self.units.margin.horizontal.value then
-    resolvedHorizontalMargin = self.units.margin.horizontal.value
-  end
-
-  if self.units.margin.vertical and self.units.margin.vertical.unit ~= "px" then
-    resolvedVerticalMargin =
-      Units.resolve(self.units.margin.vertical.value, self.units.margin.vertical.unit, newViewportWidth, newViewportHeight, parentBorderBoxHeight)
-  elseif self.units.margin.vertical and self.units.margin.vertical.value then
-    resolvedVerticalMargin = self.units.margin.vertical.value
-  end
-
-  -- Resolve individual margin sides (with fallback to shorthand)
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    -- Check if this side was explicitly set or if we should use shorthand
-    local useShorthand = false
-    if not self.units.margin[side].explicit then
-      -- Not explicitly set, check if we have shorthand
-      if side == "left" or side == "right" then
-        useShorthand = resolvedHorizontalMargin ~= nil
-      elseif side == "top" or side == "bottom" then
-        useShorthand = resolvedVerticalMargin ~= nil
-      end
-    end
-
-    if useShorthand then
-      -- Use shorthand value
-      if side == "left" or side == "right" then
-        self.margin[side] = resolvedHorizontalMargin
-      else
-        self.margin[side] = resolvedVerticalMargin
-      end
-    elseif self.units.margin[side].unit ~= "px" then
-      -- Recalculate non-pixel units
-      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      self.margin[side] = Units.resolve(self.units.margin[side].value, self.units.margin[side].unit, newViewportWidth, newViewportHeight, parentSize)
-    end
-    -- If unit is "px" and not using shorthand, value stays the same
-  end
-
-  -- BORDER-BOX MODEL: Calculate content dimensions from border-box dimensions
-  -- For explicitly-sized elements (non-auto), _borderBoxWidth/_borderBoxHeight were set earlier
-  -- Now we calculate content width/height by subtracting padding
-  -- Only recalculate if using viewport/percentage units (where _borderBoxWidth actually changed)
-  if self.units.width.unit ~= "auto" and self.units.width.unit ~= "px" then
-    -- _borderBoxWidth was recalculated for viewport/percentage units
-    -- Calculate content width by subtracting padding
-    self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)
-  elseif self.units.width.unit == "auto" then
-    -- For auto-sized elements, width is content width (calculated in resize method)
-    -- Update border-box to include padding
-    self._borderBoxWidth = self.width + self.padding.left + self.padding.right
-  end
-  -- For pixel units, width stays as-is (may have been manually modified)
-
-  if self.units.height.unit ~= "auto" and self.units.height.unit ~= "px" then
-    -- _borderBoxHeight was recalculated for viewport/percentage units
-    -- Calculate content height by subtracting padding
-    self.height = math.max(0, self._borderBoxHeight - self.padding.top - self.padding.bottom)
-  elseif self.units.height.unit == "auto" then
-    -- For auto-sized elements, height is content height (calculated in resize method)
-    -- Update border-box to include padding
-    self._borderBoxHeight = self.height + self.padding.top + self.padding.bottom
-  end
-  -- For pixel units, height stays as-is (may have been manually modified)
-
-  -- Detect overflow after layout calculations
-  self:_detectOverflow()
 end
 
 --- Resize element and its children based on game window size change
@@ -2449,17 +2103,14 @@ function Element:calculateTextWidth()
     -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
     if self.fontFamily then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      local themeToUse = self._themeManager:getTheme()
       if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
         fontPath = themeToUse.fonts[self.fontFamily]
       else
         fontPath = self.fontFamily
       end
     elseif self.themeComponent then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-        fontPath = themeToUse.fonts.default
-      end
+      fontPath = self._themeManager:getDefaultFontFamily()
     end
 
     local tempFont = FONT_CACHE.get(self.textSize, fontPath)
@@ -2492,17 +2143,14 @@ function Element:calculateTextHeight()
     -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
     if self.fontFamily then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+      local themeToUse = self._themeManager:getTheme()
       if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
         fontPath = themeToUse.fonts[self.fontFamily]
       else
         fontPath = self.fontFamily
       end
     elseif self.themeComponent then
-      local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-        fontPath = themeToUse.fonts.default
-      end
+      fontPath = self._themeManager:getDefaultFontFamily()
     end
     font = FONT_CACHE.get(self.textSize, fontPath)
   else
@@ -2657,8 +2305,6 @@ function Element:moveCursorToNextWord()
     self._textEditor:moveCursorToNextWord()
   end
 end
-
-
 
 -- ====================
 -- Input Handling - Selection Management
@@ -3061,7 +2707,7 @@ function Element:_getFont()
   -- Get font path from theme or element
   local fontPath = nil
   if self.fontFamily then
-    local themeToUse = self.theme and Theme.get(self.theme) or Theme.getActive()
+    local themeToUse = self._themeManager:getTheme()
     if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
       fontPath = themeToUse.fonts[self.fontFamily]
     else
@@ -3071,8 +2717,6 @@ function Element:_getFont()
 
   return FONT_CACHE.getFont(self.textSize, fontPath)
 end
-
-
 
 -- ====================
 -- Input Handling - Mouse Selection
@@ -3249,8 +2893,6 @@ function Element:_handleTextDrag(mouseX, mouseY)
     self._textDragOccurred = self._textEditor._textDragOccurred
   end
 end
-
-
 
 -- ====================
 -- Input Handling - Keyboard Input

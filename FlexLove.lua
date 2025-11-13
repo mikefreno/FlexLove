@@ -11,14 +11,14 @@ local GuiState = req("GuiState")
 local StateManager = req("StateManager")
 ---@type Element
 local Element = req("Element")
----@type Theme
-local Theme = req("Theme")
 
 -- externals
 ---@type Animation
 local Animation = req("Animation")
 ---@type Color
 local Color = req("Color")
+---@type Theme
+local Theme = req("Theme")
 local enums = utils.enums
 
 -- ====================
@@ -776,6 +776,7 @@ end
 -- only export what should be used externally
 flexlove.Animation = Animation
 flexlove.Color = Color
+flexlove.Theme = Theme
 flexlove.enums = enums
 
 return flexlove

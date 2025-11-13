@@ -1,10 +1,3 @@
---[[
-FlexLove - UI Library for LÖVE Framework 'based' on flexbox
-VERSION: 0.1.0
-LICENSE: MIT
-For full documentation, see README.md
-]]
-
 local modulePath = (...):match("(.-)[^%.]+$") -- Get the module path prefix (e.g., "libs." or "")
 local function req(name)
   return require(modulePath .. "modules." .. name)
@@ -12,60 +5,75 @@ end
 
 -- internals
 local Blur = req("Blur")
-local ImageCache = req("ImageCache")
-local ImageDataReader = req("ImageDataReader")
-local ImageRenderer = req("ImageRenderer")
-local ImageScaler = req("ImageScaler")
-local NinePatchParser = req("NinePatchParser")
 local utils = req("utils")
 local Units = req("Units")
 local GuiState = req("GuiState")
 local StateManager = req("StateManager")
-
--- externals
+---@type Element
+local Element = req("Element")
 ---@type Theme
 local Theme = req("Theme")
+
+-- externals
 ---@type Animation
 local Animation = req("Animation")
 ---@type Color
 local Color = req("Color")
----@type Element
-local Element = req("Element")
-
 local enums = utils.enums
 
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
-  enums.Positioning,
-  enums.FlexDirection,
-  enums.JustifyContent,
-  enums.AlignContent,
-  enums.AlignItems,
-  enums.TextAlign,
-  enums.AlignSelf,
-  enums.JustifySelf,
-  enums.FlexWrap
-
 -- ====================
--- Top level GUI manager
+-- FlexLove - UI Library
 -- ====================
 
----@class Gui
-local Gui = GuiState
+---@class FlexLove
+local flexlove = {
+  _VERSION = "FlexLove v0.1.0",
+  _DESCRIPTION = "UI Library for LÖVE Framework based on flexbox",
+  _URL = "https://github.com/Station-Alpha/FlexLove",
+  _LICENSE = [[
+    MIT License
+
+    Copyright (c) 2025 Mike Freno
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+  ]],
+}
+
+-- Copy GuiState properties into flexlove
+for k, v in pairs(GuiState) do
+  flexlove[k] = v
+end
 
 --- Initialize FlexLove with configuration
 ---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean}
-function Gui.init(config)
+function flexlove.init(config)
   config = config or {}
 
   if config.baseScale then
-    Gui.baseScale = {
+    flexlove.baseScale = {
       width = config.baseScale.width or 1920,
       height = config.baseScale.height or 1080,
     }
 
     local currentWidth, currentHeight = Units.getViewport()
-    Gui.scaleFactors.x = currentWidth / Gui.baseScale.width
-    Gui.scaleFactors.y = currentHeight / Gui.baseScale.height
+    flexlove.scaleFactors.x = currentWidth / flexlove.baseScale.width
+    flexlove.scaleFactors.y = currentHeight / flexlove.baseScale.height
   end
 
   if config.theme then
@@ -73,11 +81,11 @@ function Gui.init(config)
       if type(config.theme) == "string" then
         Theme.load(config.theme)
         Theme.setActive(config.theme)
-        Gui.defaultTheme = config.theme
+        flexlove.defaultTheme = config.theme
       elseif type(config.theme) == "table" then
         local theme = Theme.new(config.theme)
         Theme.setActive(theme)
-        Gui.defaultTheme = theme.name
+        flexlove.defaultTheme = theme.name
       end
     end)
 
@@ -87,10 +95,10 @@ function Gui.init(config)
   end
 
   local immediateMode = config.immediateMode or false
-  Gui.setMode(immediateMode and "immediate" or "retained")
+  flexlove.setMode(immediateMode and "immediate" or "retained")
 
   -- Configure auto frame management (defaults to false for manual control)
-  Gui._autoFrameManagement = config.autoFrameManagement or false
+  flexlove._autoFrameManagement = config.autoFrameManagement or false
 
   -- Configure state management
   if config.stateRetentionFrames or config.maxStateEntries then
@@ -101,42 +109,42 @@ function Gui.init(config)
   end
 end
 
-function Gui.resize()
+function flexlove.resize()
   local newWidth, newHeight = love.window.getMode()
 
-  if Gui.baseScale then
-    Gui.scaleFactors.x = newWidth / Gui.baseScale.width
-    Gui.scaleFactors.y = newHeight / Gui.baseScale.height
+  if flexlove.baseScale then
+    flexlove.scaleFactors.x = newWidth / flexlove.baseScale.width
+    flexlove.scaleFactors.y = newHeight / flexlove.baseScale.height
   end
 
   Blur.clearCache()
 
-  Gui._gameCanvas = nil
-  Gui._backdropCanvas = nil
-  Gui._canvasDimensions = { width = 0, height = 0 }
+  flexlove._gameCanvas = nil
+  flexlove._backdropCanvas = nil
+  flexlove._canvasDimensions = { width = 0, height = 0 }
 
-  for _, win in ipairs(Gui.topElements) do
+  for _, win in ipairs(flexlove.topElements) do
     win:resize(newWidth, newHeight)
   end
 end
 
 --- Set the rendering mode (immediate or retained)
 ---@param mode "immediate"|"retained" The rendering mode to use
-function Gui.setMode(mode)
+function flexlove.setMode(mode)
   if mode == "immediate" then
-    Gui._immediateMode = true
-    Gui._immediateModeState = StateManager
+    flexlove._immediateMode = true
+    flexlove._immediateModeState = StateManager
     -- Reset frame state
-    Gui._frameStarted = false
-    Gui._autoBeganFrame = false
+    flexlove._frameStarted = false
+    flexlove._autoBeganFrame = false
   elseif mode == "retained" then
-    Gui._immediateMode = false
-    Gui._immediateModeState = nil
+    flexlove._immediateMode = false
+    flexlove._immediateModeState = nil
     -- Clear immediate mode state
-    Gui._frameStarted = false
-    Gui._autoBeganFrame = false
-    Gui._currentFrameElements = {}
-    Gui._frameNumber = 0
+    flexlove._frameStarted = false
+    flexlove._autoBeganFrame = false
+    flexlove._currentFrameElements = {}
+    flexlove._frameNumber = 0
   else
     error("[FlexLove] Invalid mode: " .. tostring(mode) .. ". Expected 'immediate' or 'retained'")
   end
@@ -144,34 +152,34 @@ end
 
 --- Get the current rendering mode
 ---@return "immediate"|"retained"
-function Gui.getMode()
-  return Gui._immediateMode and "immediate" or "retained"
+function flexlove.getMode()
+  return flexlove._immediateMode and "immediate" or "retained"
 end
 
 --- Begin a new immediate mode frame
-function Gui.beginFrame()
-  if not Gui._immediateMode then
+function flexlove.beginFrame()
+  if not flexlove._immediateMode then
     return
   end
 
   -- Increment frame counter
-  Gui._frameNumber = Gui._frameNumber + 1
+  flexlove._frameNumber = flexlove._frameNumber + 1
   StateManager.incrementFrame()
 
   -- Clear current frame elements
-  Gui._currentFrameElements = {}
-  Gui._frameStarted = true
+  flexlove._currentFrameElements = {}
+  flexlove._frameStarted = true
 
   -- Clear top elements (they will be recreated this frame)
-  Gui.topElements = {}
+  flexlove.topElements = {}
 
   -- Clear z-index ordered elements from previous frame
   GuiState.clearFrameElements()
 end
 
 --- End the current immediate mode frame
-function Gui.endFrame()
-  if not Gui._immediateMode then
+function flexlove.endFrame()
+  if not flexlove._immediateMode then
     return
   end
 
@@ -180,7 +188,7 @@ function Gui.endFrame()
 
   -- Layout all top-level elements now that all children have been added
   -- This ensures overflow detection happens with complete child lists
-  for _, element in ipairs(Gui._currentFrameElements) do
+  for _, element in ipairs(flexlove._currentFrameElements) do
     if not element.parent then
       element:layoutChildren() -- Layout with all children present
     end
@@ -188,7 +196,7 @@ function Gui.endFrame()
 
   -- Auto-update all top-level elements (triggers additional state updates)
   -- This must happen BEFORE saving state so that scroll positions and overflow are calculated
-  for _, element in ipairs(Gui._currentFrameElements) do
+  for _, element in ipairs(flexlove._currentFrameElements) do
     -- Only update top-level elements (those without parents in the current frame)
     -- Element:update() will recursively update children
     if not element.parent then
@@ -197,7 +205,7 @@ function Gui.endFrame()
   end
 
   -- Save state back for all elements created this frame
-  for _, element in ipairs(Gui._currentFrameElements) do
+  for _, element in ipairs(flexlove._currentFrameElements) do
     if element.id and element.id ~= "" then
       local state = StateManager.getState(element.id, {})
 
@@ -237,21 +245,21 @@ function Gui.endFrame()
   StateManager.forceCleanupIfNeeded()
 
   -- Clear frame started flag
-  Gui._frameStarted = false
+  flexlove._frameStarted = false
 end
 
 -- Canvas cache for game rendering
-Gui._gameCanvas = nil
-Gui._backdropCanvas = nil
-Gui._canvasDimensions = { width = 0, height = 0 }
+flexlove._gameCanvas = nil
+flexlove._backdropCanvas = nil
+flexlove._canvasDimensions = { width = 0, height = 0 }
 
 ---@param gameDrawFunc function|nil
 ---@param postDrawFunc function|nil
-function Gui.draw(gameDrawFunc, postDrawFunc)
+function flexlove.draw(gameDrawFunc, postDrawFunc)
   -- Auto-end frame if it was auto-started in immediate mode
-  if Gui._immediateMode and Gui._autoBeganFrame then
-    Gui.endFrame()
-    Gui._autoBeganFrame = false
+  if flexlove._immediateMode and flexlove._autoBeganFrame then
+    flexlove.endFrame()
+    flexlove._autoBeganFrame = false
   end
 
   local outerCanvas = love.graphics.getCanvas()
@@ -260,14 +268,14 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
   if type(gameDrawFunc) == "function" then
     local width, height = love.graphics.getDimensions()
 
-    if not Gui._gameCanvas or Gui._canvasDimensions.width ~= width or Gui._canvasDimensions.height ~= height then
-      Gui._gameCanvas = love.graphics.newCanvas(width, height)
-      Gui._backdropCanvas = love.graphics.newCanvas(width, height)
-      Gui._canvasDimensions.width = width
-      Gui._canvasDimensions.height = height
+    if not flexlove._gameCanvas or flexlove._canvasDimensions.width ~= width or flexlove._canvasDimensions.height ~= height then
+      flexlove._gameCanvas = love.graphics.newCanvas(width, height)
+      flexlove._backdropCanvas = love.graphics.newCanvas(width, height)
+      flexlove._canvasDimensions.width = width
+      flexlove._canvasDimensions.height = height
     end
 
-    gameCanvas = Gui._gameCanvas
+    gameCanvas = flexlove._gameCanvas
 
     love.graphics.setCanvas(gameCanvas)
     love.graphics.clear()
@@ -278,7 +286,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
     love.graphics.draw(gameCanvas, 0, 0)
   end
 
-  table.sort(Gui.topElements, function(a, b)
+  table.sort(flexlove.topElements, function(a, b)
     return a.z < b.z
   end)
 
@@ -295,7 +303,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
   end
 
   local needsBackdropCanvas = false
-  for _, win in ipairs(Gui.topElements) do
+  for _, win in ipairs(flexlove.topElements) do
     if hasBackdropBlur(win) then
       needsBackdropCanvas = true
       break
@@ -303,7 +311,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
   end
 
   if needsBackdropCanvas and gameCanvas then
-    local backdropCanvas = Gui._backdropCanvas
+    local backdropCanvas = flexlove._backdropCanvas
     local prevColor = { love.graphics.getColor() }
 
     love.graphics.setCanvas(backdropCanvas)
@@ -314,7 +322,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
     love.graphics.setCanvas(outerCanvas)
     love.graphics.setColor(unpack(prevColor))
 
-    for _, win in ipairs(Gui.topElements) do
+    for _, win in ipairs(flexlove.topElements) do
       -- Check if this element tree has backdrop blur
       local needsBackdrop = hasBackdropBlur(win)
 
@@ -334,7 +342,7 @@ function Gui.draw(gameDrawFunc, postDrawFunc)
       love.graphics.setCanvas(outerCanvas)
     end
   else
-    for _, win in ipairs(Gui.topElements) do
+    for _, win in ipairs(flexlove.topElements) do
       win:draw(nil)
     end
   end
@@ -365,7 +373,7 @@ end
 ---@param x number
 ---@param y number
 ---@return Element?
-function Gui.getElementAtPosition(x, y)
+function flexlove.getElementAtPosition(x, y)
   local candidates = {}
   local blockingElements = {}
 
@@ -420,7 +428,7 @@ function Gui.getElementAtPosition(x, y)
     end
   end
 
-  for _, element in ipairs(Gui.topElements) do
+  for _, element in ipairs(flexlove.topElements) do
     collectHits(element)
   end
 
@@ -457,21 +465,21 @@ function Gui.getElementAtPosition(x, y)
   return blockingElements[1]
 end
 
-function Gui.update(dt)
+function flexlove.update(dt)
   local mx, my = love.mouse.getPosition()
-  local topElement = Gui.getElementAtPosition(mx, my)
+  local topElement = flexlove.getElementAtPosition(mx, my)
 
-  Gui._activeEventElement = topElement
+  flexlove._activeEventElement = topElement
 
-  for _, win in ipairs(Gui.topElements) do
+  for _, win in ipairs(flexlove.topElements) do
     win:update(dt)
   end
 
-  Gui._activeEventElement = nil
+  flexlove._activeEventElement = nil
 
   -- In immediate mode, save state after update so that cursor blink timer changes persist
-  if Gui._immediateMode and Gui._currentFrameElements then
-    for _, element in ipairs(Gui._currentFrameElements) do
+  if flexlove._immediateMode and flexlove._currentFrameElements then
+    for _, element in ipairs(flexlove._currentFrameElements) do
       if element.id and element.id ~= "" and element.editable and element._focused then
         local state = StateManager.getState(element.id, {})
 
@@ -489,9 +497,9 @@ end
 
 --- Forward text input to focused element
 ---@param text string
-function Gui.textinput(text)
-  if Gui._focusedElement then
-    Gui._focusedElement:textinput(text)
+function flexlove.textinput(text)
+  if flexlove._focusedElement then
+    flexlove._focusedElement:textinput(text)
   end
 end
 
@@ -499,14 +507,14 @@ end
 ---@param key string
 ---@param scancode string
 ---@param isrepeat boolean
-function Gui.keypressed(key, scancode, isrepeat)
-  if Gui._focusedElement then
-    Gui._focusedElement:keypressed(key, scancode, isrepeat)
+function flexlove.keypressed(key, scancode, isrepeat)
+  if flexlove._focusedElement then
+    flexlove._focusedElement:keypressed(key, scancode, isrepeat)
   end
 end
 
 --- Handle mouse wheel scrolling
-function Gui.wheelmoved(x, y)
+function flexlove.wheelmoved(x, y)
   local mx, my = love.mouse.getPosition()
 
   local function findScrollableAtPosition(elements, mx, my)
@@ -538,7 +546,7 @@ function Gui.wheelmoved(x, y)
   end
 
   -- In immediate mode, use z-index ordered elements and respect occlusion
-  if Gui._immediateMode then
+  if flexlove._immediateMode then
     -- Find topmost scrollable element at mouse position using z-index ordering
     for i = #GuiState._zIndexOrderedElements, 1, -1 do
       local element = GuiState._zIndexOrderedElements[i]
@@ -559,7 +567,7 @@ function Gui.wheelmoved(x, y)
     end
   else
     -- In retained mode, use the old tree traversal method
-    local scrollableElement = findScrollableAtPosition(Gui.topElements, mx, my)
+    local scrollableElement = findScrollableAtPosition(flexlove.topElements, mx, my)
     if scrollableElement then
       scrollableElement:_handleWheelScroll(x, y)
     end
@@ -567,35 +575,35 @@ function Gui.wheelmoved(x, y)
 end
 
 --- Destroy all elements and their children
-function Gui.destroy()
-  for _, win in ipairs(Gui.topElements) do
+function flexlove.destroy()
+  for _, win in ipairs(flexlove.topElements) do
     win:destroy()
   end
-  Gui.topElements = {}
-  Gui.baseScale = nil
-  Gui.scaleFactors = { x = 1.0, y = 1.0 }
-  Gui._cachedViewport = { width = 0, height = 0 }
-  Gui._gameCanvas = nil
-  Gui._backdropCanvas = nil
-  Gui._canvasDimensions = { width = 0, height = 0 }
-  Gui._focusedElement = nil
+  flexlove.topElements = {}
+  flexlove.baseScale = nil
+  flexlove.scaleFactors = { x = 1.0, y = 1.0 }
+  flexlove._cachedViewport = { width = 0, height = 0 }
+  flexlove._gameCanvas = nil
+  flexlove._backdropCanvas = nil
+  flexlove._canvasDimensions = { width = 0, height = 0 }
+  flexlove._focusedElement = nil
 end
 
 --- Create a new element (supports both immediate and retained mode)
 ---@param props ElementProps
 ---@return Element
-function Gui.new(props)
+function flexlove.new(props)
   props = props or {}
 
   -- If not in immediate mode, use standard Element.new
-  if not Gui._immediateMode then
+  if not flexlove._immediateMode then
     return Element.new(props)
   end
 
   -- Auto-begin frame if not manually started (convenience feature)
-  if not Gui._frameStarted then
-    Gui.beginFrame()
-    Gui._autoBeganFrame = true
+  if not flexlove._frameStarted then
+    flexlove.beginFrame()
+    flexlove._autoBeganFrame = true
   end
 
   -- Immediate mode: generate ID if not provided
@@ -633,14 +641,14 @@ function Gui.new(props)
   element._scrollbarDragging = state._scrollbarDragging ~= nil and state._scrollbarDragging or false
   element._hoveredScrollbar = state._hoveredScrollbar
   element._scrollbarDragOffset = state._scrollbarDragOffset ~= nil and state._scrollbarDragOffset or 0
-  
+
   -- Sync scrollbar drag state to ScrollManager if it exists
   if element._scrollManager then
     element._scrollManager._scrollbarDragging = element._scrollbarDragging
     element._scrollManager._hoveredScrollbar = element._hoveredScrollbar
     element._scrollManager._scrollbarDragOffset = element._scrollbarDragOffset
   end
-  
+
   -- Restore cursor blink state
   element._cursorBlinkTimer = state._cursorBlinkTimer or element._cursorBlinkTimer or 0
   if state._cursorVisible ~= nil then
@@ -661,7 +669,7 @@ function Gui.new(props)
   element._scrollbarDragging = state.scrollbarDragging
   element._hoveredScrollbar = state.hoveredScrollbar
   element._scrollbarDragOffset = state.scrollbarDragOffset or 0
-  
+
   -- Sync interactive scroll state to ScrollManager if it exists
   if element._scrollManager then
     element._scrollManager._scrollbarHoveredVertical = element._scrollbarHoveredVertical or false
@@ -686,7 +694,7 @@ function Gui.new(props)
   end
 
   -- Store element in current frame tracking
-  table.insert(Gui._currentFrameElements, element)
+  table.insert(flexlove._currentFrameElements, element)
 
   -- Save state back at end of frame (we'll do this in endFrame)
   -- For now, we need to update the state when properties change
@@ -698,8 +706,8 @@ end
 
 --- Get state count (for debugging)
 ---@return number
-function Gui.getStateCount()
-  if not Gui._immediateMode then
+function flexlove.getStateCount()
+  if not flexlove._immediateMode then
     return 0
   end
   return StateManager.getStateCount()
@@ -707,16 +715,16 @@ end
 
 --- Clear state for a specific element ID
 ---@param id string
-function Gui.clearState(id)
-  if not Gui._immediateMode then
+function flexlove.clearState(id)
+  if not flexlove._immediateMode then
     return
   end
   StateManager.clearState(id)
 end
 
 --- Clear all immediate mode states
-function Gui.clearAllStates()
-  if not Gui._immediateMode then
+function flexlove.clearAllStates()
+  if not flexlove._immediateMode then
     return
   end
   StateManager.clearAllStates()
@@ -724,8 +732,8 @@ end
 
 --- Get state statistics (for debugging)
 ---@return table
-function Gui.getStateStats()
-  if not Gui._immediateMode then
+function flexlove.getStateStats()
+  if not flexlove._immediateMode then
     return { stateCount = 0, frameNumber = 0 }
   end
   return StateManager.getStats()
@@ -734,65 +742,40 @@ end
 --- Helper function: Create a button with default styling
 ---@param props table
 ---@return Element
-function Gui.button(props)
+function flexlove.button(props)
   props = props or {}
   props.themeComponent = props.themeComponent or "button"
-  return Gui.new(props)
+  return flexlove.new(props)
 end
 
 --- Helper function: Create a panel/container
 ---@param props table
 ---@return Element
-function Gui.panel(props)
+function flexlove.panel(props)
   props = props or {}
-  return Gui.new(props)
+  return flexlove.new(props)
 end
 
 --- Helper function: Create a text label
 ---@param props table
 ---@return Element
-function Gui.text(props)
+function flexlove.text(props)
   props = props or {}
-  return Gui.new(props)
+  return flexlove.new(props)
 end
 
 --- Helper function: Create an input field
 ---@param props table
 ---@return Element
-function Gui.input(props)
+function flexlove.input(props)
   props = props or {}
   props.editable = true
-  return Gui.new(props)
+  return flexlove.new(props)
 end
 
--- Export original Element.new for direct access if needed
-Gui.Element = Element
-Gui.Animation = Animation
-Gui.Theme = Theme
-Gui.ImageCache = ImageCache
-Gui.ImageDataReader = ImageDataReader
-Gui.ImageRenderer = ImageRenderer
-Gui.ImageScaler = ImageScaler
-Gui.NinePatchParser = NinePatchParser
-Gui.StateManager = StateManager
+-- only export what should be used externally
+flexlove.Animation = Animation
+flexlove.Color = Color
+flexlove.enums = enums
 
-return {
-  Gui = Gui,
-  Element = Element,
-  Color = Color,
-  Theme = Theme,
-  Positioning = Positioning,
-  FlexDirection = FlexDirection,
-  JustifyContent = JustifyContent,
-  AlignContent = AlignContent,
-  AlignItems = AlignItems,
-  TextAlign = TextAlign,
-  AlignSelf = AlignSelf,
-  JustifySelf = JustifySelf,
-  FlexWrap = FlexWrap,
-  enums = enums,
-  -- generally should not be used directly, exported for testing, mainly
-  ImageCache = ImageCache,
-  ImageRenderer = ImageRenderer,
-  ImageScaler = ImageScaler,
-}
+return flexlove

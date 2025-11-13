@@ -4,6 +4,7 @@ local function req(name)
 end
 
 local NinePatchParser = req("NinePatchParser")
+local Color = req("Color")
 
 --- Standardized error message formatter
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")
@@ -699,6 +700,7 @@ function ThemeManager:setTheme(themeName, componentName)
   self.themeComponent = componentName
 end
 
+-- Export both Theme and ThemeManager
 Theme.Manager = ThemeManager
 
 return Theme

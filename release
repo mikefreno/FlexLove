@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Release script for FlexLove
+# Usage: ./release <version>
+# Example: ./release 0.2.0
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "Error: Version number required"
+    echo "Usage: ./release <version>"
+    echo "Example: ./release 0.2.0"
+    exit 1
+fi
+
+VERSION="$1"
+
+# Validate version format (basic semver check)
+if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Error: Invalid version format. Use semantic versioning (e.g., 0.2.0)"
+    exit 1
+fi
+
+echo "Preparing release v$VERSION..."
+
+# Update version in README.md
+echo "Updating README.md..."
+sed -i.bak "s/^# FlexLöve v[0-9]\+\.[0-9]\+\.[0-9]\+/# FlexLöve v$VERSION/" README.md
+rm README.md.bak
+
+# Update version in FlexLove.lua
+echo "Updating FlexLove.lua..."
+sed -i.bak "s/FlexLove\._VERSION = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/FlexLove._VERSION = \"$VERSION\"/" FlexLove.lua
+rm FlexLove.lua.bak
+
+# Show the changes
+echo ""
+echo "Changes made:"
+git diff README.md FlexLove.lua
+
+# Ask for confirmation
+echo ""
+read -p "Do you want to commit these changes and create a release? (y/n) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Release cancelled. Restoring original files..."
+    git checkout README.md FlexLove.lua
+    exit 1
+fi
+
+# Commit the changes
+echo "Committing version bump..."
+git add README.md FlexLove.lua
+git commit -m "Bump version to v$VERSION"
+
+# Create git tag
+echo "Creating git tag v$VERSION..."
+git tag -a "v$VERSION" -m "Release v$VERSION"
+
+# Push changes and tags
+echo "Pushing to remote..."
+git push origin main
+git push origin "v$VERSION"
+
+# Create GitHub release
+echo "Creating GitHub release..."
+gh release create "v$VERSION" \
+    --title "v$VERSION" \
+    --generate-notes
+
+echo ""
+echo "✅ Release v$VERSION completed successfully!"
+echo "   - README.md and FlexLove.lua updated"
+echo "   - Git tag v$VERSION created"
+echo "   - GitHub release created"

@@ -228,14 +228,12 @@ function Element.new(props)
 
   self.userdata = props.userdata
 
-  -- Input event callbacks
   self.onFocus = props.onFocus
   self.onBlur = props.onBlur
   self.onTextInput = props.onTextInput
   self.onTextChange = props.onTextChange
   self.onEnter = props.onEnter
 
-  -- Initialize EventHandler for event processing
   self._eventHandler = EventHandler.new({
     onEvent = self.onEvent,
   }, {
@@ -247,7 +245,6 @@ function Element.new(props)
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
-  -- Initialize ThemeManager for theme management
   self._themeManager = ThemeManager.new({
     theme = props.theme or Gui.defaultTheme,
     themeComponent = props.themeComponent or nil,
@@ -279,10 +276,8 @@ function Element.new(props)
   -- Initialize contentAutoSizingMultiplier after theme is set
   -- Priority: element props > theme component > theme default
   if props.contentAutoSizingMultiplier then
-    -- Explicitly set on element
     self.contentAutoSizingMultiplier = props.contentAutoSizingMultiplier
   else
-    -- Try to source from theme via ThemeManager
     local multiplier = self._themeManager:getContentAutoSizingMultiplier()
     self.contentAutoSizingMultiplier = multiplier or { 1, 1 }
   end
@@ -291,12 +286,10 @@ function Element.new(props)
   self.scaleCorners = self._themeManager.scaleCorners
   self.scalingAlgorithm = self._themeManager.scalingAlgorithm
 
-  -- Initialize blur properties
   self.contentBlur = props.contentBlur
   self.backdropBlur = props.backdropBlur
   self._blurInstance = nil
 
-  -- Initialize input control properties
   self.editable = props.editable or false
   self.multiline = props.multiline or false
   self.passwordMode = props.passwordMode or false
@@ -316,7 +309,6 @@ function Element.new(props)
   self.placeholder = props.placeholder
   self.inputType = props.inputType or "text"
 
-  -- Text behavior properties
   self.textOverflow = props.textOverflow or "clip"
   self.scrollable = props.scrollable
   if self.scrollable == nil then
@@ -330,12 +322,10 @@ function Element.new(props)
   end
   self.selectOnFocus = props.selectOnFocus or false
 
-  -- Cursor and selection properties
   self.cursorColor = props.cursorColor
   self.selectionColor = props.selectionColor
   self.cursorBlinkRate = props.cursorBlinkRate or 0.5
 
-  -- Initialize TextEditor for editable elements
   if self.editable then
     self._textEditor = TextEditor.new({
       editable = self.editable,
@@ -635,7 +625,6 @@ function Element.new(props)
       local parentWidth = self.parent and self.parent.width or viewportWidth
       tempWidth = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
     else
-      -- Apply base scaling to pixel values
       tempWidth = Gui.baseScale and (widthProp * scaleX) or widthProp
       self.units.width = { value = widthProp, unit = "px" }
     end
@@ -650,7 +639,6 @@ function Element.new(props)
       self.units.width = { value = 100, unit = "%" } -- Mark as parent-constrained
       self.autosizing.width = false -- Not truly autosizing, constrained by parent
     else
-      -- Calculate auto-width without padding first
       tempWidth = self:calculateAutoWidth()
       self.width = tempWidth
       self.units.width = { value = nil, unit = "auto" } -- Mark as auto-sized

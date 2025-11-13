@@ -61,7 +61,6 @@ function Animation.new(props)
   self.transition = props.transition
   self.elapsed = 0
 
-  -- Set easing function (default to linear)
   local easingName = props.easing or "linear"
   self.easing = Easing[easingName] or Easing.linear
 
@@ -76,9 +75,9 @@ end
 ---@return boolean
 function Animation:update(dt)
   self.elapsed = self.elapsed + dt
-  self._resultDirty = true -- Mark cached result as dirty
+  self._resultDirty = true
   if self.elapsed >= self.duration then
-    return true -- finished
+    return true
   else
     return false
   end
@@ -92,15 +91,13 @@ function Animation:interpolate()
   end
 
   local t = math.min(self.elapsed / self.duration, 1)
-  t = self.easing(t) -- Apply easing function
+  t = self.easing(t)
   local result = self._cachedResult -- Reuse existing table
 
-  -- Clear previous values
   result.width = nil
   result.height = nil
   result.opacity = nil
 
-  -- Handle width and height if present
   if self.start.width and self.final.width then
     result.width = self.start.width * (1 - t) + self.final.width * t
   end
@@ -109,31 +106,23 @@ function Animation:interpolate()
     result.height = self.start.height * (1 - t) + self.final.height * t
   end
 
-  -- Handle other properties like opacity
   if self.start.opacity and self.final.opacity then
     result.opacity = self.start.opacity * (1 - t) + self.final.opacity * t
   end
 
-  -- Apply transform if present
   if self.transform then
     for key, value in pairs(self.transform) do
       result[key] = value
     end
   end
 
-  self._resultDirty = false -- Mark as clean
+  self._resultDirty = false
   return result
 end
 
---- Apply animation to a GUI element
 ---@param element Element
 function Animation:apply(element)
-  if element.animation then
-    -- If there's an existing animation, we should probably stop it or replace it
-    element.animation = self
-  else
-    element.animation = self
-  end
+  element.animation = self
 end
 
 --- Create a simple fade animation

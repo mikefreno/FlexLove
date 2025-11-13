@@ -6,9 +6,9 @@ local MAX_CACHE_SIZE = 20
 
 --- Build Gaussian blur shader with given parameters
 ---@param taps number -- Number of samples (must be odd, >= 3)
----@param offset number -- Offset multiplier for sampling
+---@param offset number
 ---@param offset_type string -- "weighted" or "center"
----@param sigma number -- Gaussian sigma value
+---@param sigma number
 ---@return love.Shader
 local function buildShader(taps, offset, offset_type, sigma)
   taps = math.floor(taps)
@@ -17,7 +17,6 @@ local function buildShader(taps, offset, offset_type, sigma)
 
   local steps = (taps + 1) / 2
 
-  -- Calculate gaussian function
   local g_offsets = {}
   local g_weights = {}
   for i = 1, steps, 1 do
@@ -76,7 +75,6 @@ local function getCanvas(width, height)
 
   local cache = canvasCache[key]
 
-  -- Try to reuse existing canvas
   for i, canvas in ipairs(cache) do
     if not canvas.inUse then
       canvas.inUse = true
@@ -84,11 +82,9 @@ local function getCanvas(width, height)
     end
   end
 
-  -- Create new canvas if none available
   local canvas = love.graphics.newCanvas(width, height)
   table.insert(cache, { canvas = canvas, inUse = true })
 
-  -- Limit cache size
   if #cache > MAX_CACHE_SIZE then
     table.remove(cache, 1)
   end
@@ -150,30 +146,24 @@ end
 ---@param drawFunc function -- Function to draw content to be blurred
 function Blur.applyToRegion(blurInstance, intensity, x, y, width, height, drawFunc)
   if intensity <= 0 or width <= 0 or height <= 0 then
-    -- No blur, just draw normally
     drawFunc()
     return
   end
 
-  -- Clamp intensity
   intensity = math.max(0, math.min(100, intensity))
 
-  -- Calculate blur passes based on intensity
   -- Intensity 0-100 maps to 0-5 passes
   local passes = math.ceil(intensity / 20)
   passes = math.max(1, math.min(5, passes))
 
-  -- Get canvases for ping-pong rendering
   local canvas1 = getCanvas(width, height)
   local canvas2 = getCanvas(width, height)
 
-  -- Save graphics state
   local prevCanvas = love.graphics.getCanvas()
   local prevShader = love.graphics.getShader()
   local prevColor = { love.graphics.getColor() }
   local prevBlendMode = love.graphics.getBlendMode()
 
-  -- Render content to first canvas
   love.graphics.setCanvas(canvas1)
   love.graphics.clear()
   love.graphics.push()
@@ -182,36 +172,30 @@ function Blur.applyToRegion(blurInstance, intensity, x, y, width, height, drawFu
   drawFunc()
   love.graphics.pop()
 
-  -- Apply blur passes
   love.graphics.setShader(blurInstance.shader)
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.setBlendMode("alpha", "premultiplied")
 
   for i = 1, passes do
-    -- Horizontal pass
     love.graphics.setCanvas(canvas2)
     love.graphics.clear()
     blurInstance.shader:send("direction", { 1 / width, 0 })
     love.graphics.draw(canvas1, 0, 0)
 
-    -- Vertical pass
     love.graphics.setCanvas(canvas1)
     love.graphics.clear()
     blurInstance.shader:send("direction", { 0, 1 / height })
     love.graphics.draw(canvas2, 0, 0)
   end
 
-  -- Draw blurred result to screen
   love.graphics.setCanvas(prevCanvas)
   love.graphics.setShader()
   love.graphics.setBlendMode(prevBlendMode)
   love.graphics.draw(canvas1, x, y)
 
-  -- Restore graphics state
   love.graphics.setShader(prevShader)
   love.graphics.setColor(unpack(prevColor))
 
-  -- Release canvases back to cache
   releaseCanvas(canvas1)
   releaseCanvas(canvas2)
 end
@@ -229,62 +213,50 @@ function Blur.applyBackdrop(blurInstance, intensity, x, y, width, height, backdr
     return
   end
 
-  -- Clamp intensity
   intensity = math.max(0, math.min(100, intensity))
 
-  -- Calculate blur passes based on intensity
   local passes = math.ceil(intensity / 20)
   passes = math.max(1, math.min(5, passes))
 
-  -- Get canvases for ping-pong rendering
   local canvas1 = getCanvas(width, height)
   local canvas2 = getCanvas(width, height)
 
-  -- Save graphics state
   local prevCanvas = love.graphics.getCanvas()
   local prevShader = love.graphics.getShader()
   local prevColor = { love.graphics.getColor() }
   local prevBlendMode = love.graphics.getBlendMode()
 
-  -- Extract the region from backdrop
   love.graphics.setCanvas(canvas1)
   love.graphics.clear()
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.setBlendMode("alpha", "premultiplied")
 
-  -- Create a quad for the region
   local backdropWidth, backdropHeight = backdropCanvas:getDimensions()
   local quad = love.graphics.newQuad(x, y, width, height, backdropWidth, backdropHeight)
   love.graphics.draw(backdropCanvas, quad, 0, 0)
 
-  -- Apply blur passes
   love.graphics.setShader(blurInstance.shader)
 
   for i = 1, passes do
-    -- Horizontal pass
     love.graphics.setCanvas(canvas2)
     love.graphics.clear()
     blurInstance.shader:send("direction", { 1 / width, 0 })
     love.graphics.draw(canvas1, 0, 0)
 
-    -- Vertical pass
     love.graphics.setCanvas(canvas1)
     love.graphics.clear()
     blurInstance.shader:send("direction", { 0, 1 / height })
     love.graphics.draw(canvas2, 0, 0)
   end
 
-  -- Draw blurred result to screen
   love.graphics.setCanvas(prevCanvas)
   love.graphics.setShader()
   love.graphics.setBlendMode(prevBlendMode)
   love.graphics.draw(canvas1, x, y)
 
-  -- Restore graphics state
   love.graphics.setShader(prevShader)
   love.graphics.setColor(unpack(prevColor))
 
-  -- Release canvases back to cache
   releaseCanvas(canvas1)
   releaseCanvas(canvas2)
 end

@@ -1,14 +1,10 @@
 --- Standardized error message formatter
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string -- Error message
----@return string -- Formatted error message
+---@param message string
+---@return string
 local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
 end
-
--- ====================
--- Color System
--- ====================
 
 --- Utility class for color handling
 ---@class Color
@@ -20,10 +16,10 @@ local Color = {}
 Color.__index = Color
 
 --- Create a new color instance
----@param r number? -- Default: 0
----@param g number? -- Default: 0
----@param b number? -- Default: 0
----@param a number? -- Default: 1
+---@param r number?
+---@param g number?
+---@param b number?
+---@param a number?
 ---@return Color
 function Color.new(r, g, b, a)
   local self = setmetatable({}, Color)

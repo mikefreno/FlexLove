@@ -9,6 +9,7 @@ local utils = req("utils")
 local Units = req("Units")
 local Context = req("Context")
 local StateManager = req("StateManager")
+local ErrorHandler = req("ErrorHandler")
 ---@type Element
 local Element = req("Element")
 
@@ -26,6 +27,7 @@ local flexlove = Context
 
 -- Initialize Units module with Context dependency
 Units.initialize(Context)
+Units.initializeErrorHandler(ErrorHandler)
 
 -- Add version and metadata
 flexlove._VERSION = "0.1.0"
@@ -480,10 +482,10 @@ function flexlove.keypressed(key, scancode, isrepeat)
   end
 end
 
-function flexlove.wheelmoved(x, y)
+function flexlove.wheelmoved(dx, dy)
   local mx, my = love.mouse.getPosition()
 
-  local function findScrollableAtPosition(elements, mx, my)
+  local function findScrollableAtPosition(elements, x, y)
     for i = #elements, 1, -1 do
       local element = elements[i]
 
@@ -492,9 +494,9 @@ function flexlove.wheelmoved(x, y)
       local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
       local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
-      if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
+      if x >= bx and x <= bx + bw and y >= by and y <= by + bh then
         if #element.children > 0 then
-          local childResult = findScrollableAtPosition(element.children, mx, my)
+          local childResult = findScrollableAtPosition(element.children, x, y)
           if childResult then
             return childResult
           end
@@ -521,12 +523,71 @@ function flexlove.wheelmoved(x, y)
       local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
       local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
-      if mx >= bx and mx <= bx + bw and my >= by and my <= by + bh then
-        local overflowX = element.overflowX or element.overflow
-        local overflowY = element.overflowY or element.overflow
-        if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
-          element:_handleWheelScroll(x, y)
-          return
+      -- Calculate scroll offset from parent chain
+      local scrollOffsetX = 0
+      local scrollOffsetY = 0
+      local current = element.parent
+      while current do
+        local overflowX = current.overflowX or current.overflow
+        local overflowY = current.overflowY or current.overflow
+        local hasScrollableOverflow = (
+          overflowX == "scroll"
+          or overflowX == "auto"
+          or overflowY == "scroll"
+          or overflowY == "auto"
+          or overflowX == "hidden"
+          or overflowY == "hidden"
+        )
+        if hasScrollableOverflow then
+          scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
+          scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
+        end
+        current = current.parent
+      end
+
+      -- Adjust mouse position by scroll offset
+      local adjustedMx = mx + scrollOffsetX
+      local adjustedMy = my + scrollOffsetY
+
+      -- Check if mouse is within element bounds
+      if adjustedMx >= bx and adjustedMx <= bx + bw and adjustedMy >= by and adjustedMy <= by + bh then
+        -- Check if mouse position is clipped by any parent
+        local isClipped = false
+        local parentCheck = element.parent
+        while parentCheck do
+          local parentOverflowX = parentCheck.overflowX or parentCheck.overflow
+          local parentOverflowY = parentCheck.overflowY or parentCheck.overflow
+          
+          if parentOverflowX == "hidden" or parentOverflowX == "scroll" or parentOverflowX == "auto" or 
+             parentOverflowY == "hidden" or parentOverflowY == "scroll" or parentOverflowY == "auto" then
+            local parentX = parentCheck.x + parentCheck.padding.left
+            local parentY = parentCheck.y + parentCheck.padding.top
+            local parentW = parentCheck.width
+            local parentH = parentCheck.height
+            
+            if mx < parentX or mx > parentX + parentW or my < parentY or my > parentY + parentH then
+              isClipped = true
+              break
+            end
+          end
+          parentCheck = parentCheck.parent
+        end
+
+        if not isClipped then
+          local overflowX = element.overflowX or element.overflow
+          local overflowY = element.overflowY or element.overflow
+          if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
+            element:_handleWheelScroll(dx, dy)
+            
+            -- Save scroll position to StateManager immediately in immediate mode
+            if element._stateId then
+              StateManager.updateState(element._stateId, {
+                _scrollX = element._scrollX,
+                _scrollY = element._scrollY,
+              })
+            end
+            return
+          end
         end
       end
     end
@@ -534,7 +595,7 @@ function flexlove.wheelmoved(x, y)
     -- In retained mode, use the old tree traversal method
     local scrollableElement = findScrollableAtPosition(flexlove.topElements, mx, my)
     if scrollableElement then
-      scrollableElement:_handleWheelScroll(x, y)
+      scrollableElement:_handleWheelScroll(dx, dy)
     end
   end
 end

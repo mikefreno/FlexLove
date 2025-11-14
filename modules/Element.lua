@@ -540,6 +540,7 @@ function Element.new(props)
     Grid = Grid,
     Units = Units,
     Context = Context,
+    ErrorHandler = ErrorHandler,
   })
   self._layoutEngine:initialize(self)
 
@@ -633,7 +634,10 @@ function Element.new(props)
         -- Pixel units
         self.textSize = value
       else
-        ErrorHandler.error("Element", "Unknown textSize unit: " .. unit)
+        ErrorHandler.error(
+          "Element",
+          string.format("Unknown textSize unit '%s'. Valid units: px, %%, vw, vh, ew, eh. Or use presets: xs, sm, md, lg, xl, xxl, 2xl, 3xl, 4xl", unit)
+        )
       end
     else
       -- Validate pixel textSize value
@@ -835,13 +839,18 @@ function Element.new(props)
 
   -- Re-resolve ew/eh textSize units now that width/height are set
   if props.textSize and type(props.textSize) == "string" then
-    local value, unit = Units.parse(props.textSize)
-    if unit == "ew" then
-      -- Element width relative (now that width is set)
-      self.textSize = (value / 100) * self.width
-    elseif unit == "eh" then
-      -- Element height relative (now that height is set)
-      self.textSize = (value / 100) * self.height
+    -- Check if it's a preset first (presets don't need re-resolution)
+    local presetValue, presetUnit = resolveTextSizePreset(props.textSize)
+    if not presetValue then
+      -- Not a preset, parse and check for ew/eh units
+      local value, unit = Units.parse(props.textSize)
+      if unit == "ew" then
+        -- Element width relative (now that width is set)
+        self.textSize = (value / 100) * self.width
+      elseif unit == "eh" then
+        -- Element height relative (now that height is set)
+        self.textSize = (value / 100) * self.height
+      end
     end
   end
 
@@ -1026,7 +1035,7 @@ function Element.new(props)
       -- Absolute positioning is relative to parent's content area (padding box)
       local baseX = self.parent.x + self.parent.padding.left
       local baseY = self.parent.y + self.parent.padding.top
-      
+
       -- Handle x position with units
       if props.x then
         if type(props.x) == "string" then
@@ -1253,16 +1262,36 @@ function Element.new(props)
   -- Update the LayoutEngine with actual layout properties
   -- (it was initialized early with defaults for auto-sizing calculations)
   self._layoutEngine.positioning = self.positioning
-  if self.flexDirection then self._layoutEngine.flexDirection = self.flexDirection end
-  if self.flexWrap then self._layoutEngine.flexWrap = self.flexWrap end
-  if self.justifyContent then self._layoutEngine.justifyContent = self.justifyContent end
-  if self.alignItems then self._layoutEngine.alignItems = self.alignItems end
-  if self.alignContent then self._layoutEngine.alignContent = self.alignContent end
-  if self.gap then self._layoutEngine.gap = self.gap end
-  if self.gridRows then self._layoutEngine.gridRows = self.gridRows end
-  if self.gridColumns then self._layoutEngine.gridColumns = self.gridColumns end
-  if self.columnGap then self._layoutEngine.columnGap = self.columnGap end
-  if self.rowGap then self._layoutEngine.rowGap = self.rowGap end
+  if self.flexDirection then
+    self._layoutEngine.flexDirection = self.flexDirection
+  end
+  if self.flexWrap then
+    self._layoutEngine.flexWrap = self.flexWrap
+  end
+  if self.justifyContent then
+    self._layoutEngine.justifyContent = self.justifyContent
+  end
+  if self.alignItems then
+    self._layoutEngine.alignItems = self.alignItems
+  end
+  if self.alignContent then
+    self._layoutEngine.alignContent = self.alignContent
+  end
+  if self.gap then
+    self._layoutEngine.gap = self.gap
+  end
+  if self.gridRows then
+    self._layoutEngine.gridRows = self.gridRows
+  end
+  if self.gridColumns then
+    self._layoutEngine.gridColumns = self.gridColumns
+  end
+  if self.columnGap then
+    self._layoutEngine.columnGap = self.columnGap
+  end
+  if self.rowGap then
+    self._layoutEngine.rowGap = self.rowGap
+  end
 
   ---animation
   self.transform = props.transform or {}
@@ -1285,6 +1314,7 @@ function Element.new(props)
       _scrollY = props._scrollY,
     }, {
       utils = utils,
+      Color = Color,
     })
     self._scrollManager:initialize(self)
 
@@ -1462,15 +1492,6 @@ function Element:_handleScrollbarRelease(button)
     return consumed
   end
   return false
-end
-
---- Scroll to track click position (internal method used by ScrollManager)
----@param mouseX number
----@param mouseY number
----@param component string -- "vertical" or "horizontal"
-function Element:_scrollToTrackPosition(mouseX, mouseY, component)
-  -- This method is now handled internally by ScrollManager
-  -- Keeping empty stub for backward compatibility
 end
 
 --- Handle mouse wheel scrolling (delegates to ScrollManager)
@@ -1794,10 +1815,11 @@ function Element:draw(backdropCanvas)
   self._renderer:drawText(self)
 
   -- Draw visual feedback when element is pressed (if it has an onEvent handler and highlight is not disabled)
-  if self.onEvent and not self.disableHighlight then
+  if self.onEvent and not self.disableHighlight and self._eventHandler then
     -- Check if any button is pressed
     local anyPressed = false
-    for _, pressed in pairs(self._pressed) do
+    local pressedState = self._eventHandler:getState()._pressed or {}
+    for _, pressed in pairs(pressedState) do
       if pressed then
         anyPressed = true
         break

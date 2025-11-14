@@ -57,6 +57,7 @@ function LayoutEngine.new(props, deps)
   self._Grid = deps.Grid
   self._Units = deps.Units
   self._Context = deps.Context
+  self._ErrorHandler = deps.ErrorHandler
   self._Positioning = Positioning
   self._FlexDirection = FlexDirection
   self._JustifyContent = JustifyContent
@@ -174,6 +175,22 @@ function LayoutEngine:layoutChildren()
     local isFlexChild = not (child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute)
     if isFlexChild then
       table.insert(flexChildren, child)
+      
+      -- Warn if child uses percentage sizing but parent has autosizing
+      if self._ErrorHandler then
+        if child.units and child.units.width then
+          if child.units.width.unit == "%" and self.element.autosizing and self.element.autosizing.width then
+            self._ErrorHandler.warn("LayoutEngine", 
+              string.format("Child '%s' uses percentage width but parent has auto-sizing enabled. This may cause unexpected results", child.id or "unnamed"))
+          end
+        end
+        if child.units and child.units.height then
+          if child.units.height.unit == "%" and self.element.autosizing and self.element.autosizing.height then
+            self._ErrorHandler.warn("LayoutEngine", 
+              string.format("Child '%s' uses percentage height but parent has auto-sizing enabled. This may cause unexpected results", child.id or "unnamed"))
+          end
+        end
+      end
     end
   end
 

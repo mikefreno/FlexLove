@@ -85,7 +85,11 @@ local function isPointInElement(element, x, y)
   local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
   local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
-  -- Walk up parent chain to check clipping and apply scroll offsets
+  -- Calculate scroll offset from parent chain
+  local scrollOffsetX = 0
+  local scrollOffsetY = 0
+  
+  -- Walk up parent chain to check clipping and accumulate scroll offsets
   local current = element.parent
   while current do
     local overflowX = current.overflowX or current.overflow
@@ -101,12 +105,20 @@ local function isPointInElement(element, x, y)
       if x < parentX or x > parentX + parentW or y < parentY or y > parentY + parentH then
         return false -- Point is clipped by parent
       end
+      
+      -- Accumulate scroll offset
+      scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
+      scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
     end
 
     current = current.parent
   end
 
-  return x >= bx and x <= bx + bw and y >= by and y <= by + bh
+  -- Adjust mouse position by scroll offset for hit testing
+  local adjustedX = x + scrollOffsetX
+  local adjustedY = y + scrollOffsetY
+
+  return adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh
 end
 
 --- Get the topmost element at a screen position

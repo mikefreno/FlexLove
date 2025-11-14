@@ -1,11 +1,18 @@
 local Units = {}
 
 local Context = nil
+local ErrorHandler = nil
 
 --- Initialize Units module with Context dependency
 ---@param context table The Context module
 function Units.initialize(context)
   Context = context
+end
+
+--- Initialize ErrorHandler dependency
+---@param errorHandler table The ErrorHandler module
+function Units.initializeErrorHandler(errorHandler)
+  ErrorHandler = errorHandler
 end
 
 ---@param value string|number
@@ -16,20 +23,34 @@ function Units.parse(value)
   end
 
   if type(value) ~= "string" then
-    -- Fallback to 0px for invalid types
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Invalid unit value type. Expected string or number, got %s", type(value)))
+    end
+    return 0, "px"
+  end
+
+  -- Check for invalid format (space between number and unit)
+  if value:match("%d%s+%a") then
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Invalid unit string '%s' (contains space). Use format like '50px' or '50%%'", value))
+    end
     return 0, "px"
   end
 
   -- Match number followed by optional unit
   local numStr, unit = value:match("^([%-]?[%d%.]+)(.*)$")
   if not numStr then
-    -- Fallback to 0px for invalid format
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Invalid unit format '%s'. Expected format: number + unit (e.g., '50px', '10%%', '2vw')", value))
+    end
     return 0, "px"
   end
 
   local num = tonumber(numStr)
   if not num then
-    -- Fallback to 0px for invalid numeric value
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Invalid numeric value in '%s'", value))
+    end
     return 0, "px"
   end
 
@@ -40,6 +61,9 @@ function Units.parse(value)
 
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   if not validUnits[unit] then
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Unknown unit '%s' in '%s'. Valid units: px, %%, vw, vh, ew, eh", unit, value))
+    end
     return num, "px"
   end
 
@@ -59,7 +83,11 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
     return value
   elseif unit == "%" then
     if not parentSize then
-      error(formatError("Units", "Percentage units require parent dimension"))
+      if ErrorHandler then
+        ErrorHandler.error("Units", "Percentage units require parent dimension. Element has no parent or parent dimension not available")
+      else
+        error("Percentage units require parent dimension")
+      end
     end
     return (value / 100) * parentSize
   elseif unit == "vw" then
@@ -67,7 +95,11 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
   elseif unit == "vh" then
     return (value / 100) * viewportHeight
   else
-    error(formatError("Units", string.format("Unknown unit type: '%s'. Valid units: px, %%, vw, vh, ew, eh", unit)))
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Unknown unit '%s'. Valid units: px, %%, vw, vh, ew, eh", unit))
+    else
+      error(string.format("Unknown unit type: '%s'", unit))
+    end
   end
 end
 

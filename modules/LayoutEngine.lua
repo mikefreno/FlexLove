@@ -13,7 +13,7 @@
 ---@field rowGap number? Gap between grid rows
 ---@field _Grid table
 ---@field _Units table
----@field _Gui table
+---@field _Context table
 ---@field _Positioning table
 ---@field _FlexDirection table
 ---@field _JustifyContent table
@@ -39,7 +39,7 @@ LayoutEngine.__index = LayoutEngine
 
 --- Create a new LayoutEngine instance
 ---@param props LayoutEngineProps
----@param deps table Dependencies {utils, Grid, Units, Gui}
+---@param deps table Dependencies {utils, Grid, Units, Context}
 ---@return LayoutEngine
 function LayoutEngine.new(props, deps)
   local enums = deps.utils.enums
@@ -56,7 +56,7 @@ function LayoutEngine.new(props, deps)
   -- Store dependencies for instance methods
   self._Grid = deps.Grid
   self._Units = deps.Units
-  self._Gui = deps.Gui
+  self._Context = deps.Context
   self._Positioning = Positioning
   self._FlexDirection = FlexDirection
   self._JustifyContent = JustifyContent
@@ -141,12 +141,14 @@ end
 
 --- Layout children within this element according to positioning mode
 function LayoutEngine:layoutChildren()
-  local element = self.element
+  if self.element == nil then
+    return
+  end
 
   if self.positioning == self._Positioning.ABSOLUTE or self.positioning == self._Positioning.RELATIVE then
     -- Absolute/Relative positioned containers don't layout their children according to flex rules,
     -- but they should still apply CSS positioning offsets to their children
-    for _, child in ipairs(element.children) do
+    for _, child in ipairs(self.element.children) do
       if child.top or child.right or child.bottom or child.left then
         self:applyPositioningOffsets(child)
       end
@@ -156,11 +158,11 @@ function LayoutEngine:layoutChildren()
 
   -- Handle grid layout
   if self.positioning == self._Positioning.GRID then
-    self._Grid.layoutGridItems(element)
+    self._Grid.layoutGridItems(self.element)
     return
   end
 
-  local childCount = #element.children
+  local childCount = #self.element.children
 
   if childCount == 0 then
     return
@@ -168,7 +170,7 @@ function LayoutEngine:layoutChildren()
 
   -- Get flex children (children that participate in flex layout)
   local flexChildren = {}
-  for _, child in ipairs(element.children) do
+  for _, child in ipairs(self.element.children) do
     local isFlexChild = not (child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute)
     if isFlexChild then
       table.insert(flexChildren, child)
@@ -185,7 +187,7 @@ function LayoutEngine:layoutChildren()
   local reservedCrossStart = 0 -- Space reserved at the start of cross axis (top for horizontal, left for vertical)
   local reservedCrossEnd = 0 -- Space reserved at the end of cross axis (bottom for horizontal, right for vertical)
 
-  for _, child in ipairs(element.children) do
+  for _, child in ipairs(self.element.children) do
     -- Only consider absolutely positioned children with explicit positioning
     if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
       -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
@@ -245,11 +247,11 @@ function LayoutEngine:layoutChildren()
   local availableMainSize = 0
   local availableCrossSize = 0
   if self.flexDirection == self._FlexDirection.HORIZONTAL then
-    availableMainSize = element.width - reservedMainStart - reservedMainEnd
-    availableCrossSize = element.height - reservedCrossStart - reservedCrossEnd
+    availableMainSize = self.element.width - reservedMainStart - reservedMainEnd
+    availableCrossSize = self.element.height - reservedCrossStart - reservedCrossEnd
   else
-    availableMainSize = element.height - reservedMainStart - reservedMainEnd
-    availableCrossSize = element.width - reservedCrossStart - reservedCrossEnd
+    availableMainSize = self.element.height - reservedMainStart - reservedMainEnd
+    availableCrossSize = self.element.width - reservedCrossStart - reservedCrossEnd
   end
 
   -- Handle flex wrap: create lines of children
@@ -448,11 +450,16 @@ function LayoutEngine:layoutChildren()
         local childTotalCrossSize = childBorderBoxHeight + child.margin.top + child.margin.bottom
 
         if effectiveAlign == self._AlignItems.FLEX_START then
-          child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
+          child.y = self.element.y + self.element.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
         elseif effectiveAlign == self._AlignItems.CENTER then
-          child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.top
+          child.y = self.element.y
+            + self.element.padding.top
+            + reservedCrossStart
+            + currentCrossPos
+            + ((lineHeight - childTotalCrossSize) / 2)
+            + child.margin.top
         elseif effectiveAlign == self._AlignItems.FLEX_END then
-          child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.top
+          child.y = self.element.y + self.element.padding.top + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.top
         elseif effectiveAlign == self._AlignItems.STRETCH then
           -- STRETCH: Only apply if height was not explicitly set
           if child.autosizing and child.autosizing.height then
@@ -461,7 +468,7 @@ function LayoutEngine:layoutChildren()
             child._borderBoxHeight = availableHeight
             child.height = math.max(0, availableHeight - child.padding.top - child.padding.bottom)
           end
-          child.y = element.y + element.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
+          child.y = self.element.y + self.element.padding.top + reservedCrossStart + currentCrossPos + child.margin.top
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -485,11 +492,16 @@ function LayoutEngine:layoutChildren()
         local childTotalCrossSize = childBorderBoxWidth + child.margin.left + child.margin.right
 
         if effectiveAlign == self._AlignItems.FLEX_START then
-          child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
+          child.x = self.element.x + self.element.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
         elseif effectiveAlign == self._AlignItems.CENTER then
-          child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + child.margin.left
+          child.x = self.element.x
+            + self.element.padding.left
+            + reservedCrossStart
+            + currentCrossPos
+            + ((lineHeight - childTotalCrossSize) / 2)
+            + child.margin.left
         elseif effectiveAlign == self._AlignItems.FLEX_END then
-          child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.left
+          child.x = self.element.x + self.element.padding.left + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + child.margin.left
         elseif effectiveAlign == self._AlignItems.STRETCH then
           -- STRETCH: Only apply if width was not explicitly set
           if child.autosizing and child.autosizing.width then
@@ -498,7 +510,7 @@ function LayoutEngine:layoutChildren()
             child._borderBoxWidth = availableWidth
             child.width = math.max(0, availableWidth - child.padding.left - child.padding.right)
           end
-          child.x = element.x + element.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
+          child.x = self.element.x + self.element.padding.left + reservedCrossStart + currentCrossPos + child.margin.left
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -519,7 +531,7 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Position explicitly absolute children after flex layout
-  for _, child in ipairs(element.children) do
+  for _, child in ipairs(self.element.children) do
     if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
       -- Apply positioning offsets (top, right, bottom, left)
       self:applyPositioningOffsets(child)
@@ -532,19 +544,21 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Detect overflow after children are laid out
-  if element._detectOverflow then
-    element:_detectOverflow()
+  if self.element._detectOverflow then
+    self.element:_detectOverflow()
   end
 end
 
 --- Calculate auto width based on children
----@return number The calculated width
+---@return number
 function LayoutEngine:calculateAutoWidth()
-  local element = self.element
+  if self.element == nil then
+    return 0
+  end
 
   -- BORDER-BOX MODEL: Calculate content width, caller will add padding to get border-box
-  local contentWidth = element:calculateTextWidth()
-  if not element.children or #element.children == 0 then
+  local contentWidth = self.element:calculateTextWidth()
+  if not self.element.children or #self.element.children == 0 then
     return contentWidth
   end
 
@@ -555,7 +569,7 @@ function LayoutEngine:calculateAutoWidth()
   local maxWidth = contentWidth
   local participatingChildren = 0
 
-  for _, child in ipairs(element.children) do
+  for _, child in ipairs(self.element.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
       -- BORDER-BOX MODEL: Use border-box width for auto-sizing calculations
@@ -578,13 +592,14 @@ function LayoutEngine:calculateAutoWidth()
   end
 end
 
---- Calculate auto height based on children
----@return number The calculated height
+---@return number
 function LayoutEngine:calculateAutoHeight()
-  local element = self.element
+  if self.element == nil then
+    return 0
+  end
 
-  local height = element:calculateTextHeight()
-  if not element.children or #element.children == 0 then
+  local height = self.element:calculateTextHeight()
+  if not self.element.children or #self.element.children == 0 then
     return height
   end
 
@@ -595,7 +610,7 @@ function LayoutEngine:calculateAutoHeight()
   local maxHeight = height
   local participatingChildren = 0
 
-  for _, child in ipairs(element.children) do
+  for _, child in ipairs(self.element.children) do
     -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
       -- BORDER-BOX MODEL: Use border-box height for auto-sizing calculations
@@ -622,162 +637,174 @@ end
 ---@param newViewportWidth number
 ---@param newViewportHeight number
 function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
-  local element = self.element
+  if self.element == nil then
+    return
+  end
   local Units = self._Units
-  local Gui = self._Gui
 
   -- Get updated scale factors
-  local scaleX, scaleY = Gui.getScaleFactors()
+  local scaleX, scaleY = self._Context.getScaleFactors()
 
   -- Recalculate border-box width if using viewport or percentage units (skip auto-sized)
   -- Store in _borderBoxWidth temporarily, will calculate content width after padding is resolved
-  if element.units.width.unit ~= "px" and element.units.width.unit ~= "auto" then
-    local parentWidth = element.parent and element.parent.width or newViewportWidth
-    element._borderBoxWidth = Units.resolve(element.units.width.value, element.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
-  elseif element.units.width.unit == "px" and element.units.width.value and Gui.baseScale then
+  if self.element.units.width.unit ~= "px" and self.element.units.width.unit ~= "auto" then
+    local parentWidth = self.element.parent and self.element.parent.width or newViewportWidth
+    self.element._borderBoxWidth =
+      Units.resolve(self.element.units.width.value, self.element.units.width.unit, newViewportWidth, newViewportHeight, parentWidth)
+  elseif self.element.units.width.unit == "px" and self.element.units.width.value and self._Context.baseScale then
     -- Reapply base scaling to pixel widths (border-box)
-    element._borderBoxWidth = element.units.width.value * scaleX
+    self.element._borderBoxWidth = self.element.units.width.value * scaleX
   end
 
   -- Recalculate border-box height if using viewport or percentage units (skip auto-sized)
   -- Store in _borderBoxHeight temporarily, will calculate content height after padding is resolved
-  if element.units.height.unit ~= "px" and element.units.height.unit ~= "auto" then
-    local parentHeight = element.parent and element.parent.height or newViewportHeight
-    element._borderBoxHeight = Units.resolve(element.units.height.value, element.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
-  elseif element.units.height.unit == "px" and element.units.height.value and Gui.baseScale then
+  if self.element.units.height.unit ~= "px" and self.element.units.height.unit ~= "auto" then
+    local parentHeight = self.element.parent and self.element.parent.height or newViewportHeight
+    self.element._borderBoxHeight =
+      Units.resolve(self.element.units.height.value, self.element.units.height.unit, newViewportWidth, newViewportHeight, parentHeight)
+  elseif self.element.units.height.unit == "px" and self.element.units.height.value and self._Context.baseScale then
     -- Reapply base scaling to pixel heights (border-box)
-    element._borderBoxHeight = element.units.height.value * scaleY
+    self.element._borderBoxHeight = self.element.units.height.value * scaleY
   end
 
   -- Recalculate position if using viewport or percentage units
-  if element.units.x.unit ~= "px" then
-    local parentWidth = element.parent and element.parent.width or newViewportWidth
-    local baseX = element.parent and element.parent.x or 0
-    local offsetX = Units.resolve(element.units.x.value, element.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
-    element.x = baseX + offsetX
+  if self.element.units.x.unit ~= "px" then
+    local parentWidth = self.element.parent and self.element.parent.width or newViewportWidth
+    local baseX = self.element.parent and self.element.parent.x or 0
+    local offsetX = Units.resolve(self.element.units.x.value, self.element.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
+    self.element.x = baseX + offsetX
   else
     -- For pixel units, update position relative to parent's new position (with base scaling)
-    if element.parent then
-      local baseX = element.parent.x
-      local scaledOffset = Gui.baseScale and (element.units.x.value * scaleX) or element.units.x.value
-      element.x = baseX + scaledOffset
-    elseif Gui.baseScale then
+    if self.element.parent then
+      local baseX = self.element.parent.x
+      local scaledOffset = self._Context.baseScale and (self.element.units.x.value * scaleX) or self.element.units.x.value
+      self.element.x = baseX + scaledOffset
+    elseif self._Context.baseScale then
       -- Top-level element with pixel position - apply base scaling
-      element.x = element.units.x.value * scaleX
+      self.element.x = self.element.units.x.value * scaleX
     end
   end
 
-  if element.units.y.unit ~= "px" then
-    local parentHeight = element.parent and element.parent.height or newViewportHeight
-    local baseY = element.parent and element.parent.y or 0
-    local offsetY = Units.resolve(element.units.y.value, element.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
-    element.y = baseY + offsetY
+  if self.element.units.y.unit ~= "px" then
+    local parentHeight = self.element.parent and self.element.parent.height or newViewportHeight
+    local baseY = self.element.parent and self.element.parent.y or 0
+    local offsetY = Units.resolve(self.element.units.y.value, self.element.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
+    self.element.y = baseY + offsetY
   else
     -- For pixel units, update position relative to parent's new position (with base scaling)
-    if element.parent then
-      local baseY = element.parent.y
-      local scaledOffset = Gui.baseScale and (element.units.y.value * scaleY) or element.units.y.value
-      element.y = baseY + scaledOffset
-    elseif Gui.baseScale then
+    if self.element.parent then
+      local baseY = self.element.parent.y
+      local scaledOffset = self._Context.baseScale and (self.element.units.y.value * scaleY) or self.element.units.y.value
+      self.element.y = baseY + scaledOffset
+    elseif self._Context.baseScale then
       -- Top-level element with pixel position - apply base scaling
-      element.y = element.units.y.value * scaleY
+      self.element.y = self.element.units.y.value * scaleY
     end
   end
 
   -- Recalculate textSize if auto-scaling is enabled or using viewport/element-relative units
-  if element.autoScaleText and element.units.textSize.value then
-    local unit = element.units.textSize.unit
-    local value = element.units.textSize.value
+  if self.element.autoScaleText and self.element.units.textSize.value then
+    local unit = self.element.units.textSize.unit
+    local value = self.element.units.textSize.value
 
-    if unit == "px" and Gui.baseScale then
+    if unit == "px" and self._Context.baseScale then
       -- With base scaling: scale pixel values relative to base resolution
-      element.textSize = value * scaleY
+      self.element.textSize = value * scaleY
     elseif unit == "px" then
       -- Without base scaling but auto-scaling enabled: text doesn't scale
-      element.textSize = value
+      self.element.textSize = value
     elseif unit == "%" or unit == "vh" then
       -- Percentage and vh are relative to viewport height
-      element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
+      self.element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
     elseif unit == "vw" then
       -- vw is relative to viewport width
-      element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportWidth)
+      self.element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportWidth)
     elseif unit == "ew" then
       -- Element width relative
-      element.textSize = (value / 100) * element.width
+      self.element.textSize = (value / 100) * self.element.width
     elseif unit == "eh" then
       -- Element height relative
-      element.textSize = (value / 100) * element.height
+      self.element.textSize = (value / 100) * self.element.height
     else
-      element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
+      self.element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
     end
 
     -- Apply min/max constraints (with base scaling)
-    local minSize = element.minTextSize and (Gui.baseScale and (element.minTextSize * scaleY) or element.minTextSize)
-    local maxSize = element.maxTextSize and (Gui.baseScale and (element.maxTextSize * scaleY) or element.maxTextSize)
+    local minSize = self.element.minTextSize and (self._Context.baseScale and (self.element.minTextSize * scaleY) or self.element.minTextSize)
+    local maxSize = self.element.maxTextSize and (self._Context.baseScale and (self.element.maxTextSize * scaleY) or self.element.maxTextSize)
 
-    if minSize and element.textSize < minSize then
-      element.textSize = minSize
+    if minSize and self.element.textSize < minSize then
+      self.element.textSize = minSize
     end
-    if maxSize and element.textSize > maxSize then
-      element.textSize = maxSize
+    if maxSize and self.element.textSize > maxSize then
+      self.element.textSize = maxSize
     end
 
     -- Protect against too-small text sizes (minimum 1px)
-    if element.textSize < 1 then
-      element.textSize = 1 -- Minimum 1px
+    if self.element.textSize < 1 then
+      self.element.textSize = 1 -- Minimum 1px
     end
-  elseif element.units.textSize.unit == "px" and element.units.textSize.value and Gui.baseScale then
+  elseif self.element.units.textSize.unit == "px" and self.element.units.textSize.value and self._Context.baseScale then
     -- No auto-scaling but base scaling is set: reapply base scaling to pixel text sizes
-    element.textSize = element.units.textSize.value * scaleY
+    self.element.textSize = self.element.units.textSize.value * scaleY
 
     -- Protect against too-small text sizes (minimum 1px)
-    if element.textSize < 1 then
-      element.textSize = 1 -- Minimum 1px
+    if self.element.textSize < 1 then
+      self.element.textSize = 1 -- Minimum 1px
     end
   end
 
   -- Final protection: ensure textSize is always at least 1px (catches all edge cases)
-  if element.text and element.textSize and element.textSize < 1 then
-    element.textSize = 1 -- Minimum 1px
+  if self.element.text and self.element.textSize and self.element.textSize < 1 then
+    self.element.textSize = 1 -- Minimum 1px
   end
 
   -- Recalculate gap if using viewport or percentage units
-  if element.units.gap.unit ~= "px" then
-    local containerSize = (self.flexDirection == self._FlexDirection.HORIZONTAL) and (element.parent and element.parent.width or newViewportWidth)
-      or (element.parent and element.parent.height or newViewportHeight)
-    element.gap = Units.resolve(element.units.gap.value, element.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
+  if self.element.units.gap.unit ~= "px" then
+    local containerSize = (self.flexDirection == self._FlexDirection.HORIZONTAL) and (self.element.parent and self.element.parent.width or newViewportWidth)
+      or (self.element.parent and self.element.parent.height or newViewportHeight)
+    self.element.gap = Units.resolve(self.element.units.gap.value, self.element.units.gap.unit, newViewportWidth, newViewportHeight, containerSize)
   end
 
   -- Recalculate spacing (padding/margin) if using viewport or percentage units
   -- For percentage-based padding:
   -- - If element has a parent: use parent's border-box dimensions (CSS spec for child elements)
   -- - If element has no parent: use element's own border-box dimensions (CSS spec for root elements)
-  local parentBorderBoxWidth = element.parent and element.parent._borderBoxWidth or element._borderBoxWidth or newViewportWidth
-  local parentBorderBoxHeight = element.parent and element.parent._borderBoxHeight or element._borderBoxHeight or newViewportHeight
+  local parentBorderBoxWidth = self.element.parent and self.element.parent._borderBoxWidth or self.element._borderBoxWidth or newViewportWidth
+  local parentBorderBoxHeight = self.element.parent and self.element.parent._borderBoxHeight or self.element._borderBoxHeight or newViewportHeight
 
   -- Handle shorthand properties first (horizontal/vertical)
   local resolvedHorizontalPadding = nil
   local resolvedVerticalPadding = nil
 
-  if element.units.padding.horizontal and element.units.padding.horizontal.unit ~= "px" then
-    resolvedHorizontalPadding =
-      Units.resolve(element.units.padding.horizontal.value, element.units.padding.horizontal.unit, newViewportWidth, newViewportHeight, parentBorderBoxWidth)
-  elseif element.units.padding.horizontal and element.units.padding.horizontal.value then
-    resolvedHorizontalPadding = element.units.padding.horizontal.value
+  if self.element.units.padding.horizontal and self.element.units.padding.horizontal.unit ~= "px" then
+    resolvedHorizontalPadding = Units.resolve(
+      self.element.units.padding.horizontal.value,
+      self.element.units.padding.horizontal.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxWidth
+    )
+  elseif self.element.units.padding.horizontal and self.element.units.padding.horizontal.value then
+    resolvedHorizontalPadding = self.element.units.padding.horizontal.value
   end
 
-  if element.units.padding.vertical and element.units.padding.vertical.unit ~= "px" then
-    resolvedVerticalPadding =
-      Units.resolve(element.units.padding.vertical.value, element.units.padding.vertical.unit, newViewportWidth, newViewportHeight, parentBorderBoxHeight)
-  elseif element.units.padding.vertical and element.units.padding.vertical.value then
-    resolvedVerticalPadding = element.units.padding.vertical.value
+  if self.element.units.padding.vertical and self.element.units.padding.vertical.unit ~= "px" then
+    resolvedVerticalPadding = Units.resolve(
+      self.element.units.padding.vertical.value,
+      self.element.units.padding.vertical.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxHeight
+    )
+  elseif self.element.units.padding.vertical and self.element.units.padding.vertical.value then
+    resolvedVerticalPadding = self.element.units.padding.vertical.value
   end
-
   -- Resolve individual padding sides (with fallback to shorthand)
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
     -- Check if this side was explicitly set or if we should use shorthand
     local useShorthand = false
-    if not element.units.padding[side].explicit then
+    if not self.element.units.padding[side].explicit then
       -- Not explicitly set, check if we have shorthand
       if side == "left" or side == "right" then
         useShorthand = resolvedHorizontalPadding ~= nil
@@ -789,15 +816,15 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     if useShorthand then
       -- Use shorthand value
       if side == "left" or side == "right" then
-        element.padding[side] = resolvedHorizontalPadding
+        self.element.padding[side] = resolvedHorizontalPadding
       else
-        element.padding[side] = resolvedVerticalPadding
+        self.element.padding[side] = resolvedVerticalPadding
       end
-    elseif element.units.padding[side].unit ~= "px" then
+    elseif self.element.units.padding[side].unit ~= "px" then
       -- Recalculate non-pixel units
       local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      element.padding[side] =
-        Units.resolve(element.units.padding[side].value, element.units.padding[side].unit, newViewportWidth, newViewportHeight, parentSize)
+      self.element.padding[side] =
+        Units.resolve(self.element.units.padding[side].value, self.element.units.padding[side].unit, newViewportWidth, newViewportHeight, parentSize)
     end
     -- If unit is "px" and not using shorthand, value stays the same
   end
@@ -806,25 +833,35 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
   local resolvedHorizontalMargin = nil
   local resolvedVerticalMargin = nil
 
-  if element.units.margin.horizontal and element.units.margin.horizontal.unit ~= "px" then
-    resolvedHorizontalMargin =
-      Units.resolve(element.units.margin.horizontal.value, element.units.margin.horizontal.unit, newViewportWidth, newViewportHeight, parentBorderBoxWidth)
-  elseif element.units.margin.horizontal and element.units.margin.horizontal.value then
-    resolvedHorizontalMargin = element.units.margin.horizontal.value
+  if self.element.units.margin.horizontal and self.element.units.margin.horizontal.unit ~= "px" then
+    resolvedHorizontalMargin = Units.resolve(
+      self.element.units.margin.horizontal.value,
+      self.element.units.margin.horizontal.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxWidth
+    )
+  elseif self.element.units.margin.horizontal and self.element.units.margin.horizontal.value then
+    resolvedHorizontalMargin = self.element.units.margin.horizontal.value
   end
 
-  if element.units.margin.vertical and element.units.margin.vertical.unit ~= "px" then
-    resolvedVerticalMargin =
-      Units.resolve(element.units.margin.vertical.value, element.units.margin.vertical.unit, newViewportWidth, newViewportHeight, parentBorderBoxHeight)
-  elseif element.units.margin.vertical and element.units.margin.vertical.value then
-    resolvedVerticalMargin = element.units.margin.vertical.value
+  if self.element.units.margin.vertical and self.element.units.margin.vertical.unit ~= "px" then
+    resolvedVerticalMargin = Units.resolve(
+      self.element.units.margin.vertical.value,
+      self.element.units.margin.vertical.unit,
+      newViewportWidth,
+      newViewportHeight,
+      parentBorderBoxHeight
+    )
+  elseif self.element.units.margin.vertical and self.element.units.margin.vertical.value then
+    resolvedVerticalMargin = self.element.units.margin.vertical.value
   end
 
   -- Resolve individual margin sides (with fallback to shorthand)
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
     -- Check if this side was explicitly set or if we should use shorthand
     local useShorthand = false
-    if not element.units.margin[side].explicit then
+    if not self.element.units.margin[side].explicit then
       -- Not explicitly set, check if we have shorthand
       if side == "left" or side == "right" then
         useShorthand = resolvedHorizontalMargin ~= nil
@@ -836,14 +873,15 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     if useShorthand then
       -- Use shorthand value
       if side == "left" or side == "right" then
-        element.margin[side] = resolvedHorizontalMargin
+        self.element.margin[side] = resolvedHorizontalMargin
       else
-        element.margin[side] = resolvedVerticalMargin
+        self.element.margin[side] = resolvedVerticalMargin
       end
-    elseif element.units.margin[side].unit ~= "px" then
+    elseif self.element.units.margin[side].unit ~= "px" then
       -- Recalculate non-pixel units
       local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      element.margin[side] = Units.resolve(element.units.margin[side].value, element.units.margin[side].unit, newViewportWidth, newViewportHeight, parentSize)
+      self.element.margin[side] =
+        Units.resolve(self.element.units.margin[side].value, self.element.units.margin[side].unit, newViewportWidth, newViewportHeight, parentSize)
     end
     -- If unit is "px" and not using shorthand, value stays the same
   end
@@ -852,31 +890,31 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
   -- For explicitly-sized elements (non-auto), _borderBoxWidth/_borderBoxHeight were set earlier
   -- Now we calculate content width/height by subtracting padding
   -- Only recalculate if using viewport/percentage units (where _borderBoxWidth actually changed)
-  if element.units.width.unit ~= "auto" and element.units.width.unit ~= "px" then
+  if self.element.units.width.unit ~= "auto" and self.element.units.width.unit ~= "px" then
     -- _borderBoxWidth was recalculated for viewport/percentage units
     -- Calculate content width by subtracting padding
-    element.width = math.max(0, element._borderBoxWidth - element.padding.left - element.padding.right)
-  elseif element.units.width.unit == "auto" then
+    self.element.width = math.max(0, self.element._borderBoxWidth - self.element.padding.left - self.element.padding.right)
+  elseif self.element.units.width.unit == "auto" then
     -- For auto-sized elements, width is content width (calculated in resize method)
     -- Update border-box to include padding
-    element._borderBoxWidth = element.width + element.padding.left + element.padding.right
+    self.element._borderBoxWidth = self.element.width + self.element.padding.left + self.element.padding.right
   end
   -- For pixel units, width stays as-is (may have been manually modified)
 
-  if element.units.height.unit ~= "auto" and element.units.height.unit ~= "px" then
+  if self.element.units.height.unit ~= "auto" and self.element.units.height.unit ~= "px" then
     -- _borderBoxHeight was recalculated for viewport/percentage units
     -- Calculate content height by subtracting padding
-    element.height = math.max(0, element._borderBoxHeight - element.padding.top - element.padding.bottom)
-  elseif element.units.height.unit == "auto" then
+    self.element.height = math.max(0, self.element._borderBoxHeight - self.element.padding.top - self.element.padding.bottom)
+  elseif self.element.units.height.unit == "auto" then
     -- For auto-sized elements, height is content height (calculated in resize method)
     -- Update border-box to include padding
-    element._borderBoxHeight = element.height + element.padding.top + element.padding.bottom
+    self.element._borderBoxHeight = self.element.height + self.element.padding.top + self.element.padding.bottom
   end
   -- For pixel units, height stays as-is (may have been manually modified)
 
   -- Detect overflow after layout calculations
-  if element._detectOverflow then
-    element:_detectOverflow()
+  if self.element._detectOverflow then
+    self.element:_detectOverflow()
   end
 end
 

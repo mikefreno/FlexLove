@@ -31,43 +31,16 @@ local resolveTextSizePreset = utils.resolveTextSizePreset
 local getModifiers = utils.getModifiers
 
 -- Extract enum values
-local Positioning = enums.Positioning
-local FlexDirection = enums.FlexDirection
-local JustifyContent = enums.JustifyContent
-local AlignContent = enums.AlignContent
-local AlignItems = enums.AlignItems
-local TextAlign = enums.TextAlign
-local AlignSelf = enums.AlignSelf
-local JustifySelf = enums.JustifySelf
-local FlexWrap = enums.FlexWrap
-
--- Reference to Gui (via Context)
-local Gui = Context
-
--- UTF-8 support (available in LÖVE/Lua 5.3+)
-local utf8 = utf8 or require("utf8")
-
---[[
-INTERNAL FIELD NAMING CONVENTIONS:
----------------------------------
-Fields prefixed with underscore (_) are internal/private and should not be accessed directly:
-
-- _eventHandler: Internal EventHandler instance for input event processing
-- _themeState: Internal current theme state (managed automatically)
-- _borderBoxWidth: Internal cached border-box width (optimization)
-- _borderBoxHeight: Internal cached border-box height (optimization)
-- _explicitlyAbsolute: Internal flag for positioning logic
-- _originalPositioning: Internal original positioning value
-- _cachedResult: Internal animation cache (Animation class)
-- _resultDirty: Internal animation dirty flag (Animation class)
-- _loadedAtlas: Internal cached atlas image (ThemeComponent)
-- _cachedViewport: Internal viewport cache (Gui class)
-
-Public API methods to access internal state:
-- Element:getBorderBoxWidth() - Get border-box width
-- Element:getBorderBoxHeight() - Get border-box height
-- Element:getBounds() - Get element bounds
-]]
+local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
+  enums.Positioning,
+  enums.FlexDirection,
+  enums.JustifyContent,
+  enums.AlignContent,
+  enums.AlignItems,
+  enums.TextAlign,
+  enums.AlignSelf,
+  enums.JustifySelf,
+  enums.FlexWrap
 
 ---@class Element
 ---@field id string
@@ -266,7 +239,7 @@ function Element.new(props)
   self.onEvent = props.onEvent
 
   -- Auto-generate ID in immediate mode if not provided
-  if Gui._immediateMode and (not props.id or props.id == "") then
+  if Context._immediateMode and (not props.id or props.id == "") then
     self.id = StateManager.generateID(props, props.parent)
   else
     self.id = props.id or ""
@@ -292,7 +265,7 @@ function Element.new(props)
   self._stateId = self.id
 
   self._themeManager = Theme.Manager.new({
-    theme = props.theme or Gui.defaultTheme,
+    theme = props.theme or Context.defaultTheme,
     themeComponent = props.themeComponent or nil,
     disabled = props.disabled or false,
     active = props.active or false,
@@ -466,7 +439,7 @@ function Element.new(props)
   end
 
   -- Sync self.text with restored _textBuffer for editable elements in immediate mode
-  if self.editable and Gui._immediateMode and self._textBuffer then
+  if self.editable and Context._immediateMode and self._textBuffer then
     self.text = self._textBuffer
   end
 
@@ -574,10 +547,8 @@ function Element.new(props)
     },
   }
 
-  -- Get scale factors from Gui (will be used later)
-  local scaleX, scaleY = Gui.getScaleFactors()
+  local scaleX, scaleY = Context.getScaleFactors()
 
-  -- Store original textSize units and constraints
   self.minTextSize = props.minTextSize
   self.maxTextSize = props.maxTextSize
 
@@ -649,7 +620,7 @@ function Element.new(props)
       end
 
       -- Pixel textSize value
-      if self.autoScaleText and Gui.baseScale then
+      if self.autoScaleText and Context.baseScale then
         -- With base scaling: store original pixel value and scale relative to base resolution
         self.units.textSize = { value = props.textSize, unit = "px" }
         self.textSize = props.textSize * scaleY
@@ -661,13 +632,13 @@ function Element.new(props)
         self.textSize = props.textSize -- Initial size is the specified pixel value
       else
         -- No auto-scaling: apply base scaling if set, otherwise use raw value
-        self.textSize = Gui.baseScale and (props.textSize * scaleY) or props.textSize
+        self.textSize = Context.baseScale and (props.textSize * scaleY) or props.textSize
         self.units.textSize = { value = props.textSize, unit = "px" }
       end
     end
   else
     -- No textSize specified - use auto-scaling default
-    if self.autoScaleText and Gui.baseScale then
+    if self.autoScaleText and Context.baseScale then
       -- With base scaling: use 12px as default and scale
       self.units.textSize = { value = 12, unit = "px" }
       self.textSize = 12 * scaleY
@@ -677,7 +648,7 @@ function Element.new(props)
       self.textSize = (1.5 / 100) * viewportHeight
     else
       -- No auto-scaling: use 12px with optional base scaling
-      self.textSize = Gui.baseScale and (12 * scaleY) or 12
+      self.textSize = Context.baseScale and (12 * scaleY) or 12
       self.units.textSize = { value = nil, unit = "px" }
     end
   end
@@ -692,7 +663,7 @@ function Element.new(props)
       local parentWidth = self.parent and self.parent.width or viewportWidth
       tempWidth = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
     else
-      tempWidth = Gui.baseScale and (widthProp * scaleX) or widthProp
+      tempWidth = Context.baseScale and (widthProp * scaleX) or widthProp
       self.units.width = { value = widthProp, unit = "px" }
     end
     self.width = tempWidth
@@ -723,7 +694,7 @@ function Element.new(props)
       tempHeight = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
     else
       -- Apply base scaling to pixel values
-      tempHeight = Gui.baseScale and (heightProp * scaleY) or heightProp
+      tempHeight = Context.baseScale and (heightProp * scaleY) or heightProp
       self.units.height = { value = heightProp, unit = "px" }
     end
     self.height = tempHeight
@@ -760,6 +731,7 @@ function Element.new(props)
   -- Check if we should use 9-patch content padding for auto-sizing
   local use9PatchPadding = false
   local ninePatchContentPadding = nil
+  local tempPadding = nil
   if self._themeManager:hasThemeComponent() then
     local component = self._themeManager:getComponent()
     if component and component._ninePatchData and component._ninePatchData.contentPadding then
@@ -777,29 +749,20 @@ function Element.new(props)
       then
         use9PatchPadding = true
         ninePatchContentPadding = component._ninePatchData.contentPadding
+        local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
+        if scaledPadding then
+          tempPadding = scaledPadding
+        else
+          tempPadding = {
+            left = ninePatchContentPadding.left,
+            top = ninePatchContentPadding.top,
+            right = ninePatchContentPadding.right,
+            bottom = ninePatchContentPadding.bottom,
+          }
+        end
       end
+      tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
     end
-  end
-
-  -- First, resolve padding using temporary dimensions
-  -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
-  local tempPadding
-  if use9PatchPadding then
-    -- Get scaled 9-patch content padding from ThemeManager
-    local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
-    if scaledPadding then
-      tempPadding = scaledPadding
-    else
-      -- Fallback if scaling fails
-      tempPadding = {
-        left = ninePatchContentPadding.left,
-        top = ninePatchContentPadding.top,
-        right = ninePatchContentPadding.right,
-        bottom = ninePatchContentPadding.bottom,
-      }
-    end
-  else
-    tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
   end
 
   -- Margin percentages are relative to parent's dimensions (CSS spec)
@@ -853,8 +816,8 @@ function Element.new(props)
   end
 
   -- Apply min/max constraints (also scaled)
-  local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-  local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+  local minSize = self.minTextSize and (Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+  local maxSize = self.maxTextSize and (Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
 
   if minSize and self.textSize < minSize then
     self.textSize = minSize
@@ -943,7 +906,7 @@ function Element.new(props)
 
   ------ add hereditary ------
   if props.parent == nil then
-    table.insert(Gui.topElements, self)
+    table.insert(Context.topElements, self)
 
     -- Handle x position with units
     if props.x then
@@ -953,7 +916,7 @@ function Element.new(props)
         self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
       else
         -- Apply base scaling to pixel positions
-        self.x = Gui.baseScale and (props.x * scaleX) or props.x
+        self.x = Context.baseScale and (props.x * scaleX) or props.x
         self.units.x = { value = props.x, unit = "px" }
       end
     else
@@ -969,7 +932,7 @@ function Element.new(props)
         self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
       else
         -- Apply base scaling to pixel positions
-        self.y = Gui.baseScale and (props.y * scaleY) or props.y
+        self.y = Context.baseScale and (props.y * scaleY) or props.y
         self.units.y = { value = props.y, unit = "px" }
       end
     else
@@ -1039,7 +1002,7 @@ function Element.new(props)
           self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
         else
           -- Apply base scaling to pixel positions
-          self.x = Gui.baseScale and (props.x * scaleX) or props.x
+          self.x = Context.baseScale and (props.x * scaleX) or props.x
           self.units.x = { value = props.x, unit = "px" }
         end
       else
@@ -1056,7 +1019,7 @@ function Element.new(props)
           self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
         else
           -- Apply base scaling to pixel positions
-          self.y = Gui.baseScale and (props.y * scaleY) or props.y
+          self.y = Context.baseScale and (props.y * scaleY) or props.y
           self.units.y = { value = props.y, unit = "px" }
         end
       else
@@ -1079,7 +1042,7 @@ function Element.new(props)
           self.x = baseX + offsetX
         else
           -- Apply base scaling to pixel offsets
-          local scaledOffset = Gui.baseScale and (props.x * scaleX) or props.x
+          local scaledOffset = Context.baseScale and (props.x * scaleX) or props.x
           self.x = baseX + scaledOffset
           self.units.x = { value = props.x, unit = "px" }
         end
@@ -1092,12 +1055,12 @@ function Element.new(props)
         if type(props.y) == "string" then
           local value, unit = Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
-          local parentHeight = self.parent.height
+          parentHeight = self.parent.height
           local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
           self.y = baseY + offsetY
         else
           -- Apply base scaling to pixel offsets
-          local scaledOffset = Gui.baseScale and (props.y * scaleY) or props.y
+          local scaledOffset = Context.baseScale and (props.y * scaleY) or props.y
           self.y = baseY + scaledOffset
           self.units.y = { value = props.y, unit = "px" }
         end
@@ -1109,13 +1072,11 @@ function Element.new(props)
       self.z = props.z or self.parent.z or 0
     end
 
-    -- Set textColor with priority: props > parent > theme text color > black
     if props.textColor then
       self.textColor = props.textColor
     elseif self.parent.textColor then
       self.textColor = self.parent.textColor
     else
-      -- Try to get text color from theme via ThemeManager
       local themeToUse = self._themeManager:getTheme()
       if themeToUse and themeToUse.colors and themeToUse.colors.text then
         self.textColor = themeToUse.colors.text
@@ -1267,7 +1228,7 @@ function Element.new(props)
     utils = utils,
     Grid = Grid,
     Units = Units,
-    Gui = Gui,
+    Context = Context,
   })
   -- Initialize immediately so it can be used for auto-sizing calculations
   self._layoutEngine:initialize(self)
@@ -1327,7 +1288,7 @@ function Element.new(props)
   end
 
   -- Register element in z-index tracking for immediate mode
-  if Gui._immediateMode then
+  if Context._immediateMode then
     Context.registerElement(self)
   end
 
@@ -1718,7 +1679,7 @@ function Element:addChild(child)
 
   -- In immediate mode, defer layout until endFrame() when all elements are created
   -- This prevents premature overflow detection with incomplete children
-  if not Gui._immediateMode then
+  if not Context._immediateMode then
     self:layoutChildren()
   end
 end
@@ -1738,9 +1699,9 @@ end
 --- Destroy element and its children
 function Element:destroy()
   -- Remove from global elements list
-  for i, win in ipairs(Gui.topElements) do
+  for i, win in ipairs(Context.topElements) do
     if win == self then
-      table.remove(Gui.topElements, i)
+      table.remove(Context.topElements, i)
       break
     end
   end
@@ -1938,17 +1899,15 @@ end
 ---@param dt number
 function Element:update(dt)
   -- Restore scrollbar state from StateManager in immediate mode
-  if self._stateId and Gui._immediateMode then
+  if self._stateId and Context._immediateMode then
     local state = StateManager.getState(self._stateId)
     if state then
-      -- Restore to Element properties (for backward compatibility)
       self._scrollbarHoveredVertical = state.scrollbarHoveredVertical or false
       self._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal or false
       self._scrollbarDragging = state.scrollbarDragging or false
       self._hoveredScrollbar = state.hoveredScrollbar
       self._scrollbarDragOffset = state.scrollbarDragOffset or 0
 
-      -- Also restore to ScrollManager if it exists
       if self._scrollManager then
         self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
         self._scrollManager._scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal
@@ -1988,14 +1947,12 @@ function Element:update(dt)
 
   local mx, my = love.mouse.getPosition()
 
-  -- Update scrollbar hover state via ScrollManager
   if self._scrollManager then
     self._scrollManager:updateHoverState(mx, my)
     self:_syncScrollManagerState()
   end
 
-  -- Update scrollbar state in StateManager if in immediate mode
-  if self._stateId and Gui._immediateMode then
+  if self._stateId and Context._immediateMode then
     StateManager.updateState(self._stateId, {
       scrollbarHoveredVertical = self._scrollbarHoveredVertical,
       scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal,
@@ -2004,18 +1961,15 @@ function Element:update(dt)
     })
   end
 
-  -- Handle scrollbar dragging
   if self._scrollbarDragging and love.mouse.isDown(1) then
     self:_handleScrollbarDrag(mx, my)
   elseif self._scrollbarDragging then
-    -- Mouse button released - delegate to ScrollManager
     if self._scrollManager then
       self._scrollManager:handleMouseRelease(1)
       self:_syncScrollManagerState()
     end
 
-    -- Update StateManager if in immediate mode
-    if self._stateId and Gui._immediateMode then
+    if self._stateId and Context._immediateMode then
       StateManager.updateState(self._stateId, {
         scrollbarDragging = false,
       })
@@ -2080,13 +2034,13 @@ function Element:update(dt)
     -- Check if this is the topmost element at the mouse position (z-index ordering)
     -- This prevents blocked elements from receiving interactions or visual feedback
     local isActiveElement
-    if Gui._immediateMode then
+    if Context._immediateMode then
       -- In immediate mode, use z-index occlusion detection
       local topElement = Context.getTopElementAt(mx, my)
       isActiveElement = (topElement == self or topElement == nil)
     else
       -- In retained mode, use the old _activeEventElement mechanism
-      isActiveElement = (Gui._activeEventElement == nil or Gui._activeEventElement == self)
+      isActiveElement = (Context._activeEventElement == nil or Context._activeEventElement == self)
     end
 
     -- Update theme state based on interaction
@@ -2098,7 +2052,7 @@ function Element:update(dt)
       local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
       -- Update state (in StateManager if in immediate mode, otherwise locally)
-      if self._stateId and Gui._immediateMode then
+      if self._stateId and Context._immediateMode then
         -- Update in StateManager for immediate mode
         local hover = newThemeState == "hover"
         local pressed = newThemeState == "pressed"
@@ -2180,15 +2134,15 @@ function Element:resize(newGameWidth, newGameHeight)
   if self.units.textSize.value then
     local unit = self.units.textSize.unit
     local value = self.units.textSize.value
-    local _, scaleY = Gui.getScaleFactors()
+    local _, scaleY = Context.getScaleFactors()
 
     if unit == "ew" then
       -- Element width relative (use current width)
       self.textSize = (value / 100) * self.width
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize and (Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -2203,8 +2157,8 @@ function Element:resize(newGameWidth, newGameHeight)
       self.textSize = (value / 100) * self.height
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize and (Gui.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize and (Gui.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize and (Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -2230,7 +2184,6 @@ function Element:calculateTextWidth()
   end
 
   if self.textSize then
-    -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
     if self.fontFamily then
       local themeToUse = self._themeManager:getTheme()
@@ -2245,7 +2198,6 @@ function Element:calculateTextWidth()
 
     local tempFont = FONT_CACHE.get(self.textSize, fontPath)
     local width = tempFont:getWidth(self.text)
-    -- Apply contentAutoSizingMultiplier if set
     if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
       width = width * self.contentAutoSizingMultiplier.width
     end
@@ -2254,7 +2206,6 @@ function Element:calculateTextWidth()
 
   local font = love.graphics.getFont()
   local width = font:getWidth(self.text)
-  -- Apply contentAutoSizingMultiplier if set
   if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
     width = width * self.contentAutoSizingMultiplier.width
   end
@@ -2267,10 +2218,8 @@ function Element:calculateTextHeight()
     return 0
   end
 
-  -- Get the font
   local font
   if self.textSize then
-    -- Resolve font path from font family (same logic as in draw)
     local fontPath = nil
     if self.fontFamily then
       local themeToUse = self._themeManager:getTheme()
@@ -2289,26 +2238,19 @@ function Element:calculateTextHeight()
 
   local height = font:getHeight()
 
-  -- If text wrapping is enabled, calculate height based on wrapped lines
   if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
-    -- Calculate available width for wrapping
     local availableWidth = self.width
 
-    -- If width is not set or is 0, try to use parent's content width
     if (not availableWidth or availableWidth <= 0) and self.parent then
-      -- Use parent's content width (excluding padding)
       availableWidth = self.parent.width
     end
 
     if availableWidth and availableWidth > 0 then
-      -- Get the wrapped text lines using getWrap (returns width and table of lines)
       local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
-      -- Height is line height * number of lines
       height = height * #wrappedLines
     end
   end
 
-  -- Apply contentAutoSizingMultiplier if set
   if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
     height = height * self.contentAutoSizingMultiplier.height
   end
@@ -2317,19 +2259,11 @@ function Element:calculateTextHeight()
 end
 
 function Element:calculateAutoWidth()
-  -- During construction, LayoutEngine might not be initialized yet
-  -- Fall back to text width calculation
-  if not self._layoutEngine then
-    return self:calculateTextWidth()
-  end
-  -- Delegate to LayoutEngine
   return self._layoutEngine:calculateAutoWidth()
 end
 
 --- Calculate auto height based on children
 function Element:calculateAutoHeight()
-  -- During construction, LayoutEngine might not be initialized yet
-  -- Fall back to text height calculation
   if not self._layoutEngine then
     return self:calculateTextHeight()
   end

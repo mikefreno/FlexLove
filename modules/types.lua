@@ -74,7 +74,7 @@ local AnimationProps = {}
 ---@field gridColumns number? -- Number of columns in the grid (default: 1)
 ---@field columnGap number|string? -- Gap between grid columns (default: 0)
 ---@field rowGap number|string? -- Gap between grid rows (default: 0)
----@field theme string? -- Theme name to use (e.g., "space", "metal"). Defaults to theme from Gui.init()
+---@field theme string? -- Theme name to use (e.g., "space", "metal"). Defaults to theme from flexlove.init()
 ---@field themeComponent string? -- Theme component to use (e.g., "panel", "button", "input"). If nil, no theme is applied
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)

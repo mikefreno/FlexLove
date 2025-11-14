@@ -441,7 +441,7 @@ end
 Support for viewport-relative units:
 
 ```lua
-local element = Gui.new({
+local element = FlexLove.new({
   width = "50vw",   -- 50% of viewport width
   height = "30vh",  -- 30% of viewport height
   x = "25%",        -- 25% of parent width

@@ -327,7 +327,7 @@ return {
 Elements with `themeComponent` automatically set `disableHighlight = true` to prevent the default gray pressed overlay from interfering with theme visuals. You can override this:
 
 ```lua
-Gui.new({
+FlexLove.new({
   themeComponent = "button",
   disableHighlight = false,  -- Force enable highlight overlay
   -- ...

@@ -24,6 +24,9 @@ local enums = utils.enums
 ---@class FlexLove
 local flexlove = Context
 
+-- Initialize Units module with Context dependency
+Units.initialize(Context)
+
 -- Add version and metadata
 flexlove._VERSION = "0.1.0"
 flexlove._DESCRIPTION = "UI Library for LÖVE Framework based on flexbox"

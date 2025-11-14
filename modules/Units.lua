@@ -1,5 +1,13 @@
 local Units = {}
 
+local Context = nil
+
+--- Initialize Units module with Context dependency
+---@param context table The Context module
+function Units.initialize(context)
+  Context = context
+end
+
 ---@param value string|number
 ---@return number, string -- Returns numeric value and unit type ("px", "%", "vw", "vh")
 function Units.parse(value)
@@ -66,8 +74,8 @@ end
 ---@return number, number -- width, height
 function Units.getViewport()
   -- Return cached viewport if available (only during resize operations)
-  if Gui and Gui._cachedViewport and Gui._cachedViewport.width > 0 then
-    return Gui._cachedViewport.width, Gui._cachedViewport.height
+  if Context and Context._cachedViewport and Context._cachedViewport.width > 0 then
+    return Context._cachedViewport.width, Context._cachedViewport.height
   end
 
   if love.graphics and love.graphics.getDimensions then

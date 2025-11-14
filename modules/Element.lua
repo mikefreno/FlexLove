@@ -731,7 +731,6 @@ function Element.new(props)
   -- Check if we should use 9-patch content padding for auto-sizing
   local use9PatchPadding = false
   local ninePatchContentPadding = nil
-  local tempPadding = nil
   if self._themeManager:hasThemeComponent() then
     local component = self._themeManager:getComponent()
     if component and component._ninePatchData and component._ninePatchData.contentPadding then
@@ -749,20 +748,29 @@ function Element.new(props)
       then
         use9PatchPadding = true
         ninePatchContentPadding = component._ninePatchData.contentPadding
-        local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
-        if scaledPadding then
-          tempPadding = scaledPadding
-        else
-          tempPadding = {
-            left = ninePatchContentPadding.left,
-            top = ninePatchContentPadding.top,
-            right = ninePatchContentPadding.right,
-            bottom = ninePatchContentPadding.bottom,
-          }
-        end
       end
-      tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
     end
+  end
+
+  -- First, resolve padding using temporary dimensions
+  -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
+  local tempPadding
+  if use9PatchPadding then
+    -- Get scaled 9-patch content padding from ThemeManager
+    local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
+    if scaledPadding then
+      tempPadding = scaledPadding
+    else
+      -- Fallback if scaling fails
+      tempPadding = {
+        left = ninePatchContentPadding.left,
+        top = ninePatchContentPadding.top,
+        right = ninePatchContentPadding.right,
+        bottom = ninePatchContentPadding.bottom,
+      }
+    end
+  else
+    tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
   end
 
   -- Margin percentages are relative to parent's dimensions (CSS spec)

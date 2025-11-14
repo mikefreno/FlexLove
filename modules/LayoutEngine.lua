@@ -485,7 +485,7 @@ function LayoutEngine:layoutChildren()
         -- Vertical layout: main axis is Y, cross axis is X
         -- Position child at border box (x, y represents top-left including padding)
         -- Add reservedMainStart and top margin to account for absolutely positioned siblings and margins
-        child.y = element.y + element.padding.top + reservedMainStart + currentMainPos + child.margin.top
+        child.y = self.element.y + self.element.padding.top + reservedMainStart + currentMainPos + child.margin.top
 
         -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
         local childBorderBoxWidth = child:getBorderBoxWidth()

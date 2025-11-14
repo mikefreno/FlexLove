@@ -176,8 +176,8 @@ function flexlove.endFrame()
     end
   end
 
-  -- Auto-update all top-level elements (triggers additional state updates)
-  -- This must happen BEFORE saving state so that scroll positions and overflow are calculated
+  -- Auto-update all top-level elements created this frame
+  -- This happens AFTER layout so positions are correct
   for _, element in ipairs(flexlove._currentFrameElements) do
     if not element.parent then
       element:update(0) -- dt=0 since we're not doing animation updates here
@@ -442,8 +442,11 @@ function flexlove.update(dt)
 
   flexlove._activeEventElement = topElement
 
-  for _, win in ipairs(flexlove.topElements) do
-    win:update(dt)
+  -- In immediate mode, skip updating here - elements will be updated in endFrame after layout
+  if not flexlove._immediateMode then
+    for _, win in ipairs(flexlove.topElements) do
+      win:update(dt)
+    end
   end
 
   flexlove._activeEventElement = nil

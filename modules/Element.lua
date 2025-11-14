@@ -253,16 +253,32 @@ function Element.new(props)
   self.onTextChange = props.onTextChange
   self.onEnter = props.onEnter
 
-  self._eventHandler = EventHandler.new({
-    onEvent = self.onEvent,
-  }, {
+  -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
+  self._stateId = self.id
+
+  -- In immediate mode, restore EventHandler state from StateManager
+  local eventHandlerConfig = { onEvent = self.onEvent }
+  if Context._immediateMode and self._stateId and self._stateId ~= "" then
+    local state = StateManager.getState(self._stateId)
+    if state then
+      -- Restore EventHandler state from StateManager
+      eventHandlerConfig._pressed = state._pressed
+      eventHandlerConfig._lastClickTime = state._lastClickTime
+      eventHandlerConfig._lastClickButton = state._lastClickButton
+      eventHandlerConfig._clickCount = state._clickCount
+      eventHandlerConfig._dragStartX = state._dragStartX
+      eventHandlerConfig._dragStartY = state._dragStartY
+      eventHandlerConfig._lastMouseX = state._lastMouseX
+      eventHandlerConfig._lastMouseY = state._lastMouseY
+      eventHandlerConfig._hovered = state._hovered
+    end
+  end
+
+  self._eventHandler = EventHandler.new(eventHandlerConfig, {
     InputEvent = InputEvent,
     Context = Context,
   })
   self._eventHandler:initialize(self)
-
-  -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
-  self._stateId = self.id
 
   self._themeManager = Theme.Manager.new({
     theme = props.theme or Context.defaultTheme,
@@ -2096,6 +2112,29 @@ function Element:update(dt)
       isActiveElement = (Context._activeEventElement == nil or Context._activeEventElement == self)
     end
 
+    -- Reset scrollbar press flag at start of each frame
+    self._eventHandler:resetScrollbarPressFlag()
+
+    -- Process mouse events through EventHandler FIRST
+    -- This ensures pressed states are updated before theme state is calculated
+    self._eventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
+
+    -- In immediate mode, save EventHandler state to StateManager after processing events
+    if self._stateId and Context._immediateMode and self._stateId ~= "" then
+      local eventHandlerState = self._eventHandler:getState()
+      StateManager.updateState(self._stateId, {
+        _pressed = eventHandlerState._pressed,
+        _lastClickTime = eventHandlerState._lastClickTime,
+        _lastClickButton = eventHandlerState._lastClickButton,
+        _clickCount = eventHandlerState._clickCount,
+        _dragStartX = eventHandlerState._dragStartX,
+        _dragStartY = eventHandlerState._dragStartY,
+        _lastMouseX = eventHandlerState._lastMouseX,
+        _lastMouseY = eventHandlerState._lastMouseY,
+        _hovered = eventHandlerState._hovered,
+      })
+    end
+
     -- Update theme state based on interaction
     if self.themeComponent then
       -- Check if any button is pressed via EventHandler
@@ -2127,12 +2166,6 @@ function Element:update(dt)
         self._renderer:setThemeState(newThemeState)
       end
     end
-
-    -- Reset scrollbar press flag at start of each frame
-    self._eventHandler:resetScrollbarPressFlag()
-
-    -- Process mouse events through EventHandler
-    self._eventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
 
     -- Process touch events through EventHandler
     self._eventHandler:processTouchEvents()

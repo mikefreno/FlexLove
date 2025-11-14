@@ -30,7 +30,7 @@ Units.initialize(Context)
 Units.initializeErrorHandler(ErrorHandler)
 
 -- Add version and metadata
-flexlove._VERSION = "0.1.0"
+flexlove._VERSION = "0.2.0"
 flexlove._DESCRIPTION = "UI Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
 flexlove._LICENSE = [[
@@ -560,14 +560,20 @@ function flexlove.wheelmoved(dx, dy)
         while parentCheck do
           local parentOverflowX = parentCheck.overflowX or parentCheck.overflow
           local parentOverflowY = parentCheck.overflowY or parentCheck.overflow
-          
-          if parentOverflowX == "hidden" or parentOverflowX == "scroll" or parentOverflowX == "auto" or 
-             parentOverflowY == "hidden" or parentOverflowY == "scroll" or parentOverflowY == "auto" then
+
+          if
+            parentOverflowX == "hidden"
+            or parentOverflowX == "scroll"
+            or parentOverflowX == "auto"
+            or parentOverflowY == "hidden"
+            or parentOverflowY == "scroll"
+            or parentOverflowY == "auto"
+          then
             local parentX = parentCheck.x + parentCheck.padding.left
             local parentY = parentCheck.y + parentCheck.padding.top
             local parentW = parentCheck.width
             local parentH = parentCheck.height
-            
+
             if mx < parentX or mx > parentX + parentW or my < parentY or my > parentY + parentH then
               isClipped = true
               break
@@ -581,7 +587,7 @@ function flexlove.wheelmoved(dx, dy)
           local overflowY = element.overflowY or element.overflow
           if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
             element:_handleWheelScroll(dx, dy)
-            
+
             -- Save scroll position to StateManager immediately in immediate mode
             if element._stateId then
               StateManager.updateState(element._stateId, {

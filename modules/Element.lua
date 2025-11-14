@@ -24,11 +24,17 @@ local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
 local ErrorHandler = req("ErrorHandler")
 
+-- Initialize ErrorHandler for validation utilities
+utils.initializeErrorHandler(ErrorHandler)
+
 -- Extract utilities
 local enums = utils.enums
 local FONT_CACHE = utils.FONT_CACHE
 local resolveTextSizePreset = utils.resolveTextSizePreset
 local getModifiers = utils.getModifiers
+local validateEnum = utils.validateEnum
+local validateRange = utils.validateRange
+local validateType = utils.validateType
 
 -- Extract enum values
 local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
@@ -185,52 +191,6 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
 local Element = {}
 Element.__index = Element
 
--- Validation helper functions
-local function validateEnum(value, enumTable, propName, moduleName)
-  if value == nil then
-    return true
-  end
-
-  for _, validValue in pairs(enumTable) do
-    if value == validValue then
-      return true
-    end
-  end
-
-  -- Build list of valid options
-  local validOptions = {}
-  for _, v in pairs(enumTable) do
-    table.insert(validOptions, "'" .. v .. "'")
-  end
-  table.sort(validOptions)
-
-  ErrorHandler.error(moduleName or "Element", string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
-end
-
-local function validateRange(value, min, max, propName, moduleName)
-  if value == nil then
-    return true
-  end
-  if type(value) ~= "number" then
-    ErrorHandler.error(moduleName or "Element", string.format("%s must be a number, got %s", propName, type(value)))
-  end
-  if value < min or value > max then
-    ErrorHandler.error(moduleName or "Element", string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value)))
-  end
-  return true
-end
-
-local function validateType(value, expectedType, propName, moduleName)
-  if value == nil then
-    return true
-  end
-  local actualType = type(value)
-  if actualType ~= expectedType then
-    ErrorHandler.error(moduleName or "Element", string.format("%s must be %s, got %s", propName, expectedType, actualType))
-  end
-  return true
-end
-
 ---@param props ElementProps
 ---@return Element
 function Element.new(props)
@@ -277,6 +237,7 @@ function Element.new(props)
   self._eventHandler = EventHandler.new(eventHandlerConfig, {
     InputEvent = InputEvent,
     Context = Context,
+    utils = utils,
   })
   self._eventHandler:initialize(self)
 
@@ -2265,33 +2226,9 @@ function Element:calculateTextWidth()
     return 0
   end
 
-  if self.textSize then
-    local fontPath = nil
-    if self.fontFamily then
-      local themeToUse = self._themeManager:getTheme()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-        fontPath = themeToUse.fonts[self.fontFamily]
-      else
-        fontPath = self.fontFamily
-      end
-    elseif self.themeComponent then
-      fontPath = self._themeManager:getDefaultFontFamily()
-    end
-
-    local tempFont = FONT_CACHE.get(self.textSize, fontPath)
-    local width = tempFont:getWidth(self.text)
-    if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
-      width = width * self.contentAutoSizingMultiplier.width
-    end
-    return width
-  end
-
-  local font = love.graphics.getFont()
+  local font = utils.getFont(self.textSize, self.fontFamily, self.themeComponent, self._themeManager)
   local width = font:getWidth(self.text)
-  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.width then
-    width = width * self.contentAutoSizingMultiplier.width
-  end
-  return width
+  return utils.applyContentMultiplier(width, self.contentAutoSizingMultiplier, "width")
 end
 
 ---@return number
@@ -2300,24 +2237,7 @@ function Element:calculateTextHeight()
     return 0
   end
 
-  local font
-  if self.textSize then
-    local fontPath = nil
-    if self.fontFamily then
-      local themeToUse = self._themeManager:getTheme()
-      if themeToUse and themeToUse.fonts and themeToUse.fonts[self.fontFamily] then
-        fontPath = themeToUse.fonts[self.fontFamily]
-      else
-        fontPath = self.fontFamily
-      end
-    elseif self.themeComponent then
-      fontPath = self._themeManager:getDefaultFontFamily()
-    end
-    font = FONT_CACHE.get(self.textSize, fontPath)
-  else
-    font = love.graphics.getFont()
-  end
-
+  local font = utils.getFont(self.textSize, self.fontFamily, self.themeComponent, self._themeManager)
   local height = font:getHeight()
 
   if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
@@ -2333,11 +2253,7 @@ function Element:calculateTextHeight()
     end
   end
 
-  if self.contentAutoSizingMultiplier and self.contentAutoSizingMultiplier.height then
-    height = height * self.contentAutoSizingMultiplier.height
-  end
-
-  return height
+  return utils.applyContentMultiplier(height, self.contentAutoSizingMultiplier, "height")
 end
 
 function Element:calculateAutoWidth()

@@ -25,19 +25,21 @@
 ---@field _scrollbarDragOffset number -- Offset from thumb top when drag started
 ---@field _scrollbarPressHandled boolean -- Track if scrollbar press was handled this frame
 ---@field _Color table
+---@field _utils table
 local ScrollManager = {}
 ScrollManager.__index = ScrollManager
 
 --- Create a new ScrollManager instance
 ---@param config table Configuration options
----@param deps table Dependencies {Color: Color module}
+---@param deps table Dependencies {Color: Color module, utils: utils module}
 ---@return ScrollManager
 function ScrollManager.new(config, deps)
   local Color = deps.Color
   local self = setmetatable({}, ScrollManager)
 
-  -- Store dependency for instance methods
+  -- Store dependencies for instance methods
   self._Color = Color
+  self._utils = deps.utils
 
   -- Configuration
   self.overflow = config.overflow or "hidden"
@@ -53,20 +55,7 @@ function ScrollManager.new(config, deps)
   self.scrollSpeed = config.scrollSpeed or 20
 
   -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
-  if config.hideScrollbars ~= nil then
-    if type(config.hideScrollbars) == "boolean" then
-      self.hideScrollbars = { vertical = config.hideScrollbars, horizontal = config.hideScrollbars }
-    elseif type(config.hideScrollbars) == "table" then
-      self.hideScrollbars = {
-        vertical = config.hideScrollbars.vertical ~= nil and config.hideScrollbars.vertical or false,
-        horizontal = config.hideScrollbars.horizontal ~= nil and config.hideScrollbars.horizontal or false,
-      }
-    else
-      self.hideScrollbars = { vertical = false, horizontal = false }
-    end
-  else
-    self.hideScrollbars = { vertical = false, horizontal = false }
-  end
+  self.hideScrollbars = self._utils.normalizeBooleanTable(config.hideScrollbars, false)
 
   -- Internal overflow state
   self._overflowX = false
@@ -163,8 +152,8 @@ function ScrollManager:detectOverflow()
   self._maxScrollY = math.max(0, self._contentHeight - containerHeight)
 
   -- Clamp current scroll position to new bounds
-  self._scrollX = math.max(0, math.min(self._scrollX, self._maxScrollX))
-  self._scrollY = math.max(0, math.min(self._scrollY, self._maxScrollY))
+  self._scrollX = self._utils.clamp(self._scrollX, 0, self._maxScrollX)
+  self._scrollY = self._utils.clamp(self._scrollY, 0, self._maxScrollY)
 end
 
 --- Set scroll position with bounds clamping
@@ -172,10 +161,10 @@ end
 ---@param y number? -- Y scroll position (nil to keep current)
 function ScrollManager:setScroll(x, y)
   if x ~= nil then
-    self._scrollX = math.max(0, math.min(x, self._maxScrollX))
+    self._scrollX = self._utils.clamp(x, 0, self._maxScrollX)
   end
   if y ~= nil then
-    self._scrollY = math.max(0, math.min(y, self._maxScrollY))
+    self._scrollY = self._utils.clamp(y, 0, self._maxScrollY)
   end
 end
 
@@ -190,10 +179,10 @@ end
 ---@param dy number? -- Y delta (nil for no change)
 function ScrollManager:scrollBy(dx, dy)
   if dx then
-    self._scrollX = math.max(0, math.min(self._scrollX + dx, self._maxScrollX))
+    self._scrollX = self._utils.clamp(self._scrollX + dx, 0, self._maxScrollX)
   end
   if dy then
-    self._scrollY = math.max(0, math.min(self._scrollY + dy, self._maxScrollY))
+    self._scrollY = self._utils.clamp(self._scrollY + dy, 0, self._maxScrollY)
   end
 end
 
@@ -454,7 +443,7 @@ function ScrollManager:handleMouseMove(mouseX, mouseY)
 
     -- Calculate new thumb position
     local newThumbY = mouseY - self._scrollbarDragOffset - trackY
-    newThumbY = math.max(0, math.min(newThumbY, trackH - thumbH))
+    newThumbY = self._utils.clamp(newThumbY, 0, trackH - thumbH)
 
     -- Convert thumb position to scroll position
     local scrollRatio = (trackH - thumbH) > 0 and (newThumbY / (trackH - thumbH)) or 0
@@ -470,7 +459,7 @@ function ScrollManager:handleMouseMove(mouseX, mouseY)
 
     -- Calculate new thumb position
     local newThumbX = mouseX - self._scrollbarDragOffset - trackX
-    newThumbX = math.max(0, math.min(newThumbX, trackW - thumbW))
+    newThumbX = self._utils.clamp(newThumbX, 0, trackW - thumbW)
 
     -- Convert thumb position to scroll position
     local scrollRatio = (trackW - thumbW) > 0 and (newThumbX / (trackW - thumbW)) or 0
@@ -519,7 +508,7 @@ function ScrollManager:_scrollToTrackPosition(mouseX, mouseY, component)
 
     -- Calculate target thumb position (centered on click)
     local targetThumbY = mouseY - trackY - (thumbH / 2)
-    targetThumbY = math.max(0, math.min(targetThumbY, trackH - thumbH))
+    targetThumbY = self._utils.clamp(targetThumbY, 0, trackH - thumbH)
 
     -- Convert to scroll position
     local scrollRatio = (trackH - thumbH) > 0 and (targetThumbY / (trackH - thumbH)) or 0
@@ -534,7 +523,7 @@ function ScrollManager:_scrollToTrackPosition(mouseX, mouseY, component)
 
     -- Calculate target thumb position (centered on click)
     local targetThumbX = mouseX - trackX - (thumbW / 2)
-    targetThumbX = math.max(0, math.min(targetThumbX, trackW - thumbW))
+    targetThumbX = self._utils.clamp(targetThumbX, 0, trackW - thumbW)
 
     -- Convert to scroll position
     local scrollRatio = (trackW - thumbW) > 0 and (targetThumbX / (trackW - thumbW)) or 0

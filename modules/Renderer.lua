@@ -352,18 +352,7 @@ end
 ---@param element table Reference to the parent Element instance
 ---@return love.Font
 function Renderer:getFont(element)
-  -- Get font path from theme or element
-  local fontPath = nil
-  if element.fontFamily then
-    local themeToUse = element._themeManager:getTheme()
-    if themeToUse and themeToUse.fonts and themeToUse.fonts[element.fontFamily] then
-      fontPath = themeToUse.fonts[element.fontFamily]
-    else
-      fontPath = element.fontFamily
-    end
-  end
-
-  return self._FONT_CACHE.getFont(element.textSize, fontPath)
+  return self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
 end
 
 --- Wrap a line of text based on element's textWrap mode
@@ -596,27 +585,8 @@ function Renderer:drawText(element)
 
     local origFont = love.graphics.getFont()
     if element.textSize then
-      -- Resolve font path from font family
-      local fontPath = nil
-      if element.fontFamily then
-        -- Check if fontFamily is a theme font name
-        local themeToUse = element.theme and self._Theme.get(element.theme) or self._Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts[element.fontFamily] then
-          fontPath = themeToUse.fonts[element.fontFamily]
-        else
-          -- Treat as direct path to font file
-          fontPath = element.fontFamily
-        end
-      elseif element.themeComponent then
-        -- If using themeComponent but no fontFamily specified, check for default font in theme
-        local themeToUse = element.theme and self._Theme.get(element.theme) or self._Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts.default then
-          fontPath = themeToUse.fonts.default
-        end
-      end
-
       -- Use cached font instead of creating new one every frame
-      local font = self._FONT_CACHE.get(element.textSize, fontPath)
+      local font = self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
       love.graphics.setFont(font)
     end
     local font = love.graphics.getFont()
@@ -770,16 +740,7 @@ function Renderer:drawText(element)
     -- Set up font for cursor rendering
     local origFont = love.graphics.getFont()
     if element.textSize then
-      local fontPath = nil
-      if element.fontFamily then
-        local themeToUse = element.theme and self._Theme.get(element.theme) or self._Theme.getActive()
-        if themeToUse and themeToUse.fonts and themeToUse.fonts[element.fontFamily] then
-          fontPath = themeToUse.fonts[element.fontFamily]
-        else
-          fontPath = element.fontFamily
-        end
-      end
-      local font = self._FONT_CACHE.get(element.textSize, fontPath)
+      local font = self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
       love.graphics.setFont(font)
     end
 
@@ -830,10 +791,12 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
     local thumbColor = element.scrollbarColor
     if element._scrollbarDragging and element._hoveredScrollbar == "vertical" then
       -- Active state: brighter
-      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
+      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.4)
+      thumbColor = self._Color.new(r, g, b, a)
     elseif element._scrollbarHoveredVertical then
       -- Hover state: slightly brighter
-      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
+      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.2)
+      thumbColor = self._Color.new(r, g, b, a)
     end
 
     -- Draw track
@@ -857,10 +820,12 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
     local thumbColor = element.scrollbarColor
     if element._scrollbarDragging and element._hoveredScrollbar == "horizontal" then
       -- Active state: brighter
-      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.4), math.min(1, thumbColor.g * 1.4), math.min(1, thumbColor.b * 1.4), thumbColor.a)
+      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.4)
+      thumbColor = self._Color.new(r, g, b, a)
     elseif element._scrollbarHoveredHorizontal then
       -- Hover state: slightly brighter
-      thumbColor = self._Color.new(math.min(1, thumbColor.r * 1.2), math.min(1, thumbColor.g * 1.2), math.min(1, thumbColor.b * 1.2), thumbColor.a)
+      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.2)
+      thumbColor = self._Color.new(r, g, b, a)
     end
 
     -- Draw track

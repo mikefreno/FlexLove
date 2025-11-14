@@ -1,12 +1,3 @@
-local function getModifiers()
-  return {
-    shift = love.keyboard.isDown("lshift") or love.keyboard.isDown("rshift"),
-    ctrl = love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl"),
-    alt = love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt"),
-    meta = love.keyboard.isDown("lgui") or love.keyboard.isDown("rgui"),
-  }
-end
-
 ---@class EventHandler
 ---@field onEvent fun(element:Element, event:InputEvent)?
 ---@field _pressed table<number, boolean>
@@ -23,12 +14,13 @@ end
 ---@field _scrollbarPressHandled boolean
 ---@field _InputEvent table
 ---@field _Context table
+---@field _utils table
 local EventHandler = {}
 EventHandler.__index = EventHandler
 
 --- Create a new EventHandler instance
 ---@param config table Configuration options
----@param deps table Dependencies {InputEvent, Context}
+---@param deps table Dependencies {InputEvent, Context, utils}
 ---@return EventHandler
 function EventHandler.new(config, deps)
   config = config or {}
@@ -37,6 +29,7 @@ function EventHandler.new(config, deps)
 
   self._InputEvent = deps.InputEvent
   self._Context = deps.Context
+  self._utils = deps.utils
 
   self.onEvent = config.onEvent
 
@@ -222,7 +215,7 @@ function EventHandler:_handleMousePress(mx, my, button)
 
   -- Fire press event
   if self.onEvent then
-    local modifiers = getModifiers()
+    local modifiers = self._utils.getModifiers()
     local pressEvent = self._InputEvent.new({
       type = "press",
       button = button,
@@ -267,7 +260,7 @@ function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
   if lastX ~= mx or lastY ~= my then
     -- Mouse has moved - fire drag event only if still hovering
     if self.onEvent and isHovering then
-      local modifiers = getModifiers()
+      local modifiers = self._utils.getModifiers()
       local dx = mx - self._dragStartX[button]
       local dy = my - self._dragStartY[button]
 
@@ -307,7 +300,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   local element = self._element
 
   local currentTime = love.timer.getTime()
-  local modifiers = getModifiers()
+  local modifiers = self._utils.getModifiers()
 
   -- Determine click count (double-click detection)
   local clickCount = 1
@@ -412,7 +405,7 @@ function EventHandler:processTouchEvents()
         button = 1,
         x = tx,
         y = ty,
-        modifiers = getModifiers(),
+        modifiers = self._utils.getModifiers(),
         clickCount = 1,
       })
       self.onEvent(element, touchEvent)

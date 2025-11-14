@@ -1,17 +1,14 @@
+local modulePath = (...):match("(.-)[^%.]+$")
+local function req(name)
+  return require(modulePath .. name)
+end
+
+local utils = req("utils")
+
 ---@class ImageCache
 ---@field _cache table<string, {image: love.Image, imageData: love.ImageData?}>
 local ImageCache = {}
 ImageCache._cache = {}
-
---- Normalize a file path for consistent cache keys
----@param path string -- File path to normalize
----@return string -- Normalized path
-local function normalizePath(path)
-  path = path:match("^%s*(.-)%s*$")
-  path = path:gsub("\\", "/")
-  path = path:gsub("/+", "/")
-  return path
-end
 
 --- Load an image from file path with caching
 --- Returns cached image if already loaded, otherwise loads and caches it
@@ -24,7 +21,7 @@ function ImageCache.load(imagePath, loadImageData)
     return nil, "Invalid image path: path must be a non-empty string"
   end
 
-  local normalizedPath = normalizePath(imagePath)
+  local normalizedPath = utils.normalizePath(imagePath)
 
   if ImageCache._cache[normalizedPath] then
     return ImageCache._cache[normalizedPath].image, nil
@@ -61,7 +58,7 @@ function ImageCache.get(imagePath)
     return nil
   end
 
-  local normalizedPath = normalizePath(imagePath)
+  local normalizedPath = utils.normalizePath(imagePath)
   local cached = ImageCache._cache[normalizedPath]
   return cached and cached.image or nil
 end
@@ -74,7 +71,7 @@ function ImageCache.getImageData(imagePath)
     return nil
   end
 
-  local normalizedPath = normalizePath(imagePath)
+  local normalizedPath = utils.normalizePath(imagePath)
   local cached = ImageCache._cache[normalizedPath]
   return cached and cached.imageData or nil
 end
@@ -87,7 +84,7 @@ function ImageCache.remove(imagePath)
     return false
   end
 
-  local normalizedPath = normalizePath(imagePath)
+  local normalizedPath = utils.normalizePath(imagePath)
   if ImageCache._cache[normalizedPath] then
     local cached = ImageCache._cache[normalizedPath]
     if cached.image then

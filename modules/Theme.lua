@@ -5,6 +5,7 @@ end
 
 local NinePatchParser = req("NinePatchParser")
 local Color = req("Color")
+local utils = req("utils")
 
 --- Standardized error message formatter
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")
@@ -51,47 +52,6 @@ end
 
 -- Store the base paths when module loads
 local FLEXLOVE_BASE_PATH, FLEXLOVE_FILESYSTEM_PATH = getFlexLoveBasePath()
-
---- Helper function to resolve image paths relative to FlexLove
----@param imagePath string
----@return string
-local function resolveImagePath(imagePath)
-  -- If path is already absolute or starts with known LÖVE paths, use as-is
-  if imagePath:match("^/") or imagePath:match("^[A-Z]:") then
-    return imagePath
-  end
-
-  -- Otherwise, make it relative to FlexLove's location
-  return FLEXLOVE_FILESYSTEM_PATH .. "/" .. imagePath
-end
-
---- Safely load an image with error handling
---- Returns both Image and ImageData to avoid deprecated getData() API
----@param imagePath string
----@return love.Image?, love.ImageData?, string? -- Returns image, imageData, or nil with error message
-local function safeLoadImage(imagePath)
-  local success, imageData = pcall(function()
-    return love.image.newImageData(imagePath)
-  end)
-
-  if not success then
-    local errorMsg = string.format("[FlexLove] Failed to load image data: %s - %s", imagePath, tostring(imageData))
-    print(errorMsg)
-    return nil, nil, errorMsg
-  end
-
-  local imageSuccess, image = pcall(function()
-    return love.graphics.newImage(imageData)
-  end)
-
-  if imageSuccess then
-    return image, imageData, nil
-  else
-    local errorMsg = string.format("[FlexLove] Failed to create image: %s - %s", imagePath, tostring(image))
-    print(errorMsg)
-    return nil, nil, errorMsg
-  end
-end
 
 --- Validate theme definition structure
 ---@param definition ThemeDefinition
@@ -184,8 +144,8 @@ function Theme.new(definition)
   -- Load global atlas if it's a string path
   if definition.atlas then
     if type(definition.atlas) == "string" then
-      local resolvedPath = resolveImagePath(definition.atlas)
-      local image, imageData, loaderr = safeLoadImage(resolvedPath)
+      local resolvedPath = utils.resolveImagePath(definition.atlas)
+      local image, imageData, loaderr = utils.safeLoadImage(resolvedPath)
       if image then
         self.atlas = image
         self.atlasData = imageData
@@ -234,7 +194,7 @@ function Theme.new(definition)
   -- Helper function to load atlas with 9-patch support
   local function loadAtlasWithNinePatch(comp, atlasPath, errorContext)
     ---@diagnostic disable-next-line
-    local resolvedPath = resolveImagePath(atlasPath)
+    local resolvedPath = utils.resolveImagePath(atlasPath)
     ---@diagnostic disable-next-line
     local is9Patch = not comp.insets and atlasPath:match("%.9%.png$")
 
@@ -248,7 +208,7 @@ function Theme.new(definition)
       end
     end
 
-    local image, imageData, loaderr = safeLoadImage(resolvedPath)
+    local image, imageData, loaderr = utils.safeLoadImage(resolvedPath)
     if image then
       -- Strip guide border for 9-patch images
       if is9Patch and imageData then

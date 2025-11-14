@@ -521,6 +521,28 @@ function Element.new(props)
   self.prevGameSize = { width = gw, height = gh }
   self.autosizing = { width = false, height = false }
 
+  -- Initialize LayoutEngine early with default values for auto-sizing calculations
+  -- It will be re-configured later with actual layout properties
+  self._layoutEngine = LayoutEngine.new({
+    positioning = Positioning.RELATIVE,
+    flexDirection = FlexDirection.HORIZONTAL,
+    flexWrap = FlexWrap.NOWRAP,
+    justifyContent = JustifyContent.FLEX_START,
+    alignItems = AlignItems.STRETCH,
+    alignContent = AlignContent.STRETCH,
+    gap = 0,
+    gridRows = 1,
+    gridColumns = 1,
+    columnGap = 0,
+    rowGap = 0,
+  }, {
+    utils = utils,
+    Grid = Grid,
+    Units = Units,
+    Context = Context,
+  })
+  self._layoutEngine:initialize(self)
+
   -- Store unit specifications for responsive behavior
   self.units = {
     width = { value = nil, unit = "px" },
@@ -1219,27 +1241,19 @@ function Element.new(props)
 
   self.alignSelf = props.alignSelf or AlignSelf.AUTO
 
-  -- Initialize LayoutEngine for layout calculations
-  self._layoutEngine = LayoutEngine.new({
-    positioning = self.positioning,
-    flexDirection = self.flexDirection,
-    flexWrap = self.flexWrap,
-    justifyContent = self.justifyContent,
-    alignItems = self.alignItems,
-    alignContent = self.alignContent,
-    gap = self.gap,
-    gridRows = self.gridRows,
-    gridColumns = self.gridColumns,
-    columnGap = self.columnGap,
-    rowGap = self.rowGap,
-  }, {
-    utils = utils,
-    Grid = Grid,
-    Units = Units,
-    Context = Context,
-  })
-  -- Initialize immediately so it can be used for auto-sizing calculations
-  self._layoutEngine:initialize(self)
+  -- Update the LayoutEngine with actual layout properties
+  -- (it was initialized early with defaults for auto-sizing calculations)
+  self._layoutEngine.positioning = self.positioning
+  if self.flexDirection then self._layoutEngine.flexDirection = self.flexDirection end
+  if self.flexWrap then self._layoutEngine.flexWrap = self.flexWrap end
+  if self.justifyContent then self._layoutEngine.justifyContent = self.justifyContent end
+  if self.alignItems then self._layoutEngine.alignItems = self.alignItems end
+  if self.alignContent then self._layoutEngine.alignContent = self.alignContent end
+  if self.gap then self._layoutEngine.gap = self.gap end
+  if self.gridRows then self._layoutEngine.gridRows = self.gridRows end
+  if self.gridColumns then self._layoutEngine.gridColumns = self.gridColumns end
+  if self.columnGap then self._layoutEngine.columnGap = self.columnGap end
+  if self.rowGap then self._layoutEngine.rowGap = self.rowGap end
 
   ---animation
   self.transform = props.transform or {}
@@ -2094,14 +2108,10 @@ function Element:update(dt)
   end
 end
 
---- Recalculate units based on new viewport dimensions (for vw, vh, % units)
 ---@param newViewportWidth number
 ---@param newViewportHeight number
 function Element:recalculateUnits(newViewportWidth, newViewportHeight)
-  -- Delegate to LayoutEngine
-  if self._layoutEngine then
-    self._layoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
-  end
+  self._layoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
 end
 
 --- Resize element and its children based on game window size change
@@ -2272,10 +2282,6 @@ end
 
 --- Calculate auto height based on children
 function Element:calculateAutoHeight()
-  if not self._layoutEngine then
-    return self:calculateTextHeight()
-  end
-  -- Delegate to LayoutEngine
   return self._layoutEngine:calculateAutoHeight()
 end
 

@@ -443,7 +443,7 @@ function LayoutEngine:layoutChildren()
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Position child at border box (x, y represents top-left including padding)
         -- Add reservedMainStart and left margin to account for absolutely positioned siblings and margins
-        child.x = element.x + element.padding.left + reservedMainStart + currentMainPos + child.margin.left
+        child.x = self.element.x + self.element.padding.left + reservedMainStart + currentMainPos + child.margin.left
 
         -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
         local childBorderBoxHeight = child:getBorderBoxHeight()

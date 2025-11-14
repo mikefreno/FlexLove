@@ -1023,20 +1023,26 @@ function Element.new(props)
 
     -- Set initial position
     if self.positioning == Positioning.ABSOLUTE then
+      -- Absolute positioning is relative to parent's content area (padding box)
+      local baseX = self.parent.x + self.parent.padding.left
+      local baseY = self.parent.y + self.parent.padding.top
+      
       -- Handle x position with units
       if props.x then
         if type(props.x) == "string" then
           local value, unit = Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
-          self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          self.x = baseX + offsetX
         else
           -- Apply base scaling to pixel positions
-          self.x = Context.baseScale and (props.x * scaleX) or props.x
+          local scaledOffset = Context.baseScale and (props.x * scaleX) or props.x
+          self.x = baseX + scaledOffset
           self.units.x = { value = props.x, unit = "px" }
         end
       else
-        self.x = 0
+        self.x = baseX
         self.units.x = { value = 0, unit = "px" }
       end
 
@@ -1046,22 +1052,25 @@ function Element.new(props)
           local value, unit = Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           local parentHeight = self.parent.height
-          self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          self.y = baseY + offsetY
         else
           -- Apply base scaling to pixel positions
-          self.y = Context.baseScale and (props.y * scaleY) or props.y
+          local scaledOffset = Context.baseScale and (props.y * scaleY) or props.y
+          self.y = baseY + scaledOffset
           self.units.y = { value = props.y, unit = "px" }
         end
       else
-        self.y = 0
+        self.y = baseY
         self.units.y = { value = 0, unit = "px" }
       end
 
       self.z = props.z or 0
     else
       -- Children in flex containers start at parent position but will be repositioned by layoutChildren
-      local baseX = self.parent.x
-      local baseY = self.parent.y
+      -- Children in absolute/relative containers start at parent's content area (accounting for padding)
+      local baseX = self.parent.x + self.parent.padding.left
+      local baseY = self.parent.y + self.parent.padding.top
 
       if props.x then
         if type(props.x) == "string" then

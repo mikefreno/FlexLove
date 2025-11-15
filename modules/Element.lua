@@ -1,53 +1,3 @@
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
--- Module dependencies
-local Context = req("Context")
-local Theme = req("Theme")
-local Color = req("Color")
-local Units = req("Units")
-local Blur = req("Blur")
-local ImageRenderer = req("ImageRenderer")
-local NinePatch = req("NinePatch")
-local RoundedRect = req("RoundedRect")
-local ImageCache = req("ImageCache")
-local utils = req("utils")
-local Grid = req("Grid")
-local InputEvent = req("InputEvent")
-local StateManager = req("StateManager")
-local TextEditor = req("TextEditor")
-local LayoutEngine = req("LayoutEngine")
-local Renderer = req("Renderer")
-local EventHandler = req("EventHandler")
-local ScrollManager = req("ScrollManager")
-local ErrorHandler = req("ErrorHandler")
-
--- Initialize ErrorHandler for validation utilities
-utils.initializeErrorHandler(ErrorHandler)
-
--- Extract utilities
-local enums = utils.enums
-local FONT_CACHE = utils.FONT_CACHE
-local resolveTextSizePreset = utils.resolveTextSizePreset
-local getModifiers = utils.getModifiers
-local validateEnum = utils.validateEnum
-local validateRange = utils.validateRange
-local validateType = utils.validateType
-
--- Extract enum values
-local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, TextAlign, AlignSelf, JustifySelf, FlexWrap =
-  enums.Positioning,
-  enums.FlexDirection,
-  enums.JustifyContent,
-  enums.AlignContent,
-  enums.AlignItems,
-  enums.TextAlign,
-  enums.AlignSelf,
-  enums.JustifySelf,
-  enums.FlexWrap
-
 ---@class Element
 ---@field id string
 ---@field autosizing {width:boolean, height:boolean} -- Whether the element should automatically size to fit its children
@@ -191,16 +141,63 @@ local Positioning, FlexDirection, JustifyContent, AlignContent, AlignItems, Text
 local Element = {}
 Element.__index = Element
 
+-- Note: Element.defaultDependencies is now defined in FlexLove.lua
+
 ---@param props ElementProps
+---@param deps table Required dependency table (provided by FlexLove)
 ---@return Element
-function Element.new(props)
+function Element.new(props, deps)
+  if not deps then
+    error("[Element] deps parameter is required. Pass Element.defaultDependencies from FlexLove.")
+  end
+
   local self = setmetatable({}, Element)
+  self._deps = deps
+  
+  -- Create dependency subsets for sub-modules (defined once, used throughout)
+  local eventHandlerDeps = {
+    InputEvent = deps.InputEvent,
+    Context = deps.Context,
+    utils = deps.utils,
+  }
+  
+  local rendererDeps = {
+    Color = deps.Color,
+    RoundedRect = deps.RoundedRect,
+    NinePatch = deps.NinePatch,
+    ImageRenderer = deps.ImageRenderer,
+    ImageCache = deps.ImageCache,
+    Theme = deps.Theme,
+    Blur = deps.Blur,
+    utils = deps.utils,
+  }
+  
+  local layoutEngineDeps = {
+    utils = deps.utils,
+    Grid = deps.Grid,
+    Units = deps.Units,
+    Context = deps.Context,
+    ErrorHandler = deps.ErrorHandler,
+  }
+  
+  local textEditorDeps = {
+    Context = deps.Context,
+    StateManager = deps.StateManager,
+    Color = deps.Color,
+    utils = deps.utils,
+  }
+  
+  local scrollManagerDeps = {
+    utils = deps.utils,
+    Color = deps.Color,
+  }
+  
   self.children = {}
   self.onEvent = props.onEvent
 
   -- Auto-generate ID in immediate mode if not provided
-  if Context._immediateMode and (not props.id or props.id == "") then
-    self.id = StateManager.generateID(props, props.parent)
+  if self._deps.Context._immediateMode and (not props.id or props.id == "") then
+    self.id = self._deps.StateManager.generateID(props, props.parent)
   else
     self.id = props.id or ""
   end
@@ -218,8 +215,8 @@ function Element.new(props)
 
   -- In immediate mode, restore EventHandler state from StateManager
   local eventHandlerConfig = { onEvent = self.onEvent }
-  if Context._immediateMode and self._stateId and self._stateId ~= "" then
-    local state = StateManager.getState(self._stateId)
+  if self._deps.Context._immediateMode and self._stateId and self._stateId ~= "" then
+    local state = self._deps.StateManager.getState(self._stateId)
     if state then
       -- Restore EventHandler state from StateManager
       eventHandlerConfig._pressed = state._pressed
@@ -234,15 +231,11 @@ function Element.new(props)
     end
   end
 
-  self._eventHandler = EventHandler.new(eventHandlerConfig, {
-    InputEvent = InputEvent,
-    Context = Context,
-    utils = utils,
-  })
+  self._eventHandler = self._deps.EventHandler.new(eventHandlerConfig, eventHandlerDeps)
   self._eventHandler:initialize(self)
 
-  self._themeManager = Theme.Manager.new({
-    theme = props.theme or Context.defaultTheme,
+  self._themeManager = self._deps.Theme.Manager.new({
+    theme = props.theme or self._deps.Context.defaultTheme,
     themeComponent = props.themeComponent or nil,
     disabled = props.disabled or false,
     active = props.active or false,
@@ -290,7 +283,7 @@ function Element.new(props)
 
   -- Validate property combinations: passwordMode disables multiline
   if self.passwordMode and props.multiline then
-    ErrorHandler.warn("Element", "passwordMode is enabled, multiline will be disabled")
+    self._deps.ErrorHandler.warn("Element", "passwordMode is enabled, multiline will be disabled")
     self.multiline = false
   elseif self.passwordMode then
     self.multiline = false
@@ -324,7 +317,7 @@ function Element.new(props)
   self.cursorBlinkRate = props.cursorBlinkRate or 0.5
 
   if self.editable then
-    self._textEditor = TextEditor.new({
+    self._textEditor = self._deps.TextEditor.new({
       editable = self.editable,
       multiline = self.multiline,
       passwordMode = self.passwordMode,
@@ -346,12 +339,7 @@ function Element.new(props)
       onTextInput = props.onTextInput,
       onTextChange = props.onTextChange,
       onEnter = props.onEnter,
-    }, {
-      Context = Context,
-      StateManager = StateManager,
-      Color = Color,
-      utils = utils,
-    })
+    }, textEditorDeps)
     -- Initialize will be called after self is fully constructed
   end
 
@@ -373,12 +361,12 @@ function Element.new(props)
       bottom = false,
       left = false,
     }
-  self.borderColor = props.borderColor or Color.new(0, 0, 0, 1)
-  self.backgroundColor = props.backgroundColor or Color.new(0, 0, 0, 0)
+  self.borderColor = props.borderColor or self._deps.Color.new(0, 0, 0, 1)
+  self.backgroundColor = props.backgroundColor or self._deps.Color.new(0, 0, 0, 0)
 
   -- Validate and set opacity
   if props.opacity ~= nil then
-    validateRange(props.opacity, 0, 1, "opacity")
+    self._deps.utils.validateRange(props.opacity, 0, 1, "opacity")
   end
   self.opacity = props.opacity or 1
 
@@ -416,15 +404,15 @@ function Element.new(props)
   end
 
   -- Sync self.text with restored _textBuffer for editable elements in immediate mode
-  if self.editable and Context._immediateMode and self._textBuffer then
+  if self.editable and self._deps.Context._immediateMode and self._textBuffer then
     self.text = self._textBuffer
   end
 
   -- Validate and set textAlign
   if props.textAlign then
-    validateEnum(props.textAlign, TextAlign, "textAlign")
+    self._deps.utils.validateEnum(props.textAlign, self._deps.utils.enums.TextAlign, "textAlign")
   end
-  self.textAlign = props.textAlign or TextAlign.START
+  self.textAlign = props.textAlign or self._deps.utils.enums.TextAlign.START
 
   -- Image properties
   self.imagePath = props.imagePath
@@ -433,20 +421,20 @@ function Element.new(props)
   -- Validate objectFit
   if props.objectFit then
     local validObjectFit = { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
-    validateEnum(props.objectFit, validObjectFit, "objectFit")
+    self._deps.utils.validateEnum(props.objectFit, validObjectFit, "objectFit")
   end
   self.objectFit = props.objectFit or "fill"
   self.objectPosition = props.objectPosition or "center center"
 
   -- Validate and set imageOpacity
   if props.imageOpacity ~= nil then
-    validateRange(props.imageOpacity, 0, 1, "imageOpacity")
+    self._deps.utils.validateRange(props.imageOpacity, 0, 1, "imageOpacity")
   end
   self.imageOpacity = props.imageOpacity or 1
 
   -- Auto-load image if imagePath is provided
   if self.imagePath and not self.image then
-    local loadedImage, err = ImageCache.load(self.imagePath)
+    local loadedImage, err = self._deps.ImageCache.load(self.imagePath)
     if loadedImage then
       self._loadedImage = loadedImage
     else
@@ -460,7 +448,7 @@ function Element.new(props)
   end
 
   -- Initialize Renderer module for visual rendering
-  self._renderer = Renderer.new({
+  self._renderer = self._deps.Renderer.new({
     backgroundColor = self.backgroundColor,
     borderColor = self.borderColor,
     opacity = self.opacity,
@@ -478,20 +466,11 @@ function Element.new(props)
     imageOpacity = self.imageOpacity,
     contentBlur = self.contentBlur,
     backdropBlur = self.backdropBlur,
-  }, {
-    Color = Color,
-    RoundedRect = RoundedRect,
-    NinePatch = NinePatch,
-    ImageRenderer = ImageRenderer,
-    ImageCache = ImageCache,
-    Theme = Theme,
-    Blur = Blur,
-    utils = utils,
-  })
+  }, rendererDeps)
   self._renderer:initialize(self)
 
   --- self positioning ---
-  local viewportWidth, viewportHeight = Units.getViewport()
+  local viewportWidth, viewportHeight = self._deps.Units.getViewport()
 
   ---- Sizing ----
   local gw, gh = love.window.getMode()
@@ -500,25 +479,19 @@ function Element.new(props)
 
   -- Initialize LayoutEngine early with default values for auto-sizing calculations
   -- It will be re-configured later with actual layout properties
-  self._layoutEngine = LayoutEngine.new({
-    positioning = Positioning.RELATIVE,
-    flexDirection = FlexDirection.HORIZONTAL,
-    flexWrap = FlexWrap.NOWRAP,
-    justifyContent = JustifyContent.FLEX_START,
-    alignItems = AlignItems.STRETCH,
-    alignContent = AlignContent.STRETCH,
+  self._layoutEngine = self._deps.LayoutEngine.new({
+    positioning = self._deps.utils.enums.Positioning.RELATIVE,
+    flexDirection = self._deps.utils.enums.FlexDirection.HORIZONTAL,
+    flexWrap = self._deps.utils.enums.FlexWrap.NOWRAP,
+    justifyContent = self._deps.utils.enums.JustifyContent.FLEX_START,
+    alignItems = self._deps.utils.enums.AlignItems.STRETCH,
+    alignContent = self._deps.utils.enums.AlignContent.STRETCH,
     gap = 0,
     gridRows = 1,
     gridColumns = 1,
     columnGap = 0,
     rowGap = 0,
-  }, {
-    utils = utils,
-    Grid = Grid,
-    Units = Units,
-    Context = Context,
-    ErrorHandler = ErrorHandler,
-  })
+  }, layoutEngineDeps)
   self._layoutEngine:initialize(self)
 
   -- Store unit specifications for responsive behavior
@@ -547,7 +520,7 @@ function Element.new(props)
     },
   }
 
-  local scaleX, scaleY = Context.getScaleFactors()
+  local scaleX, scaleY = self._deps.Context.getScaleFactors()
 
   self.minTextSize = props.minTextSize
   self.maxTextSize = props.maxTextSize
@@ -579,7 +552,7 @@ function Element.new(props)
   if props.textSize then
     if type(props.textSize) == "string" then
       -- Check if it's a preset first
-      local presetValue, presetUnit = resolveTextSizePreset(props.textSize)
+      local presetValue, presetUnit = self._deps.utils.resolveTextSizePreset(props.textSize)
       local value, unit
 
       if presetValue then
@@ -588,17 +561,17 @@ function Element.new(props)
         self.units.textSize = { value = value, unit = unit }
       else
         -- Not a preset, parse normally
-        value, unit = Units.parse(props.textSize)
+        value, unit = self._deps.Units.parse(props.textSize)
         self.units.textSize = { value = value, unit = unit }
       end
 
       -- Resolve textSize based on unit type
       if unit == "%" or unit == "vh" then
         -- Percentage and vh are relative to viewport height
-        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        self.textSize = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
       elseif unit == "vw" then
         -- vw is relative to viewport width
-        self.textSize = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        self.textSize = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
       elseif unit == "ew" then
         -- ew is relative to element width (use viewport width as fallback during initialization)
         -- Will be re-resolved after width is set
@@ -611,7 +584,7 @@ function Element.new(props)
         -- Pixel units
         self.textSize = value
       else
-        ErrorHandler.error(
+        self._deps.ErrorHandler.error(
           "Element",
           string.format("Unknown textSize unit '%s'. Valid units: px, %%, vw, vh, ew, eh. Or use presets: xs, sm, md, lg, xl, xxl, 2xl, 3xl, 4xl", unit)
         )
@@ -619,11 +592,11 @@ function Element.new(props)
     else
       -- Validate pixel textSize value
       if props.textSize <= 0 then
-        ErrorHandler.error("Element", "textSize must be greater than 0, got: " .. tostring(props.textSize))
+        self._deps.ErrorHandler.error("Element", "textSize must be greater than 0, got: " .. tostring(props.textSize))
       end
 
       -- Pixel textSize value
-      if self.autoScaleText and Context.baseScale then
+      if self.autoScaleText and self._deps.Context.baseScale then
         -- With base scaling: store original pixel value and scale relative to base resolution
         self.units.textSize = { value = props.textSize, unit = "px" }
         self.textSize = props.textSize * scaleY
@@ -635,13 +608,13 @@ function Element.new(props)
         self.textSize = props.textSize -- Initial size is the specified pixel value
       else
         -- No auto-scaling: apply base scaling if set, otherwise use raw value
-        self.textSize = Context.baseScale and (props.textSize * scaleY) or props.textSize
+        self.textSize = self._deps.Context.baseScale and (props.textSize * scaleY) or props.textSize
         self.units.textSize = { value = props.textSize, unit = "px" }
       end
     end
   else
     -- No textSize specified - use auto-scaling default
-    if self.autoScaleText and Context.baseScale then
+    if self.autoScaleText and self._deps.Context.baseScale then
       -- With base scaling: use 12px as default and scale
       self.units.textSize = { value = 12, unit = "px" }
       self.textSize = 12 * scaleY
@@ -651,7 +624,7 @@ function Element.new(props)
       self.textSize = (1.5 / 100) * viewportHeight
     else
       -- No auto-scaling: use 12px with optional base scaling
-      self.textSize = Context.baseScale and (12 * scaleY) or 12
+      self.textSize = self._deps.Context.baseScale and (12 * scaleY) or 12
       self.units.textSize = { value = nil, unit = "px" }
     end
   end
@@ -661,12 +634,12 @@ function Element.new(props)
   local tempWidth = 0 -- Temporary width for padding resolution
   if widthProp then
     if type(widthProp) == "string" then
-      local value, unit = Units.parse(widthProp)
+      local value, unit = self._deps.Units.parse(widthProp)
       self.units.width = { value = value, unit = unit }
       local parentWidth = self.parent and self.parent.width or viewportWidth
-      tempWidth = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+      tempWidth = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
     else
-      tempWidth = Context.baseScale and (widthProp * scaleX) or widthProp
+      tempWidth = self._deps.Context.baseScale and (widthProp * scaleX) or widthProp
       self.units.width = { value = widthProp, unit = "px" }
     end
     self.width = tempWidth
@@ -691,13 +664,13 @@ function Element.new(props)
   local tempHeight = 0 -- Temporary height for padding resolution
   if heightProp then
     if type(heightProp) == "string" then
-      local value, unit = Units.parse(heightProp)
+      local value, unit = self._deps.Units.parse(heightProp)
       self.units.height = { value = value, unit = unit }
       local parentHeight = self.parent and self.parent.height or viewportHeight
-      tempHeight = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+      tempHeight = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
     else
       -- Apply base scaling to pixel values
-      tempHeight = Context.baseScale and (heightProp * scaleY) or heightProp
+      tempHeight = self._deps.Context.baseScale and (heightProp * scaleY) or heightProp
       self.units.height = { value = heightProp, unit = "px" }
     end
     self.height = tempHeight
@@ -712,13 +685,13 @@ function Element.new(props)
   --- child positioning ---
   if props.gap then
     if type(props.gap) == "string" then
-      local value, unit = Units.parse(props.gap)
+      local value, unit = self._deps.Units.parse(props.gap)
       self.units.gap = { value = value, unit = unit }
       -- Gap percentages should be relative to the element's own size, not parent
       -- For horizontal flex, gap is based on width; for vertical flex, based on height
-      local flexDir = props.flexDirection or FlexDirection.HORIZONTAL
-      local containerSize = (flexDir == FlexDirection.HORIZONTAL) and self.width or self.height
-      self.gap = Units.resolve(value, unit, viewportWidth, viewportHeight, containerSize)
+      local flexDir = props.flexDirection or self._deps.utils.enums.FlexDirection.HORIZONTAL
+      local containerSize = (flexDir == self._deps.utils.enums.FlexDirection.HORIZONTAL) and self.width or self.height
+      self.gap = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, containerSize)
     else
       self.gap = props.gap
       self.units.gap = { value = props.gap, unit = "px" }
@@ -773,13 +746,13 @@ function Element.new(props)
       }
     end
   else
-    tempPadding = Units.resolveSpacing(props.padding, self.width, self.height)
+    tempPadding = self._deps.Units.resolveSpacing(props.padding, self.width, self.height)
   end
 
   -- Margin percentages are relative to parent's dimensions (CSS spec)
   local parentWidth = self.parent and self.parent.width or viewportWidth
   local parentHeight = self.parent and self.parent.height or viewportHeight
-  self.margin = Units.resolveSpacing(props.margin, parentWidth, parentHeight)
+  self.margin = self._deps.Units.resolveSpacing(props.margin, parentWidth, parentHeight)
 
   -- For auto-sized elements, add padding to get border-box dimensions
   if self.autosizing.width then
@@ -807,7 +780,7 @@ function Element.new(props)
     }
   else
     -- Re-resolve padding based on final border-box dimensions (important for percentage padding)
-    self.padding = Units.resolveSpacing(props.padding, self._borderBoxWidth, self._borderBoxHeight)
+    self.padding = self._deps.Units.resolveSpacing(props.padding, self._borderBoxWidth, self._borderBoxHeight)
   end
 
   -- Calculate final content dimensions by subtracting padding from border-box
@@ -817,10 +790,10 @@ function Element.new(props)
   -- Re-resolve ew/eh textSize units now that width/height are set
   if props.textSize and type(props.textSize) == "string" then
     -- Check if it's a preset first (presets don't need re-resolution)
-    local presetValue, presetUnit = resolveTextSizePreset(props.textSize)
+    local presetValue, presetUnit = self._deps.utils.resolveTextSizePreset(props.textSize)
     if not presetValue then
       -- Not a preset, parse and check for ew/eh units
-      local value, unit = Units.parse(props.textSize)
+      local value, unit = self._deps.Units.parse(props.textSize)
       if unit == "ew" then
         -- Element width relative (now that width is set)
         self.textSize = (value / 100) * self.width
@@ -832,8 +805,8 @@ function Element.new(props)
   end
 
   -- Apply min/max constraints (also scaled)
-  local minSize = self.minTextSize and (Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-  local maxSize = self.maxTextSize and (Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+  local minSize = self.minTextSize and (self._deps.Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+  local maxSize = self.maxTextSize and (self._deps.Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
 
   if minSize and self.textSize < minSize then
     self.textSize = minSize
@@ -852,7 +825,7 @@ function Element.new(props)
   if props.padding then
     if props.padding.horizontal then
       if type(props.padding.horizontal) == "string" then
-        local value, unit = Units.parse(props.padding.horizontal)
+        local value, unit = self._deps.Units.parse(props.padding.horizontal)
         self.units.padding.horizontal = { value = value, unit = unit }
       else
         self.units.padding.horizontal = { value = props.padding.horizontal, unit = "px" }
@@ -860,7 +833,7 @@ function Element.new(props)
     end
     if props.padding.vertical then
       if type(props.padding.vertical) == "string" then
-        local value, unit = Units.parse(props.padding.vertical)
+        local value, unit = self._deps.Units.parse(props.padding.vertical)
         self.units.padding.vertical = { value = value, unit = unit }
       else
         self.units.padding.vertical = { value = props.padding.vertical, unit = "px" }
@@ -872,7 +845,7 @@ function Element.new(props)
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
     if props.padding and props.padding[side] then
       if type(props.padding[side]) == "string" then
-        local value, unit = Units.parse(props.padding[side])
+        local value, unit = self._deps.Units.parse(props.padding[side])
         self.units.padding[side] = { value = value, unit = unit, explicit = true }
       else
         self.units.padding[side] = { value = props.padding[side], unit = "px", explicit = true }
@@ -887,7 +860,7 @@ function Element.new(props)
   if props.margin then
     if props.margin.horizontal then
       if type(props.margin.horizontal) == "string" then
-        local value, unit = Units.parse(props.margin.horizontal)
+        local value, unit = self._deps.Units.parse(props.margin.horizontal)
         self.units.margin.horizontal = { value = value, unit = unit }
       else
         self.units.margin.horizontal = { value = props.margin.horizontal, unit = "px" }
@@ -895,7 +868,7 @@ function Element.new(props)
     end
     if props.margin.vertical then
       if type(props.margin.vertical) == "string" then
-        local value, unit = Units.parse(props.margin.vertical)
+        local value, unit = self._deps.Units.parse(props.margin.vertical)
         self.units.margin.vertical = { value = value, unit = unit }
       else
         self.units.margin.vertical = { value = props.margin.vertical, unit = "px" }
@@ -907,7 +880,7 @@ function Element.new(props)
   for _, side in ipairs({ "top", "right", "bottom", "left" }) do
     if props.margin and props.margin[side] then
       if type(props.margin[side]) == "string" then
-        local value, unit = Units.parse(props.margin[side])
+        local value, unit = self._deps.Units.parse(props.margin[side])
         self.units.margin[side] = { value = value, unit = unit, explicit = true }
       else
         self.units.margin[side] = { value = props.margin[side], unit = "px", explicit = true }
@@ -922,17 +895,17 @@ function Element.new(props)
 
   ------ add hereditary ------
   if props.parent == nil then
-    table.insert(Context.topElements, self)
+    table.insert(self._deps.Context.topElements, self)
 
     -- Handle x position with units
     if props.x then
       if type(props.x) == "string" then
-        local value, unit = Units.parse(props.x)
+        local value, unit = self._deps.Units.parse(props.x)
         self.units.x = { value = value, unit = unit }
-        self.x = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        self.x = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
       else
         -- Apply base scaling to pixel positions
-        self.x = Context.baseScale and (props.x * scaleX) or props.x
+        self.x = self._deps.Context.baseScale and (props.x * scaleX) or props.x
         self.units.x = { value = props.x, unit = "px" }
       end
     else
@@ -943,12 +916,12 @@ function Element.new(props)
     -- Handle y position with units
     if props.y then
       if type(props.y) == "string" then
-        local value, unit = Units.parse(props.y)
+        local value, unit = self._deps.Units.parse(props.y)
         self.units.y = { value = value, unit = unit }
-        self.y = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        self.y = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
       else
         -- Apply base scaling to pixel positions
-        self.y = Context.baseScale and (props.y * scaleY) or props.y
+        self.y = self._deps.Context.baseScale and (props.y * scaleY) or props.y
         self.units.y = { value = props.y, unit = "px" }
       end
     else
@@ -968,47 +941,47 @@ function Element.new(props)
         self.textColor = themeToUse.colors.text
       else
         -- Fallback to black
-        self.textColor = Color.new(0, 0, 0, 1)
+        self.textColor = self._deps.Color.new(0, 0, 0, 1)
       end
     end
 
     -- Track if positioning was explicitly set
     if props.positioning then
-      validateEnum(props.positioning, Positioning, "positioning")
+      self._deps.utils.validateEnum(props.positioning, self._deps.utils.enums.Positioning, "positioning")
       self.positioning = props.positioning
       self._originalPositioning = props.positioning
-      self._explicitlyAbsolute = (props.positioning == Positioning.ABSOLUTE)
+      self._explicitlyAbsolute = (props.positioning == self._deps.utils.enums.Positioning.ABSOLUTE)
     else
-      self.positioning = Positioning.RELATIVE
+      self.positioning = self._deps.utils.enums.Positioning.RELATIVE
       self._originalPositioning = nil -- No explicit positioning
       self._explicitlyAbsolute = false
     end
   else
     -- Set positioning first and track if explicitly set
     self._originalPositioning = props.positioning -- Track original intent
-    if props.positioning == Positioning.ABSOLUTE then
-      self.positioning = Positioning.ABSOLUTE
+    if props.positioning == self._deps.utils.enums.Positioning.ABSOLUTE then
+      self.positioning = self._deps.utils.enums.Positioning.ABSOLUTE
       self._explicitlyAbsolute = true -- Explicitly set to absolute by user
-    elseif props.positioning == Positioning.FLEX then
-      self.positioning = Positioning.FLEX
+    elseif props.positioning == self._deps.utils.enums.Positioning.FLEX then
+      self.positioning = self._deps.utils.enums.Positioning.FLEX
       self._explicitlyAbsolute = false
-    elseif props.positioning == Positioning.GRID then
-      self.positioning = Positioning.GRID
+    elseif props.positioning == self._deps.utils.enums.Positioning.GRID then
+      self.positioning = self._deps.utils.enums.Positioning.GRID
       self._explicitlyAbsolute = false
     else
       -- Default: children in flex/grid containers participate in parent's layout
       -- children in relative/absolute containers default to relative
-      if self.parent.positioning == Positioning.FLEX or self.parent.positioning == Positioning.GRID then
-        self.positioning = Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
+      if self.parent.positioning == self._deps.utils.enums.Positioning.FLEX or self.parent.positioning == self._deps.utils.enums.Positioning.GRID then
+        self.positioning = self._deps.utils.enums.Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
         self._explicitlyAbsolute = false -- Participate in parent's layout
       else
-        self.positioning = Positioning.RELATIVE
+        self.positioning = self._deps.utils.enums.Positioning.RELATIVE
         self._explicitlyAbsolute = false -- Default for relative/absolute containers
       end
     end
 
     -- Set initial position
-    if self.positioning == Positioning.ABSOLUTE then
+    if self.positioning == self._deps.utils.enums.Positioning.ABSOLUTE then
       -- Absolute positioning is relative to parent's content area (padding box)
       local baseX = self.parent.x + self.parent.padding.left
       local baseY = self.parent.y + self.parent.padding.top
@@ -1016,14 +989,14 @@ function Element.new(props)
       -- Handle x position with units
       if props.x then
         if type(props.x) == "string" then
-          local value, unit = Units.parse(props.x)
+          local value, unit = self._deps.Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
-          local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          local offsetX = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
           self.x = baseX + offsetX
         else
           -- Apply base scaling to pixel positions
-          local scaledOffset = Context.baseScale and (props.x * scaleX) or props.x
+          local scaledOffset = self._deps.Context.baseScale and (props.x * scaleX) or props.x
           self.x = baseX + scaledOffset
           self.units.x = { value = props.x, unit = "px" }
         end
@@ -1035,14 +1008,14 @@ function Element.new(props)
       -- Handle y position with units
       if props.y then
         if type(props.y) == "string" then
-          local value, unit = Units.parse(props.y)
+          local value, unit = self._deps.Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           local parentHeight = self.parent.height
-          local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          local offsetY = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
           self.y = baseY + offsetY
         else
           -- Apply base scaling to pixel positions
-          local scaledOffset = Context.baseScale and (props.y * scaleY) or props.y
+          local scaledOffset = self._deps.Context.baseScale and (props.y * scaleY) or props.y
           self.y = baseY + scaledOffset
           self.units.y = { value = props.y, unit = "px" }
         end
@@ -1060,14 +1033,14 @@ function Element.new(props)
 
       if props.x then
         if type(props.x) == "string" then
-          local value, unit = Units.parse(props.x)
+          local value, unit = self._deps.Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
-          local offsetX = Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          local offsetX = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
           self.x = baseX + offsetX
         else
           -- Apply base scaling to pixel offsets
-          local scaledOffset = Context.baseScale and (props.x * scaleX) or props.x
+          local scaledOffset = self._deps.Context.baseScale and (props.x * scaleX) or props.x
           self.x = baseX + scaledOffset
           self.units.x = { value = props.x, unit = "px" }
         end
@@ -1078,14 +1051,14 @@ function Element.new(props)
 
       if props.y then
         if type(props.y) == "string" then
-          local value, unit = Units.parse(props.y)
+          local value, unit = self._deps.Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           parentHeight = self.parent.height
-          local offsetY = Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          local offsetY = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
           self.y = baseY + offsetY
         else
           -- Apply base scaling to pixel offsets
-          local scaledOffset = Context.baseScale and (props.y * scaleY) or props.y
+          local scaledOffset = self._deps.Context.baseScale and (props.y * scaleY) or props.y
           self.y = baseY + scaledOffset
           self.units.y = { value = props.y, unit = "px" }
         end
@@ -1107,7 +1080,7 @@ function Element.new(props)
         self.textColor = themeToUse.colors.text
       else
         -- Fallback to black
-        self.textColor = Color.new(0, 0, 0, 1)
+        self.textColor = self._deps.Color.new(0, 0, 0, 1)
       end
     end
 
@@ -1118,9 +1091,9 @@ function Element.new(props)
   -- Handle top positioning with units
   if props.top then
     if type(props.top) == "string" then
-      local value, unit = Units.parse(props.top)
+      local value, unit = self._deps.Units.parse(props.top)
       self.units.top = { value = value, unit = unit }
-      self.top = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      self.top = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
     else
       self.top = props.top
       self.units.top = { value = props.top, unit = "px" }
@@ -1133,9 +1106,9 @@ function Element.new(props)
   -- Handle right positioning with units
   if props.right then
     if type(props.right) == "string" then
-      local value, unit = Units.parse(props.right)
+      local value, unit = self._deps.Units.parse(props.right)
       self.units.right = { value = value, unit = unit }
-      self.right = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      self.right = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
     else
       self.right = props.right
       self.units.right = { value = props.right, unit = "px" }
@@ -1148,9 +1121,9 @@ function Element.new(props)
   -- Handle bottom positioning with units
   if props.bottom then
     if type(props.bottom) == "string" then
-      local value, unit = Units.parse(props.bottom)
+      local value, unit = self._deps.Units.parse(props.bottom)
       self.units.bottom = { value = value, unit = unit }
-      self.bottom = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      self.bottom = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
     else
       self.bottom = props.bottom
       self.units.bottom = { value = props.bottom, unit = "px" }
@@ -1163,9 +1136,9 @@ function Element.new(props)
   -- Handle left positioning with units
   if props.left then
     if type(props.left) == "string" then
-      local value, unit = Units.parse(props.left)
+      local value, unit = self._deps.Units.parse(props.left)
       self.units.left = { value = value, unit = unit }
-      self.left = Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      self.left = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
     else
       self.left = props.left
       self.units.left = { value = props.left, unit = "px" }
@@ -1175,46 +1148,46 @@ function Element.new(props)
     self.units.left = nil
   end
 
-  if self.positioning == Positioning.FLEX then
+  if self.positioning == self._deps.utils.enums.Positioning.FLEX then
     -- Validate enum properties
     if props.flexDirection then
-      validateEnum(props.flexDirection, FlexDirection, "flexDirection")
+      self._deps.utils.validateEnum(props.flexDirection, self._deps.utils.enums.FlexDirection, "flexDirection")
     end
     if props.flexWrap then
-      validateEnum(props.flexWrap, FlexWrap, "flexWrap")
+      self._deps.utils.validateEnum(props.flexWrap, self._deps.utils.enums.FlexWrap, "flexWrap")
     end
     if props.justifyContent then
-      validateEnum(props.justifyContent, JustifyContent, "justifyContent")
+      self._deps.utils.validateEnum(props.justifyContent, self._deps.utils.enums.JustifyContent, "justifyContent")
     end
     if props.alignItems then
-      validateEnum(props.alignItems, AlignItems, "alignItems")
+      self._deps.utils.validateEnum(props.alignItems, self._deps.utils.enums.AlignItems, "alignItems")
     end
     if props.alignContent then
-      validateEnum(props.alignContent, AlignContent, "alignContent")
+      self._deps.utils.validateEnum(props.alignContent, self._deps.utils.enums.AlignContent, "alignContent")
     end
     if props.justifySelf then
-      validateEnum(props.justifySelf, JustifySelf, "justifySelf")
+      self._deps.utils.validateEnum(props.justifySelf, self._deps.utils.enums.JustifySelf, "justifySelf")
     end
 
-    self.flexDirection = props.flexDirection or FlexDirection.HORIZONTAL
-    self.flexWrap = props.flexWrap or FlexWrap.NOWRAP
-    self.justifyContent = props.justifyContent or JustifyContent.FLEX_START
-    self.alignItems = props.alignItems or AlignItems.STRETCH
-    self.alignContent = props.alignContent or AlignContent.STRETCH
-    self.justifySelf = props.justifySelf or JustifySelf.AUTO
+    self.flexDirection = props.flexDirection or self._deps.utils.enums.FlexDirection.HORIZONTAL
+    self.flexWrap = props.flexWrap or self._deps.utils.enums.FlexWrap.NOWRAP
+    self.justifyContent = props.justifyContent or self._deps.utils.enums.JustifyContent.FLEX_START
+    self.alignItems = props.alignItems or self._deps.utils.enums.AlignItems.STRETCH
+    self.alignContent = props.alignContent or self._deps.utils.enums.AlignContent.STRETCH
+    self.justifySelf = props.justifySelf or self._deps.utils.enums.JustifySelf.AUTO
   end
 
   -- Grid container properties
-  if self.positioning == Positioning.GRID then
+  if self.positioning == self._deps.utils.enums.Positioning.GRID then
     self.gridRows = props.gridRows or 1
     self.gridColumns = props.gridColumns or 1
-    self.alignItems = props.alignItems or AlignItems.STRETCH
+    self.alignItems = props.alignItems or self._deps.utils.enums.AlignItems.STRETCH
 
     -- Handle columnGap and rowGap
     if props.columnGap then
       if type(props.columnGap) == "string" then
-        local value, unit = Units.parse(props.columnGap)
-        self.columnGap = Units.resolve(value, unit, viewportWidth, viewportHeight, self.width)
+        local value, unit = self._deps.Units.parse(props.columnGap)
+        self.columnGap = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, self.width)
       else
         self.columnGap = props.columnGap
       end
@@ -1224,8 +1197,8 @@ function Element.new(props)
 
     if props.rowGap then
       if type(props.rowGap) == "string" then
-        local value, unit = Units.parse(props.rowGap)
-        self.rowGap = Units.resolve(value, unit, viewportWidth, viewportHeight, self.height)
+        local value, unit = self._deps.Units.parse(props.rowGap)
+        self.rowGap = self._deps.Units.resolve(value, unit, viewportWidth, viewportHeight, self.height)
       else
         self.rowGap = props.rowGap
       end
@@ -1234,7 +1207,7 @@ function Element.new(props)
     end
   end
 
-  self.alignSelf = props.alignSelf or AlignSelf.AUTO
+  self.alignSelf = props.alignSelf or self._deps.utils.enums.AlignSelf.AUTO
 
   -- Update the LayoutEngine with actual layout properties
   -- (it was initialized early with defaults for auto-sizing calculations)
@@ -1276,7 +1249,7 @@ function Element.new(props)
 
   -- Initialize ScrollManager if any overflow properties are set
   if props.overflow or props.overflowX or props.overflowY then
-    self._scrollManager = ScrollManager.new({
+    self._scrollManager = self._deps.ScrollManager.new({
       overflow = props.overflow,
       overflowX = props.overflowX,
       overflowY = props.overflowY,
@@ -1289,10 +1262,7 @@ function Element.new(props)
       hideScrollbars = props.hideScrollbars,
       _scrollX = props._scrollX,
       _scrollY = props._scrollY,
-    }, {
-      utils = utils,
-      Color = Color,
-    })
+    }, scrollManagerDeps)
     self._scrollManager:initialize(self)
 
     -- Expose ScrollManager properties for backward compatibility (Renderer access)
@@ -1326,8 +1296,8 @@ function Element.new(props)
   end
 
   -- Register element in z-index tracking for immediate mode
-  if Context._immediateMode then
-    Context.registerElement(self)
+  if self._deps.Context._immediateMode then
+    self._deps.Context.registerElement(self)
   end
 
   -- Initialize TextEditor after element is fully constructed
@@ -1587,7 +1557,7 @@ function Element:getBlurInstance()
 
   -- Create blur instance if needed
   if not self._blurInstance or self._blurInstance.quality ~= quality then
-    self._blurInstance = Blur.new(quality)
+    self._blurInstance = self._deps.Blur.new(quality)
   end
 
   return self._blurInstance
@@ -1650,11 +1620,11 @@ function Element:addChild(child)
   -- If child was created without explicit positioning, inherit from parent
   if child._originalPositioning == nil then
     -- No explicit positioning was set during construction
-    if self.positioning == Positioning.FLEX or self.positioning == Positioning.GRID then
-      child.positioning = Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
+    if self.positioning == self._deps.utils.enums.Positioning.FLEX or self.positioning == self._deps.utils.enums.Positioning.GRID then
+      child.positioning = self._deps.utils.enums.Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
       child._explicitlyAbsolute = false -- Participate in parent's layout
     else
-      child.positioning = Positioning.RELATIVE
+      child.positioning = self._deps.utils.enums.Positioning.RELATIVE
       child._explicitlyAbsolute = false -- Default for relative/absolute containers
     end
   end
@@ -1708,7 +1678,7 @@ function Element:addChild(child)
 
   -- In immediate mode, defer layout until endFrame() when all elements are created
   -- This prevents premature overflow detection with incomplete children
-  if not Context._immediateMode then
+  if not self._deps.Context._immediateMode then
     self:layoutChildren()
   end
 end
@@ -1728,9 +1698,9 @@ end
 --- Destroy element and its children
 function Element:destroy()
   -- Remove from global elements list
-  for i, win in ipairs(Context.topElements) do
+  for i, win in ipairs(self._deps.Context.topElements) do
     if win == self then
-      table.remove(Context.topElements, i)
+      table.remove(self._deps.Context.topElements, i)
       break
     end
   end
@@ -1777,7 +1747,7 @@ function Element:draw(backdropCanvas)
   if self.animation then
     local anim = self.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor = Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor = self._deps.Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
@@ -1841,7 +1811,7 @@ function Element:draw(backdropCanvas)
       -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      local stencilFunc = RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      local stencilFunc = self._deps.RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
       -- Temporarily disable canvas for stencil operation (LÖVE 11.5 workaround)
       local currentCanvas = love.graphics.getCanvas()
@@ -1902,7 +1872,7 @@ function Element:draw(backdropCanvas)
   if self.contentBlur and self.contentBlur.intensity > 0 and #sortedChildren > 0 then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Blur.applyToRegion(blurInstance, self.contentBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
+      self._deps.Blur.applyToRegion(blurInstance, self.contentBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
     else
       drawChildren()
     end
@@ -1929,8 +1899,8 @@ end
 ---@param dt number
 function Element:update(dt)
   -- Restore scrollbar state from StateManager in immediate mode
-  if self._stateId and Context._immediateMode then
-    local state = StateManager.getState(self._stateId)
+  if self._stateId and self._deps.Context._immediateMode then
+    local state = self._deps.StateManager.getState(self._stateId)
     if state then
       self._scrollbarHoveredVertical = state.scrollbarHoveredVertical or false
       self._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal or false
@@ -1982,8 +1952,8 @@ function Element:update(dt)
     self:_syncScrollManagerState()
   end
 
-  if self._stateId and Context._immediateMode then
-    StateManager.updateState(self._stateId, {
+  if self._stateId and self._deps.Context._immediateMode then
+    self._deps.StateManager.updateState(self._stateId, {
       scrollbarHoveredVertical = self._scrollbarHoveredVertical,
       scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal,
       scrollbarDragging = self._scrollbarDragging,
@@ -1999,8 +1969,8 @@ function Element:update(dt)
       self:_syncScrollManagerState()
     end
 
-    if self._stateId and Context._immediateMode then
-      StateManager.updateState(self._stateId, {
+    if self._stateId and self._deps.Context._immediateMode then
+      self._deps.StateManager.updateState(self._stateId, {
         scrollbarDragging = false,
       })
     end
@@ -2064,13 +2034,13 @@ function Element:update(dt)
     -- Check if this is the topmost element at the mouse position (z-index ordering)
     -- This prevents blocked elements from receiving interactions or visual feedback
     local isActiveElement
-    if Context._immediateMode then
+    if self._deps.Context._immediateMode then
       -- In immediate mode, use z-index occlusion detection
-      local topElement = Context.getTopElementAt(mx, my)
+      local topElement = self._deps.Context.getTopElementAt(mx, my)
       isActiveElement = (topElement == self or topElement == nil)
     else
       -- In retained mode, use the old _activeEventElement mechanism
-      isActiveElement = (Context._activeEventElement == nil or Context._activeEventElement == self)
+      isActiveElement = (self._deps.Context._activeEventElement == nil or self._deps.Context._activeEventElement == self)
     end
 
     -- Reset scrollbar press flag at start of each frame
@@ -2081,9 +2051,9 @@ function Element:update(dt)
     self._eventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
 
     -- In immediate mode, save EventHandler state to StateManager after processing events
-    if self._stateId and Context._immediateMode and self._stateId ~= "" then
+    if self._stateId and self._deps.Context._immediateMode and self._stateId ~= "" then
       local eventHandlerState = self._eventHandler:getState()
-      StateManager.updateState(self._stateId, {
+      self._deps.StateManager.updateState(self._stateId, {
         _pressed = eventHandlerState._pressed,
         _lastClickTime = eventHandlerState._lastClickTime,
         _lastClickButton = eventHandlerState._lastClickButton,
@@ -2105,13 +2075,13 @@ function Element:update(dt)
       local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
       -- Update state (in StateManager if in immediate mode, otherwise locally)
-      if self._stateId and Context._immediateMode then
+      if self._stateId and self._deps.Context._immediateMode then
         -- Update in StateManager for immediate mode
         local hover = newThemeState == "hover"
         local pressed = newThemeState == "pressed"
         local focused = newThemeState == "active" or self._focused
 
-        StateManager.updateState(self._stateId, {
+        self._deps.StateManager.updateState(self._stateId, {
           hover = hover,
           pressed = pressed,
           focused = focused,
@@ -2177,15 +2147,15 @@ function Element:resize(newGameWidth, newGameHeight)
   if self.units.textSize.value then
     local unit = self.units.textSize.unit
     local value = self.units.textSize.value
-    local _, scaleY = Context.getScaleFactors()
+    local _, scaleY = self._deps.Context.getScaleFactors()
 
     if unit == "ew" then
       -- Element width relative (use current width)
       self.textSize = (value / 100) * self.width
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize and (Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize and (Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize and (self._deps.Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (self._deps.Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -2200,8 +2170,8 @@ function Element:resize(newGameWidth, newGameHeight)
       self.textSize = (value / 100) * self.height
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize and (Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize and (Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize and (self._deps.Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (self._deps.Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -2226,9 +2196,9 @@ function Element:calculateTextWidth()
     return 0
   end
 
-  local font = utils.getFont(self.textSize, self.fontFamily, self.themeComponent, self._themeManager)
+  local font = self._deps.utils.getFont(self.textSize, self.fontFamily, self.themeComponent, self._themeManager)
   local width = font:getWidth(self.text)
-  return utils.applyContentMultiplier(width, self.contentAutoSizingMultiplier, "width")
+  return self._deps.utils.applyContentMultiplier(width, self.contentAutoSizingMultiplier, "width")
 end
 
 ---@return number
@@ -2237,7 +2207,7 @@ function Element:calculateTextHeight()
     return 0
   end
 
-  local font = utils.getFont(self.textSize, self.fontFamily, self.themeComponent, self._themeManager)
+  local font = self._deps.utils.getFont(self.textSize, self.fontFamily, self.themeComponent, self._themeManager)
   local height = font:getHeight()
 
   if self.textWrap and (self.textWrap == "word" or self.textWrap == "char" or self.textWrap == true) then
@@ -2253,7 +2223,7 @@ function Element:calculateTextHeight()
     end
   end
 
-  return utils.applyContentMultiplier(height, self.contentAutoSizingMultiplier, "height")
+  return self._deps.utils.applyContentMultiplier(height, self.contentAutoSizingMultiplier, "height")
 end
 
 function Element:calculateAutoWidth()

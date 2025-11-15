@@ -10,6 +10,17 @@ local Units = req("Units")
 local Context = req("Context")
 local StateManager = req("StateManager")
 local ErrorHandler = req("ErrorHandler")
+local ImageRenderer = req("ImageRenderer")
+local NinePatch = req("NinePatch")
+local RoundedRect = req("RoundedRect")
+local ImageCache = req("ImageCache")
+local Grid = req("Grid")
+local InputEvent = req("InputEvent")
+local TextEditor = req("TextEditor")
+local LayoutEngine = req("LayoutEngine")
+local Renderer = req("Renderer")
+local EventHandler = req("EventHandler")
+local ScrollManager = req("ScrollManager")
 ---@type Element
 local Element = req("Element")
 
@@ -21,6 +32,28 @@ local Color = req("Color")
 ---@type Theme
 local Theme = req("Theme")
 local enums = utils.enums
+
+Element.defaultDependencies = {
+  Context = Context,
+  Theme = Theme,
+  Color = Color,
+  Units = Units,
+  Blur = Blur,
+  ImageRenderer = ImageRenderer,
+  NinePatch = NinePatch,
+  RoundedRect = RoundedRect,
+  ImageCache = ImageCache,
+  utils = utils,
+  Grid = Grid,
+  InputEvent = InputEvent,
+  StateManager = StateManager,
+  TextEditor = TextEditor,
+  LayoutEngine = LayoutEngine,
+  Renderer = Renderer,
+  EventHandler = EventHandler,
+  ScrollManager = ScrollManager,
+  ErrorHandler = ErrorHandler,
+}
 
 ---@class FlexLove
 local flexlove = Context
@@ -630,7 +663,7 @@ function flexlove.new(props)
 
   -- If not in immediate mode, use standard Element.new
   if not flexlove._immediateMode then
-    return Element.new(props)
+    return Element.new(props, Element.defaultDependencies)
   end
 
   -- Auto-begin frame if not manually started (convenience feature)
@@ -656,7 +689,7 @@ function flexlove.new(props)
   props._scrollY = state._scrollY or 0
 
   -- Create the element
-  local element = Element.new(props)
+  local element = Element.new(props, Element.defaultDependencies)
 
   -- Bind persistent state to element (ImmediateModeState)
   -- Restore event handler state

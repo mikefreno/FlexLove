@@ -716,7 +716,6 @@ local function createMockElement(props)
   }
 end
 
-
 -- Run tests if this file is executed directly
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())

@@ -17,17 +17,25 @@ local luaunit = require("testing.luaunit")
 
 -- Run all tests in the __tests__ directory
 local testFiles = {
-  "testing/__tests__/utils_test.lua",
-  "testing/__tests__/units_test.lua",
+  "testing/__tests__/animation_test.lua",
   "testing/__tests__/color_validation_test.lua",
+  "testing/__tests__/element_test.lua",
+  "testing/__tests__/error_handler_test.lua",
+  "testing/__tests__/event_handler_test.lua",
+  "testing/__tests__/grid_test.lua",
+  "testing/__tests__/image_cache_test.lua",
+  "testing/__tests__/image_renderer_test.lua",
+  "testing/__tests__/image_scaler_test.lua",
+  "testing/__tests__/input_event_test.lua",
+  "testing/__tests__/layout_edge_cases_test.lua",
+  "testing/__tests__/layout_engine_test.lua",
+  "testing/__tests__/overflow_test.lua",
   "testing/__tests__/path_validation_test.lua",
   "testing/__tests__/sanitization_test.lua",
+  "testing/__tests__/text_editor_test.lua",
   "testing/__tests__/theme_test.lua",
-  "testing/__tests__/layout_engine_test.lua",
-  "testing/__tests__/element_test.lua",
-  "testing/__tests__/overflow_test.lua",
-  "testing/__tests__/grid_test.lua",
-  "testing/__tests__/layout_edge_cases_test.lua",
+  "testing/__tests__/units_test.lua",
+  "testing/__tests__/utils_test.lua",
 }
 
 local success = true
@@ -58,19 +66,19 @@ if status then
   print("\n========================================")
   print("Generating coverage report...")
   print("========================================")
-  
+
   -- Save coverage stats
   luacov.save_stats()
-  
+
   -- Run luacov command to generate report (silent)
   os.execute("luacov 2>/dev/null")
-  
+
   -- Read and display the summary section from the report
   local report_file = io.open("luacov.report.out", "r")
   if report_file then
     local content = report_file:read("*all")
     report_file:close()
-    
+
     -- Extract just the Summary section
     local summary = content:match("Summary\n=+\n(.-)$")
     if summary then
@@ -79,7 +87,7 @@ if status then
       print(summary)
     end
   end
-  
+
   print("Full coverage report: luacov.report.out")
   print("========================================")
 end

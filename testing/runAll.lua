@@ -1,16 +1,13 @@
 package.path = package.path .. ";./?.lua;./game/?.lua;./game/utils/?.lua;./game/components/?.lua;./game/systems/?.lua"
 
--- Enable code coverage tracking BEFORE loading any modules
-local coverage_enabled = os.getenv("COVERAGE") == "1"
-if coverage_enabled then
-  local status, luacov = pcall(require, "luacov")
-  if status then
-    print("========================================")
-    print("Code coverage tracking enabled")
-    print("========================================")
-  else
-    print("Warning: luacov not found, coverage tracking disabled")
-  end
+-- Always enable code coverage tracking BEFORE loading any modules
+local status, luacov = pcall(require, "luacov")
+if status then
+  print("========================================")
+  print("Code coverage tracking enabled")
+  print("========================================")
+else
+  print("Warning: luacov not found, coverage tracking disabled")
 end
 
 -- Set global flag to prevent individual test files from running luaunit
@@ -52,4 +49,36 @@ print("All tests completed")
 print("========================================")
 
 local result = luaunit.LuaUnit.run()
+
+-- Generate and display coverage report
+if status then
+  print("\n========================================")
+  print("Generating coverage report...")
+  print("========================================")
+  
+  -- Save coverage stats
+  luacov.save_stats()
+  
+  -- Run luacov command to generate report (silent)
+  os.execute("luacov 2>/dev/null")
+  
+  -- Read and display the summary section from the report
+  local report_file = io.open("luacov.report.out", "r")
+  if report_file then
+    local content = report_file:read("*all")
+    report_file:close()
+    
+    -- Extract just the Summary section
+    local summary = content:match("Summary\n=+\n(.-)$")
+    if summary then
+      print("\nSummary")
+      print("==============================================================================")
+      print(summary)
+    end
+  end
+  
+  print("Full coverage report: luacov.report.out")
+  print("========================================")
+end
+
 os.exit(success and result or 1)

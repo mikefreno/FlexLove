@@ -89,28 +89,20 @@ function TestUnitsParse:testParseZero()
 end
 
 function TestUnitsParse:testParseInvalidType()
-  local value, unit = Units.parse(nil)
-  luaunit.assertEquals(value, 0)
-  luaunit.assertEquals(unit, "px")
+  luaunit.assertErrorMsgContains("Invalid unit value type", Units.parse, nil)
 end
 
 function TestUnitsParse:testParseInvalidString()
-  local value, unit = Units.parse("abc")
-  luaunit.assertEquals(value, 0)
-  luaunit.assertEquals(unit, "px")
+  luaunit.assertErrorMsgContains("Invalid unit format", Units.parse, "abc")
 end
 
 function TestUnitsParse:testParseInvalidUnit()
-  local value, unit = Units.parse("100xyz")
-  luaunit.assertEquals(value, 100)
-  luaunit.assertEquals(unit, "px") -- Falls back to px
+  luaunit.assertErrorMsgContains("Unknown unit", Units.parse, "100xyz")
 end
 
 function TestUnitsParse:testParseWithSpace()
   -- Spaces between number and unit should be invalid
-  local value, unit = Units.parse("100 px")
-  luaunit.assertEquals(value, 0)
-  luaunit.assertEquals(unit, "px")
+  luaunit.assertErrorMsgContains("contains space", Units.parse, "100 px")
 end
 
 -- Test suite for Units.resolve()
@@ -377,15 +369,11 @@ function TestUnitsEdgeCases:testResolveZeroParentSize()
 end
 
 function TestUnitsEdgeCases:testParseEmptyString()
-  local value, unit = Units.parse("")
-  luaunit.assertEquals(value, 0)
-  luaunit.assertEquals(unit, "px")
+  luaunit.assertErrorMsgContains("Invalid unit format", Units.parse, "")
 end
 
 function TestUnitsEdgeCases:testParseOnlyUnit()
-  local value, unit = Units.parse("px")
-  luaunit.assertEquals(value, 0)
-  luaunit.assertEquals(unit, "px")
+  luaunit.assertErrorMsgContains("Missing numeric value before unit", Units.parse, "px")
 end
 
 function TestUnitsEdgeCases:testResolveNegativePercentage()

@@ -29,6 +29,15 @@ function Units.parse(value)
     return 0, "px"
   end
 
+  -- Check for unit-only input (e.g., "px", "%", "vw" without a number)
+  local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
+  if validUnits[value] then
+    if ErrorHandler then
+      ErrorHandler.error("Units", string.format("Missing numeric value before unit '%s'. Use format like '50%s' (e.g., '50px', '10%%', '2vw')", value, value))
+    end
+    return 0, "px"
+  end
+
   -- Check for invalid format (space between number and unit)
   if value:match("%d%s+%a") then
     if ErrorHandler then
@@ -59,7 +68,7 @@ function Units.parse(value)
     unit = "px"
   end
 
-  local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
+  -- validUnits is already defined at the top of the function
   if not validUnits[unit] then
     if ErrorHandler then
       ErrorHandler.error("Units", string.format("Unknown unit '%s' in '%s'. Valid units: px, %%, vw, vh, ew, eh", unit, value))

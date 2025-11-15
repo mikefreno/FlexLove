@@ -348,19 +348,25 @@ function Element.new(props, deps)
 
   ------ add non-hereditary ------
   --- self drawing---
-  self.border = props.border
-      and {
-        top = props.border.top or false,
-        right = props.border.right or false,
-        bottom = props.border.bottom or false,
-        left = props.border.left or false,
-      }
-    or {
+  -- Handle border (can be number or table)
+  if type(props.border) == "table" then
+    self.border = {
+      top = props.border.top or false,
+      right = props.border.right or false,
+      bottom = props.border.bottom or false,
+      left = props.border.left or false,
+    }
+  elseif props.border then
+    -- If border is a number or truthy value, keep it as-is
+    self.border = props.border
+  else
+    self.border = {
       top = false,
       right = false,
       bottom = false,
       left = false,
     }
+  end
   self.borderColor = props.borderColor or self._deps.Color.new(0, 0, 0, 1)
   self.backgroundColor = props.backgroundColor or self._deps.Color.new(0, 0, 0, 0)
 

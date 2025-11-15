@@ -663,4 +663,271 @@ end
 -- Export both Theme and ThemeManager
 Theme.Manager = ThemeManager
 
+---Validate a theme definition for structural correctness (non-aggressive)
+---@param theme table? The theme to validate
+---@param options table? Optional validation options {strict: boolean}
+---@return boolean valid, table errors List of validation errors
+function Theme.validateTheme(theme, options)
+  local errors = {}
+  options = options or {}
+
+  -- Basic structure validation
+  if theme == nil then
+    table.insert(errors, "Theme is nil")
+    return false, errors
+  end
+
+  if type(theme) ~= "table" then
+    table.insert(errors, "Theme must be a table")
+    return false, errors
+  end
+
+  -- Name validation (only required field)
+  if not theme.name then
+    table.insert(errors, "Theme must have a 'name' field")
+  elseif type(theme.name) ~= "string" then
+    table.insert(errors, "Theme 'name' must be a string")
+  elseif theme.name == "" then
+    table.insert(errors, "Theme 'name' cannot be empty")
+  end
+
+  -- Colors validation (optional, but if present must be valid)
+  if theme.colors ~= nil then
+    if type(theme.colors) ~= "table" then
+      table.insert(errors, "Theme 'colors' must be a table")
+    else
+      for colorName, colorValue in pairs(theme.colors) do
+        if type(colorName) ~= "string" then
+          table.insert(errors, "Color name must be a string, got " .. type(colorName))
+        else
+          -- Accept Color objects, hex strings, or named colors
+          local colorType = type(colorValue)
+          if colorType == "table" then
+            -- Assume it's a Color object if it has r,g,b fields
+            if not (colorValue.r and colorValue.g and colorValue.b) then
+              table.insert(errors, "Color '" .. colorName .. "' is not a valid Color object")
+            end
+          elseif colorType == "string" then
+            -- Validate color string
+            local isValid, err = Color.validateColor(colorValue)
+            if not isValid then
+              table.insert(errors, "Color '" .. colorName .. "': " .. err)
+            end
+          else
+            table.insert(errors, "Color '" .. colorName .. "' must be a Color object or string")
+          end
+        end
+      end
+    end
+  end
+
+  -- Fonts validation (optional)
+  if theme.fonts ~= nil then
+    if type(theme.fonts) ~= "table" then
+      table.insert(errors, "Theme 'fonts' must be a table")
+    else
+      for fontName, fontPath in pairs(theme.fonts) do
+        if type(fontName) ~= "string" then
+          table.insert(errors, "Font name must be a string, got " .. type(fontName))
+        elseif type(fontPath) ~= "string" then
+          table.insert(errors, "Font '" .. fontName .. "' path must be a string")
+        end
+      end
+    end
+  end
+
+  -- Components validation (optional)
+  if theme.components ~= nil then
+    if type(theme.components) ~= "table" then
+      table.insert(errors, "Theme 'components' must be a table")
+    else
+      for componentName, component in pairs(theme.components) do
+        if type(component) == "table" then
+          -- Validate atlas if present
+          if component.atlas ~= nil and type(component.atlas) ~= "string" then
+            table.insert(errors, "Component '" .. componentName .. "' atlas must be a string")
+          end
+
+          -- Validate insets if present
+          if component.insets ~= nil then
+            if type(component.insets) ~= "table" then
+              table.insert(errors, "Component '" .. componentName .. "' insets must be a table")
+            else
+              -- If insets are provided, all 4 sides must be present
+              for _, side in ipairs({ "left", "top", "right", "bottom" }) do
+                if component.insets[side] == nil then
+                  table.insert(errors, "Component '" .. componentName .. "' insets must have '" .. side .. "' field")
+                elseif type(component.insets[side]) ~= "number" then
+                  table.insert(errors, "Component '" .. componentName .. "' insets." .. side .. " must be a number")
+                elseif component.insets[side] < 0 then
+                  table.insert(errors, "Component '" .. componentName .. "' insets." .. side .. " must be non-negative")
+                end
+              end
+            end
+          end
+
+          -- Validate states if present
+          if component.states ~= nil then
+            if type(component.states) ~= "table" then
+              table.insert(errors, "Component '" .. componentName .. "' states must be a table")
+            else
+              for stateName, stateComponent in pairs(component.states) do
+                if type(stateComponent) ~= "table" then
+                  table.insert(errors, "Component '" .. componentName .. "' state '" .. stateName .. "' must be a table")
+                end
+              end
+            end
+          end
+
+          -- Validate scaleCorners if present
+          if component.scaleCorners ~= nil then
+            if type(component.scaleCorners) ~= "number" then
+              table.insert(errors, "Component '" .. componentName .. "' scaleCorners must be a number")
+            elseif component.scaleCorners <= 0 then
+              table.insert(errors, "Component '" .. componentName .. "' scaleCorners must be positive")
+            end
+          end
+
+          -- Validate scalingAlgorithm if present
+          if component.scalingAlgorithm ~= nil then
+            if type(component.scalingAlgorithm) ~= "string" then
+              table.insert(errors, "Component '" .. componentName .. "' scalingAlgorithm must be a string")
+            elseif component.scalingAlgorithm ~= "nearest" and component.scalingAlgorithm ~= "bilinear" then
+              table.insert(errors, "Component '" .. componentName .. "' scalingAlgorithm must be 'nearest' or 'bilinear'")
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- contentAutoSizingMultiplier validation (optional)
+  if theme.contentAutoSizingMultiplier ~= nil then
+    if type(theme.contentAutoSizingMultiplier) ~= "table" then
+      table.insert(errors, "Theme 'contentAutoSizingMultiplier' must be a table")
+    else
+      if theme.contentAutoSizingMultiplier.width ~= nil then
+        if type(theme.contentAutoSizingMultiplier.width) ~= "number" then
+          table.insert(errors, "contentAutoSizingMultiplier.width must be a number")
+        elseif theme.contentAutoSizingMultiplier.width <= 0 then
+          table.insert(errors, "contentAutoSizingMultiplier.width must be positive")
+        end
+      end
+      if theme.contentAutoSizingMultiplier.height ~= nil then
+        if type(theme.contentAutoSizingMultiplier.height) ~= "number" then
+          table.insert(errors, "contentAutoSizingMultiplier.height must be a number")
+        elseif theme.contentAutoSizingMultiplier.height <= 0 then
+          table.insert(errors, "contentAutoSizingMultiplier.height must be positive")
+        end
+      end
+    end
+  end
+
+  -- Global atlas validation (optional)
+  if theme.atlas ~= nil then
+    if type(theme.atlas) ~= "string" then
+      table.insert(errors, "Theme 'atlas' must be a string")
+    end
+  end
+
+  -- Strict mode: warn about unknown fields
+  if options.strict then
+    local knownFields = {
+      name = true,
+      atlas = true,
+      components = true,
+      colors = true,
+      fonts = true,
+      contentAutoSizingMultiplier = true,
+    }
+    for field in pairs(theme) do
+      if not knownFields[field] then
+        table.insert(errors, "Unknown field '" .. field .. "' in theme")
+      end
+    end
+  end
+
+  return #errors == 0, errors
+end
+
+---Sanitize a theme definition by removing invalid values and providing defaults
+---@param theme table? The theme to sanitize
+---@return table sanitized The sanitized theme
+function Theme.sanitizeTheme(theme)
+  local sanitized = {}
+
+  -- Handle nil theme
+  if theme == nil then
+    return { name = "Invalid Theme" }
+  end
+
+  -- Handle non-table theme
+  if type(theme) ~= "table" then
+    return { name = "Invalid Theme" }
+  end
+
+  -- Sanitize name
+  if type(theme.name) == "string" and theme.name ~= "" then
+    sanitized.name = theme.name
+  else
+    sanitized.name = "Unnamed Theme"
+  end
+
+  -- Sanitize colors
+  if type(theme.colors) == "table" then
+    sanitized.colors = {}
+    for colorName, colorValue in pairs(theme.colors) do
+      if type(colorName) == "string" then
+        local colorType = type(colorValue)
+        if colorType == "table" and colorValue.r and colorValue.g and colorValue.b then
+          -- Valid Color object
+          sanitized.colors[colorName] = colorValue
+        elseif colorType == "string" then
+          -- Try to validate color string
+          local isValid = Color.validateColor(colorValue)
+          if isValid then
+            sanitized.colors[colorName] = colorValue
+          else
+            -- Provide fallback color
+            sanitized.colors[colorName] = Color.new(0, 0, 0, 1)
+          end
+        end
+      end
+    end
+  end
+
+  -- Sanitize fonts
+  if type(theme.fonts) == "table" then
+    sanitized.fonts = {}
+    for fontName, fontPath in pairs(theme.fonts) do
+      if type(fontName) == "string" and type(fontPath) == "string" then
+        sanitized.fonts[fontName] = fontPath
+      end
+    end
+  end
+
+  -- Sanitize components (preserve as-is, they're complex)
+  if type(theme.components) == "table" then
+    sanitized.components = theme.components
+  end
+
+  -- Sanitize contentAutoSizingMultiplier
+  if type(theme.contentAutoSizingMultiplier) == "table" then
+    sanitized.contentAutoSizingMultiplier = {}
+    if type(theme.contentAutoSizingMultiplier.width) == "number" and theme.contentAutoSizingMultiplier.width > 0 then
+      sanitized.contentAutoSizingMultiplier.width = theme.contentAutoSizingMultiplier.width
+    end
+    if type(theme.contentAutoSizingMultiplier.height) == "number" and theme.contentAutoSizingMultiplier.height > 0 then
+      sanitized.contentAutoSizingMultiplier.height = theme.contentAutoSizingMultiplier.height
+    end
+  end
+
+  -- Sanitize atlas
+  if type(theme.atlas) == "string" then
+    sanitized.atlas = theme.atlas
+  end
+
+  return sanitized
+end
+
 return Theme

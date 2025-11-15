@@ -26,7 +26,10 @@ local testFiles = {
   "testing/__tests__/color_validation_test.lua",
   "testing/__tests__/texteditor_sanitization_test.lua",
   "testing/__tests__/theme_validation_test.lua",
+  "testing/__tests__/theme_core_test.lua",
   "testing/__tests__/units_test.lua",
+  "testing/__tests__/layout_engine_test.lua",
+  "testing/__tests__/element_test.lua",
 }
 
 local success = true

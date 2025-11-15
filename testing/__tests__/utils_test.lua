@@ -286,10 +286,10 @@ function TestFontUtils:testResolveFontPath_ThemeFont()
     getTheme = function()
       return {
         fonts = {
-          mainFont = "themes/fonts/main.ttf"
-        }
+          mainFont = "themes/fonts/main.ttf",
+        },
       }
-    end
+    end,
   }
 
   local result = utils.resolveFontPath("mainFont", "button", mockThemeManager)
@@ -301,9 +301,9 @@ function TestFontUtils:testResolveFontPath_ThemeFontNotFound()
   local mockThemeManager = {
     getTheme = function()
       return {
-        fonts = {}
+        fonts = {},
       }
-    end
+    end,
   }
 
   -- Should fall back to treating it as a direct path
@@ -421,11 +421,11 @@ function TestTextSizePresets:testResolveTextSizePreset_ValidPresets()
   local value, unit = utils.resolveTextSizePreset("xs")
   luaunit.assertEquals(value, 1.25)
   luaunit.assertEquals(unit, "vh")
-  
+
   value, unit = utils.resolveTextSizePreset("md")
   luaunit.assertEquals(value, 2.25)
   luaunit.assertEquals(unit, "vh")
-  
+
   value, unit = utils.resolveTextSizePreset("xl")
   luaunit.assertEquals(value, 3.5)
   luaunit.assertEquals(unit, "vh")

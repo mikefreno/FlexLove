@@ -22,7 +22,7 @@ end
 function TestColorValidation:test_validateColorChannel_valid_0to255()
   local valid, clamped = Color.validateColorChannel(128, 255)
   luaunit.assertTrue(valid)
-  luaunit.assertAlmostEquals(clamped, 128/255, 0.001)
+  luaunit.assertAlmostEquals(clamped, 128 / 255, 0.001)
 end
 
 function TestColorValidation:test_validateColorChannel_clamp_below_min()
@@ -44,7 +44,7 @@ function TestColorValidation:test_validateColorChannel_clamp_above_255()
 end
 
 function TestColorValidation:test_validateColorChannel_nan()
-  local valid, clamped = Color.validateColorChannel(0/0, 1)
+  local valid, clamped = Color.validateColorChannel(0 / 0, 1)
   luaunit.assertFalse(valid)
   luaunit.assertNil(clamped)
 end
@@ -168,7 +168,7 @@ function TestColorValidation:test_validateRGBColor_invalid_blue()
 end
 
 function TestColorValidation:test_validateRGBColor_invalid_alpha()
-  local valid, err = Color.validateRGBColor(0.5, 0.5, 0.5, 0/0, 1)
+  local valid, err = Color.validateRGBColor(0.5, 0.5, 0.5, 0 / 0, 1)
   luaunit.assertFalse(valid)
   luaunit.assertNotNil(err)
   luaunit.assertStrContains(err, "Invalid alpha channel")
@@ -231,12 +231,12 @@ function TestColorValidation:test_isValidColorFormat_named()
 end
 
 function TestColorValidation:test_isValidColorFormat_table_array()
-  local format = Color.isValidColorFormat({0.5, 0.5, 0.5, 1.0})
+  local format = Color.isValidColorFormat({ 0.5, 0.5, 0.5, 1.0 })
   luaunit.assertEquals(format, "table")
 end
 
 function TestColorValidation:test_isValidColorFormat_table_named()
-  local format = Color.isValidColorFormat({r=0.5, g=0.5, b=0.5, a=1.0})
+  local format = Color.isValidColorFormat({ r = 0.5, g = 0.5, b = 0.5, a = 1.0 })
   luaunit.assertEquals(format, "table")
 end
 
@@ -252,7 +252,7 @@ function TestColorValidation:test_isValidColorFormat_invalid_string()
 end
 
 function TestColorValidation:test_isValidColorFormat_invalid_table()
-  local format = Color.isValidColorFormat({invalid=true})
+  local format = Color.isValidColorFormat({ invalid = true })
   luaunit.assertNil(format)
 end
 
@@ -281,32 +281,32 @@ function TestColorValidation:test_validateColor_named()
 end
 
 function TestColorValidation:test_validateColor_table_array()
-  local valid, err = Color.validateColor({0.5, 0.5, 0.5, 1.0})
+  local valid, err = Color.validateColor({ 0.5, 0.5, 0.5, 1.0 })
   luaunit.assertTrue(valid)
   luaunit.assertNil(err)
 end
 
 function TestColorValidation:test_validateColor_table_named()
-  local valid, err = Color.validateColor({r=0.5, g=0.5, b=0.5, a=1.0})
+  local valid, err = Color.validateColor({ r = 0.5, g = 0.5, b = 0.5, a = 1.0 })
   luaunit.assertTrue(valid)
   luaunit.assertNil(err)
 end
 
 function TestColorValidation:test_validateColor_named_disallowed()
-  local valid, err = Color.validateColor("red", {allowNamed=false})
+  local valid, err = Color.validateColor("red", { allowNamed = false })
   luaunit.assertFalse(valid)
   luaunit.assertNotNil(err)
   luaunit.assertStrContains(err, "Named colors not allowed")
 end
 
 function TestColorValidation:test_validateColor_require_alpha_8digit()
-  local valid, err = Color.validateColor("#FF0000AA", {requireAlpha=true})
+  local valid, err = Color.validateColor("#FF0000AA", { requireAlpha = true })
   luaunit.assertTrue(valid)
   luaunit.assertNil(err)
 end
 
 function TestColorValidation:test_validateColor_require_alpha_6digit()
-  local valid, err = Color.validateColor("#FF0000", {requireAlpha=true})
+  local valid, err = Color.validateColor("#FF0000", { requireAlpha = true })
   luaunit.assertFalse(valid)
   luaunit.assertNotNil(err)
   luaunit.assertStrContains(err, "Alpha channel required")
@@ -377,7 +377,7 @@ function TestColorValidation:test_sanitizeColor_named_transparent()
 end
 
 function TestColorValidation:test_sanitizeColor_table_array()
-  local color = Color.sanitizeColor({0.5, 0.6, 0.7, 0.8})
+  local color = Color.sanitizeColor({ 0.5, 0.6, 0.7, 0.8 })
   luaunit.assertAlmostEquals(color.r, 0.5, 0.01)
   luaunit.assertAlmostEquals(color.g, 0.6, 0.01)
   luaunit.assertAlmostEquals(color.b, 0.7, 0.01)
@@ -385,7 +385,7 @@ function TestColorValidation:test_sanitizeColor_table_array()
 end
 
 function TestColorValidation:test_sanitizeColor_table_named()
-  local color = Color.sanitizeColor({r=0.5, g=0.6, b=0.7, a=0.8})
+  local color = Color.sanitizeColor({ r = 0.5, g = 0.6, b = 0.7, a = 0.8 })
   luaunit.assertAlmostEquals(color.r, 0.5, 0.01)
   luaunit.assertAlmostEquals(color.g, 0.6, 0.01)
   luaunit.assertAlmostEquals(color.b, 0.7, 0.01)
@@ -393,7 +393,7 @@ function TestColorValidation:test_sanitizeColor_table_named()
 end
 
 function TestColorValidation:test_sanitizeColor_table_array_clamp_high()
-  local color = Color.sanitizeColor({1.5, 1.5, 1.5, 1.5})
+  local color = Color.sanitizeColor({ 1.5, 1.5, 1.5, 1.5 })
   luaunit.assertAlmostEquals(color.r, 1.0, 0.01)
   luaunit.assertAlmostEquals(color.g, 1.0, 0.01)
   luaunit.assertAlmostEquals(color.b, 1.0, 0.01)
@@ -401,7 +401,7 @@ function TestColorValidation:test_sanitizeColor_table_array_clamp_high()
 end
 
 function TestColorValidation:test_sanitizeColor_table_array_clamp_low()
-  local color = Color.sanitizeColor({-0.5, -0.5, -0.5, -0.5})
+  local color = Color.sanitizeColor({ -0.5, -0.5, -0.5, -0.5 })
   luaunit.assertAlmostEquals(color.r, 0.0, 0.01)
   luaunit.assertAlmostEquals(color.g, 0.0, 0.01)
   luaunit.assertAlmostEquals(color.b, 0.0, 0.01)
@@ -409,7 +409,7 @@ function TestColorValidation:test_sanitizeColor_table_array_clamp_low()
 end
 
 function TestColorValidation:test_sanitizeColor_table_no_alpha()
-  local color = Color.sanitizeColor({0.5, 0.6, 0.7})
+  local color = Color.sanitizeColor({ 0.5, 0.6, 0.7 })
   luaunit.assertAlmostEquals(color.r, 0.5, 0.01)
   luaunit.assertAlmostEquals(color.g, 0.6, 0.01)
   luaunit.assertAlmostEquals(color.b, 0.7, 0.01)
@@ -461,7 +461,7 @@ function TestColorValidation:test_parse_named()
 end
 
 function TestColorValidation:test_parse_table()
-  local color = Color.parse({0.25, 0.50, 0.75, 1.0})
+  local color = Color.parse({ 0.25, 0.50, 0.75, 1.0 })
   luaunit.assertAlmostEquals(color.r, 0.25, 0.01)
   luaunit.assertAlmostEquals(color.g, 0.50, 0.01)
   luaunit.assertAlmostEquals(color.b, 0.75, 0.01)
@@ -501,7 +501,7 @@ function TestColorValidation:test_edge_hex_with_spaces()
 end
 
 function TestColorValidation:test_edge_negative_values_clamped()
-  local color = Color.sanitizeColor({-1, -2, -3, -4})
+  local color = Color.sanitizeColor({ -1, -2, -3, -4 })
   luaunit.assertAlmostEquals(color.r, 0.0, 0.01)
   luaunit.assertAlmostEquals(color.g, 0.0, 0.01)
   luaunit.assertAlmostEquals(color.b, 0.0, 0.01)

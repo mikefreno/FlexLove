@@ -37,7 +37,7 @@ end
 
 function TestThemeValidation:test_validate_minimal_valid_theme()
   local theme = {
-    name = "Test Theme"
+    name = "Test Theme",
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -46,7 +46,7 @@ end
 
 function TestThemeValidation:test_validate_theme_with_empty_name()
   local theme = {
-    name = ""
+    name = "",
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -55,7 +55,7 @@ end
 
 function TestThemeValidation:test_validate_theme_with_non_string_name()
   local theme = {
-    name = 123
+    name = 123,
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -69,8 +69,8 @@ function TestThemeValidation:test_validate_valid_colors()
     name = "Test Theme",
     colors = {
       primary = Color.new(1, 0, 0, 1),
-      secondary = Color.new(0, 1, 0, 1)
-    }
+      secondary = Color.new(0, 1, 0, 1),
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -81,8 +81,8 @@ function TestThemeValidation:test_validate_colors_with_hex()
   local theme = {
     name = "Test Theme",
     colors = {
-      primary = "#FF0000"
-    }
+      primary = "#FF0000",
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -94,8 +94,8 @@ function TestThemeValidation:test_validate_colors_with_named()
     name = "Test Theme",
     colors = {
       primary = "red",
-      secondary = "blue"
-    }
+      secondary = "blue",
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -106,8 +106,8 @@ function TestThemeValidation:test_validate_invalid_color()
   local theme = {
     name = "Test Theme",
     colors = {
-      primary = "not-a-color"
-    }
+      primary = "not-a-color",
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -118,7 +118,7 @@ end
 function TestThemeValidation:test_validate_colors_non_table()
   local theme = {
     name = "Test Theme",
-    colors = "should be a table"
+    colors = "should be a table",
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -129,8 +129,8 @@ function TestThemeValidation:test_validate_color_with_non_string_name()
   local theme = {
     name = "Test Theme",
     colors = {
-      [123] = Color.new(1, 0, 0, 1)
-    }
+      [123] = Color.new(1, 0, 0, 1),
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -144,8 +144,8 @@ function TestThemeValidation:test_validate_valid_fonts()
     name = "Test Theme",
     fonts = {
       default = "path/to/font.ttf",
-      heading = "path/to/heading.ttf"
-    }
+      heading = "path/to/heading.ttf",
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -155,7 +155,7 @@ end
 function TestThemeValidation:test_validate_fonts_non_table()
   local theme = {
     name = "Test Theme",
-    fonts = "should be a table"
+    fonts = "should be a table",
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -166,8 +166,8 @@ function TestThemeValidation:test_validate_font_with_non_string_path()
   local theme = {
     name = "Test Theme",
     fonts = {
-      default = 123
-    }
+      default = 123,
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -178,8 +178,8 @@ function TestThemeValidation:test_validate_font_with_non_string_name()
   local theme = {
     name = "Test Theme",
     fonts = {
-      [123] = "path/to/font.ttf"
-    }
+      [123] = "path/to/font.ttf",
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -193,9 +193,9 @@ function TestThemeValidation:test_validate_valid_component()
     name = "Test Theme",
     components = {
       button = {
-        atlas = "path/to/button.png"
-      }
-    }
+        atlas = "path/to/button.png",
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -208,9 +208,9 @@ function TestThemeValidation:test_validate_component_with_insets()
     components = {
       button = {
         atlas = "path/to/button.png",
-        insets = {left = 5, top = 5, right = 5, bottom = 5}
-      }
-    }
+        insets = { left = 5, top = 5, right = 5, bottom = 5 },
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -223,9 +223,9 @@ function TestThemeValidation:test_validate_component_with_missing_inset()
     components = {
       button = {
         atlas = "path/to/button.png",
-        insets = {left = 5, top = 5, right = 5} -- missing bottom
-      }
-    }
+        insets = { left = 5, top = 5, right = 5 }, -- missing bottom
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -239,9 +239,9 @@ function TestThemeValidation:test_validate_component_with_negative_inset()
     components = {
       button = {
         atlas = "path/to/button.png",
-        insets = {left = -5, top = 5, right = 5, bottom = 5}
-      }
-    }
+        insets = { left = -5, top = 5, right = 5, bottom = 5 },
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -257,14 +257,14 @@ function TestThemeValidation:test_validate_component_with_states()
         atlas = "path/to/button.png",
         states = {
           hover = {
-            atlas = "path/to/button_hover.png"
+            atlas = "path/to/button_hover.png",
           },
           pressed = {
-            atlas = "path/to/button_pressed.png"
-          }
-        }
-      }
-    }
+            atlas = "path/to/button_pressed.png",
+          },
+        },
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -278,10 +278,10 @@ function TestThemeValidation:test_validate_component_with_invalid_state()
       button = {
         atlas = "path/to/button.png",
         states = {
-          hover = "should be a table"
-        }
-      }
-    }
+          hover = "should be a table",
+        },
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -294,9 +294,9 @@ function TestThemeValidation:test_validate_component_with_scaleCorners()
     components = {
       button = {
         atlas = "path/to/button.png",
-        scaleCorners = 2.0
-      }
-    }
+        scaleCorners = 2.0,
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -309,9 +309,9 @@ function TestThemeValidation:test_validate_component_with_invalid_scaleCorners()
     components = {
       button = {
         atlas = "path/to/button.png",
-        scaleCorners = -1
-      }
-    }
+        scaleCorners = -1,
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -325,9 +325,9 @@ function TestThemeValidation:test_validate_component_with_valid_scalingAlgorithm
     components = {
       button = {
         atlas = "path/to/button.png",
-        scalingAlgorithm = "nearest"
-      }
-    }
+        scalingAlgorithm = "nearest",
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -340,9 +340,9 @@ function TestThemeValidation:test_validate_component_with_invalid_scalingAlgorit
     components = {
       button = {
         atlas = "path/to/button.png",
-        scalingAlgorithm = "invalid"
-      }
-    }
+        scalingAlgorithm = "invalid",
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -352,7 +352,7 @@ end
 function TestThemeValidation:test_validate_components_non_table()
   local theme = {
     name = "Test Theme",
-    components = "should be a table"
+    components = "should be a table",
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -364,7 +364,7 @@ end
 function TestThemeValidation:test_validate_valid_multiplier()
   local theme = {
     name = "Test Theme",
-    contentAutoSizingMultiplier = {width = 1.1, height = 1.2}
+    contentAutoSizingMultiplier = { width = 1.1, height = 1.2 },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -374,7 +374,7 @@ end
 function TestThemeValidation:test_validate_multiplier_with_only_width()
   local theme = {
     name = "Test Theme",
-    contentAutoSizingMultiplier = {width = 1.1}
+    contentAutoSizingMultiplier = { width = 1.1 },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -384,7 +384,7 @@ end
 function TestThemeValidation:test_validate_multiplier_non_table()
   local theme = {
     name = "Test Theme",
-    contentAutoSizingMultiplier = 1.5
+    contentAutoSizingMultiplier = 1.5,
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -394,7 +394,7 @@ end
 function TestThemeValidation:test_validate_multiplier_with_non_number()
   local theme = {
     name = "Test Theme",
-    contentAutoSizingMultiplier = {width = "not a number"}
+    contentAutoSizingMultiplier = { width = "not a number" },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -404,7 +404,7 @@ end
 function TestThemeValidation:test_validate_multiplier_with_negative()
   local theme = {
     name = "Test Theme",
-    contentAutoSizingMultiplier = {width = -1}
+    contentAutoSizingMultiplier = { width = -1 },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -415,7 +415,7 @@ end
 function TestThemeValidation:test_validate_multiplier_with_zero()
   local theme = {
     name = "Test Theme",
-    contentAutoSizingMultiplier = {width = 0}
+    contentAutoSizingMultiplier = { width = 0 },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)
@@ -427,7 +427,7 @@ end
 function TestThemeValidation:test_validate_valid_global_atlas()
   local theme = {
     name = "Test Theme",
-    atlas = "path/to/atlas.png"
+    atlas = "path/to/atlas.png",
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -439,9 +439,9 @@ end
 function TestThemeValidation:test_validate_unknown_field_strict()
   local theme = {
     name = "Test Theme",
-    unknownField = "should trigger warning"
+    unknownField = "should trigger warning",
   }
-  local valid, errors = Theme.validateTheme(theme, {strict = true})
+  local valid, errors = Theme.validateTheme(theme, { strict = true })
   luaunit.assertFalse(valid)
   luaunit.assertTrue(#errors > 0)
   luaunit.assertStrContains(errors[1], "Unknown field")
@@ -450,9 +450,9 @@ end
 function TestThemeValidation:test_validate_unknown_field_non_strict()
   local theme = {
     name = "Test Theme",
-    unknownField = "should be ignored"
+    unknownField = "should be ignored",
   }
-  local valid, errors = Theme.validateTheme(theme, {strict = false})
+  local valid, errors = Theme.validateTheme(theme, { strict = false })
   luaunit.assertTrue(valid)
   luaunit.assertEquals(#errors, 0)
 end
@@ -467,7 +467,7 @@ end
 
 function TestThemeValidation:test_sanitize_theme_without_name()
   local theme = {
-    colors = {primary = "red"}
+    colors = { primary = "red" },
   }
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertEquals(sanitized.name, "Unnamed Theme")
@@ -475,7 +475,7 @@ end
 
 function TestThemeValidation:test_sanitize_theme_with_non_string_name()
   local theme = {
-    name = 123
+    name = 123,
   }
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertEquals(type(sanitized.name), "string")
@@ -486,8 +486,8 @@ function TestThemeValidation:test_sanitize_colors()
     name = "Test",
     colors = {
       valid = "red",
-      invalid = "not-a-color"
-    }
+      invalid = "not-a-color",
+    },
   }
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertNotNil(sanitized.colors.valid)
@@ -498,8 +498,8 @@ function TestThemeValidation:test_sanitize_removes_non_string_color_names()
   local theme = {
     name = "Test",
     colors = {
-      [123] = "red"
-    }
+      [123] = "red",
+    },
   }
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertNil(sanitized.colors[123])
@@ -510,8 +510,8 @@ function TestThemeValidation:test_sanitize_fonts()
     name = "Test",
     fonts = {
       default = "path/to/font.ttf",
-      invalid = 123
-    }
+      invalid = 123,
+    },
   }
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertNotNil(sanitized.fonts.default)
@@ -522,8 +522,8 @@ function TestThemeValidation:test_sanitize_preserves_components()
   local theme = {
     name = "Test",
     components = {
-      button = {atlas = "path/to/button.png"}
-    }
+      button = { atlas = "path/to/button.png" },
+    },
   }
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertNotNil(sanitized.components.button)
@@ -536,35 +536,35 @@ function TestThemeValidation:test_validate_complete_theme()
   local theme = {
     name = "Complete Theme",
     atlas = "path/to/atlas.png",
-    contentAutoSizingMultiplier = {width = 1.05, height = 1.1},
+    contentAutoSizingMultiplier = { width = 1.05, height = 1.1 },
     colors = {
       primary = Color.new(1, 0, 0, 1),
       secondary = "#00FF00",
-      tertiary = "blue"
+      tertiary = "blue",
     },
     fonts = {
       default = "path/to/font.ttf",
-      heading = "path/to/heading.ttf"
+      heading = "path/to/heading.ttf",
     },
     components = {
       button = {
         atlas = "path/to/button.png",
-        insets = {left = 5, top = 5, right = 5, bottom = 5},
+        insets = { left = 5, top = 5, right = 5, bottom = 5 },
         scaleCorners = 2,
         scalingAlgorithm = "nearest",
         states = {
           hover = {
-            atlas = "path/to/button_hover.png"
+            atlas = "path/to/button_hover.png",
           },
           pressed = {
-            atlas = "path/to/button_pressed.png"
-          }
-        }
+            atlas = "path/to/button_pressed.png",
+          },
+        },
       },
       panel = {
-        atlas = "path/to/panel.png"
-      }
-    }
+        atlas = "path/to/panel.png",
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertTrue(valid)
@@ -576,16 +576,16 @@ function TestThemeValidation:test_validate_theme_with_multiple_errors()
     name = "",
     colors = {
       invalid1 = "not-a-color",
-      invalid2 = 123
+      invalid2 = 123,
     },
     fonts = {
-      bad = 456
+      bad = 456,
     },
     components = {
       button = {
-        insets = {left = -5} -- missing fields and negative
-      }
-    }
+        insets = { left = -5 }, -- missing fields and negative
+      },
+    },
   }
   local valid, errors = Theme.validateTheme(theme)
   luaunit.assertFalse(valid)

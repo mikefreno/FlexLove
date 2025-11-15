@@ -40,7 +40,7 @@ end
 function TestSanitizePath:testSanitizePath_TrailingSlash()
   local result = utils.sanitizePath("/path/to/dir/")
   luaunit.assertEquals(result, "/path/to/dir")
-  
+
   -- Root should keep trailing slash
   result = utils.sanitizePath("/")
   luaunit.assertEquals(result, "/")

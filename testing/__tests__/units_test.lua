@@ -251,7 +251,7 @@ function TestUnitsResolveSpacing:testResolveSpacingAllSides()
     top = "10px",
     right = "20px",
     bottom = "30px",
-    left = "40px"
+    left = "40px",
   }
   local result = Units.resolveSpacing(spacing, 800, 600)
   luaunit.assertEquals(result.top, 10)
@@ -263,7 +263,7 @@ end
 function TestUnitsResolveSpacing:testResolveSpacingVerticalHorizontal()
   local spacing = {
     vertical = "10px",
-    horizontal = "20px"
+    horizontal = "20px",
   }
   local result = Units.resolveSpacing(spacing, 800, 600)
   luaunit.assertEquals(result.top, 10)
@@ -275,7 +275,7 @@ end
 function TestUnitsResolveSpacing:testResolveSpacingVerticalHorizontalNumbers()
   local spacing = {
     vertical = 10,
-    horizontal = 20
+    horizontal = 20,
   }
   local result = Units.resolveSpacing(spacing, 800, 600)
   luaunit.assertEquals(result.top, 10)
@@ -289,13 +289,13 @@ function TestUnitsResolveSpacing:testResolveSpacingMixedPercentage()
     top = "10%",
     right = "5%",
     bottom = "10%",
-    left = "5%"
+    left = "5%",
   }
   local result = Units.resolveSpacing(spacing, 800, 600)
-  luaunit.assertEquals(result.top, 60)    -- 10% of 600 (height)
-  luaunit.assertEquals(result.right, 40)  -- 5% of 800 (width)
+  luaunit.assertEquals(result.top, 60) -- 10% of 600 (height)
+  luaunit.assertEquals(result.right, 40) -- 5% of 800 (width)
   luaunit.assertEquals(result.bottom, 60) -- 10% of 600 (height)
-  luaunit.assertEquals(result.left, 40)   -- 5% of 800 (width)
+  luaunit.assertEquals(result.left, 40) -- 5% of 800 (width)
 end
 
 function TestUnitsResolveSpacing:testResolveSpacingOverride()
@@ -303,10 +303,10 @@ function TestUnitsResolveSpacing:testResolveSpacingOverride()
   local spacing = {
     vertical = "10px",
     horizontal = "20px",
-    top = "50px"
+    top = "50px",
   }
   local result = Units.resolveSpacing(spacing, 800, 600)
-  luaunit.assertEquals(result.top, 50)  -- Overridden
+  luaunit.assertEquals(result.top, 50) -- Overridden
   luaunit.assertEquals(result.right, 20)
   luaunit.assertEquals(result.bottom, 10)
   luaunit.assertEquals(result.left, 20)

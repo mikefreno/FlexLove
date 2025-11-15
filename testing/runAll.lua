@@ -25,6 +25,9 @@ local testFiles = {
   "testing/__tests__/theme_test.lua",
   "testing/__tests__/layout_engine_test.lua",
   "testing/__tests__/element_test.lua",
+  "testing/__tests__/overflow_test.lua",
+  "testing/__tests__/grid_test.lua",
+  "testing/__tests__/layout_edge_cases_test.lua",
 }
 
 local success = true

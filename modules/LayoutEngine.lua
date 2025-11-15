@@ -154,6 +154,11 @@ function LayoutEngine:layoutChildren()
         self:applyPositioningOffsets(child)
       end
     end
+    
+    -- Detect overflow after children positioning
+    if self.element._detectOverflow then
+      self.element:_detectOverflow()
+    end
     return
   end
 

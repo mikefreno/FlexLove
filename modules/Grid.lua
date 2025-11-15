@@ -11,8 +11,9 @@ local Grid = {}
 --- Layout grid items within a grid container using simple row/column counts
 ---@param element Element -- Grid container element
 function Grid.layoutGridItems(element)
-  local rows = element.gridRows or 1
-  local columns = element.gridColumns or 1
+  -- Ensure valid row/column counts (must be at least 1 to avoid division by zero)
+  local rows = element.gridRows and element.gridRows > 0 and element.gridRows or 1
+  local columns = element.gridColumns and element.gridColumns > 0 and element.gridColumns or 1
 
   -- Calculate space reserved by absolutely positioned siblings
   local reservedLeft = 0

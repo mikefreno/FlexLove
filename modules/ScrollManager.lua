@@ -125,14 +125,16 @@ function ScrollManager:detectOverflow()
   for _, child in ipairs(element.children) do
     -- Skip absolutely positioned children (they don't contribute to overflow)
     if not child._explicitlyAbsolute then
-      -- Calculate child position relative to content area
-      local childLeft = child.x - contentX
-      local childTop = child.y - contentY
-      local childRight = childLeft + child:getBorderBoxWidth() + child.margin.right
-      local childBottom = childTop + child:getBorderBoxHeight() + child.margin.bottom
+      -- Calculate child's margin box bounds relative to content area
+      -- child.x/y is the border-box position, margins extend outside this
+      local childMarginLeft = child.x - contentX - child.margin.left
+      local childMarginTop = child.y - contentY - child.margin.top
+      local childMarginRight = child.x - contentX + child:getBorderBoxWidth() + child.margin.right
+      local childMarginBottom = child.y - contentY + child:getBorderBoxHeight() + child.margin.bottom
 
-      maxX = math.max(maxX, childRight)
-      maxY = math.max(maxY, childBottom)
+      -- Track the maximum extents (we ignore negative space from margins)
+      maxX = math.max(maxX, childMarginRight)
+      maxY = math.max(maxY, childMarginBottom)
     end
   end
 
@@ -140,9 +142,10 @@ function ScrollManager:detectOverflow()
   self._contentWidth = maxX
   self._contentHeight = maxY
 
-  -- Detect overflow
-  local containerWidth = element.width
-  local containerHeight = element.height
+  -- Detect overflow (compare against content area, not total element size)
+  -- The content area excludes padding
+  local containerWidth = element.width - element.padding.left - element.padding.right
+  local containerHeight = element.height - element.padding.top - element.padding.bottom
 
   self._overflowX = self._contentWidth > containerWidth
   self._overflowY = self._contentHeight > containerHeight

@@ -391,6 +391,103 @@ function TestTextEditor:test_selectOnFocus_default()
   luaunit.assertFalse(editor.selectOnFocus)
 end
 
+-- Test: onSanitize callback triggered when text is sanitized
+function TestTextEditor:test_onSanitize_callback()
+  local callbackCalled = false
+  local originalText = nil
+  local sanitizedText = nil
+
+  local editor = createTextEditor({
+    maxLength = 5,
+    onSanitize = function(element, original, sanitized)
+      callbackCalled = true
+      originalText = original
+      sanitizedText = sanitized
+    end,
+  })
+
+  local mockElement = createMockElement()
+  editor:initialize(mockElement)
+
+  -- Insert text that exceeds maxLength
+  editor:_sanitizeText("This is a long text that exceeds max length")
+
+  luaunit.assertTrue(callbackCalled)
+  luaunit.assertEquals(originalText, "This is a long text that exceeds max length")
+  luaunit.assertEquals(sanitizedText, "This ")
+end
+
+-- Test: initialize with immediate mode and existing state
+function TestTextEditor:test_initialize_immediate_mode_with_state()
+  local mockStateManager = {
+    getState = function(id)
+      return {
+        _focused = true,
+        _textBuffer = "restored text",
+        _cursorPosition = 10,
+        _selectionStart = 2,
+        _selectionEnd = 5,
+        _cursorBlinkTimer = 0.3,
+        _cursorVisible = false,
+        _cursorBlinkPaused = true,
+        _cursorBlinkPauseTimer = 1.0,
+      }
+    end,
+    saveState = function(id, state) end,
+  }
+
+  local mockContext = {
+    _immediateMode = true,
+    _focusedElement = nil,
+  }
+
+  local editor = TextEditor.new({}, {
+    Context = mockContext,
+    StateManager = mockStateManager,
+    Color = Color,
+    utils = utils,
+  })
+
+  local mockElement = createMockElement()
+  editor:initialize(mockElement)
+
+  -- State should be fully restored
+  luaunit.assertEquals(editor._textBuffer, "restored text")
+  luaunit.assertEquals(editor._cursorPosition, 10)
+  luaunit.assertEquals(editor._selectionStart, 2)
+  luaunit.assertEquals(editor._selectionEnd, 5)
+  luaunit.assertEquals(editor._cursorBlinkTimer, 0.3)
+  luaunit.assertEquals(editor._cursorVisible, false)
+  luaunit.assertEquals(editor._cursorBlinkPaused, true)
+  luaunit.assertEquals(editor._cursorBlinkPauseTimer, 1.0)
+  luaunit.assertTrue(editor._focused)
+  luaunit.assertEquals(mockContext._focusedElement, mockElement)
+end
+
+-- Test: customSanitizer function
+function TestTextEditor:test_customSanitizer()
+  local editor = createTextEditor({
+    customSanitizer = function(text)
+      return text:upper()
+    end,
+  })
+
+  local result = editor:_sanitizeText("hello world")
+  luaunit.assertEquals(result, "HELLO WORLD")
+end
+
+-- Test: sanitize disabled
+function TestTextEditor:test_sanitize_disabled()
+  local editor = createTextEditor({
+    sanitize = false,
+    maxLength = 5,
+  })
+
+  local result = editor:_sanitizeText("This is a very long text")
+  -- Should not be truncated since sanitize is false
+  luaunit.assertEquals(result, "This is a very long text")
+end
+
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())
 end

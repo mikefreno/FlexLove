@@ -82,6 +82,10 @@ function love_helper.graphics.line(x1, y1, x2, y2)
   -- Mock line drawing
 end
 
+function love_helper.graphics.polygon(mode, ...)
+  -- Mock polygon drawing
+end
+
 function love_helper.graphics.print(text, x, y)
   -- Mock text printing
 end

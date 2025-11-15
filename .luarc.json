@@ -1,0 +1,25 @@
+{
+  "runtime": {
+    "version": "LuaJIT"
+  },
+  "workspace": {
+    "library": [
+      "${3rd}/love2d/library"
+    ],
+    "ignoreDir": [
+      "testing",
+      "examples",
+      ".git",
+      "tasks",
+      "themes"
+    ],
+    "ignoreSubmodules": true
+  },
+  "diagnostics": {
+    "globals": ["love"]
+  },
+  "doc": {
+    "privateName": ["_.*"],
+    "protectedName": []
+  }
+}

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlexLöve Documentation</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid #30363d;
+        }
+        .header h1 {
+            font-size: 3rem;
+            margin: 0;
+            background: linear-gradient(45deg, #58a6ff, #79c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p {
+            font-size: 1.2rem;
+            color: #8b949e;
+            margin: 1rem 0;
+        }
+        .nav {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+        .nav a {
+            padding: 0.75rem 1.5rem;
+            background-color: #21262d;
+            color: #c9d1d9;
+            text-decoration: none;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+            transition: all 0.2s;
+        }
+        .nav a:hover {
+            background-color: #30363d;
+            border-color: #58a6ff;
+        }
+        .markdown-body {
+            background-color: #0d1117;
+            padding: 2rem;
+            border-radius: 6px;
+        }
+        .section {
+            margin: 3rem 0;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+        .feature-card {
+            background-color: #161b22;
+            padding: 2rem;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+        }
+        .feature-card h3 {
+            color: #58a6ff;
+            margin-top: 0;
+        }
+        code {
+            background-color: #161b22;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+        pre {
+            background-color: #161b22;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 1px solid #30363d;
+            margin-top: 4rem;
+            color: #8b949e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FlexLöve</h1>
+            <p>A comprehensive UI library for LÖVE Framework based on flexbox</p>
+        </div>
+
+        <div class="nav">
+            <a href="https://github.com/mikefreno/FlexLove">GitHub</a>
+            <a href="#getting-started">Getting Started</a>
+            <a href="doc.md">API Reference (Markdown)</a>
+            <a href="doc.json">API Reference (JSON)</a>
+        </div>
+
+        <div class="section">
+            <div class="features">
+                <div class="feature-card">
+                    <h3>🎨 Flexbox & Grid Layouts</h3>
+                    <p>Modern CSS-like layout system with full flexbox and grid support for building responsive UIs.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎭 Theme System</h3>
+                    <p>9-patch NinePatch theming with state support (normal, hover, pressed, disabled).</p>
+                </div>
+                <div class="feature-card">
+                    <h3>✨ Animations</h3>
+                    <p>Built-in animation support for smooth transitions and effects with easing functions.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📱 Responsive Design</h3>
+                    <p>Viewport units (vw, vh, %) for automatic resizing and responsive layouts.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Immediate Mode</h3>
+                    <p>Optional immediate mode support alongside traditional retained mode rendering.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎯 Event System</h3>
+                    <p>Rich event handling with callbacks, focus management, and input fields.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section markdown-body" id="getting-started">
+            <h2>Quick Start</h2>
+            <pre><code class="language-lua">local FlexLove = require("FlexLove")
+
+-- Initialize with base scaling and theme
+FlexLove.init({
+  baseScale = { width = 1920, height = 1080 },
+  theme = "space"
+})
+
+-- Create a button
+local button = FlexLove.new({
+  width = "20vw",
+  height = "10vh",
+  backgroundColor = Color.new(0.2, 0.2, 0.8, 1),
+  text = "Click Me",
+  themeComponent = "button",
+  onEvent = function(element, event)
+    print("Button clicked!")
+  end
+})
+
+-- In your love callbacks
+function love.update(dt)
+  FlexLove.update(dt)
+end
+
+function love.draw()
+  FlexLove.draw()
+end</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>Documentation</h2>
+            <p>The API reference is available in two formats:</p>
+            <ul>
+                <li><a href="doc.md">Markdown format</a> - Easy to read in browser or convert to HTML</li>
+                <li><a href="doc.json">JSON format</a> - For programmatic access and tooling</li>
+            </ul>
+            <p>These docs are auto-generated from LuaLS annotations using the Lua Language Server.</p>
+        </div>
+
+        <div class="section">
+            <h2>Installation</h2>
+            <p>Add the <code>modules</code> directory and <code>FlexLove.lua</code> into your LÖVE project.</p>
+            <pre><code>git clone https://github.com/mikefreno/FlexLove.git
+cp -r FlexLove/modules your-project/
+cp FlexLove/FlexLove.lua your-project/</code></pre>
+        </div>
+
+        <div class="footer">
+            <p>FlexLöve v0.2.0 | MIT License | <a href="https://github.com/mikefreno/FlexLove" style="color: #58a6ff;">GitHub Repository</a></p>
+        </div>
+    </div>
+</body>
+</html>

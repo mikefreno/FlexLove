@@ -376,6 +376,9 @@ function Element.new(props, deps)
   end
   self.opacity = props.opacity or 1
 
+  -- Set visibility property (default: "visible")
+  self.visibility = props.visibility or "visible"
+
   -- Handle cornerRadius (can be number or table)
   if props.cornerRadius then
     if type(props.cornerRadius) == "number" then
@@ -1687,6 +1690,74 @@ function Element:addChild(child)
   if not self._deps.Context._immediateMode then
     self:layoutChildren()
   end
+end
+
+--- Remove a specific child from this element
+---@param child Element
+function Element:removeChild(child)
+  for i, c in ipairs(self.children) do
+    if c == child then
+      table.remove(self.children, i)
+      child.parent = nil
+      
+      -- Recalculate auto-sizing if needed
+      if self.autosizing.width or self.autosizing.height then
+        if self.autosizing.width then
+          local contentWidth = self:calculateAutoWidth()
+          self._borderBoxWidth = contentWidth + self.padding.left + self.padding.right
+          self.width = contentWidth
+        end
+        if self.autosizing.height then
+          local contentHeight = self:calculateAutoHeight()
+          self._borderBoxHeight = contentHeight + self.padding.top + self.padding.bottom
+          self.height = contentHeight
+        end
+      end
+      
+      -- Re-layout children after removal
+      if not self._deps.Context._immediateMode then
+        self:layoutChildren()
+      end
+      
+      break
+    end
+  end
+end
+
+--- Remove all children from this element
+function Element:clearChildren()
+  -- Clear parent references for all children
+  for _, child in ipairs(self.children) do
+    child.parent = nil
+  end
+  
+  -- Clear the children table
+  self.children = {}
+  
+  -- Recalculate auto-sizing if needed
+  if self.autosizing.width or self.autosizing.height then
+    if self.autosizing.width then
+      local contentWidth = self:calculateAutoWidth()
+      self._borderBoxWidth = contentWidth + self.padding.left + self.padding.right
+      self.width = contentWidth
+    end
+    if self.autosizing.height then
+      local contentHeight = self:calculateAutoHeight()
+      self._borderBoxHeight = contentHeight + self.padding.top + self.padding.bottom
+      self.height = contentHeight
+    end
+  end
+  
+  -- Re-layout (though there are no children now)
+  if not self._deps.Context._immediateMode then
+    self:layoutChildren()
+  end
+end
+
+--- Get the number of children this element has
+---@return number
+function Element:getChildCount()
+  return #self.children
 end
 
 --- Apply positioning offsets (top, right, bottom, left) to an element

@@ -655,7 +655,69 @@ function TestLayoutEngineEdgeCases:testAutoWidthWithTextAndChildren()
   luaunit.assertEquals(width, 150)
 end
 
--- Run tests if not running as part of a suite
+local Units = require("modules.Units")
+local utils = require("modules.utils")
+
+-- Mock dependencies
+local mockContext = {
+  getScaleFactors = function()
+    return 1, 1
+  end,
+  baseScale = 1,
+  _cachedViewport = { width = 1920, height = 1080 },
+}
+
+local mockErrorHandler = {
+  error = function(module, msg) end,
+  warn = function(module, msg) end,
+}
+
+local mockGrid = {
+  layoutGridItems = function(element) end,
+}
+
+local deps = {
+  utils = utils,
+  Grid = mockGrid,
+  Units = Units,
+  Context = mockContext,
+  ErrorHandler = mockErrorHandler,
+}
+
+-- Helper function to create mock element
+local function createMockElement(props)
+  return {
+    id = props.id or "mock",
+    x = props.x or 0,
+    y = props.y or 0,
+    width = props.width or 100,
+    height = props.height or 100,
+    absoluteX = props.absoluteX or 0,
+    absoluteY = props.absoluteY or 0,
+    marginLeft = props.marginLeft or 0,
+    marginTop = props.marginTop or 0,
+    marginRight = props.marginRight or 0,
+    marginBottom = props.marginBottom or 0,
+    children = props.children or {},
+    parent = props.parent,
+    isHidden = props.isHidden or false,
+    flexGrow = props.flexGrow or 0,
+    flexShrink = props.flexShrink or 1,
+    flexBasis = props.flexBasis or "auto",
+    alignSelf = props.alignSelf,
+    minWidth = props.minWidth,
+    maxWidth = props.maxWidth,
+    minHeight = props.minHeight,
+    maxHeight = props.maxHeight,
+    text = props.text,
+    _layout = nil,
+    recalculateUnits = function() end,
+    layoutChildren = function() end,
+  }
+end
+
+
+-- Run tests if this file is executed directly
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())
 end

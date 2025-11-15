@@ -6,6 +6,36 @@ local function formatError(module, message)
   return string.format("[FlexLove.%s] %s", module, message)
 end
 
+-- Named colors (CSS3 color names)
+local NAMED_COLORS = {
+  -- Basic colors
+  black = {0, 0, 0, 1},
+  white = {1, 1, 1, 1},
+  red = {1, 0, 0, 1},
+  green = {0, 0.502, 0, 1},
+  blue = {0, 0, 1, 1},
+  yellow = {1, 1, 0, 1},
+  cyan = {0, 1, 1, 1},
+  magenta = {1, 0, 1, 1},
+  
+  -- Extended colors
+  gray = {0.502, 0.502, 0.502, 1},
+  grey = {0.502, 0.502, 0.502, 1},
+  silver = {0.753, 0.753, 0.753, 1},
+  maroon = {0.502, 0, 0, 1},
+  olive = {0.502, 0.502, 0, 1},
+  lime = {0, 1, 0, 1},
+  aqua = {0, 1, 1, 1},
+  teal = {0, 0.502, 0.502, 1},
+  navy = {0, 0, 0.502, 1},
+  fuchsia = {1, 0, 1, 1},
+  purple = {0.502, 0, 0.502, 1},
+  orange = {1, 0.647, 0, 1},
+  pink = {1, 0.753, 0.796, 1},
+  brown = {0.647, 0.165, 0.165, 1},
+  transparent = {0, 0, 0, 0},
+}
+
 --- Utility class for color handling
 ---@class Color
 ---@field r number -- Red component (0-1)
@@ -62,6 +92,285 @@ function Color.fromHex(hexWithTag)
   else
     error(formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag)))
   end
+end
+
+--- Validate a single color channel value
+---@param value any -- Value to validate
+---@param max number? -- Maximum value (255 for 0-255 range, 1 for 0-1 range)
+---@return boolean valid -- True if valid
+---@return number? clamped -- Clamped value in 0-1 range
+function Color.validateColorChannel(value, max)
+  max = max or 1
+  
+  if type(value) ~= "number" then
+    return false, nil
+  end
+  
+  -- Check for NaN
+  if value ~= value then
+    return false, nil
+  end
+  
+  -- Check for Infinity
+  if value == math.huge or value == -math.huge then
+    return false, nil
+  end
+  
+  -- Normalize to 0-1 range
+  local normalized = value
+  if max == 255 then
+    normalized = value / 255
+  end
+  
+  -- Clamp to valid range
+  normalized = math.max(0, math.min(1, normalized))
+  
+  return true, normalized
+end
+
+--- Validate hex color format
+---@param hex string -- Hex color string (with or without #)
+---@return boolean valid -- True if valid format
+---@return string? error -- Error message if invalid
+function Color.validateHexColor(hex)
+  if type(hex) ~= "string" then
+    return false, "Hex color must be a string"
+  end
+  
+  -- Remove # prefix
+  local cleanHex = hex:gsub("^#", "")
+  
+  -- Check length (3, 6, or 8 characters)
+  if #cleanHex ~= 3 and #cleanHex ~= 6 and #cleanHex ~= 8 then
+    return false, string.format("Invalid hex length: %d. Expected 3, 6, or 8 characters", #cleanHex)
+  end
+  
+  -- Check for valid hex characters
+  if not cleanHex:match("^[0-9A-Fa-f]+$") then
+    return false, "Invalid hex characters. Use only 0-9, A-F"
+  end
+  
+  return true, nil
+end
+
+--- Validate RGB/RGBA color values
+---@param r number -- Red component
+---@param g number -- Green component
+---@param b number -- Blue component
+---@param a number? -- Alpha component (optional)
+---@param max number? -- Maximum value (255 or 1)
+---@return boolean valid -- True if valid
+---@return string? error -- Error message if invalid
+function Color.validateRGBColor(r, g, b, a, max)
+  max = max or 1
+  a = a or max
+  
+  local rValid = Color.validateColorChannel(r, max)
+  local gValid = Color.validateColorChannel(g, max)
+  local bValid = Color.validateColorChannel(b, max)
+  local aValid = Color.validateColorChannel(a, max)
+  
+  if not rValid then
+    return false, string.format("Invalid red channel: %s", tostring(r))
+  end
+  if not gValid then
+    return false, string.format("Invalid green channel: %s", tostring(g))
+  end
+  if not bValid then
+    return false, string.format("Invalid blue channel: %s", tostring(b))
+  end
+  if not aValid then
+    return false, string.format("Invalid alpha channel: %s", tostring(a))
+  end
+  
+  return true, nil
+end
+
+--- Validate named color
+---@param name string -- Color name
+---@return boolean valid -- True if valid
+---@return string? error -- Error message if invalid
+function Color.validateNamedColor(name)
+  if type(name) ~= "string" then
+    return false, "Color name must be a string"
+  end
+  
+  local lowerName = name:lower()
+  if not NAMED_COLORS[lowerName] then
+    return false, string.format("Unknown color name: '%s'", name)
+  end
+  
+  return true, nil
+end
+
+--- Check if a value is a valid color format
+---@param value any -- Value to check
+---@return string? format -- Format type (hex, rgb, rgba, named, table, nil if invalid)
+function Color.isValidColorFormat(value)
+  local valueType = type(value)
+  
+  -- Check for hex string
+  if valueType == "string" then
+    if value:match("^#?[0-9A-Fa-f]+$") then
+      local valid = Color.validateHexColor(value)
+      if valid then
+        return "hex"
+      end
+    end
+    
+    -- Check for named color
+    if NAMED_COLORS[value:lower()] then
+      return "named"
+    end
+    
+    return nil
+  end
+  
+  -- Check for table format
+  if valueType == "table" then
+    -- Check for Color instance
+    if getmetatable(value) == Color then
+      return "table"
+    end
+    
+    -- Check for array format {r, g, b, a}
+    if value[1] and value[2] and value[3] then
+      local valid = Color.validateRGBColor(value[1], value[2], value[3], value[4])
+      if valid then
+        return "table"
+      end
+    end
+    
+    -- Check for named format {r=, g=, b=, a=}
+    if value.r and value.g and value.b then
+      local valid = Color.validateRGBColor(value.r, value.g, value.b, value.a)
+      if valid then
+        return "table"
+      end
+    end
+    
+    return nil
+  end
+  
+  return nil
+end
+
+--- Validate a color value
+---@param value any -- Color value to validate
+---@param options table? -- Validation options
+---@return boolean valid -- True if valid
+---@return string? error -- Error message if invalid
+function Color.validateColor(value, options)
+  options = options or {}
+  local allowNamed = options.allowNamed ~= false
+  local requireAlpha = options.requireAlpha or false
+  
+  if value == nil then
+    return false, "Color value is nil"
+  end
+  
+  local format = Color.isValidColorFormat(value)
+  
+  if not format then
+    return false, string.format("Invalid color format: %s", tostring(value))
+  end
+  
+  if format == "named" and not allowNamed then
+    return false, "Named colors not allowed"
+  end
+  
+  -- Additional validation for alpha requirement
+  if requireAlpha and format == "hex" then
+    local cleanHex = value:gsub("^#", "")
+    if #cleanHex ~= 8 then
+      return false, "Alpha channel required (use 8-digit hex)"
+    end
+  end
+  
+  return true, nil
+end
+
+--- Sanitize a color value
+---@param value any -- Color value to sanitize
+---@param default Color? -- Default color if invalid
+---@return Color -- Sanitized color
+function Color.sanitizeColor(value, default)
+  default = default or Color.new(0, 0, 0, 1)
+  
+  local format = Color.isValidColorFormat(value)
+  
+  if not format then
+    return default
+  end
+  
+  -- Handle hex format
+  if format == "hex" then
+    local cleanHex = value:gsub("^#", "")
+    
+    -- Expand 3-digit hex to 6-digit
+    if #cleanHex == 3 then
+      cleanHex = cleanHex:gsub("(.)", "%1%1")
+    end
+    
+    -- Try to parse
+    local success, result = pcall(Color.fromHex, "#" .. cleanHex)
+    if success then
+      return result
+    else
+      return default
+    end
+  end
+  
+  -- Handle named format
+  if format == "named" then
+    local lowerName = value:lower()
+    local rgba = NAMED_COLORS[lowerName]
+    if rgba then
+      return Color.new(rgba[1], rgba[2], rgba[3], rgba[4])
+    end
+    return default
+  end
+  
+  -- Handle table format
+  if format == "table" then
+    -- Color instance
+    if getmetatable(value) == Color then
+      return value
+    end
+    
+    -- Array format
+    if value[1] then
+      local _, r = Color.validateColorChannel(value[1], 1)
+      local _, g = Color.validateColorChannel(value[2], 1)
+      local _, b = Color.validateColorChannel(value[3], 1)
+      local _, a = Color.validateColorChannel(value[4] or 1, 1)
+      
+      if r and g and b and a then
+        return Color.new(r, g, b, a)
+      end
+    end
+    
+    -- Named format
+    if value.r then
+      local _, r = Color.validateColorChannel(value.r, 1)
+      local _, g = Color.validateColorChannel(value.g, 1)
+      local _, b = Color.validateColorChannel(value.b, 1)
+      local _, a = Color.validateColorChannel(value.a or 1, 1)
+      
+      if r and g and b and a then
+        return Color.new(r, g, b, a)
+      end
+    end
+  end
+  
+  return default
+end
+
+--- Parse a color from various formats
+---@param value any -- Color value (hex, named, table)
+---@return Color -- Parsed color
+function Color.parse(value)
+  return Color.sanitizeColor(value, Color.new(0, 0, 0, 1))
 end
 
 return Color

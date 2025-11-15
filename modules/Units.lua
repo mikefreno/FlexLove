@@ -188,7 +188,29 @@ function Units.isValid(unitStr)
     return false
   end
 
-  local _, unit = Units.parse(unitStr)
+  -- Check for invalid format (space between number and unit)
+  if unitStr:match("%d%s+%a") then
+    return false
+  end
+
+  -- Match number followed by optional unit
+  local numStr, unit = unitStr:match("^([%-]?[%d%.]+)(.*)$")
+  if not numStr then
+    return false
+  end
+
+  -- Check if numeric part is valid
+  local num = tonumber(numStr)
+  if not num then
+    return false
+  end
+
+  -- Default to pixels if no unit specified
+  if unit == "" then
+    unit = "px"
+  end
+
+  -- Check if unit is valid
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   return validUnits[unit] == true
 end

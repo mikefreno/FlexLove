@@ -13,6 +13,10 @@ local utf8 = utf8 or require("utf8")
 ---@field scrollable boolean
 ---@field autoGrow boolean
 ---@field selectOnFocus boolean
+---@field sanitize boolean
+---@field allowNewlines boolean
+---@field allowTabs boolean
+---@field customSanitizer function?
 ---@field cursorColor Color?
 ---@field selectionColor Color?
 ---@field cursorBlinkRate number
@@ -37,12 +41,14 @@ local utf8 = utf8 or require("utf8")
 ---@field onTextInput fun(element:Element, text:string)?
 ---@field onTextChange fun(element:Element, text:string)?
 ---@field onEnter fun(element:Element)?
+---@field onSanitize fun(element:Element, original:string, sanitized:string)?
 ---@field _element Element?
 ---@field _Context table
 ---@field _StateManager table
 ---@field _Color table
 ---@field _FONT_CACHE table
 ---@field _getModifiers function
+---@field _utils table
 ---@field _textDragOccurred boolean?
 local TextEditor = {}
 TextEditor.__index = TextEditor
@@ -60,6 +66,10 @@ TextEditor.__index = TextEditor
 ---@field scrollable boolean -- Whether text is scrollable
 ---@field autoGrow boolean -- Whether element auto-grows with text
 ---@field selectOnFocus boolean -- Whether to select all text on focus
+---@field sanitize boolean? -- Whether to sanitize text input (default: true)
+---@field allowNewlines boolean? -- Whether to allow newline characters (default: true in multiline)
+---@field allowTabs boolean? -- Whether to allow tab characters (default: true)
+---@field customSanitizer function? -- Custom sanitization function
 ---@field cursorColor Color? -- Cursor color
 ---@field selectionColor Color? -- Selection background color
 ---@field cursorBlinkRate number -- Cursor blink rate in seconds
@@ -77,6 +87,7 @@ function TextEditor.new(config, deps)
   self._Color = deps.Color
   self._FONT_CACHE = deps.utils.FONT_CACHE
   self._getModifiers = deps.utils.getModifiers
+  self._utils = deps.utils
 
   -- Store configuration
   self.editable = config.editable or false
@@ -94,9 +105,21 @@ function TextEditor.new(config, deps)
   self.cursorColor = config.cursorColor
   self.selectionColor = config.selectionColor
   self.cursorBlinkRate = config.cursorBlinkRate or 0.5
+  
+  -- Sanitization configuration
+  self.sanitize = config.sanitize ~= false -- Default to true
+  -- If allowNewlines is explicitly set, use that value; otherwise follow multiline setting
+  if config.allowNewlines ~= nil then
+    self.allowNewlines = config.allowNewlines
+  else
+    self.allowNewlines = self.multiline
+  end
+  self.allowTabs = config.allowTabs ~= false -- Default to true
+  self.customSanitizer = config.customSanitizer
 
-  -- Initialize text buffer state
-  self._textBuffer = config.text or ""
+  -- Initialize text buffer state (with sanitization)
+  local initialText = config.text or ""
+  self._textBuffer = self:_sanitizeText(initialText)
   self._lines = nil
   self._wrappedLines = nil
   self._textDirty = true
@@ -127,11 +150,42 @@ function TextEditor.new(config, deps)
   self.onTextInput = config.onTextInput
   self.onTextChange = config.onTextChange
   self.onEnter = config.onEnter
+  self.onSanitize = config.onSanitize
 
   -- Element reference (set via initialize)
   self._element = nil
 
   return self
+end
+
+---Internal: Sanitize text input
+---@param text string -- Text to sanitize
+---@return string -- Sanitized text
+function TextEditor:_sanitizeText(text)
+  if not self.sanitize then
+    return text
+  end
+  
+  -- Use custom sanitizer if provided
+  if self.customSanitizer then
+    return self.customSanitizer(text) or text
+  end
+  
+  local options = {
+    maxLength = self.maxLength,
+    allowNewlines = self.allowNewlines,
+    allowTabs = self.allowTabs,
+    trimWhitespace = false -- Preserve whitespace in text editors
+  }
+  
+  local sanitized = self._utils.sanitizeText(text, options)
+  
+  -- Trigger callback if text was sanitized
+  if sanitized ~= text and self.onSanitize and self._element then
+    self.onSanitize(self._element, text, sanitized)
+  end
+  
+  return sanitized
 end
 
 ---Initialize TextEditor with parent element reference
@@ -187,8 +241,16 @@ end
 
 ---Set text buffer and mark dirty
 ---@param text string
-function TextEditor:setText(text)
-  self._textBuffer = text or ""
+---@param skipSanitization boolean? -- Skip sanitization (for trusted input)
+function TextEditor:setText(text, skipSanitization)
+  text = text or ""
+  
+  -- Sanitize text unless explicitly skipped
+  if not skipSanitization then
+    text = self:_sanitizeText(text)
+  end
+  
+  self._textBuffer = text
   self:_markTextDirty()
   self:_updateTextIfDirty()
   self:_validateCursorPosition()
@@ -198,9 +260,20 @@ end
 ---Insert text at position
 ---@param text string -- Text to insert
 ---@param position number? -- Position to insert at (default: cursor position)
-function TextEditor:insertText(text, position)
+---@param skipSanitization boolean? -- Skip sanitization (for internal use)
+function TextEditor:insertText(text, position, skipSanitization)
   position = position or self._cursorPosition
   local buffer = self._textBuffer or ""
+  
+  -- Sanitize text unless explicitly skipped
+  if not skipSanitization then
+    text = self:_sanitizeText(text)
+  end
+  
+  -- Check if text is empty after sanitization
+  if not text or text == "" then
+    return
+  end
 
   -- Check maxLength constraint before inserting
   if self.maxLength then
@@ -209,7 +282,22 @@ function TextEditor:insertText(text, position)
     local newLength = currentLength + textLength
 
     if newLength > self.maxLength then
-      return
+      -- Truncate text to fit
+      local remaining = self.maxLength - currentLength
+      if remaining <= 0 then
+        return
+      end
+      -- Truncate to remaining characters
+      local truncated = ""
+      local count = 0
+      for _, code in utf8.codes(text) do
+        if count >= remaining then
+          break
+        end
+        truncated = truncated .. utf8.char(code)
+        count = count + 1
+      end
+      text = truncated
     end
   end
 

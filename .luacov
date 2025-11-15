@@ -1,0 +1,26 @@
+-- LuaCov configuration for FlexLove
+return {
+  -- Stats file location
+  statsfile = "luacov.stats.out",
+  
+  -- Report file location
+  reportfile = "luacov.report.out",
+  
+  -- Exclude patterns (files to ignore) - use exclude instead of include for better results
+  exclude = {
+    "testing",
+    "examples",
+    "tasks",
+    "themes",
+    "luarocks",
+  },
+  
+  -- Run reporter by default
+  runreport = false,
+  
+  -- Delete stats file after reporting
+  deletestats = false,
+  
+  -- Tick options
+  tick = true
+}

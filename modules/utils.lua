@@ -429,6 +429,525 @@ local function normalizeBooleanTable(value, defaultValue)
   return { vertical = defaultValue, horizontal = defaultValue }
 end
 
+-- Text sanitization utilities
+
+--- Sanitize text to prevent security vulnerabilities
+--- @param text string? Text to sanitize
+--- @param options table? Sanitization options
+--- @return string Sanitized text
+local function sanitizeText(text, options)
+  -- Handle nil or non-string inputs
+  if text == nil then
+    return ""
+  end
+  if type(text) ~= "string" then
+    text = tostring(text)
+  end
+
+  -- Default options
+  options = options or {}
+  local maxLength = options.maxLength or 10000
+  local allowNewlines = options.allowNewlines ~= false -- default true
+  local allowTabs = options.allowTabs ~= false -- default true
+  local stripControls = options.stripControls ~= false -- default true
+  local trimWhitespace = options.trimWhitespace ~= false -- default true
+
+  -- Remove null bytes (critical security risk)
+  text = text:gsub("%z", "")
+
+  -- Strip control characters except allowed ones
+  if stripControls then
+    local pattern = "[\1-\31\127]" -- All control characters
+    if allowNewlines and allowTabs then
+      pattern = "[\1-\8\11\12\14-\31\127]" -- Exclude \t (9), \n (10), \r (13)
+    elseif allowNewlines then
+      pattern = "[\1-\9\11\12\14-\31\127]" -- Exclude \n (10), \r (13)
+    elseif allowTabs then
+      pattern = "[\1-\8\10\12-\31\127]" -- Exclude \t (9)
+    end
+    text = text:gsub(pattern, "")
+  end
+
+  -- Trim leading/trailing whitespace
+  if trimWhitespace then
+    text = text:match("^%s*(.-)%s*$") or ""
+  end
+
+  -- Limit string length
+  if #text > maxLength then
+    text = text:sub(1, maxLength)
+    if ErrorHandler then
+      ErrorHandler.warn("utils", string.format("Text truncated from %d to %d characters", #text, maxLength))
+    end
+  end
+
+  return text
+end
+
+--- Validate text input against rules
+--- @param text string Text to validate
+--- @param rules table Validation rules
+--- @return boolean, string? Returns true if valid, or false with error message
+local function validateTextInput(text, rules)
+  rules = rules or {}
+
+  -- Check minimum length
+  if rules.minLength and #text < rules.minLength then
+    return false, string.format("Text must be at least %d characters", rules.minLength)
+  end
+
+  -- Check maximum length
+  if rules.maxLength and #text > rules.maxLength then
+    return false, string.format("Text must be at most %d characters", rules.maxLength)
+  end
+
+  -- Check pattern match
+  if rules.pattern and not text:match(rules.pattern) then
+    return false, rules.patternError or "Text does not match required pattern"
+  end
+
+  -- Check character whitelist
+  if rules.allowedChars then
+    local pattern = "[^" .. rules.allowedChars .. "]"
+    if text:match(pattern) then
+      return false, "Text contains invalid characters"
+    end
+  end
+
+  -- Check character blacklist
+  if rules.forbiddenChars then
+    local pattern = "[" .. rules.forbiddenChars .. "]"
+    if text:match(pattern) then
+      return false, "Text contains forbidden characters"
+    end
+  end
+
+  return true, nil
+end
+
+--- Escape HTML special characters
+--- @param text string Text to escape
+--- @return string Escaped text
+local function escapeHtml(text)
+  if text == nil then
+    return ""
+  end
+  text = tostring(text)
+  text = text:gsub("&", "&amp;")
+  text = text:gsub("<", "&lt;")
+  text = text:gsub(">", "&gt;")
+  text = text:gsub('"', "&quot;")
+  text = text:gsub("'", "&#39;")
+  return text
+end
+
+--- Escape Lua pattern special characters
+--- @param text string Text to escape
+--- @return string Escaped text
+local function escapeLuaPattern(text)
+  if text == nil then
+    return ""
+  end
+  text = tostring(text)
+  -- Escape all Lua pattern special characters
+  text = text:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+  return text
+end
+
+--- Strip all non-printable characters from text
+--- @param text string Text to clean
+--- @return string Cleaned text
+local function stripNonPrintable(text)
+  if text == nil then
+    return ""
+  end
+  text = tostring(text)
+  -- Keep printable ASCII (32-126), newline (10), tab (9), and carriage return (13)
+  text = text:gsub("[^\9\10\13\32-\126]", "")
+  return text
+end
+
+-- Path validation utilities
+
+--- Sanitize a file path
+--- @param path string Path to sanitize
+--- @return string Sanitized path
+local function sanitizePath(path)
+  if path == nil then
+    return ""
+  end
+  path = tostring(path)
+  
+  -- Trim whitespace
+  path = path:match("^%s*(.-)%s*$") or ""
+  
+  -- Normalize separators to forward slash
+  path = path:gsub("\\", "/")
+  
+  -- Remove duplicate slashes
+  path = path:gsub("/+", "/")
+  
+  -- Remove trailing slash (except for root)
+  if #path > 1 and path:sub(-1) == "/" then
+    path = path:sub(1, -2)
+  end
+  
+  return path
+end
+
+--- Check if a path is safe (no traversal attacks)
+--- @param path string Path to check
+--- @param baseDir string? Base directory to check against (optional)
+--- @return boolean, string? Returns true if safe, or false with reason
+local function isPathSafe(path, baseDir)
+  if path == nil or path == "" then
+    return false, "Path is empty"
+  end
+  
+  -- Sanitize the path
+  path = sanitizePath(path)
+  
+  -- Check for suspicious patterns
+  if path:match("%.%.") then
+    return false, "Path contains '..' (parent directory reference)"
+  end
+  
+  -- Check for null bytes
+  if path:match("%z") then
+    return false, "Path contains null bytes"
+  end
+  
+  -- Check for encoded traversal attempts (including double-encoding)
+  local lowerPath = path:lower()
+  if lowerPath:match("%%2e") or lowerPath:match("%%2f") or lowerPath:match("%%5c") or
+     lowerPath:match("%%252e") or lowerPath:match("%%252f") or lowerPath:match("%%255c") then
+    return false, "Path contains URL-encoded directory separators"
+  end
+  
+  -- If baseDir is provided, ensure path is within it
+  if baseDir then
+    baseDir = sanitizePath(baseDir)
+    
+    -- For relative paths, prepend baseDir
+    local fullPath = path
+    if not path:match("^/") and not path:match("^%a:") then
+      fullPath = baseDir .. "/" .. path
+    end
+    fullPath = sanitizePath(fullPath)
+    
+    -- Check if fullPath starts with baseDir
+    if not fullPath:match("^" .. baseDir:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")) then
+      return false, "Path is outside allowed directory"
+    end
+  end
+  
+  return true, nil
+end
+
+--- Validate a file path with comprehensive checks
+--- @param path string Path to validate
+--- @param options table? Validation options
+--- @return boolean, string? Returns true if valid, or false with error message
+local function validatePath(path, options)
+  options = options or {}
+  
+  -- Check path is not nil/empty
+  if path == nil or path == "" then
+    return false, "Path is empty"
+  end
+  
+  path = tostring(path)
+  
+  -- Check maximum length
+  local maxLength = options.maxLength or 4096
+  if #path > maxLength then
+    return false, string.format("Path exceeds maximum length of %d characters", maxLength)
+  end
+  
+  -- Sanitize path
+  path = sanitizePath(path)
+  
+  -- Check for safety (traversal attacks)
+  local safe, reason = isPathSafe(path, options.baseDir)
+  if not safe then
+    return false, reason
+  end
+  
+  -- Check allowed extensions
+  if options.allowedExtensions then
+    local ext = path:match("%.([^%.]+)$")
+    if not ext then
+      return false, "Path has no file extension"
+    end
+    
+    ext = ext:lower()
+    local allowed = false
+    for _, allowedExt in ipairs(options.allowedExtensions) do
+      if ext == allowedExt:lower() then
+        allowed = true
+        break
+      end
+    end
+    
+    if not allowed then
+      return false, string.format("File extension '%s' is not allowed", ext)
+    end
+  end
+  
+  -- Check if file must exist
+  if options.mustExist and love and love.filesystem then
+    local info = love.filesystem.getInfo(path)
+    if not info then
+      return false, "File does not exist"
+    end
+  end
+  
+  return true, nil
+end
+
+--- Get file extension from path
+--- @param path string File path
+--- @return string? extension File extension (lowercase) or nil
+local function getFileExtension(path)
+  if not path then
+    return nil
+  end
+  local ext = path:match("%.([^%.]+)$")
+  return ext and ext:lower() or nil
+end
+
+--- Check if path has allowed extension
+--- @param path string File path
+--- @param allowedExtensions table Array of allowed extensions
+--- @return boolean
+local function hasAllowedExtension(path, allowedExtensions)
+  local ext = getFileExtension(path)
+  if not ext then
+    return false
+  end
+  
+  for _, allowedExt in ipairs(allowedExtensions) do
+    if ext == allowedExt:lower() then
+      return true
+    end
+  end
+  
+  return false
+end
+
+-- Numeric validation utilities
+
+--- Check if a value is NaN (not-a-number)
+--- @param value any Value to check
+--- @return boolean
+local function isNaN(value)
+  return type(value) == "number" and value ~= value
+end
+
+--- Check if a value is Infinity
+--- @param value any Value to check
+--- @return boolean
+local function isInfinity(value)
+  return type(value) == "number" and (value == math.huge or value == -math.huge)
+end
+
+--- Validate a numeric value with comprehensive checks
+--- @param value any Value to validate
+--- @param options table? Validation options
+--- @return boolean, string?, number? Returns valid, errorMessage, sanitizedValue
+local function validateNumber(value, options)
+  options = options or {}
+
+  -- Check if value is a number type
+  if type(value) ~= "number" then
+    if options.default ~= nil then
+      return true, nil, options.default
+    end
+    return false, string.format("Value must be a number, got %s", type(value)), nil
+  end
+
+  -- Check for NaN
+  if isNaN(value) then
+    if not options.allowNaN then
+      if options.default ~= nil then
+        return true, nil, options.default
+      end
+      return false, "Value is NaN (not-a-number)", nil
+    end
+  end
+
+  -- Check for Infinity
+  if isInfinity(value) then
+    if not options.allowInfinity then
+      if options.default ~= nil then
+        return true, nil, options.default
+      end
+      return false, "Value is Infinity", nil
+    end
+  end
+
+  -- Check for integer requirement
+  if options.integer and math.floor(value) ~= value then
+    return false, string.format("Value must be an integer, got %s", value), nil
+  end
+
+  -- Check for positive requirement
+  if options.positive and value <= 0 then
+    return false, string.format("Value must be positive, got %s", value), nil
+  end
+
+  -- Check bounds
+  if options.min and value < options.min then
+    return false, string.format("Value %s is below minimum %s", value, options.min), nil
+  end
+
+  if options.max and value > options.max then
+    return false, string.format("Value %s is above maximum %s", value, options.max), nil
+  end
+
+  return true, nil, value
+end
+
+--- Sanitize a numeric value (never errors, always returns valid number)
+--- @param value any Value to sanitize
+--- @param min number? Minimum value
+--- @param max number? Maximum value
+--- @param default number? Default value for invalid inputs
+--- @return number Sanitized value
+local function sanitizeNumber(value, min, max, default)
+  default = default or 0
+  min = min or -math.huge
+  max = max or math.huge
+
+  -- Convert to number if possible
+  if type(value) == "string" then
+    value = tonumber(value)
+  end
+
+  -- Handle non-numeric
+  if type(value) ~= "number" then
+    return default
+  end
+
+  -- Handle NaN
+  if isNaN(value) then
+    return default
+  end
+
+  -- Handle Infinity
+  if value == math.huge then
+    return max
+  end
+  if value == -math.huge then
+    return min
+  end
+
+  -- Clamp to range
+  return clamp(value, min, max)
+end
+
+--- Validate and convert to integer
+--- @param value any Value to validate
+--- @param min number? Minimum value
+--- @param max number? Maximum value
+--- @return boolean, string?, number? Returns valid, errorMessage, integerValue
+local function validateInteger(value, min, max)
+  local valid, err, sanitized = validateNumber(value, {
+    min = min,
+    max = max,
+    integer = true,
+  })
+
+  if not valid then
+    return false, err, nil
+  end
+
+  return true, nil, math.floor(sanitized or value)
+end
+
+--- Validate and normalize percentage value
+--- @param value any Value to validate (can be "50%", 0.5, or 50)
+--- @return boolean, string?, number? Returns valid, errorMessage, normalizedValue (0-1)
+local function validatePercentage(value)
+  -- Handle string percentage
+  if type(value) == "string" then
+    local num = value:match("^(%d+%.?%d*)%%$")
+    if num then
+      value = tonumber(num)
+      if value then
+        value = value / 100
+      end
+    else
+      value = tonumber(value)
+    end
+  end
+
+  if type(value) ~= "number" then
+    return false, "Percentage must be a number", nil
+  end
+
+  if isNaN(value) or isInfinity(value) then
+    return false, "Percentage cannot be NaN or Infinity", nil
+  end
+
+  -- If value is > 1, assume it's 0-100 range
+  if value > 1 then
+    value = value / 100
+  end
+
+  -- Clamp to 0-1
+  value = clamp(value, 0, 1)
+
+  return true, nil, value
+end
+
+--- Validate opacity value (0-1)
+--- @param value any Value to validate
+--- @return boolean, string?, number? Returns valid, errorMessage, opacityValue
+local function validateOpacity(value)
+  return validateNumber(value, { min = 0, max = 1, default = 1 })
+end
+
+--- Validate degree value (0-360)
+--- @param value any Value to validate
+--- @return boolean, string?, number? Returns valid, errorMessage, degreeValue
+local function validateDegrees(value)
+  local valid, err, sanitized = validateNumber(value)
+  if not valid then
+    return false, err, nil
+  end
+
+  -- Normalize to 0-360 range
+  local degrees = sanitized or value
+  degrees = degrees % 360
+  if degrees < 0 then
+    degrees = degrees + 360
+  end
+
+  return true, nil, degrees
+end
+
+--- Validate coordinate value (pixel position)
+--- @param value any Value to validate
+--- @return boolean, string?, number? Returns valid, errorMessage, coordinateValue
+local function validateCoordinate(value)
+  return validateNumber(value, {
+    allowNaN = false,
+    allowInfinity = false,
+  })
+end
+
+--- Validate dimension value (width/height, must be non-negative)
+--- @param value any Value to validate
+--- @return boolean, string?, number? Returns valid, errorMessage, dimensionValue
+local function validateDimension(value)
+  return validateNumber(value, {
+    min = 0,
+    allowNaN = false,
+    allowInfinity = false,
+  })
+end
+
 return {
   enums = enums,
   FONT_CACHE = FONT_CACHE,
@@ -450,4 +969,27 @@ return {
   resolveFontPath = resolveFontPath,
   getFont = getFont,
   applyContentMultiplier = applyContentMultiplier,
+  -- Text sanitization
+  sanitizeText = sanitizeText,
+  validateTextInput = validateTextInput,
+  escapeHtml = escapeHtml,
+  escapeLuaPattern = escapeLuaPattern,
+  stripNonPrintable = stripNonPrintable,
+  -- Path validation
+  sanitizePath = sanitizePath,
+  isPathSafe = isPathSafe,
+  validatePath = validatePath,
+  getFileExtension = getFileExtension,
+  hasAllowedExtension = hasAllowedExtension,
+  -- Numeric validation
+  isNaN = isNaN,
+  isInfinity = isInfinity,
+  validateNumber = validateNumber,
+  sanitizeNumber = sanitizeNumber,
+  validateInteger = validateInteger,
+  validatePercentage = validatePercentage,
+  validateOpacity = validateOpacity,
+  validateDegrees = validateDegrees,
+  validateCoordinate = validateCoordinate,
+  validateDimension = validateDimension,
 }

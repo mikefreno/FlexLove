@@ -1,4 +1,4 @@
-# FlexLöve v0.2.0
+# FlexLöve v0.2.1
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
@@ -66,6 +66,25 @@ function love.draw()
   FlexLove.draw()
 end
 ```
+
+## Documentation
+
+📚 **[View Full API Documentation](https://mikefreno.github.io/FlexLove/api.html)**
+
+Complete API reference with all classes, methods, and properties is available on GitHub Pages. The documentation includes:
+
+- Searchable sidebar navigation
+- Syntax-highlighted code examples
+- Version selector (access docs for previous versions)
+- Detailed parameter and return value descriptions
+
+### Documentation Versions
+
+Access documentation for specific versions:
+- **Latest:** [https://mikefreno.github.io/FlexLove/api.html](https://mikefreno.github.io/FlexLove/api.html)
+- **Specific version:** `https://mikefreno.github.io/FlexLove/versions/v0.2.0/api.html`
+
+Use the version dropdown in the documentation header to switch between versions.
 
 ## API Conventions
 

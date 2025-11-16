@@ -49,7 +49,7 @@ function Animation.fade(duration: number, fromOpacity: number, toOpacity: number
 
 
 ```lua
-{ width: number?, height: number?, opacity: number? }
+{ width: number, height: number, opacity: number }
 ```
 
 ## interpolate
@@ -86,7 +86,7 @@ function Animation.scale(duration: number, fromScale: table, toScale: table)
 
 
 ```lua
-{ width: number?, height: number?, opacity: number? }
+{ width: number, height: number, opacity: number }
 ```
 
 ## transform

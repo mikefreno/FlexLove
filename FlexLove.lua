@@ -63,7 +63,7 @@ Units.initialize(Context)
 Units.initializeErrorHandler(ErrorHandler)
 
 -- Add version and metadata
-flexlove._VERSION = "0.2.0"
+flexlove._VERSION = "0.2.1"
 flexlove._DESCRIPTION = "UI Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
 flexlove._LICENSE = [[

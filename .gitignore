@@ -8,3 +8,7 @@ themes/space/
 tasks
 testoutput
 luacov.*
+docs/doc.json
+docs/doc.md
+docs/node_modules
+releases/

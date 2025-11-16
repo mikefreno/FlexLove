@@ -1,0 +1,228 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag or FlexLove.lua
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "Triggered by tag: $GITHUB_REF_NAME"
+          else
+            VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+            echo "Triggered manually, using FlexLove.lua version"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+
+          FLEX_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "FlexLove.lua version: $FLEX_VERSION"
+          echo "Release version: $VERSION"
+
+          if [ "$FLEX_VERSION" != "$VERSION" ]; then
+            echo "⚠️  Warning: Version mismatch detected"
+            echo "   FlexLove.lua: $FLEX_VERSION"
+            echo "   Release version: $VERSION"
+            echo "   Using: $VERSION"
+          else
+            echo "✓ Version check passed"
+          fi
+
+      - name: Install lua-language-server
+        run: |
+          LLS_VERSION="3.7.4"
+          wget -q "https://github.com/LuaLS/lua-language-server/releases/download/${LLS_VERSION}/lua-language-server-${LLS_VERSION}-linux-x64.tar.gz"
+          mkdir -p ~/.local/bin/lua-language-server
+          tar -xzf "lua-language-server-${LLS_VERSION}-linux-x64.tar.gz" -C ~/.local/bin/lua-language-server
+          echo "$HOME/.local/bin/lua-language-server/bin" >> $GITHUB_PATH
+          rm "lua-language-server-${LLS_VERSION}-linux-x64.tar.gz"
+
+      - name: Verify lua-language-server installation
+        run: |
+          lua-language-server --version
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs/package.json
+
+      - name: Install Node.js dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/generate_docs.sh
+          chmod +x scripts/create-release.sh
+          chmod +x scripts/archive-docs.sh
+
+      - name: Archive previous documentation version
+        run: |
+          if [ -f "docs/api.html" ]; then
+            OLD_VERSION=$(grep -o 'FlexLöve v[0-9.]*' docs/api.html | head -1 | sed 's/FlexLöve v//')
+            if [ -n "$OLD_VERSION" ]; then
+              echo "Found previous version: v${OLD_VERSION}"
+              mkdir -p "docs/versions/v${OLD_VERSION}"
+              cp docs/api.html "docs/versions/v${OLD_VERSION}/api.html"
+              echo "✓ Archived previous documentation to docs/versions/v${OLD_VERSION}/"
+            else
+              echo "No previous version found, skipping archival"
+            fi
+          else
+            echo "No existing documentation to archive"
+          fi
+
+      - name: Generate documentation
+        run: |
+          ./scripts/generate_docs.sh
+          # Verify api.html was created
+          if [ ! -f "docs/api.html" ]; then
+            echo "Error: docs/api.html was not generated"
+            exit 1
+          fi
+          echo "✓ Documentation generated successfully"
+
+      - name: Commit archived documentation
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/versions/ docs/api.html docs/doc.json docs/doc.md
+          git commit -m "Archive previous documentation and generate v${{ steps.version.outputs.version }} docs [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main || echo "Nothing to push"
+
+      - name: Create release package
+        run: |
+          # Run release script non-interactively (auto-confirm overwrite)
+          echo "y" | ./scripts/create-release.sh || ./scripts/create-release.sh
+          # Verify files were created
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ ! -f "releases/flexlove-v${VERSION}.zip" ]; then
+            echo "Error: Release zip was not created"
+            exit 1
+          fi
+          if [ ! -f "releases/flexlove-v${VERSION}.zip.sha256" ]; then
+            echo "Error: Checksum file was not created"
+            exit 1
+          fi
+          echo "✓ Release package created successfully"
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            releases/flexlove-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-v${{ steps.version.outputs.version }}.zip.sha256
+            docs/api.html
+          retention-days: 90
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: ./
+
+      - name: Extract checksum for release notes
+        id: checksum
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CHECKSUM=$(cat "releases/flexlove-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+          echo "Checksum: $CHECKSUM"
+
+      - name: Check if pre-release
+        id: prerelease
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$VERSION" =~ (alpha|beta|rc|dev) ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "This is a pre-release version"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "This is a stable release"
+          fi
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CHECKSUM="${{ steps.checksum.outputs.checksum }}"
+          cat > release_notes.md << 'EOF'
+          ## Installation
+
+          Download `flexlove-v${{ steps.version.outputs.version }}.zip` and extract to your LÖVE2D project:
+
+          ```bash
+          unzip flexlove-v${{ steps.version.outputs.version }}.zip
+          cp -r flexlove/modules ./
+          cp flexlove/FlexLove.lua ./
+          ```
+
+          ## Verification
+
+          Verify the download integrity using SHA256:
+
+          ```bash
+          shasum -a 256 -c flexlove-v${{ steps.version.outputs.version }}.zip.sha256
+          ```
+
+          **SHA256 Checksum:**
+          ```
+          ${{ steps.checksum.outputs.checksum }}
+          ```
+
+          ## Documentation
+
+          📚 [View Documentation](https://github.com/${{ github.repository }}/tree/main/docs)
+
+          ## What's Included
+
+          - `FlexLove.lua` - Main library file
+          - `modules/` - All required module files (27 files)
+          - `LICENSE` - MIT License
+          - `README.txt` - Installation instructions
+
+          ## Requirements
+
+          - LÖVE2D 11.0 or higher
+
+          ---
+
+          _For examples and full source code, visit the [repository](https://github.com/${{ github.repository }})._
+          EOF
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: FlexLöve v${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            releases/flexlove-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-v${{ steps.version.outputs.version }}.zip.sha256
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

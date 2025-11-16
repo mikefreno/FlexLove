@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlexLöve Examples</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/lua.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+          Helvetica, Arial, sans-serif;
+        background-color: #0d1117;
+        color: #c9d1d9;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+      .header {
+        text-align: center;
+        padding: 3rem 0;
+        border-bottom: 1px solid #30363d;
+        position: sticky;
+        top: 0;
+        background-color: #0d1117;
+        z-index: 100;
+      }
+      .header h1 {
+        font-size: 2.5rem;
+        margin: 0;
+        background: linear-gradient(45deg, #58a6ff, #79c0ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .header p {
+        font-size: 1.1rem;
+        color: #8b949e;
+        margin: 0.5rem 0;
+      }
+      .nav {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 1.5rem 0 0 0;
+      }
+      .nav a {
+        padding: 0.5rem 1rem;
+        background-color: #21262d;
+        color: #c9d1d9;
+        text-decoration: none;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+      }
+      .nav a:hover {
+        background-color: #30363d;
+        border-color: #58a6ff;
+      }
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 180px;
+        width: 250px;
+        height: calc(100vh - 180px);
+        overflow-y: auto;
+        background-color: #0d1117;
+        border-right: 1px solid #30363d;
+        padding: 2rem 1rem;
+      }
+      .sidebar h3 {
+        color: #58a6ff;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        margin: 0 0 1rem 0;
+      }
+      .sidebar ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .sidebar li {
+        margin-bottom: 0.5rem;
+      }
+      .sidebar a {
+        color: #8b949e;
+        text-decoration: none;
+        transition: color 0.2s;
+        font-size: 0.9rem;
+      }
+      .sidebar a:hover {
+        color: #58a6ff;
+      }
+      .content {
+        margin-left: 280px;
+        padding: 2rem;
+      }
+      .example-section {
+        margin: 3rem 0;
+        padding: 2rem;
+        background-color: #161b22;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+      }
+      .example-section h2 {
+        color: #58a6ff;
+        margin-top: 0;
+        font-size: 2rem;
+      }
+      .example-section h3 {
+        color: #79c0ff;
+        margin-top: 2rem;
+        font-size: 1.5rem;
+      }
+      .example-section p {
+        color: #8b949e;
+        line-height: 1.6;
+        margin: 1rem 0;
+      }
+      pre {
+        background-color: #0d1117;
+        padding: 1.5rem;
+        border-radius: 6px;
+        overflow-x: auto;
+        border: 1px solid #30363d;
+        margin: 1.5rem 0;
+        position: relative;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+          monospace;
+        font-size: 0.9rem;
+      }
+      .copy-button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: #21262d;
+        color: #8b949e;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.2s;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      pre:hover .copy-button {
+        opacity: 1;
+      }
+      .copy-button:hover {
+        background-color: #30363d;
+        border-color: #58a6ff;
+        color: #c9d1d9;
+      }
+      .copy-button:active {
+        background-color: #238636;
+        border-color: #238636;
+        color: #ffffff;
+      }
+      .copy-button.copied {
+        background-color: #238636;
+        border-color: #238636;
+        color: #ffffff;
+      }
+      .note {
+        background-color: #1c2128;
+        border-left: 4px solid #58a6ff;
+        padding: 1rem 1.5rem;
+        margin: 1.5rem 0;
+        border-radius: 4px;
+      }
+      .note p {
+        margin: 0;
+        color: #c9d1d9;
+      }
+      .github-link {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        background-color: #21262d;
+        color: #58a6ff;
+        text-decoration: none;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        transition: all 0.2s;
+      }
+      .github-link:hover {
+        background-color: #30363d;
+        border-color: #58a6ff;
+      }
+      @media (max-width: 1024px) {
+        .sidebar {
+          display: none;
+        }
+        .content {
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>FlexLöve Examples</h1>
+      <div class="nav">
+        <a href="index.html">Home</a>
+        <a href="api.html">API Reference</a>
+        <a href="https://github.com/mikefreno/FlexLove">GitHub</a>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <h3>Examples</h3>
+      <ul>
+        <li><a href="#layout">🎨 Flexbox & Grid</a></li>
+        <li><a href="#theme">🎭 Theme System</a></li>
+        <li><a href="#state">✨ State Management</a></li>
+        <li><a href="#scroll">📜 Scrollable Content</a></li>
+        <li><a href="#slider">🎚️ Sliders & Controls</a></li>
+        <li><a href="#input">⌨️ Input & Events</a></li>
+        <li><a href="#performance">⚡ Performance</a></li>
+      </ul>
+    </div>
+
+    <div class="content">
+      <div id="layout" class="example-section">
+        <h2>🎨 Flexbox & Grid Layouts</h2>
+        <p>
+          FlexLöve provides a powerful CSS-like layout system using flexbox and
+          grid positioning. Build complex responsive UIs with nested containers
+          and automatic layout calculations.
+        </p>
+
+        <h3>Basic Flex Layout</h3>
+        <pre><code class="language-lua">-- Create a main window with vertical flex layout
+local window = FlexLove.new({
+  x = "10%",
+  y = "10%",
+  width = "80%",
+  height = "80%",
+  themeComponent = "framev3",
+  positioning = "flex",
+  flexDirection = "vertical",
+  gap = 20,
+  padding = { horizontal = 20, vertical = 20 }
+})
+
+-- Add a title
+FlexLove.new({
+  parent = window,
+  text = "Advanced Layout Example",
+  textAlign = "center",
+  textSize = "3xl",
+  width = "100%"
+})</code></pre>
+
+        <h3>Grid Layout with Wrapping</h3>
+        <pre><code class="language-lua">-- Create a grid container
+local gridContainer = FlexLove.new({
+  parent = window,
+  positioning = "flex",
+  flexDirection = "horizontal",
+  flexWrap = "wrap",
+  justifyContent = "space-between",
+  alignItems = "flex-start",
+  gap = 10,
+  height = "80%"
+})
+
+-- Add grid items (will automatically wrap)
+for i = 1, 6 do
+  FlexLove.new({
+    parent = gridContainer,
+    width = "45%",
+    height = "40%",
+    themeComponent = "buttonv2",
+    text = "Item " .. i,
+    textAlign = "center",
+    textSize = "md",
+    onEvent = function(_, event)
+      if event.type == "release" then
+        print("Grid item " .. i .. " clicked")
+      end
+    end
+  })
+end</code></pre>
+
+        <h3>Nested Flex Containers</h3>
+        <pre><code class="language-lua">-- Horizontal container with space-around
+local nestedFlex = FlexLove.new({
+  parent = window,
+  positioning = "flex",
+  flexDirection = "horizontal",
+  justifyContent = "space-around",
+  alignItems = "center",
+  gap = 10,
+  height = "40%"
+})
+
+-- Add buttons that will be spaced evenly
+FlexLove.new({
+  parent = nestedFlex,
+  text = "Button A",
+  themeComponent = "buttonv1",
+  width = "25%",
+  textAlign = "center"
+})
+
+FlexLove.new({
+  parent = nestedFlex,
+  text = "Button B",
+  themeComponent = "buttonv2",
+  width = "25%",
+  textAlign = "center"
+})</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Use <code>flexDirection</code> to control
+            layout direction (horizontal/vertical),
+            <code>justifyContent</code> for main axis alignment, and
+            <code>alignItems</code> for cross axis alignment.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/advanced_layout.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div id="theme" class="example-section">
+        <h2>🎭 Theme System</h2>
+        <p>
+          FlexLöve includes a powerful 9-patch NinePatch theming system with
+          automatic state management (normal, hover, pressed, disabled).
+        </p>
+
+        <h3>Initialize with Theme</h3>
+        <pre><code class="language-lua">local FlexLove = require("FlexLove")
+
+-- Initialize with a built-in theme
+FlexLove.init({
+  baseScale = { width = 1920, height = 1080 },
+  theme = "space"  -- Options: "space", "metal"
+})</code></pre>
+
+        <h3>Using Theme Components</h3>
+        <pre><code class="language-lua">-- Create a themed button (automatic state handling)
+local button = FlexLove.new({
+  themeComponent = "buttonv2",
+  text = "Themed Button",
+  width = "20vw",
+  height = "10vh",
+  textAlign = "center",
+  onEvent = function(elem, event)
+    if event.type == "release" then
+      print("Button clicked!")
+    end
+  end
+})
+
+-- Available theme components:
+-- "buttonv1", "buttonv2", "buttonv3"
+-- "framev1", "framev2", "framev3"
+-- "inputv1", "inputv2"
+-- "cardv1", "cardv2"
+-- "panel"</code></pre>
+
+        <h3>Theme Switching</h3>
+        <pre><code class="language-lua">local themes = { "space", "metal" }
+local themeIndex = 1
+
+-- Create theme toggle button
+FlexLove.new({
+  themeComponent = "buttonv2",
+  text = "Switch Theme",
+  onEvent = function(_, event)
+    if event.type == "release" then
+      themeIndex = (themeIndex % #themes) + 1
+      FlexLove.setTheme(themes[themeIndex])
+      print("Switched to:", themes[themeIndex])
+    end
+  end
+})</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Theme components automatically handle
+            hover, pressed, and disabled states using 9-patch image scaling for
+            perfect corners at any size.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/theme_custom_components.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div id="state" class="example-section">
+        <h2>✨ State Management</h2>
+        <p>
+          Build interactive UIs with state tracking, counters, toggles, and
+          dynamic updates. Perfect for game menus and settings screens.
+        </p>
+
+        <h3>Counter with State</h3>
+        <pre><code class="language-lua">local state = {
+  counter = 0,
+  isToggled = false,
+  inputValue = ""
+}
+
+-- Create counter display
+local counterSection = FlexLove.new({
+  positioning = "flex",
+  flexDirection = "horizontal",
+  justifyContent = "space-between",
+  alignItems = "center",
+  gap = 10
+})
+
+local counterText = FlexLove.new({
+  parent = counterSection,
+  text = "Counter: " .. state.counter,
+  textSize = "lg"
+})
+
+-- Increment button
+FlexLove.new({
+  parent = counterSection,
+  themeComponent = "buttonv2",
+  text = "Increment",
+  width = "25%",
+  onEvent = function(_, event)
+    if event.type == "release" then
+      state.counter = state.counter + 1
+      counterText.text = "Counter: " .. state.counter
+      print("Counter incremented to:", state.counter)
+    end
+  end
+})</code></pre>
+
+        <h3>Toggle Switch</h3>
+        <pre><code class="language-lua">-- Create toggle button with color change
+local toggleButton = FlexLove.new({
+  positioning = "flex",
+  justifyContent = "center",
+  alignItems = "center",
+  width = 60,
+  height = 30,
+  backgroundColor = state.isToggled and "#48bb78" or "#a0aec0",
+  borderRadius = 15,
+  padding = { horizontal = 5 },
+  onEvent = function(elem, event)
+    if event.type == "release" then
+      state.isToggled = not state.isToggled
+      -- Update button color
+      elem.backgroundColor = state.isToggled and "#48bb78" or "#a0aec0"
+      print("Toggle switched to:", state.isToggled)
+    end
+  end
+})
+
+FlexLove.new({
+  parent = toggleButton,
+  text = state.isToggled and "ON" or "OFF",
+  textAlign = "center",
+  textSize = "sm",
+  color = "#ffffff"
+})</code></pre>
+
+        <h3>Text Input with State</h3>
+        <pre><code class="language-lua">-- Input field that updates state
+local inputField = FlexLove.new({
+  themeComponent = "inputv2",
+  text = state.inputValue,
+  textAlign = "left",
+  textSize = "md",
+  width = "50%",
+  onEvent = function(_, event)
+    if event.type == "textinput" then
+      state.inputValue = state.inputValue .. event.text
+      print("Input value:", state.inputValue)
+    elseif event.type == "keypressed" and event.key == "backspace" then
+      state.inputValue = state.inputValue:sub(1, -2)
+    end
+  end
+})</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Use local state tables to manage UI state
+            and update element properties directly when state changes.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/stateful_ui.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div id="scroll" class="example-section">
+        <h2>📜 Scrollable Content</h2>
+        <p>
+          Create smooth scrolling containers with backdrop blur effects and
+          overflow handling for long content lists.
+        </p>
+
+        <h3>Scrollable Container</h3>
+        <pre><code class="language-lua">local Color = FlexLove.Color
+
+-- Create main window with backdrop blur
+local window = FlexLove.new({
+  x = "25%",
+  y = "10%",
+  width = "50vw",
+  height = "80vh",
+  themeComponent = "framev3",
+  positioning = "flex",
+  flexDirection = "vertical",
+  gap = 10,
+  backdropBlur = { intensity = 50, quality = 10 },
+  backgroundColor = Color.new(0.1, 0.1, 0.1, 0.8)
+})
+
+-- Create scroll container
+local scrollContainer = FlexLove.new({
+  parent = window,
+  width = "90%",
+  height = "70%",
+  positioning = "flex",
+  flexDirection = "vertical",
+  overflowY = "scroll",  -- Enable vertical scrolling
+  gap = 5,
+  padding = { horizontal = 10, vertical = 5 },
+  themeComponent = "framev3",
+  backgroundColor = Color.new(0.2, 0.2, 0.2, 0.5)
+})</code></pre>
+
+        <h3>Add Scrollable Items</h3>
+        <pre><code class="language-lua">-- Add multiple items to demonstrate scrolling
+for i = 1, 30 do
+  local text = string.format(
+    "Item %d - This is scrollable content that exceeds the container bounds",
+    i
+  )
+
+  FlexLove.new({
+    parent = scrollContainer,
+    text = text,
+    textAlign = "start",
+    textSize = "md",
+    width = "100%",
+    textColor = Color.new(0.9, 0.9, 0.9, 1),
+    padding = { vertical = 5 },
+    themeComponent = i % 3 == 0 and "panel" or "cardv2",
+    backgroundColor = i % 3 == 0
+      and Color.new(0.3, 0.3, 0.3, 0.7)
+      or Color.new(0.4, 0.4, 0.4, 0.5)
+  })
+end
+
+-- Footer with instructions
+FlexLove.new({
+  parent = window,
+  text = "Scroll using the mouse wheel or drag the scrollbar",
+  textAlign = "center",
+  textSize = "sm",
+  textColor = Color.new(0.7, 0.7, 0.7, 1)
+})</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Use <code>overflowY = "scroll"</code> to
+            enable vertical scrolling. The backdrop blur creates a nice
+            glassmorphism effect behind the container.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/scrollable_content.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div id="slider" class="example-section">
+        <h2>🎚️ Sliders & Controls</h2>
+        <p>
+          Implement draggable sliders with value tracking, perfect for settings
+          menus and adjustable parameters.
+        </p>
+
+        <h3>Create a Slider Control</h3>
+        <pre><code class="language-lua">local function createSlider(parent, label, min, max, initialValue)
+  local value = initialValue or min
+  local normalized = (value - min) / (max - min)
+
+  local row = FlexLove.new({
+    parent = parent,
+    width = "100%",
+    height = "5vh",
+    positioning = "flex",
+    flexDirection = "horizontal",
+    justifyContent = "space-between",
+    alignItems = "center",
+    gap = 10
+  })
+
+  -- Label
+  FlexLove.new({
+    parent = row,
+    text = label,
+    textAlign = "start",
+    textSize = "md",
+    width = "30%"
+  })
+
+  local sliderContainer = FlexLove.new({
+    parent = row,
+    width = "50%",
+    height = "100%",
+    positioning = "flex",
+    flexDirection = "horizontal",
+    alignItems = "center",
+    gap = 5
+  })
+
+  -- Slider track
+  local sliderTrack = FlexLove.new({
+    parent = sliderContainer,
+    width = "80%",
+    height = "75%",
+    positioning = "flex",
+    flexDirection = "horizontal",
+    themeComponent = "framev3"
+  })
+
+  -- Fill bar (visual indicator)
+  local fillBar = FlexLove.new({
+    parent = sliderTrack,
+    width = (normalized * 100) .. "%",
+    height = "100%",
+    themeComponent = "buttonv1"
+  })
+
+  -- Value display
+  local valueDisplay = FlexLove.new({
+    parent = sliderContainer,
+    text = string.format("%d", value),
+    textAlign = "center",
+    textSize = "md",
+    width = "15%"
+  })
+
+  -- Handle drag events
+  local function updateValue(mx)
+    local normalized = (mx - sliderTrack.x) / sliderTrack.width
+    normalized = math.max(0, math.min(1, normalized))
+    value = min + (normalized * (max - min))
+
+    -- Update visuals
+    fillBar.width = (normalized * 100) .. "%"
+    valueDisplay.text = string.format("%d", value)
+  end
+
+  sliderTrack.onEvent = function(elem, event)
+    if event.type == "press" or event.type == "drag" then
+      updateValue(event.x)
+    end
+  end
+
+  return value
+end</code></pre>
+
+        <h3>Using Multiple Sliders</h3>
+        <pre><code class="language-lua">-- Create settings window
+local settingsWindow = FlexLove.new({
+  x = "10%",
+  y = "10%",
+  width = "80%",
+  height = "80%",
+  themeComponent = "framev3",
+  positioning = "flex",
+  flexDirection = "vertical",
+  gap = 20,
+  padding = { horizontal = "5%", vertical = "3%" }
+})
+
+-- Title
+FlexLove.new({
+  parent = settingsWindow,
+  text = "Settings",
+  textAlign = "center",
+  textSize = "3xl"
+})
+
+-- Create sliders for different settings
+createSlider(settingsWindow, "Volume", 0, 100, 75)
+createSlider(settingsWindow, "Brightness", 0, 100, 50)
+createSlider(settingsWindow, "Sensitivity", 10, 200, 100)</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Use <code>event.type == "drag"</code> to
+            track mouse movement while pressed for smooth slider interaction.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/slider_example.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div id="input" class="example-section">
+        <h2>⌨️ Input & Event Handling</h2>
+        <p>
+          Handle mouse, keyboard, and touch events with FlexLöve's comprehensive
+          event system. Includes focus management and input field support.
+        </p>
+
+        <h3>Mouse Event Handling</h3>
+        <pre><code class="language-lua">local inputState = {
+  mousePos = { x = 0, y = 0 },
+  isHovered = false,
+  hoverCount = 0
+}
+
+-- Create hoverable area
+local hoverArea = FlexLove.new({
+  width = "30%",
+  height = "100%",
+  backgroundColor = "#4a5568",
+  borderRadius = 8,
+  onEvent = function(elem, event)
+    if event.type == "mousemoved" then
+      inputState.mousePos.x = event.x
+      inputState.mousePos.y = event.y
+    elseif event.type == "mouseenter" then
+      inputState.isHovered = true
+      inputState.hoverCount = inputState.hoverCount + 1
+      elem.backgroundColor = "#48bb78"  -- Green on hover
+    elseif event.type == "mouseleave" then
+      inputState.isHovered = false
+      elem.backgroundColor = "#4a5568"  -- Back to gray
+    elseif event.type == "release" then
+      print("Clicked at:", event.x, event.y)
+    end
+  end
+})
+
+-- Display mouse position
+FlexLove.new({
+  text = "Mouse: (" .. inputState.mousePos.x .. ", " .. inputState.mousePos.y .. ")",
+  textAlign = "left"
+})</code></pre>
+
+        <h3>Keyboard Input</h3>
+        <pre><code class="language-lua">local keyState = {
+  lastKey = "",
+  textInput = ""
+}
+
+-- Input field with keyboard handling
+local inputField = FlexLove.new({
+  themeComponent = "inputv2",
+  text = keyState.textInput,
+  width = "50%",
+  onEvent = function(elem, event)
+    if event.type == "textinput" then
+      keyState.textInput = keyState.textInput .. event.text
+      keyState.lastKey = event.text
+      elem.text = keyState.textInput
+    elseif event.type == "keypressed" then
+      keyState.lastKey = event.key
+
+      if event.key == "backspace" then
+        keyState.textInput = keyState.textInput:sub(1, -2)
+        elem.text = keyState.textInput
+      elseif event.key == "return" then
+        print("Submitted:", keyState.textInput)
+        keyState.textInput = ""
+        elem.text = ""
+      elseif event.key == "escape" then
+        elem:blur()  -- Remove focus
+      end
+    end
+  end
+})</code></pre>
+
+        <h3>Touch Events (Mobile Support)</h3>
+        <pre><code class="language-lua">local touchState = {
+  touchPos = { x = 0, y = 0 },
+  isTouching = false
+}
+
+-- Touchable area
+local touchArea = FlexLove.new({
+  width = "100%",
+  height = "100%",
+  backgroundColor = "#4a5568",
+  borderRadius = 8,
+  onEvent = function(_, event)
+    if event.type == "touch" then
+      touchState.isTouching = true
+      touchState.touchPos.x = event.x
+      touchState.touchPos.y = event.y
+      print("Touch started at:", event.x, event.y)
+    elseif event.type == "touchmoved" then
+      touchState.touchPos.x = event.x
+      touchState.touchPos.y = event.y
+    elseif event.type == "touchreleased" then
+      touchState.isTouching = false
+      print("Touch ended")
+    end
+  end
+})</code></pre>
+
+        <h3>Available Event Types</h3>
+        <pre><code class="language-lua">-- Mouse events
+"press"         -- Mouse button pressed
+"release"       -- Mouse button released
+"drag"          -- Mouse moved while pressed
+"mousemoved"    -- Mouse position changed
+"mouseenter"    -- Mouse entered element bounds
+"mouseleave"    -- Mouse left element bounds
+"wheel"         -- Mouse wheel scrolled
+
+-- Keyboard events
+"keypressed"    -- Key pressed (includes key name)
+"keyreleased"   -- Key released
+"textinput"     -- Text character entered
+
+-- Touch events (mobile)
+"touch"         -- Touch started
+"touchmoved"    -- Touch position changed
+"touchreleased" -- Touch ended
+
+-- Focus events
+"focus"         -- Element gained focus
+"blur"          -- Element lost focus</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Use <code>elem:focus()</code> and
+            <code>elem:blur()</code> to programmatically control input field
+            focus. The event object contains contextual data like
+            <code>x</code>, <code>y</code>, <code>key</code>, etc.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/input_handling.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div id="performance" class="example-section">
+        <h2>⚡ Performance Tips</h2>
+        <p>
+          Best practices for optimizing FlexLöve applications and avoiding
+          common performance pitfalls.
+        </p>
+
+        <h3>Immediate Mode vs Retained Mode</h3>
+        <pre><code class="language-lua">-- Retained Mode (default) - elements persist between frames
+FlexLove.init({
+  baseScale = { width = 1920, height = 1080 }
+})
+
+-- Immediate Mode - elements recreated each frame
+FlexLove.init({
+  baseScale = { width = 1920, height = 1080 },
+  immediateMode = true
+})</code></pre>
+
+        <h3>Batch Element Creation</h3>
+        <pre><code class="language-lua">-- ❌ Bad: Creating elements in love.draw() (retained mode)
+function love.draw()
+  local button = FlexLove.new({ ... })  -- DON'T DO THIS
+end
+
+-- ✅ Good: Create once, reuse
+local button
+function love.load()
+  button = FlexLove.new({ ... })
+end
+
+function love.draw()
+  FlexLove.draw()  -- Just draw existing elements
+end</code></pre>
+
+        <h3>Limit Layout Recalculations</h3>
+        <pre><code class="language-lua">-- Avoid changing layout properties every frame
+local element = FlexLove.new({ ... })
+
+-- ❌ Bad: Causes relayout every frame
+function love.update(dt)
+  element.width = math.sin(love.timer.getTime()) * 100
+end
+
+-- ✅ Good: Update only when needed
+function love.update(dt)
+  if someCondition then
+    element.width = newWidth
+  end
+end</code></pre>
+
+        <h3>Use Element Pooling for Dynamic Content</h3>
+        <pre><code class="language-lua">-- Create a pool of reusable elements
+local itemPool = {}
+for i = 1, 50 do
+  itemPool[i] = FlexLove.new({
+    parent = scrollContainer,
+    visible = false,
+    text = "",
+    width = "100%",
+    themeComponent = "cardv2"
+  })
+end
+
+-- Reuse elements instead of creating new ones
+function updateList(items)
+  for i, item in ipairs(items) do
+    if itemPool[i] then
+      itemPool[i].text = item.name
+      itemPool[i].visible = true
+    end
+  end
+
+  -- Hide unused elements
+  for i = #items + 1, #itemPool do
+    itemPool[i].visible = false
+  end
+end</code></pre>
+
+        <div class="note">
+          <p>
+            <strong>💡 Tip:</strong> Use retained mode when you want the
+            lightest footprint possible, immediate mode is much faster to
+            prototype with and relative low overhead.
+          </p>
+        </div>
+
+        <a
+          href="https://github.com/mikefreno/FlexLove/blob/main/examples/performance_example.lua"
+          class="github-link"
+          target="_blank"
+          >View Complete Example →</a
+        >
+      </div>
+
+      <div
+        style="
+          margin-top: 3rem;
+          padding: 2rem;
+          background-color: #161b22;
+          border-radius: 8px;
+          border: 1px solid #30363d;
+        "
+      >
+        <h3>🔗 More Examples</h3>
+        <p style="color: #8b949e">
+          Find all complete working examples in the
+          <a
+            href="https://github.com/mikefreno/FlexLove/tree/main/examples"
+            style="color: #58a6ff"
+            >examples/</a
+          >
+          directory:
+        </p>
+        <ul style="color: #8b949e; line-height: 2">
+          <li>
+            <code>advanced_layout.lua</code> - Complex nested layouts with flex
+            and grid
+          </li>
+          <li>
+            <code>theme_custom_components.lua</code> - Theme switching and
+            custom components
+          </li>
+          <li>
+            <code>stateful_ui.lua</code> - Interactive state management patterns
+          </li>
+          <li>
+            <code>scrollable_content.lua</code> - Scrolling with backdrop blur
+          </li>
+          <li>
+            <code>slider_example.lua</code> - Slider controls for settings menus
+          </li>
+          <li>
+            <code>input_handling.lua</code> - Comprehensive input event handling
+          </li>
+          <li>
+            <code>performance_example.lua</code> - Performance optimization
+            techniques
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      hljs.highlightAll();
+
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+
+      // Add copy buttons to code blocks
+      document.querySelectorAll('pre code').forEach((codeBlock) => {
+        const pre = codeBlock.parentElement;
+        const button = document.createElement('button');
+        button.className = 'copy-button';
+        button.textContent = 'Copy';
+        button.title = 'Copy to clipboard';
+        
+        button.addEventListener('click', async () => {
+          const code = codeBlock.textContent;
+          try {
+            await navigator.clipboard.writeText(code);
+            button.textContent = 'Copied!';
+            button.classList.add('copied');
+            setTimeout(() => {
+              button.textContent = 'Copy';
+              button.classList.remove('copied');
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy:', err);
+            button.textContent = 'Failed';
+            setTimeout(() => {
+              button.textContent = 'Copy';
+            }, 2000);
+          }
+        });
+        
+        pre.appendChild(button);
+      });
+    </script>
+  </body>
+</html>

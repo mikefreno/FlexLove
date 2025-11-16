@@ -1,0 +1,13 @@
+{
+  "name": "flexlove-docs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node update-version.js && node build-docs.js"
+  },
+  "dependencies": {
+    "markdown-it": "^14.0.0",
+    "markdown-it-anchor": "^9.0.0",
+    "highlight.js": "^11.9.0"
+  }
+}

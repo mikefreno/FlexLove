@@ -138,11 +138,45 @@
         overflow-x: auto;
         border: 1px solid #30363d;
         margin: 1.5rem 0;
+        position: relative;
       }
       code {
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
           monospace;
         font-size: 0.9rem;
+      }
+      .copy-button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: #21262d;
+        color: #8b949e;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.2s;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      pre:hover .copy-button {
+        opacity: 1;
+      }
+      .copy-button:hover {
+        background-color: #30363d;
+        border-color: #58a6ff;
+        color: #c9d1d9;
+      }
+      .copy-button:active {
+        background-color: #238636;
+        border-color: #238636;
+        color: #ffffff;
+      }
+      .copy-button.copied {
+        background-color: #238636;
+        border-color: #238636;
+        color: #ffffff;
       }
       .note {
         background-color: #1c2128;
@@ -183,7 +217,6 @@
   <body>
     <div class="header">
       <h1>FlexLöve Examples</h1>
-      <p>Comprehensive code examples and usage patterns</p>
       <div class="nav">
         <a href="index.html">Home</a>
         <a href="api.html">API Reference</a>
@@ -299,9 +332,9 @@ FlexLove.new({
         <div class="note">
           <p>
             <strong>💡 Tip:</strong> Use <code>flexDirection</code> to control
-            layout direction (horizontal/vertical), <code>justifyContent</code>
-            for main axis alignment, and <code>alignItems</code> for cross axis
-            alignment.
+            layout direction (horizontal/vertical),
+            <code>justifyContent</code> for main axis alignment, and
+            <code>alignItems</code> for cross axis alignment.
           </p>
         </div>
 
@@ -370,9 +403,9 @@ FlexLove.new({
 
         <div class="note">
           <p>
-            <strong>💡 Tip:</strong> Theme components automatically handle hover,
-            pressed, and disabled states using 9-patch image scaling for perfect
-            corners at any size.
+            <strong>💡 Tip:</strong> Theme components automatically handle
+            hover, pressed, and disabled states using 9-patch image scaling for
+            perfect corners at any size.
           </p>
         </div>
 
@@ -545,7 +578,7 @@ for i = 1, 30 do
     textColor = Color.new(0.9, 0.9, 0.9, 1),
     padding = { vertical = 5 },
     themeComponent = i % 3 == 0 and "panel" or "cardv2",
-    backgroundColor = i % 3 == 0 
+    backgroundColor = i % 3 == 0
       and Color.new(0.3, 0.3, 0.3, 0.7)
       or Color.new(0.4, 0.4, 0.4, 0.5)
   })
@@ -563,8 +596,8 @@ FlexLove.new({
         <div class="note">
           <p>
             <strong>💡 Tip:</strong> Use <code>overflowY = "scroll"</code> to
-            enable vertical scrolling. The backdrop blur creates a nice glassmorphism
-            effect behind the container.
+            enable vertical scrolling. The backdrop blur creates a nice
+            glassmorphism effect behind the container.
           </p>
         </div>
 
@@ -587,7 +620,7 @@ FlexLove.new({
         <pre><code class="language-lua">local function createSlider(parent, label, min, max, initialValue)
   local value = initialValue or min
   local normalized = (value - min) / (max - min)
-  
+
   local row = FlexLove.new({
     parent = parent,
     width = "100%",
@@ -598,7 +631,7 @@ FlexLove.new({
     alignItems = "center",
     gap = 10
   })
-  
+
   -- Label
   FlexLove.new({
     parent = row,
@@ -607,7 +640,7 @@ FlexLove.new({
     textSize = "md",
     width = "30%"
   })
-  
+
   local sliderContainer = FlexLove.new({
     parent = row,
     width = "50%",
@@ -617,7 +650,7 @@ FlexLove.new({
     alignItems = "center",
     gap = 5
   })
-  
+
   -- Slider track
   local sliderTrack = FlexLove.new({
     parent = sliderContainer,
@@ -627,7 +660,7 @@ FlexLove.new({
     flexDirection = "horizontal",
     themeComponent = "framev3"
   })
-  
+
   -- Fill bar (visual indicator)
   local fillBar = FlexLove.new({
     parent = sliderTrack,
@@ -635,7 +668,7 @@ FlexLove.new({
     height = "100%",
     themeComponent = "buttonv1"
   })
-  
+
   -- Value display
   local valueDisplay = FlexLove.new({
     parent = sliderContainer,
@@ -644,24 +677,24 @@ FlexLove.new({
     textSize = "md",
     width = "15%"
   })
-  
+
   -- Handle drag events
   local function updateValue(mx)
     local normalized = (mx - sliderTrack.x) / sliderTrack.width
     normalized = math.max(0, math.min(1, normalized))
     value = min + (normalized * (max - min))
-    
+
     -- Update visuals
     fillBar.width = (normalized * 100) .. "%"
     valueDisplay.text = string.format("%d", value)
   end
-  
+
   sliderTrack.onEvent = function(elem, event)
     if event.type == "press" or event.type == "drag" then
       updateValue(event.x)
     end
   end
-  
+
   return value
 end</code></pre>
 
@@ -768,7 +801,7 @@ local inputField = FlexLove.new({
       elem.text = keyState.textInput
     elseif event.type == "keypressed" then
       keyState.lastKey = event.key
-      
+
       if event.key == "backspace" then
         keyState.textInput = keyState.textInput:sub(1, -2)
         elem.text = keyState.textInput
@@ -839,8 +872,8 @@ local touchArea = FlexLove.new({
           <p>
             <strong>💡 Tip:</strong> Use <code>elem:focus()</code> and
             <code>elem:blur()</code> to programmatically control input field
-            focus. The event object contains contextual data like <code>x</code>,
-            <code>y</code>, <code>key</code>, etc.
+            focus. The event object contains contextual data like
+            <code>x</code>, <code>y</code>, <code>key</code>, etc.
           </p>
         </div>
 
@@ -855,8 +888,8 @@ local touchArea = FlexLove.new({
       <div id="performance" class="example-section">
         <h2>⚡ Performance Tips</h2>
         <p>
-          Best practices for optimizing FlexLöve applications and avoiding common
-          performance pitfalls.
+          Best practices for optimizing FlexLöve applications and avoiding
+          common performance pitfalls.
         </p>
 
         <h3>Immediate Mode vs Retained Mode</h3>
@@ -924,7 +957,7 @@ function updateList(items)
       itemPool[i].visible = true
     end
   end
-  
+
   -- Hide unused elements
   for i = #items + 1, #itemPool do
     itemPool[i].visible = false
@@ -933,9 +966,9 @@ end</code></pre>
 
         <div class="note">
           <p>
-            <strong>💡 Tip:</strong> Use retained mode for most applications.
-            Switch to immediate mode only if you need to recreate UI every frame
-            (like debug overlays).
+            <strong>💡 Tip:</strong> Use retained mode when you want the
+            lightest footprint possible, immediate mode is much faster to
+            prototype with and relative low overhead.
           </p>
         </div>
 
@@ -947,9 +980,17 @@ end</code></pre>
         >
       </div>
 
-      <div style="margin-top: 3rem; padding: 2rem; background-color: #161b22; border-radius: 8px; border: 1px solid #30363d;">
+      <div
+        style="
+          margin-top: 3rem;
+          padding: 2rem;
+          background-color: #161b22;
+          border-radius: 8px;
+          border: 1px solid #30363d;
+        "
+      >
         <h3>🔗 More Examples</h3>
-        <p style="color: #8b949e;">
+        <p style="color: #8b949e">
           Find all complete working examples in the
           <a
             href="https://github.com/mikefreno/FlexLove/tree/main/examples"
@@ -958,14 +999,14 @@ end</code></pre>
           >
           directory:
         </p>
-        <ul style="color: #8b949e; line-height: 2;">
+        <ul style="color: #8b949e; line-height: 2">
           <li>
             <code>advanced_layout.lua</code> - Complex nested layouts with flex
             and grid
           </li>
           <li>
-            <code>theme_custom_components.lua</code> - Theme switching and custom
-            components
+            <code>theme_custom_components.lua</code> - Theme switching and
+            custom components
           </li>
           <li>
             <code>stateful_ui.lua</code> - Interactive state management patterns
@@ -988,10 +1029,8 @@ end</code></pre>
     </div>
 
     <script>
-      // Syntax highlighting
       hljs.highlightAll();
 
-      // Smooth scroll for anchor links
       document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
         anchor.addEventListener("click", function (e) {
           e.preventDefault();
@@ -1000,6 +1039,36 @@ end</code></pre>
             target.scrollIntoView({ behavior: "smooth", block: "start" });
           }
         });
+      });
+
+      // Add copy buttons to code blocks
+      document.querySelectorAll('pre code').forEach((codeBlock) => {
+        const pre = codeBlock.parentElement;
+        const button = document.createElement('button');
+        button.className = 'copy-button';
+        button.textContent = 'Copy';
+        button.title = 'Copy to clipboard';
+        
+        button.addEventListener('click', async () => {
+          const code = codeBlock.textContent;
+          try {
+            await navigator.clipboard.writeText(code);
+            button.textContent = 'Copied!';
+            button.classList.add('copied');
+            setTimeout(() => {
+              button.textContent = 'Copy';
+              button.classList.remove('copied');
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy:', err);
+            button.textContent = 'Failed';
+            setTimeout(() => {
+              button.textContent = 'Copy';
+            }, 2000);
+          }
+        });
+        
+        pre.appendChild(button);
       });
     </script>
   </body>

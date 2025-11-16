@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# FlexLöve Documentation Archival Script
-# Archives the current documentation to a versioned directory
+set -e
 
-set -e  # Exit on error
-
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -15,7 +11,6 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}FlexLöve Documentation Archival${NC}"
 echo ""
 
-# Extract version from FlexLove.lua
 VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
 if [ -z "$VERSION" ]; then
   echo -e "${RED}Error: Could not extract version from FlexLove.lua${NC}"
@@ -24,14 +19,12 @@ fi
 
 echo -e "${GREEN}Version detected: ${VERSION}${NC}"
 
-# Check if documentation exists
 if [ ! -f "docs/api.html" ]; then
   echo -e "${RED}Error: docs/api.html not found${NC}"
   echo "Please run ./scripts/generate_docs.sh first"
   exit 1
 fi
 
-# Create version directory
 VERSION_DIR="docs/versions/v${VERSION}"
 if [ -d "$VERSION_DIR" ]; then
   echo -e "${YELLOW}Warning: $VERSION_DIR already exists${NC}"
@@ -46,17 +39,14 @@ else
   mkdir -p "$VERSION_DIR"
 fi
 
-# Copy documentation
 echo -e "${YELLOW}Archiving documentation...${NC}"
 cp docs/api.html "$VERSION_DIR/api.html"
 
-# Verify copy
 if [ ! -f "$VERSION_DIR/api.html" ]; then
   echo -e "${RED}Error: Failed to copy documentation${NC}"
   exit 1
 fi
 
-# Get file size
 FILE_SIZE=$(du -h "$VERSION_DIR/api.html" | cut -f1)
 
 echo ""

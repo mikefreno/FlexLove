@@ -1,26 +1,20 @@
 #!/bin/bash
 
-# FlexLöve Documentation Generator
-# This script generates HTML documentation from LuaLS annotations
-
-# Colors for output
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 echo "Generating FlexLöve documentation..."
 
-# Get the directory where this script is located and navigate to project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$PROJECT_ROOT"
 
-# Archive previous documentation version before generating new one
 if [ -f "docs/api.html" ]; then
     echo -e "${YELLOW}Checking for previous documentation version...${NC}"
     OLD_VERSION=$(grep -o 'FlexLöve v[0-9.]*' docs/api.html | head -1 | sed 's/FlexLöve v//')
     CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
-    
+
     if [ -n "$OLD_VERSION" ] && [ "$OLD_VERSION" != "$CURRENT_VERSION" ]; then
         echo -e "${YELLOW}Found previous version v${OLD_VERSION}, archiving before generating new docs...${NC}"
         mkdir -p "docs/versions/v${OLD_VERSION}"
@@ -31,7 +25,6 @@ if [ -f "docs/api.html" ]; then
     fi
 fi
 
-# Check if lua-language-server is installed
 if ! command -v lua-language-server &> /dev/null; then
     echo "Error: lua-language-server not found. Please install it first."
     echo "  macOS: brew install lua-language-server"
@@ -39,10 +32,8 @@ if ! command -v lua-language-server &> /dev/null; then
     exit 1
 fi
 
-# Create docs directory if it doesn't exist
 mkdir -p docs
 
-# Generate documentation using lua-language-server
 echo "Running lua-language-server documentation export..."
 lua-language-server \
     --doc="$PROJECT_ROOT" \
@@ -50,18 +41,17 @@ lua-language-server \
 
 if [ $? -eq 0 ]; then
     echo "✓ Markdown documentation generated"
-    
-    # Build HTML documentation
+
     echo "Building beautiful HTML documentation..."
     cd "$PROJECT_ROOT/docs"
-    
+
     if [ ! -d "node_modules" ]; then
         echo "Installing Node.js dependencies..."
         npm install --silent
     fi
-    
+
     npm run build --silent
-    
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ HTML documentation built successfully!${NC}"
         echo ""

@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# FlexLöve Release Builder
-# Creates a distributable zip file containing only necessary files
+set -e
 
-set -e  # Exit on error
-
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -15,7 +11,6 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}FlexLöve Release Builder${NC}"
 echo ""
 
-# Extract version from FlexLove.lua
 VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
 if [ -z "$VERSION" ]; then
   echo -e "${RED}Error: Could not extract version from FlexLove.lua${NC}"
@@ -31,10 +26,8 @@ if [ ! -d "$RELEASE_DIR" ]; then
   mkdir -p "$RELEASE_DIR"
 fi
 
-# Define output filename
-OUTPUT_FILE="${RELEASE_DIR}/flexlove-v${VERSION}.zip"
+OUTPUT_FILE="${RELEASE_DIR}/FlexLove-v${VERSION}.zip"
 
-# Check if release already exists
 CHECKSUM_FILE="${OUTPUT_FILE}.sha256"
 if [ -f "$OUTPUT_FILE" ] || [ -f "$CHECKSUM_FILE" ]; then
   echo -e "${YELLOW}Warning: Release files already exist${NC}"
@@ -50,16 +43,13 @@ if [ -f "$OUTPUT_FILE" ] || [ -f "$CHECKSUM_FILE" ]; then
   [ -f "$CHECKSUM_FILE" ] && rm "$CHECKSUM_FILE"
 fi
 
-# Create temporary directory
 TEMP_DIR=$(mktemp -d)
 BUILD_DIR="${TEMP_DIR}/flexlove"
 
 echo -e "${YELLOW}Creating release package...${NC}"
 
-# Create build directory structure
 mkdir -p "$BUILD_DIR"
 
-# Copy necessary files
 echo "  → Copying FlexLove.lua"
 cp FlexLove.lua "$BUILD_DIR/"
 
@@ -69,58 +59,32 @@ cp -r modules "$BUILD_DIR/"
 echo "  → Copying LICENSE"
 cp LICENSE "$BUILD_DIR/"
 
-# Create a minimal README for the release
 echo "  → Creating README.txt"
-cat > "$BUILD_DIR/README.txt" << EOF
-FlexLöve v${VERSION}
-==================
-
-A flexible, powerful UI library for LÖVE2D with CSS-like layout and styling.
-
-Installation
-------------
-1. Copy the 'modules' folder and 'FlexLove.lua' to your project
-2. Require FlexLove in your code:
-   local FlexLove = require("FlexLove")
-
-Documentation
--------------
-Visit: https://github.com/[your-repo]/flexlove (update with actual URL)
-
-License
--------
-See LICENSE file for details.
+cp README.md "$BUILD_DIR/"
 
 EOF
 
-# Create the zip file
 echo -e "${YELLOW}Creating zip archive...${NC}"
 
-# Get absolute path to output file before changing directory
 ABS_OUTPUT_FILE="$(cd "$(dirname "$OUTPUT_FILE")" && pwd)/$(basename "$OUTPUT_FILE")"
 
 cd "$TEMP_DIR"
 zip -r -q "flexlove-v${VERSION}.zip" flexlove/
 
-# Move to releases directory
 mv "flexlove-v${VERSION}.zip" "$ABS_OUTPUT_FILE"
 cd - > /dev/null
 
-# Generate SHA256 checksum
 echo -e "${YELLOW}Generating SHA256 checksum...${NC}"
 CHECKSUM_FILE="${OUTPUT_FILE}.sha256"
 cd "$RELEASE_DIR"
 shasum -a 256 "flexlove-v${VERSION}.zip" > "flexlove-v${VERSION}.zip.sha256"
 cd - > /dev/null
 
-# Extract checksum hash for display
 CHECKSUM=$(cat "$CHECKSUM_FILE" | cut -d ' ' -f 1)
 
-# Clean up
 echo -e "${YELLOW}Cleaning up...${NC}"
 rm -rf "$TEMP_DIR"
 
-# Calculate file size
 FILE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
 
 echo ""

@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# FlexLöve Version Bump and Tag Creator
-# Automates version updates and git tag creation
+set -e
 
-set -e  # Exit on error
-
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -18,18 +14,15 @@ echo -e "${BLUE}   FlexLöve Version Bump & Tag Tool   ${NC}"
 echo -e "${BLUE}═══════════════════════════════════════${NC}"
 echo ""
 
-# Get the project root directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$PROJECT_ROOT"
 
-# Check if we're in a git repository (handles both .git directory and submodules)
 if [ ! -d .git ] && [ ! -f .git ]; then
   echo -e "${RED}Error: Not in a git repository${NC}"
   exit 1
 fi
 
-# Check for uncommitted changes
 if ! git diff-index --quiet HEAD --; then
   echo -e "${YELLOW}Warning: You have uncommitted changes${NC}"
   git status --short
@@ -43,7 +36,6 @@ if ! git diff-index --quiet HEAD --; then
   echo ""
 fi
 
-# Extract current version from FlexLove.lua
 CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
 if [ -z "$CURRENT_VERSION" ]; then
   echo -e "${RED}Error: Could not extract version from FlexLove.lua${NC}"
@@ -53,10 +45,8 @@ fi
 echo -e "${CYAN}Current version:${NC} ${GREEN}v${CURRENT_VERSION}${NC}"
 echo ""
 
-# Parse current version into components
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-# Remove any non-numeric suffixes (e.g., "1.0.0-beta" -> "1.0.0")
 MAJOR=$(echo "$MAJOR" | sed 's/[^0-9].*//')
 MINOR=$(echo "$MINOR" | sed 's/[^0-9].*//')
 PATCH=$(echo "$PATCH" | sed 's/[^0-9].*//')
@@ -127,17 +117,14 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-# Update FlexLove.lua
 echo -e "${CYAN}[1/4]${NC} Updating FlexLove.lua..."
 sed -i.bak "s/flexlove\._VERSION = \".*\"/flexlove._VERSION = \"${NEW_VERSION}\"/" FlexLove.lua
 rm -f FlexLove.lua.bak
 echo -e "${GREEN}✓ FlexLove.lua updated${NC}"
 
-# Update README.md (first line)
 echo -e "${CYAN}[2/4]${NC} Updating README.md..."
 FIRST_LINE=$(head -1 README.md)
 if [[ "$FIRST_LINE" =~ ^#.*FlexLöve.*v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-  # Replace version in first line (using -E for extended regex)
   sed -i.bak -E "1s/v[0-9]+\.[0-9]+\.[0-9]+/v${NEW_VERSION}/" README.md
   rm -f README.md.bak
   echo -e "${GREEN}✓ README.md updated${NC}"
@@ -147,18 +134,15 @@ else
   echo -e "${YELLOW}Found: $FIRST_LINE${NC}"
 fi
 
-# Stage changes
 echo -e "${CYAN}[3/4]${NC} Staging changes..."
 git add FlexLove.lua README.md
 echo -e "${GREEN}✓ Changes staged${NC}"
 
-# Show what's about to be committed
 echo ""
 echo -e "${CYAN}Changes to be committed:${NC}"
 git diff --cached --stat
 echo ""
 
-# Confirm commit and tag
 echo -e "${YELLOW}Ready to commit and create tag${NC}"
 echo -e "${CYAN}Commit message:${NC} v${NEW_VERSION} release"
 echo -e "${CYAN}Tag:${NC} v${NEW_VERSION}"
@@ -187,16 +171,6 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo -e "${CYAN}Version:${NC} ${CURRENT_VERSION} → ${GREEN}${NEW_VERSION}${NC}"
 echo -e "${CYAN}Tag created:${NC} ${GREEN}v${NEW_VERSION}${NC}"
-echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo "  1. Push commit and tag:"
-echo -e "     ${CYAN}git push && git push origin v${NEW_VERSION}${NC}"
-echo ""
-echo "  2. GitHub Actions will automatically:"
-echo "     • Archive previous documentation"
-echo "     • Generate new documentation"
-echo "     • Create release package with checksums"
-echo "     • Publish GitHub release"
 echo ""
 echo -e "${BLUE}Release will be available at:${NC}"
 echo "  https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')/releases/tag/v${NEW_VERSION}"

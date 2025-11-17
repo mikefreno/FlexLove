@@ -192,7 +192,7 @@ fi
 
 # Commit changes
 echo ""
-echo -e "${CYAN}[5/5]${NC} Committing and tagging..."
+echo -e "${CYAN}[4/4]${NC} Committing and tagging..."
 git commit -m "$COMMIT_MSG"
 git tag -a "v${NEW_VERSION}" -m "Release version ${NEW_VERSION}"
 

@@ -1,4 +1,4 @@
-# FlexLöve v0.2.2
+# FlexLöve
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 

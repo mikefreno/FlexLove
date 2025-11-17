@@ -112,10 +112,9 @@ echo -e "${CYAN}New version:${NC} ${GREEN}v${NEW_VERSION}${NC}"
 echo ""
 echo -e "${YELLOW}This will:${NC}"
 echo "  1. Update FlexLove.lua → flexlove._VERSION = \"${NEW_VERSION}\""
-echo "  2. Update README.md → first line version"
-echo "  3. Update docs/index.html → footer version"
-echo "  4. Stage changes for commit"
-echo "  5. Create git tag v${NEW_VERSION}"
+echo "  2. Update docs/index.html → footer version"
+echo "  3. Stage changes for commit"
+echo "  4. Create git tag v${NEW_VERSION}"
 echo ""
 read -p "Proceed? (y/n) " -n 1 -r
 echo ""
@@ -125,24 +124,12 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-echo -e "${CYAN}[1/4]${NC} Updating FlexLove.lua..."
+echo -e "${CYAN}[1/3]${NC} Updating FlexLove.lua..."
 sed -i.bak "s/flexlove\._VERSION = \".*\"/flexlove._VERSION = \"${NEW_VERSION}\"/" FlexLove.lua
 rm -f FlexLove.lua.bak
 echo -e "${GREEN}✓ FlexLove.lua updated${NC}"
 
-echo -e "${CYAN}[2/4]${NC} Updating README.md..."
-FIRST_LINE=$(head -1 README.md)
-if [[ "$FIRST_LINE" =~ ^#.*FlexLöve.*v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-  sed -i.bak -E "1s/v[0-9]+\.[0-9]+\.[0-9]+/v${NEW_VERSION}/" README.md
-  rm -f README.md.bak
-  echo -e "${GREEN}✓ README.md updated${NC}"
-else
-  echo -e "${YELLOW}⚠ README.md first line doesn't match expected format, skipping${NC}"
-  echo -e "${YELLOW}Expected: # FlexLöve v0.0.0${NC}"
-  echo -e "${YELLOW}Found: $FIRST_LINE${NC}"
-fi
-
-echo -e "${CYAN}[3/5]${NC} Updating docs/index.html..."
+echo -e "${CYAN}[2/3]${NC} Updating docs/index.html..."
 if [ -f docs/index.html ]; then
   sed -i.bak -E "s/FlexLöve v[0-9]+\.[0-9]+\.[0-9]+/FlexLöve v${NEW_VERSION}/" docs/index.html
   rm -f docs/index.html.bak
@@ -151,8 +138,8 @@ else
   echo -e "${YELLOW}⚠ docs/index.html not found, skipping${NC}"
 fi
 
-echo -e "${CYAN}[4/5]${NC} Staging changes..."
-git add FlexLove.lua README.md docs/index.html
+echo -e "${CYAN}[3/3]${NC} Staging changes..."
+git add FlexLove.lua docs/index.html
 echo -e "${GREEN}✓ Changes staged${NC}"
 
 echo ""
@@ -171,7 +158,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "You can:"
   echo "  - Review changes: git diff --cached"
   echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
-  echo "  - Unstage: git restore --staged FlexLove.lua README.md docs/index.html"
+  echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html"
   exit 0
 fi
 
@@ -199,7 +186,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "You can:"
   echo "  - Review changes: git diff --cached"
   echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
-  echo "  - Unstage: git restore --staged FlexLove.lua README.md docs/index.html"
+  echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html"
   exit 0
 fi
 

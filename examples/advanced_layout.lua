@@ -4,6 +4,8 @@
 ]]
 
 local FlexLove = require("libs.FlexLove")
+local Color = FlexLove.Color
+local Theme = FlexLove.Theme
 
 -- Create the main window
 local window = FlexLove.new({
@@ -38,7 +40,7 @@ local flexContainer = FlexLove.new({
   height = "70%",
 })
 
--- Left panel - Grid layout
+-- Left panel - True Grid Layout
 local leftPanel = FlexLove.new({
   parent = flexContainer,
   width = "40%",
@@ -50,43 +52,41 @@ local leftPanel = FlexLove.new({
 
 FlexLove.new({
   parent = leftPanel,
-  text = "Grid Layout Example",
+  text = "True Grid Layout (3x3)",
   textAlign = "center",
   textSize = "lg",
   width = "100%",
 })
 
--- Grid container
+-- Grid container using positioning = "grid"
 local gridContainer = FlexLove.new({
   parent = leftPanel,
-  positioning = "flex",
-  flexDirection = "horizontal",
-  flexWrap = "wrap",
-  justifyContent = "space-between",
-  alignItems = "flex-start",
-  gap = 10,
+  positioning = "grid",
+  gridRows = 3,
+  gridColumns = 3,
+  columnGap = 5,
+  rowGap = 5,
   height = "80%",
+  alignItems = "stretch",
 })
 
--- Grid items
-for i = 1, 6 do
+-- Grid items (will auto-flow into cells)
+for i = 1, 9 do
   FlexLove.new({
     parent = gridContainer,
-    width = "45%",
-    height = "40%",
     themeComponent = "buttonv2",
-    text = "Item " .. i,
+    text = "Cell " .. i,
     textAlign = "center",
     textSize = "md",
     onEvent = function(_, event)
       if event.type == "release" then
-        print("Grid item " .. i .. " clicked")
+        print("Grid cell " .. i .. " clicked")
       end
     end,
   })
 end
 
--- Right panel - Flex layout with nested flex containers
+-- Right panel - Grid with Headers (like a schedule)
 local rightPanel = FlexLove.new({
   parent = flexContainer,
   width = "55%",
@@ -97,75 +97,88 @@ local rightPanel = FlexLove.new({
 
 FlexLove.new({
   parent = rightPanel,
-  text = "Nested Flex Containers",
+  text = "Grid with Headers (4x4)",
   textAlign = "center",
   textSize = "lg",
   width = "100%",
 })
 
--- First nested flex container
-local nestedFlex1 = FlexLove.new({
+-- Example data for schedule-like grid
+local columnHeaders = { "Mon", "Tue", "Wed" }
+local rowHeaders = { "Task A", "Task B", "Task C" }
+
+-- Calculate grid dimensions: +1 for header row and column
+local numRows = #rowHeaders + 1 -- +1 for header row
+local numColumns = #columnHeaders + 1 -- +1 for row labels column
+
+local scheduleGrid = FlexLove.new({
   parent = rightPanel,
-  positioning = "flex",
-  flexDirection = "horizontal",
-  justifyContent = "space-around",
-  alignItems = "center",
-  gap = 10,
-  height = "40%",
-})
-
-FlexLove.new({
-  parent = nestedFlex1,
-  text = "Button A",
-  themeComponent = "buttonv1",
-  width = "25%",
-  textAlign = "center",
-  onEvent = function(_, event)
-    if event.type == "release" then
-      print("Button A clicked")
-    end
-  end,
-})
-
-FlexLove.new({
-  parent = nestedFlex1,
-  text = "Button B",
-  themeComponent = "buttonv2",
-  width = "25%",
-  textAlign = "center",
-  onEvent = function(_, event)
-    if event.type == "release" then
-      print("Button B clicked")
-    end
-  end,
-})
-
--- Second nested flex container
-local nestedFlex2 = FlexLove.new({
-  parent = rightPanel,
-  positioning = "flex",
-  flexDirection = "vertical",
-  justifyContent = "space-around",
+  positioning = "grid",
+  gridRows = numRows,
+  gridColumns = numColumns,
+  columnGap = 2,
+  rowGap = 2,
+  height = "80%",
   alignItems = "stretch",
-  gap = 10,
-  height = "50%",
 })
 
+local accentColor = Theme.getColor("primary")
+local textColor = Theme.getColor("text")
+
+-- Top-left corner cell (empty)
 FlexLove.new({
-  parent = nestedFlex2,
-  text = "Vertical Flex Item 1",
-  themeComponent = "framev3",
-  textAlign = "center",
-  padding = { vertical = 10 },
+  parent = scheduleGrid,
 })
 
-FlexLove.new({
-  parent = nestedFlex2,
-  text = "Vertical Flex Item 2",
-  themeComponent = "framev3",
-  textAlign = "center",
-  padding = { vertical = 10 },
-})
+-- Column headers
+for _, header in ipairs(columnHeaders) do
+  FlexLove.new({
+    parent = scheduleGrid,
+    text = header,
+    textColor = textColor,
+    textAlign = "center",
+    backgroundColor = Color.new(0, 0, 0, 0.3),
+    border = { top = true, right = true, bottom = true, left = true },
+    borderColor = accentColor,
+    textSize = 12,
+  })
+end
+
+-- Data rows
+for i, rowHeader in ipairs(rowHeaders) do
+  -- Row header
+  FlexLove.new({
+    parent = scheduleGrid,
+    text = rowHeader,
+    backgroundColor = Color.new(0, 0, 0, 0.3),
+    textColor = textColor,
+    textAlign = "center",
+    border = { top = true, right = true, bottom = true, left = true },
+    borderColor = accentColor,
+    textSize = 10,
+  })
+
+  -- Data cells
+  for j = 1, #columnHeaders do
+    local value = (i * j) % 5
+    FlexLove.new({
+      parent = scheduleGrid,
+      text = tostring(value),
+      textAlign = "center",
+      border = { top = true, right = true, bottom = true, left = true },
+      borderColor = Color.new(0.5, 0.5, 0.5, 1.0),
+      textSize = 12,
+      themeComponent = "buttonv2",
+      onEvent = function(elem, event)
+        if event.type == "click" then
+          local newValue = (tonumber(elem.text) + 1) % 10
+          elem:updateText(tostring(newValue))
+          print("Cell [" .. i .. "," .. j .. "] clicked, new value: " .. newValue)
+        end
+      end,
+    })
+  end
+end
 
 -- Footer with progress bar
 local footer = FlexLove.new({

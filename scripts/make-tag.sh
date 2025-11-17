@@ -113,8 +113,9 @@ echo ""
 echo -e "${YELLOW}This will:${NC}"
 echo "  1. Update FlexLove.lua → flexlove._VERSION = \"${NEW_VERSION}\""
 echo "  2. Update README.md → first line version"
-echo "  3. Stage changes for commit"
-echo "  4. Create git tag v${NEW_VERSION}"
+echo "  3. Update docs/index.html → footer version"
+echo "  4. Stage changes for commit"
+echo "  5. Create git tag v${NEW_VERSION}"
 echo ""
 read -p "Proceed? (y/n) " -n 1 -r
 echo ""
@@ -141,8 +142,17 @@ else
   echo -e "${YELLOW}Found: $FIRST_LINE${NC}"
 fi
 
-echo -e "${CYAN}[3/4]${NC} Staging changes..."
-git add FlexLove.lua README.md
+echo -e "${CYAN}[3/5]${NC} Updating docs/index.html..."
+if [ -f docs/index.html ]; then
+  sed -i.bak -E "s/FlexLöve v[0-9]+\.[0-9]+\.[0-9]+/FlexLöve v${NEW_VERSION}/" docs/index.html
+  rm -f docs/index.html.bak
+  echo -e "${GREEN}✓ docs/index.html updated${NC}"
+else
+  echo -e "${YELLOW}⚠ docs/index.html not found, skipping${NC}"
+fi
+
+echo -e "${CYAN}[4/5]${NC} Staging changes..."
+git add FlexLove.lua README.md docs/index.html
 echo -e "${GREEN}✓ Changes staged${NC}"
 
 echo ""
@@ -161,7 +171,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "You can:"
   echo "  - Review changes: git diff --cached"
   echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
-  echo "  - Unstage: git restore --staged FlexLove.lua README.md"
+  echo "  - Unstage: git restore --staged FlexLove.lua README.md docs/index.html"
   exit 0
 fi
 
@@ -189,13 +199,13 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "You can:"
   echo "  - Review changes: git diff --cached"
   echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
-  echo "  - Unstage: git restore --staged FlexLove.lua README.md"
+  echo "  - Unstage: git restore --staged FlexLove.lua README.md docs/index.html"
   exit 0
 fi
 
 # Commit changes
 echo ""
-echo -e "${CYAN}[4/4]${NC} Committing and tagging..."
+echo -e "${CYAN}[5/5]${NC} Committing and tagging..."
 git commit -m "$COMMIT_MSG"
 git tag -a "v${NEW_VERSION}" -m "Release version ${NEW_VERSION}"
 

@@ -269,72 +269,118 @@ FlexLove.new({
   width = "100%"
 })</code></pre>
 
-        <h3>Grid Layout with Wrapping</h3>
-        <pre><code class="language-lua">-- Create a grid container
+        <h3>True Grid Layout</h3>
+        <pre><code class="language-lua">-- Create a true grid with positioning = "grid"
 local gridContainer = FlexLove.new({
   parent = window,
-  positioning = "flex",
-  flexDirection = "horizontal",
-  flexWrap = "wrap",
-  justifyContent = "space-between",
-  alignItems = "flex-start",
-  gap = 10,
-  height = "80%"
+  positioning = "grid",
+  gridRows = 3,
+  gridColumns = 3,
+  columnGap = 5,
+  rowGap = 5,
+  height = "80%",
+  alignItems = "stretch"
 })
 
--- Add grid items (will automatically wrap)
-for i = 1, 6 do
+-- Add grid items (auto-flow into cells)
+for i = 1, 9 do
   FlexLove.new({
     parent = gridContainer,
-    width = "45%",
-    height = "40%",
     themeComponent = "buttonv2",
-    text = "Item " .. i,
+    text = "Cell " .. i,
     textAlign = "center",
     textSize = "md",
     onEvent = function(_, event)
       if event.type == "release" then
-        print("Grid item " .. i .. " clicked")
+        print("Grid cell " .. i .. " clicked")
       end
     end
   })
 end</code></pre>
 
-        <h3>Nested Flex Containers</h3>
-        <pre><code class="language-lua">-- Horizontal container with space-around
-local nestedFlex = FlexLove.new({
+        <h3>Grid with Headers (Schedule-style)</h3>
+        <pre><code class="language-lua">local Color = FlexLove.Color
+local Theme = FlexLove.Theme
+
+-- Example data
+local columnHeaders = { "Mon", "Tue", "Wed" }
+local rowHeaders = { "Task A", "Task B", "Task C" }
+
+-- Calculate grid dimensions: +1 for header row and column
+local numRows = #rowHeaders + 1
+local numColumns = #columnHeaders + 1
+
+local scheduleGrid = FlexLove.new({
   parent = window,
-  positioning = "flex",
-  flexDirection = "horizontal",
-  justifyContent = "space-around",
-  alignItems = "center",
-  gap = 10,
-  height = "40%"
+  positioning = "grid",
+  gridRows = numRows,
+  gridColumns = numColumns,
+  columnGap = 2,
+  rowGap = 2,
+  height = "80%",
+  alignItems = "stretch"
 })
 
--- Add buttons that will be spaced evenly
-FlexLove.new({
-  parent = nestedFlex,
-  text = "Button A",
-  themeComponent = "buttonv1",
-  width = "25%",
-  textAlign = "center"
-})
+local accentColor = Theme.getColor("primary")
+local textColor = Theme.getColor("text")
 
-FlexLove.new({
-  parent = nestedFlex,
-  text = "Button B",
-  themeComponent = "buttonv2",
-  width = "25%",
-  textAlign = "center"
-})</code></pre>
+-- Top-left corner cell (empty)
+FlexLove.new({ parent = scheduleGrid })
+
+-- Column headers
+for _, header in ipairs(columnHeaders) do
+  FlexLove.new({
+    parent = scheduleGrid,
+    text = header,
+    textColor = textColor,
+    textAlign = "center",
+    backgroundColor = Color.new(0, 0, 0, 0.3),
+    border = { top = true, right = true, bottom = true, left = true },
+    borderColor = accentColor,
+    textSize = 12
+  })
+end
+
+-- Data rows
+for i, rowHeader in ipairs(rowHeaders) do
+  -- Row header
+  FlexLove.new({
+    parent = scheduleGrid,
+    text = rowHeader,
+    backgroundColor = Color.new(0, 0, 0, 0.3),
+    textColor = textColor,
+    textAlign = "center",
+    border = { top = true, right = true, bottom = true, left = true },
+    borderColor = accentColor,
+    textSize = 10
+  })
+
+  -- Data cells
+  for j = 1, #columnHeaders do
+    FlexLove.new({
+      parent = scheduleGrid,
+      text = tostring((i * j) % 5),
+      textAlign = "center",
+      border = { top = true, right = true, bottom = true, left = true },
+      borderColor = Color.new(0.5, 0.5, 0.5, 1.0),
+      textSize = 12,
+      themeComponent = "buttonv2",
+      onEvent = function(elem, event)
+        if event.type == "click" then
+          local newValue = (tonumber(elem.text) + 1) % 10
+          elem:updateText(tostring(newValue))
+        end
+      end
+    })
+  end
+end</code></pre>
 
         <div class="note">
           <p>
-            <strong>💡 Tip:</strong> Use <code>flexDirection</code> to control
-            layout direction (horizontal/vertical),
-            <code>justifyContent</code> for main axis alignment, and
-            <code>alignItems</code> for cross axis alignment.
+            <strong>💡 Tip:</strong> Use <code>positioning = "grid"</code> with 
+            <code>gridRows</code> and <code>gridColumns</code> to create true grid 
+            layouts. Children auto-flow into cells left-to-right, top-to-bottom. 
+            Perfect for tables, schedules, and structured data displays.
           </p>
         </div>
 

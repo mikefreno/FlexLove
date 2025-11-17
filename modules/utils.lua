@@ -139,39 +139,94 @@ local function resolveImagePath(path)
   return FLEXLOVE_FILESYSTEM_PATH .. "/" .. path
 end
 
+-- Font cache with LRU eviction
 local FONT_CACHE = {}
 local FONT_CACHE_MAX_SIZE = 50
-local FONT_CACHE_ORDER = {}
+local FONT_CACHE_STATS = {
+  hits = 0,
+  misses = 0,
+  evictions = 0,
+  size = 0,
+}
+
+-- LRU tracking: each entry has {font, lastUsed, accessCount}
+local function updateCacheAccess(cacheKey)
+  local entry = FONT_CACHE[cacheKey]
+  if entry then
+    entry.lastUsed = love.timer.getTime()
+    entry.accessCount = entry.accessCount + 1
+  end
+end
+
+local function evictLRU()
+  local oldestKey = nil
+  local oldestTime = math.huge
+
+  for key, entry in pairs(FONT_CACHE) do
+    -- Skip methods (get, getFont) - only evict cache entries (tables with lastUsed)
+    if type(entry) == "table" and entry.lastUsed then
+      if entry.lastUsed < oldestTime then
+        oldestTime = entry.lastUsed
+        oldestKey = key
+      end
+    end
+  end
+
+  if oldestKey then
+    FONT_CACHE[oldestKey] = nil
+    FONT_CACHE_STATS.evictions = FONT_CACHE_STATS.evictions + 1
+    FONT_CACHE_STATS.size = FONT_CACHE_STATS.size - 1
+  end
+end
 
 --- Create or get a font from cache
 ---@param size number
 ---@param fontPath string?
 ---@return love.Font
 function FONT_CACHE.get(size, fontPath)
-  local cacheKey = fontPath and (fontPath .. "_" .. tostring(size)) or tostring(size)
+  -- Round size to reduce cache entries (e.g., 14.5 -> 15, 14.7 -> 15)
+  size = math.floor(size + 0.5)
 
-  if not FONT_CACHE[cacheKey] then
-    if fontPath then
-      local resolvedPath = resolveImagePath(fontPath)
-      local success, font = pcall(love.graphics.newFont, resolvedPath, size)
-      if success then
-        FONT_CACHE[cacheKey] = font
-      else
-        print("[FlexLove] Failed to load font: " .. fontPath .. " - using default font")
-        FONT_CACHE[cacheKey] = love.graphics.newFont(size)
-      end
-    else
-      FONT_CACHE[cacheKey] = love.graphics.newFont(size)
-    end
+  local cacheKey = fontPath and (fontPath .. ":" .. tostring(size)) or ("default:" .. tostring(size))
 
-    table.insert(FONT_CACHE_ORDER, cacheKey)
-
-    if #FONT_CACHE_ORDER > FONT_CACHE_MAX_SIZE then
-      local oldestKey = table.remove(FONT_CACHE_ORDER, 1)
-      FONT_CACHE[oldestKey] = nil
-    end
+  if FONT_CACHE[cacheKey] then
+    -- Cache hit
+    FONT_CACHE_STATS.hits = FONT_CACHE_STATS.hits + 1
+    updateCacheAccess(cacheKey)
+    return FONT_CACHE[cacheKey].font
   end
-  return FONT_CACHE[cacheKey]
+
+  -- Cache miss
+  FONT_CACHE_STATS.misses = FONT_CACHE_STATS.misses + 1
+
+  local font
+  if fontPath then
+    local resolvedPath = resolveImagePath(fontPath)
+    local success, result = pcall(love.graphics.newFont, resolvedPath, size)
+    if success then
+      font = result
+    else
+      print("[FlexLove] Failed to load font: " .. fontPath .. " - using default font")
+      font = love.graphics.newFont(size)
+    end
+  else
+    font = love.graphics.newFont(size)
+  end
+
+  -- Add to cache with LRU metadata
+  FONT_CACHE[cacheKey] = {
+    font = font,
+    lastUsed = love.timer.getTime(),
+    accessCount = 1,
+  }
+  FONT_CACHE_STATS.size = FONT_CACHE_STATS.size + 1
+
+  -- Evict if cache is full
+  if FONT_CACHE_STATS.size > FONT_CACHE_MAX_SIZE then
+    evictLRU()
+  end
+
+  return font
 end
 
 --- Get font for text size (cached)
@@ -948,6 +1003,92 @@ local function validateDimension(value)
   })
 end
 
+-- Font cache management
+
+--- Get font cache statistics
+---@return table stats {hits, misses, evictions, size, hitRate}
+local function getFontCacheStats()
+  local total = FONT_CACHE_STATS.hits + FONT_CACHE_STATS.misses
+  local hitRate = total > 0 and (FONT_CACHE_STATS.hits / total) or 0
+  return {
+    hits = FONT_CACHE_STATS.hits,
+    misses = FONT_CACHE_STATS.misses,
+    evictions = FONT_CACHE_STATS.evictions,
+    size = FONT_CACHE_STATS.size,
+    hitRate = hitRate,
+  }
+end
+
+--- Set maximum font cache size
+---@param maxSize number Maximum number of fonts to cache
+local function setFontCacheSize(maxSize)
+  FONT_CACHE_MAX_SIZE = math.max(1, maxSize)
+  
+  -- Evict entries if cache is now over limit
+  while FONT_CACHE_STATS.size > FONT_CACHE_MAX_SIZE do
+    evictLRU()
+  end
+end
+
+--- Clear font cache
+local function clearFontCache()
+  -- Clear cache entries but preserve methods (get, getFont)
+  for key, entry in pairs(FONT_CACHE) do
+    if type(entry) == "table" and entry.lastUsed then
+      FONT_CACHE[key] = nil
+    end
+  end
+  FONT_CACHE_STATS.size = 0
+  FONT_CACHE_STATS.evictions = 0
+end
+
+--- Preload font at multiple sizes
+---@param fontPath string? Path to font file (nil for default font)
+---@param sizes table Array of font sizes to preload
+local function preloadFont(fontPath, sizes)
+  for _, size in ipairs(sizes) do
+    -- Round size to reduce cache entries  
+    size = math.floor(size + 0.5)
+    
+    local cacheKey = fontPath and (fontPath .. ":" .. tostring(size)) or ("default:" .. tostring(size))
+    
+    if not FONT_CACHE[cacheKey] then
+      local font
+      if fontPath then
+        local resolvedPath = resolveImagePath(fontPath)
+        local success, result = pcall(love.graphics.newFont, resolvedPath, size)
+        if success then
+          font = result
+        else
+          font = love.graphics.newFont(size)
+        end
+      else
+        font = love.graphics.newFont(size)
+      end
+      
+      FONT_CACHE[cacheKey] = {
+        font = font,
+        lastUsed = love.timer.getTime(),
+        accessCount = 1,
+      }
+      FONT_CACHE_STATS.size = FONT_CACHE_STATS.size + 1
+      FONT_CACHE_STATS.misses = FONT_CACHE_STATS.misses + 1
+      
+      -- Evict if cache is full
+      if FONT_CACHE_STATS.size > FONT_CACHE_MAX_SIZE then
+        evictLRU()
+      end
+    end
+  end
+end
+
+--- Reset font cache statistics
+local function resetFontCacheStats()
+  FONT_CACHE_STATS.hits = 0
+  FONT_CACHE_STATS.misses = 0
+  FONT_CACHE_STATS.evictions = 0
+end
+
 return {
   enums = enums,
   FONT_CACHE = FONT_CACHE,
@@ -981,6 +1122,12 @@ return {
   validatePath = validatePath,
   getFileExtension = getFileExtension,
   hasAllowedExtension = hasAllowedExtension,
+  -- Font cache management
+  getFontCacheStats = getFontCacheStats,
+  setFontCacheSize = setFontCacheSize,
+  clearFontCache = clearFontCache,
+  preloadFont = preloadFont,
+  resetFontCacheStats = resetFontCacheStats,
   -- Numeric validation
   isNaN = isNaN,
   isInfinity = isInfinity,

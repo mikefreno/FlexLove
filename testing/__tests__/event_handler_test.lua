@@ -517,6 +517,103 @@ function TestEventHandler:test_processTouchEvents_no_onEvent()
   handler:processTouchEvents()
 end
 
+-- Test: onEventDeferred flag defers callback execution
+function TestEventHandler:test_onEventDeferred()
+  -- Mock FlexLove module
+  local deferredCallbacks = {}
+  local MockFlexLove = {
+    deferCallback = function(callback)
+      table.insert(deferredCallbacks, callback)
+    end
+  }
+  package.loaded["FlexLove"] = MockFlexLove
+
+  local eventsReceived = {}
+  local handler = createEventHandler({
+    onEventDeferred = true,
+    onEvent = function(el, event)
+      table.insert(eventsReceived, event)
+    end
+  })
+  local element = createMockElement()
+  handler:initialize(element)
+
+  local originalIsDown = love.mouse.isDown
+  love.mouse.isDown = function(button)
+    return button == 1
+  end
+
+  -- Press and release mouse button
+  handler:processMouseEvents(50, 50, true, true)
+  love.mouse.isDown = function() return false end
+  handler:processMouseEvents(50, 50, true, true)
+
+  -- Events should not be immediately executed
+  luaunit.assertEquals(#eventsReceived, 0)
+  
+  -- Should have deferred callbacks queued
+  luaunit.assertTrue(#deferredCallbacks > 0)
+
+  -- Execute deferred callbacks
+  for _, callback in ipairs(deferredCallbacks) do
+    callback()
+  end
+
+  -- Now events should be received
+  luaunit.assertTrue(#eventsReceived > 0)
+  
+  -- Check that we got a click event
+  local hasClick = false
+  for _, event in ipairs(eventsReceived) do
+    if event.type == "click" then
+      hasClick = true
+      break
+    end
+  end
+  luaunit.assertTrue(hasClick, "Should have received click event")
+
+  love.mouse.isDown = originalIsDown
+  package.loaded["FlexLove"] = nil
+end
+
+-- Test: onEventDeferred = false executes immediately
+function TestEventHandler:test_onEventDeferred_false()
+  local eventsReceived = {}
+  local handler = createEventHandler({
+    onEventDeferred = false,
+    onEvent = function(el, event)
+      table.insert(eventsReceived, event)
+    end
+  })
+  local element = createMockElement()
+  handler:initialize(element)
+
+  local originalIsDown = love.mouse.isDown
+  love.mouse.isDown = function(button)
+    return button == 1
+  end
+
+  -- Press and release mouse button
+  handler:processMouseEvents(50, 50, true, true)
+  love.mouse.isDown = function() return false end
+  handler:processMouseEvents(50, 50, true, true)
+
+  -- Events should be immediately executed
+  luaunit.assertTrue(#eventsReceived > 0)
+  
+  -- Check that we got a click event
+  local hasClick = false
+  for _, event in ipairs(eventsReceived) do
+    if event.type == "click" then
+      hasClick = true
+      break
+    end
+  end
+  luaunit.assertTrue(hasClick, "Should have received click event")
+
+  love.mouse.isDown = originalIsDown
+end
+
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())
 end

@@ -499,11 +499,8 @@ function ErrorHandler.warn(module, codeOrMessage, messageOrDetails, detailsOrSug
     end
   end
 
-  -- Log the warning
+  -- Log the warning (writeLog handles console output based on config.logTarget)
   writeLog("WARNING", LOG_LEVELS.WARNING, module, code, message, details, logSuggestion)
-
-  local formattedMessage = formatMessage(module, "Warning", codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
-  print(formattedMessage)
 end
 
 --- Validate that a value is not nil

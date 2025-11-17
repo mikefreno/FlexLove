@@ -393,6 +393,65 @@ onEvent = function(element, event)
 end
 ```
 
+### Deferred Callbacks
+
+Some LÖVE operations (like `love.window.setMode`) cannot be called while a Canvas is active. FlexLöve provides a deferred callback system to handle these operations safely:
+
+```lua
+-- In your event handler, queue the callback:
+onEvent = function(element, event)
+  if event.type == "click" then
+    FlexLove.deferCallback(function()
+      love.window.setMode(1920, 1080, { fullscreen = true })
+    end)
+  end
+end
+
+-- In your love.draw(), execute callbacks after ALL canvases are released:
+function love.draw()
+  love.graphics.setCanvas(myCanvas)
+  FlexLove.draw()
+  love.graphics.setCanvas() -- Release ALL canvases
+  
+  -- Execute deferred callbacks now that no canvas is active
+  FlexLove.executeDeferredCallbacks()
+end
+```
+
+**IMPORTANT:** You must call `FlexLove.executeDeferredCallbacks()` at the very end of your `love.draw()` function after releasing all canvases. This ensures callbacks execute in a safe context.
+
+#### Automatic Deferral with `onEventDeferred`
+
+Instead of manually wrapping callbacks with `FlexLove.deferCallback()`, you can set the `onEventDeferred` flag to automatically defer all callbacks for that handler:
+
+```lua
+FlexLove.Element.new({
+  width = 200,
+  height = 50,
+  text = "Change Resolution",
+  onEvent = function(element, event)
+    if event.type == "click" then
+      -- This will be automatically deferred!
+      love.window.setMode(1920, 1080, { fullscreen = true })
+    end
+  end,
+  onEventDeferred = true  -- Automatically defer all onEvent callbacks
+})
+```
+
+This flag is available for all event callbacks:
+- `onEventDeferred` - Defers `onEvent` callback
+- `onFocusDeferred` - Defers `onFocus` callback
+- `onBlurDeferred` - Defers `onBlur` callback
+- `onTextInputDeferred` - Defers `onTextInput` callback
+- `onTextChangeDeferred` - Defers `onTextChange` callback
+- `onEnterDeferred` - Defers `onEnter` callback
+
+Deferred callbacks are useful for:
+- Changing window mode/resolution
+- Loading resources that modify graphics state
+- Any operation that conflicts with active canvas rendering
+
 ### Input Fields
 
 FlexLöve provides text input support with single-line (and multi-line coming soon) fields:

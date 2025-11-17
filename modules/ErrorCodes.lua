@@ -279,6 +279,36 @@ ErrorCodes.codes = {
     description = "Module initialization failed",
     suggestion = "Check module dependencies and initialization order",
   },
+  
+  -- Performance Warnings (PERF_001 - PERF_099)
+  PERF_001 = {
+    code = "FLEXLOVE_PERF_001",
+    category = "PERF",
+    description = "Performance threshold exceeded",
+    suggestion = "Operation took longer than recommended. Monitor for patterns.",
+  },
+  PERF_002 = {
+    code = "FLEXLOVE_PERF_002",
+    category = "PERF",
+    description = "Critical performance threshold exceeded",
+    suggestion = "Operation is causing frame drops. Consider optimizing or reducing frequency.",
+  },
+  
+  -- Memory Warnings (MEM_001 - MEM_099)
+  MEM_001 = {
+    code = "FLEXLOVE_MEM_001",
+    category = "MEM",
+    description = "Memory leak detected",
+    suggestion = "Table is growing consistently. Review cache eviction policies and ensure objects are properly released.",
+  },
+  
+  -- State Management Warnings (STATE_001 - STATE_099)
+  STATE_001 = {
+    code = "FLEXLOVE_STATE_001",
+    category = "STATE",
+    description = "CallSite counters accumulating",
+    suggestion = "This indicates incrementFrame() may not be called properly. Check immediate mode frame management.",
+  },
 }
 
 --- Get error information by code

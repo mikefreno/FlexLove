@@ -3,20 +3,52 @@
 ---@class Performance
 local Performance = {}
 
+-- Load ErrorHandler (with fallback if not available)
+local ErrorHandler = nil
+local ErrorHandlerInitialized = false
+
+local function getErrorHandler()
+  if not ErrorHandler then
+    local success, module = pcall(require, "modules.ErrorHandler")
+    if success then
+      ErrorHandler = module
+      
+      -- Initialize ErrorHandler with ErrorCodes if not already initialized
+      if not ErrorHandlerInitialized then
+        local successCodes, ErrorCodes = pcall(require, "modules.ErrorCodes")
+        if successCodes and ErrorHandler.init then
+          ErrorHandler.init({ErrorCodes = ErrorCodes})
+        end
+        ErrorHandlerInitialized = true
+      end
+    end
+  end
+  return ErrorHandler
+end
+
 -- Configuration
 local config = {
   enabled = false,
   hudEnabled = false,
   hudToggleKey = "f3",
+  hudPosition = { x = 10, y = 10 },
   warningThresholdMs = 13.0, -- Yellow warning
   criticalThresholdMs = 16.67, -- Red warning (60 FPS)
   logToConsole = false,
   logWarnings = true,
+  warningsEnabled = true,
 }
+
+-- Metrics cleanup configuration
+local METRICS_CLEANUP_INTERVAL = 30 -- Cleanup every 30 seconds (more aggressive)
+local METRICS_RETENTION_TIME = 10 -- Keep metrics used in last 10 seconds
+local MAX_METRICS_COUNT = 500 -- Maximum number of unique metrics
+local CORE_METRICS = { frame = true, layout = true, render = true } -- Never cleanup these
 
 -- State
 local timers = {} -- Active timers {name -> startTime}
-local metrics = {} -- Accumulated metrics {name -> {total, count, min, max}}
+local metrics = {} -- Accumulated metrics {name -> {total, count, min, max, lastUsed}}
+local lastMetricsCleanup = 0 -- Last time metrics were cleaned up
 local frameMetrics = {
   frameCount = 0,
   totalTime = 0,
@@ -35,6 +67,17 @@ local memoryMetrics = {
 }
 local warnings = {}
 local lastFrameStart = nil
+local shownWarnings = {} -- Track warnings that have been shown (dedupe)
+
+-- Memory profiling state
+local memoryProfiler = {
+  enabled = false,
+  sampleInterval = 60, -- Frames between samples
+  framesSinceLastSample = 0,
+  samples = {}, -- Array of {time, memory, tableSizes}
+  maxSamples = 20, -- Keep last 20 samples (~20 seconds at 60fps)
+  monitoredTables = {}, -- Tables to monitor (added via registerTable)
+}
 
 --- Initialize performance monitoring
 --- @param options table? Optional configuration overrides
@@ -73,6 +116,7 @@ function Performance.reset()
   timers = {}
   metrics = {}
   warnings = {}
+  shownWarnings = {}
   frameMetrics.frameCount = 0
   frameMetrics.totalTime = 0
   frameMetrics.lastFrameTime = 0
@@ -119,6 +163,7 @@ function Performance.stopTimer(name)
       min = math.huge,
       max = 0,
       average = 0,
+      lastUsed = love.timer.getTime(),
     }
   end
 
@@ -128,6 +173,7 @@ function Performance.stopTimer(name)
   m.min = math.min(m.min, elapsed)
   m.max = math.max(m.max, elapsed)
   m.average = m.total / m.count
+  m.lastUsed = love.timer.getTime()
 
   -- Check for warnings
   if elapsed > config.criticalThresholdMs then
@@ -160,6 +206,24 @@ function Performance.measure(name, fn)
   end
 end
 
+--- Update with actual delta time from LÖVE (call from love.update)
+---@param dt number Delta time in seconds
+function Performance.updateDeltaTime(dt)
+  if not config.enabled then
+    return
+  end
+
+  local now = love.timer.getTime()
+
+  -- Update FPS from actual delta time (not processing time)
+  if now - frameMetrics.lastFpsUpdate >= frameMetrics.fpsUpdateInterval then
+    if dt > 0 then
+      frameMetrics.fps = math.floor(1 / dt + 0.5)
+    end
+    frameMetrics.lastFpsUpdate = now
+  end
+end
+
 --- Start frame timing (call at beginning of frame)
 function Performance.startFrame()
   if not config.enabled then
@@ -184,15 +248,53 @@ function Performance.endFrame()
   frameMetrics.minFrameTime = math.min(frameMetrics.minFrameTime, frameTime)
   frameMetrics.maxFrameTime = math.max(frameMetrics.maxFrameTime, frameTime)
 
-  -- Update FPS
-  if now - frameMetrics.lastFpsUpdate >= frameMetrics.fpsUpdateInterval then
-    frameMetrics.fps = math.floor(1000 / frameTime + 0.5)
-    frameMetrics.lastFpsUpdate = now
-  end
+  -- Note: FPS is now calculated from actual delta time in updateDeltaTime()
+  -- frameTime here represents processing time, not actual frame rate
 
   -- Check for frame drops
   if frameTime > config.criticalThresholdMs then
     Performance.addWarning("frame", frameTime, "critical")
+  end
+
+  -- Update memory profiling
+  Performance.updateMemoryProfiling()
+
+  -- Periodic metrics cleanup (every 30 seconds, more aggressive)
+  if now - lastMetricsCleanup >= METRICS_CLEANUP_INTERVAL then
+    local cleanupTime = now - METRICS_RETENTION_TIME
+    for name, data in pairs(metrics) do
+      -- Don't cleanup core metrics
+      if not CORE_METRICS[name] and data.lastUsed and data.lastUsed < cleanupTime then
+        metrics[name] = nil
+      end
+    end
+    lastMetricsCleanup = now
+  end
+
+  -- Enforce max metrics limit
+  local metricsCount = 0
+  for _ in pairs(metrics) do
+    metricsCount = metricsCount + 1
+  end
+
+  if metricsCount > MAX_METRICS_COUNT then
+    -- Find and remove oldest non-core metrics
+    local sortedMetrics = {}
+    for name, data in pairs(metrics) do
+      if not CORE_METRICS[name] then
+        table.insert(sortedMetrics, { name = name, lastUsed = data.lastUsed or 0 })
+      end
+    end
+
+    table.sort(sortedMetrics, function(a, b)
+      return a.lastUsed < b.lastUsed
+    end)
+
+    -- Remove oldest metrics until we're under the limit
+    local toRemove = metricsCount - MAX_METRICS_COUNT
+    for i = 1, math.min(toRemove, #sortedMetrics) do
+      metrics[sortedMetrics[i].name] = nil
+    end
   end
 end
 
@@ -223,16 +325,53 @@ function Performance.addWarning(name, value, level)
     return
   end
 
-  table.insert(warnings, {
+  local warning = {
     name = name,
     value = value,
     level = level,
     time = love.timer.getTime(),
-  })
+  }
+
+  table.insert(warnings, warning)
 
   -- Keep only last 100 warnings
   if #warnings > 100 then
     table.remove(warnings, 1)
+  end
+
+  -- Log to console if enabled (with deduplication per metric name)
+  if config.logToConsole or config.warningsEnabled then
+    local warningKey = name .. "_" .. level
+
+    -- Only log each warning type once per 60 seconds to avoid spam
+    local lastWarningTime = shownWarnings[warningKey] or 0
+    local now = love.timer.getTime()
+
+    if now - lastWarningTime >= 60 then
+      -- Route through ErrorHandler for consistent logging
+      local EH = getErrorHandler()
+      
+      if EH and EH.warn then
+        local message = string.format("%s = %.2fms", name, value)
+        local code = level == "critical" and "PERF_002" or "PERF_001"
+        local suggestion = level == "critical" 
+          and "This operation is causing frame drops. Consider optimizing or reducing frequency."
+          or "This operation is taking longer than recommended. Monitor for patterns."
+        
+        EH.warn("Performance", code, message, {
+          metric = name,
+          value = string.format("%.2fms", value),
+          threshold = level == "critical" and config.criticalThresholdMs or config.warningThresholdMs,
+        }, suggestion)
+      else
+        -- Fallback to direct print if ErrorHandler not available
+        local prefix = level == "critical" and "[CRITICAL]" or "[WARNING]"
+        local message = string.format("%s Performance: %s = %.2fms", prefix, name, value)
+        print(message)
+      end
+      
+      shownWarnings[warningKey] = now
+    end
   end
 end
 
@@ -346,15 +485,16 @@ function Performance.renderHUD(x, y)
     return
   end
 
-  x = x or 10
-  y = y or 10
+  -- Use config position if x/y not provided
+  x = x or config.hudPosition.x
+  y = y or config.hudPosition.y
 
   local fm = Performance.getFrameMetrics()
   local mm = Performance.getMemoryMetrics()
 
   -- Background
   love.graphics.setColor(0, 0, 0, 0.8)
-  love.graphics.rectangle("fill", x, y, 300, 200)
+  love.graphics.rectangle("fill", x, y, 300, 220)
 
   -- Text
   love.graphics.setColor(1, 1, 1, 1)
@@ -383,7 +523,18 @@ function Performance.renderHUD(x, y)
   love.graphics.print(string.format("Memory: %.2f MB (peak: %.2f MB)", mm.currentMb, mm.peakMb), x + 10, currentY)
   currentY = currentY + lineHeight
 
+  -- Metrics count
+  local metricsCount = 0
+  for _ in pairs(metrics) do
+    metricsCount = metricsCount + 1
+  end
+  local metricsColor = metricsCount > MAX_METRICS_COUNT * 0.8 and { 1, 0.5, 0 } or { 1, 1, 1 }
+  love.graphics.setColor(metricsColor)
+  love.graphics.print(string.format("Metrics: %d/%d", metricsCount, MAX_METRICS_COUNT), x + 10, currentY)
+  currentY = currentY + lineHeight
+
   -- Separator
+  love.graphics.setColor(1, 1, 1, 1)
   currentY = currentY + 5
 
   -- Top timings
@@ -430,6 +581,261 @@ end
 --- @param value any Configuration value
 function Performance.setConfig(key, value)
   config[key] = value
+end
+
+--- Check if performance warnings are enabled
+--- @return boolean enabled True if warnings are enabled
+function Performance.areWarningsEnabled()
+  return config.warningsEnabled
+end
+
+--- Log a performance warning (only once per warning key)
+--- @param warningKey string Unique key for this warning type
+--- @param module string Module name (e.g., "LayoutEngine", "Element")
+--- @param message string Warning message
+--- @param details table? Additional details
+--- @param suggestion string? Optimization suggestion
+function Performance.logWarning(warningKey, module, message, details, suggestion)
+  if not config.warningsEnabled then
+    return
+  end
+
+  -- Only show each warning once per session
+  if shownWarnings[warningKey] then
+    return
+  end
+
+  shownWarnings[warningKey] = true
+
+  -- Limit shownWarnings size to prevent memory leak (keep last 1000 unique warnings)
+  local count = 0
+  for _ in pairs(shownWarnings) do
+    count = count + 1
+  end
+  if count > 1000 then
+    -- Reset when limit exceeded (simple approach - could be more sophisticated)
+    shownWarnings = { [warningKey] = true }
+  end
+
+  -- Use ErrorHandler if available
+  local EH = getErrorHandler()
+  if EH and EH.warn then
+    EH.warn(module, "PERF_001", message, details or {}, suggestion)
+  else
+    -- Fallback to print
+    print(string.format("[FlexLove - %s] Performance Warning: %s", module, message))
+    if suggestion then
+      print(string.format("  Suggestion: %s", suggestion))
+    end
+  end
+end
+
+--- Reset shown warnings (useful for testing or session restart)
+function Performance.resetShownWarnings()
+  shownWarnings = {}
+end
+
+--- Track a counter metric (increments per frame)
+--- @param name string Counter name
+--- @param value number? Value to add (default: 1)
+function Performance.incrementCounter(name, value)
+  if not config.enabled then
+    return
+  end
+
+  value = value or 1
+
+  if not metrics[name] then
+    metrics[name] = {
+      total = 0,
+      count = 0,
+      min = math.huge,
+      max = 0,
+      average = 0,
+      frameValue = 0, -- Current frame value
+      lastUsed = love.timer.getTime(),
+    }
+  end
+
+  local m = metrics[name]
+  m.frameValue = (m.frameValue or 0) + value
+  m.lastUsed = love.timer.getTime()
+end
+
+--- Reset frame counters (call at end of frame)
+function Performance.resetFrameCounters()
+  if not config.enabled then
+    return
+  end
+
+  local now = love.timer.getTime()
+  local toRemove = {}
+
+  for name, data in pairs(metrics) do
+    if data.frameValue then
+      -- Update statistics only if value is non-zero
+      if data.frameValue > 0 then
+        data.total = data.total + data.frameValue
+        data.count = data.count + 1
+        data.min = math.min(data.min, data.frameValue)
+        data.max = math.max(data.max, data.frameValue)
+        data.average = data.total / data.count
+        data.lastUsed = now
+      end
+
+      -- Reset frame value
+      data.frameValue = 0
+
+      -- Mark zero-count metrics for removal (non-core)
+      if data.count == 0 and not CORE_METRICS[name] then
+        table.insert(toRemove, name)
+      end
+    end
+  end
+
+  -- Remove zero-value counters
+  for _, name in ipairs(toRemove) do
+    metrics[name] = nil
+  end
+end
+
+--- Get current frame counter value
+--- @param name string Counter name
+--- @return number value Current frame value
+function Performance.getFrameCounter(name)
+  if not config.enabled or not metrics[name] then
+    return 0
+  end
+  return metrics[name].frameValue or 0
+end
+
+-- ====================
+-- Memory Profiling
+-- ====================
+
+--- Enable memory profiling
+function Performance.enableMemoryProfiling()
+  memoryProfiler.enabled = true
+end
+
+--- Disable memory profiling
+function Performance.disableMemoryProfiling()
+  memoryProfiler.enabled = false
+end
+
+--- Register a table for memory leak monitoring
+--- @param name string Friendly name for the table
+--- @param tableRef table Reference to the table to monitor
+function Performance.registerTableForMonitoring(name, tableRef)
+  memoryProfiler.monitoredTables[name] = tableRef
+end
+
+--- Get table size (number of entries)
+--- @param tbl table Table to measure
+--- @return number count Number of entries
+local function getTableSize(tbl)
+  local count = 0
+  for _ in pairs(tbl) do
+    count = count + 1
+  end
+  return count
+end
+
+--- Sample memory and table sizes
+local function sampleMemory()
+  local sample = {
+    time = love.timer.getTime(),
+    memory = collectgarbage("count") / 1024, -- MB
+    tableSizes = {},
+  }
+
+  for name, tableRef in pairs(memoryProfiler.monitoredTables) do
+    sample.tableSizes[name] = getTableSize(tableRef)
+  end
+
+  table.insert(memoryProfiler.samples, sample)
+
+  -- Keep only maxSamples
+  if #memoryProfiler.samples > memoryProfiler.maxSamples then
+    table.remove(memoryProfiler.samples, 1)
+  end
+
+  -- Check for memory leaks (consistent growth)
+  if #memoryProfiler.samples >= 5 then
+    for name, _ in pairs(memoryProfiler.monitoredTables) do
+      local sizes = {}
+      for i = math.max(1, #memoryProfiler.samples - 4), #memoryProfiler.samples do
+        table.insert(sizes, memoryProfiler.samples[i].tableSizes[name])
+      end
+
+      -- Check if table is consistently growing
+      local growing = true
+      for i = 2, #sizes do
+        if sizes[i] <= sizes[i - 1] then
+          growing = false
+          break
+        end
+      end
+
+      if growing and sizes[#sizes] > sizes[1] * 1.5 then
+        Performance.addWarning("memory_leak", sizes[#sizes], "warning")
+        
+        if not shownWarnings[name] then
+          -- Route through ErrorHandler for consistent logging
+          local EH = getErrorHandler()
+          
+          if EH and EH.warn then
+            local message = string.format("Table '%s' growing consistently", name)
+            EH.warn("Performance", "MEM_001", message, {
+              table = name,
+              initialSize = sizes[1],
+              currentSize = sizes[#sizes],
+              growthPercent = math.floor(((sizes[#sizes] / sizes[1]) - 1) * 100),
+            }, "Check for memory leaks in this table. Review cache eviction policies and ensure objects are properly released.")
+          else
+            -- Fallback to direct print
+            print(string.format("[FlexLove] MEMORY LEAK WARNING: Table '%s' growing consistently (%d -> %d)", name, sizes[1], sizes[#sizes]))
+          end
+          
+          shownWarnings[name] = true
+        end
+      elseif not growing then
+        -- Reset warning flag if table stopped growing
+        shownWarnings[name] = nil
+      end
+    end
+  end
+end
+
+--- Update memory profiling (call from endFrame)
+function Performance.updateMemoryProfiling()
+  if not memoryProfiler.enabled then
+    return
+  end
+
+  memoryProfiler.framesSinceLastSample = memoryProfiler.framesSinceLastSample + 1
+
+  if memoryProfiler.framesSinceLastSample >= memoryProfiler.sampleInterval then
+    sampleMemory()
+    memoryProfiler.framesSinceLastSample = 0
+  end
+end
+
+--- Get memory profiling data
+--- @return table profile {samples, monitoredTables}
+function Performance.getMemoryProfile()
+  return {
+    samples = memoryProfiler.samples,
+    monitoredTables = {},
+    enabled = memoryProfiler.enabled,
+  }
+end
+
+--- Reset memory profiling data
+function Performance.resetMemoryProfile()
+  memoryProfiler.samples = {}
+  memoryProfiler.framesSinceLastSample = 0
+  shownWarnings = {}
 end
 
 return Performance

@@ -1,5 +1,6 @@
 ---@class EventHandler
 ---@field onEvent fun(element:Element, event:InputEvent)?
+---@field onEventDeferred boolean?
 ---@field _pressed table<number, boolean>
 ---@field _lastClickTime number?
 ---@field _lastClickButton number?
@@ -32,6 +33,7 @@ function EventHandler.new(config, deps)
   self._utils = deps.utils
 
   self.onEvent = config.onEvent
+  self.onEventDeferred = config.onEventDeferred
 
   self._pressed = config._pressed or {}
 
@@ -101,7 +103,16 @@ end
 ---@param isHovering boolean Whether mouse is over element
 ---@param isActiveElement boolean Whether this is the top element at mouse position
 function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
+  -- Start performance timing
+  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
+  if Performance and Performance.isEnabled() then
+    Performance.startTimer("event_mouse")
+  end
+
   if not self._element then
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("event_mouse")
+    end
     return
   end
 
@@ -139,6 +150,9 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
           self._dragStartY[button] = nil
         end
       end
+    end
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("event_mouse")
     end
     return
   end
@@ -190,6 +204,11 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
       end
     end
   end
+  
+  -- Stop performance timing
+  if Performance and Performance.isEnabled() then
+    Performance.stopTimer("event_mouse")
+  end
 end
 
 --- Handle mouse button press
@@ -214,18 +233,16 @@ function EventHandler:_handleMousePress(mx, my, button)
   end
 
   -- Fire press event
-  if self.onEvent then
-    local modifiers = self._utils.getModifiers()
-    local pressEvent = self._InputEvent.new({
-      type = "press",
-      button = button,
-      x = mx,
-      y = my,
-      modifiers = modifiers,
-      clickCount = 1,
-    })
-    self.onEvent(element, pressEvent)
-  end
+  local modifiers = self._utils.getModifiers()
+  local pressEvent = self._InputEvent.new({
+    type = "press",
+    button = button,
+    x = mx,
+    y = my,
+    modifiers = modifiers,
+    clickCount = 1,
+  })
+  self:_invokeCallback(element, pressEvent)
 
   self._pressed[button] = true
 
@@ -259,7 +276,7 @@ function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
 
   if lastX ~= mx or lastY ~= my then
     -- Mouse has moved - fire drag event only if still hovering
-    if self.onEvent and isHovering then
+    if isHovering then
       local modifiers = self._utils.getModifiers()
       local dx = mx - self._dragStartX[button]
       local dy = my - self._dragStartY[button]
@@ -274,7 +291,7 @@ function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
         modifiers = modifiers,
         clickCount = 1,
       })
-      self.onEvent(element, dragEvent)
+      self:_invokeCallback(element, dragEvent)
     end
 
     -- Handle text selection drag for editable elements
@@ -325,17 +342,15 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   end
 
   -- Fire click event
-  if self.onEvent then
-    local clickEvent = self._InputEvent.new({
-      type = eventType,
-      button = button,
-      x = mx,
-      y = my,
-      modifiers = modifiers,
-      clickCount = clickCount,
-    })
-    self.onEvent(element, clickEvent)
-  end
+  local clickEvent = self._InputEvent.new({
+    type = eventType,
+    button = button,
+    x = mx,
+    y = my,
+    modifiers = modifiers,
+    clickCount = clickCount,
+  })
+  self:_invokeCallback(element, clickEvent)
 
   self._pressed[button] = false
 
@@ -367,22 +382,20 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   end
 
   -- Fire release event
-  if self.onEvent then
-    local releaseEvent = self._InputEvent.new({
-      type = "release",
-      button = button,
-      x = mx,
-      y = my,
-      modifiers = modifiers,
-      clickCount = clickCount,
-    })
-    self.onEvent(element, releaseEvent)
-  end
+  local releaseEvent = self._InputEvent.new({
+    type = "release",
+    button = button,
+    x = mx,
+    y = my,
+    modifiers = modifiers,
+    clickCount = clickCount,
+  })
+  self:_invokeCallback(element, releaseEvent)
 end
 
 --- Process touch events in the update cycle
 function EventHandler:processTouchEvents()
-  if not self._element or not self.onEvent then
+  if not self._element then
     return
   end
 
@@ -408,7 +421,7 @@ function EventHandler:processTouchEvents()
         modifiers = self._utils.getModifiers(),
         clickCount = 1,
       })
-      self.onEvent(element, touchEvent)
+      self:_invokeCallback(element, touchEvent)
       self._touchPressed[id] = false
     end
   end
@@ -435,6 +448,31 @@ end
 ---@return boolean True if button is pressed
 function EventHandler:isButtonPressed(button)
   return self._pressed[button] == true
+end
+
+--- Invoke the onEvent callback, optionally deferring it if onEventDeferred is true
+---@param element Element The element that triggered the event
+---@param event InputEvent The event data
+function EventHandler:_invokeCallback(element, event)
+  if not self.onEvent then
+    return
+  end
+
+  if self.onEventDeferred then
+    -- Get FlexLove module to defer the callback
+    local FlexLove = package.loaded["FlexLove"] or package.loaded["libs.FlexLove"]
+    if FlexLove and FlexLove.deferCallback then
+      FlexLove.deferCallback(function()
+        self.onEvent(element, event)
+      end)
+    else
+      -- Fallback: execute immediately if FlexLove not available
+      self.onEvent(element, event)
+    end
+  else
+    -- Execute immediately
+    self.onEvent(element, event)
+  end
 end
 
 return EventHandler

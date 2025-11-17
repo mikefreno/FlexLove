@@ -305,8 +305,20 @@ end
 --- Main draw method - renders all visual layers
 ---@param backdropCanvas table|nil Backdrop canvas for backdrop blur
 function Renderer:draw(backdropCanvas)
+  -- Start performance timing
+  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
+  local elementId
+  if Performance and Performance.isEnabled() and self._element then
+    elementId = self._element.id or "unnamed"
+    Performance.startTimer("render_" .. elementId)
+    Performance.incrementCounter("draw_calls", 1)
+  end
+
   -- Early exit if element is invisible (optimization)
   if self.opacity <= 0 then
+    if Performance and Performance.isEnabled() and elementId then
+      Performance.stopTimer("render_" .. elementId)
+    end
     return
   end
 
@@ -354,6 +366,11 @@ function Renderer:draw(backdropCanvas)
 
   -- LAYER 3: Draw borders on top of theme
   self:_drawBorders(element.x, element.y, borderBoxWidth, borderBoxHeight)
+  
+  -- Stop performance timing
+  if Performance and Performance.isEnabled() and elementId then
+    Performance.stopTimer("render_" .. elementId)
+  end
 end
 
 --- Get font for element (resolves from theme or fontFamily)

@@ -40,11 +40,17 @@
 ---@field transform TransformProps -- Transform properties for animations and styling
 ---@field transition TransitionProps -- Transition settings for animations
 ---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
+---@field onEventDeferred boolean? -- Whether onEvent callback should be deferred until after canvases are released (default: false)
 ---@field onFocus fun(element:Element)? -- Callback function when element receives focus
+---@field onFocusDeferred boolean? -- Whether onFocus callback should be deferred (default: false)
 ---@field onBlur fun(element:Element)? -- Callback function when element loses focus
+---@field onBlurDeferred boolean? -- Whether onBlur callback should be deferred (default: false)
 ---@field onTextInput fun(element:Element, text:string)? -- Callback function for text input
+---@field onTextInputDeferred boolean? -- Whether onTextInput callback should be deferred (default: false)
 ---@field onTextChange fun(element:Element, text:string)? -- Callback function when text changes
+---@field onTextChangeDeferred boolean? -- Whether onTextChange callback should be deferred (default: false)
 ---@field onEnter fun(element:Element)? -- Callback function when Enter key is pressed
+---@field onEnterDeferred boolean? -- Whether onEnter callback should be deferred (default: false)
 ---@field units table -- Original unit specifications for responsive behavior
 ---@field _eventHandler EventHandler -- Event handler instance for input processing
 ---@field _explicitlyAbsolute boolean?
@@ -215,7 +221,10 @@ function Element.new(props, deps)
   self._stateId = self.id
 
   -- In immediate mode, restore EventHandler state from StateManager
-  local eventHandlerConfig = { onEvent = self.onEvent }
+  local eventHandlerConfig = { 
+    onEvent = self.onEvent,
+    onEventDeferred = props.onEventDeferred
+  }
   if self._deps.Context._immediateMode and self._stateId and self._stateId ~= "" then
     local state = self._deps.StateManager.getState(self._stateId)
     if state then
@@ -1769,6 +1778,11 @@ function Element:applyPositioningOffsets(element)
 end
 
 function Element:layoutChildren()
+  -- Check performance warnings (only on root elements to avoid spam)
+  if not self.parent then
+    self:_checkPerformanceWarnings()
+  end
+  
   -- Delegate layout to LayoutEngine
   self._layoutEngine:layoutChildren()
 end
@@ -1976,6 +1990,11 @@ end
 --- Update element (propagate to children)
 ---@param dt number
 function Element:update(dt)
+  -- Track active animations for performance warnings (only on root elements)
+  if not self.parent then
+    self:_trackActiveAnimations()
+  end
+  
   -- Restore scrollbar state from StateManager in immediate mode
   if self._stateId and self._deps.Context._immediateMode then
     local state = self._deps.StateManager.getState(self._stateId)
@@ -2629,6 +2648,96 @@ function Element:keypressed(key, scancode, isrepeat)
     self._textEditor:handleKeyPress(key, scancode, isrepeat)
     self.text = self._textEditor:getText() -- Sync display text
     self._textEditor:updateAutoGrowHeight()
+  end
+end
+
+-- ====================
+-- Performance Monitoring
+-- ====================
+
+--- Get hierarchy depth of this element
+---@return number depth Depth in the element tree (0 for root)
+function Element:getHierarchyDepth()
+  local depth = 0
+  local current = self.parent
+  while current do
+    depth = depth + 1
+    current = current.parent
+  end
+  return depth
+end
+
+--- Count total elements in this tree
+---@return number count Total number of elements including this one and all descendants
+function Element:countElements()
+  local count = 1 -- Count self
+  for _, child in ipairs(self.children) do
+    count = count + child:countElements()
+  end
+  return count
+end
+
+--- Check and warn about performance issues in element hierarchy
+function Element:_checkPerformanceWarnings()
+  -- Check if performance warnings are enabled
+  local Performance = self._deps and (package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"])
+  if not Performance or not Performance.areWarningsEnabled() then
+    return
+  end
+  
+  -- Check hierarchy depth
+  local depth = self:getHierarchyDepth()
+  if depth >= 15 then
+    Performance.logWarning(
+      string.format("hierarchy_depth_%s", self.id),
+      "Element",
+      string.format("Element hierarchy depth is %d levels for element '%s'", depth, self.id or "unnamed"),
+      { depth = depth, elementId = self.id or "unnamed" },
+      "Deep nesting can impact performance. Consider flattening the structure or using absolute positioning"
+    )
+  end
+  
+  -- Check total element count (only for root elements)
+  if not self.parent then
+    local totalElements = self:countElements()
+    if totalElements >= 1000 then
+      Performance.logWarning(
+        "element_count_high",
+        "Element",
+        string.format("UI contains %d+ elements", totalElements),
+        { elementCount = totalElements },
+        "Large element counts may impact performance. Consider virtualization for long lists or pagination for large datasets"
+      )
+    end
+  end
+end
+
+--- Count active animations in tree
+---@return number count Number of active animations
+function Element:_countActiveAnimations()
+  local count = self.animation and 1 or 0
+  for _, child in ipairs(self.children) do
+    count = count + child:_countActiveAnimations()
+  end
+  return count
+end
+
+--- Track active animations and warn if too many
+function Element:_trackActiveAnimations()
+  local Performance = self._deps and (package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"])
+  if not Performance or not Performance.areWarningsEnabled() then
+    return
+  end
+  
+  local animCount = self:_countActiveAnimations()
+  if animCount >= 50 then
+    Performance.logWarning(
+      "animation_count_high",
+      "Element",
+      string.format("%d+ animations running simultaneously", animCount),
+      { animationCount = animCount },
+      "High animation counts may impact frame rate. Consider reducing concurrent animations or using CSS-style transitions"
+    )
   end
 end
 

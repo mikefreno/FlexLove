@@ -470,7 +470,7 @@ function StateManager.configure(newConfig)
 end
 
 --- Get state statistics for debugging
----@return {stateCount: number, frameNumber: number, oldestState: number|nil, newestState: number|nil}
+---@return table stats State usage statistics
 function StateManager.getStats()
   local stateCount = StateManager.getStateCount()
   local oldest = nil
@@ -485,11 +485,32 @@ function StateManager.getStats()
     end
   end
 
+  -- Count callSiteCounters
+  local callSiteCount = 0
+  for _ in pairs(callSiteCounters) do
+    callSiteCount = callSiteCount + 1
+  end
+
+  -- Warn if callSiteCounters is unexpectedly large
+  if callSiteCount > 1000 then
+    if ErrorHandler then
+      local message = string.format("callSiteCounters has %d entries (expected near 0 per frame)", callSiteCount)
+      ErrorHandler.warn("StateManager", "STATE_001", message, {
+        count = callSiteCount,
+        expected = "near 0",
+        frameNumber = frameNumber,
+      }, "This indicates incrementFrame() may not be called properly or counters aren't being reset. Check immediate mode frame management.")
+    else
+      print(string.format("[StateManager] WARNING: callSiteCounters has %d entries", callSiteCount))
+    end
+  end
+
   return {
     stateCount = stateCount,
     frameNumber = frameNumber,
     oldestState = oldest,
     newestState = newest,
+    callSiteCounterCount = callSiteCount,
   }
 end
 
@@ -506,6 +527,16 @@ function StateManager.dumpStates()
   end
 
   return dump
+end
+
+--- Get internal state (for debugging/profiling only)
+---@return table internal {stateStore, stateMetadata, callSiteCounters}
+function StateManager._getInternalState()
+  return {
+    stateStore = stateStore,
+    stateMetadata = stateMetadata,
+    callSiteCounters = callSiteCounters,
+  }
 end
 
 --- Reset the entire state system (for testing)

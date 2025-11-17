@@ -12,6 +12,7 @@ local Context = req("Context")
 local StateManager = req("StateManager")
 local ErrorCodes = req("ErrorCodes")
 local ErrorHandler = req("ErrorHandler")
+local Performance = req("Performance")
 local ImageRenderer = req("ImageRenderer")
 local ImageScaler = req("ImageScaler")
 local NinePatch = req("NinePatch")
@@ -95,7 +96,7 @@ Color.initializeErrorHandler(ErrorHandler)
 utils.initializeErrorHandler(ErrorHandler)
 
 -- Add version and metadata
-flexlove._VERSION = "0.2.2"
+flexlove._VERSION = "0.2.3"
 flexlove._DESCRIPTION = "0I Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
 flexlove._LICENSE = [[
@@ -122,12 +123,27 @@ flexlove._LICENSE = [[
   SOFTWARE.
 ]]
 
+-- GC (Garbage Collection) configuration
+flexlove._gcConfig = {
+  strategy = "auto", -- "auto", "periodic", "manual", "disabled"
+  memoryThreshold = 100, -- MB before forcing GC
+  interval = 60, -- Frames between GC steps (for periodic mode)
+  stepSize = 200, -- Work units per GC step (higher = more aggressive)
+}
+flexlove._gcState = {
+  framesSinceLastGC = 0,
+  lastMemory = 0,
+  gcCount = 0,
+}
+
+-- Deferred callback queue for operations that cannot run while Canvas is active
+flexlove._deferredCallbacks = {}
+
 --- Initialize FlexLove with configuration options, set refence scale for autoscaling on window resize, immediate mode, and error logging / error file path
----@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean, errorLogFile?: string, enableErrorLogging?: boolean}
+---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean, errorLogFile?: string, enableErrorLogging?: boolean, performanceMonitoring?: boolean, performanceWarnings?: boolean, performanceHudKey?: string, performanceHudPosition?: {x: number, y: number} }
 function flexlove.init(config)
   config = config or {}
 
-  -- Configure error logging
   if config.errorLogFile then
     ErrorHandler.setLogTarget("file")
     ErrorHandler.setLogFile(config.errorLogFile)
@@ -135,6 +151,43 @@ function flexlove.init(config)
     -- Use default log file if logging enabled but no path specified
     ErrorHandler.setLogTarget("file")
     ErrorHandler.setLogFile("flexlove-errors.log")
+  end
+
+  -- Configure performance monitoring (default: true)
+  local enablePerfMonitoring = config.performanceMonitoring
+  if enablePerfMonitoring == nil then
+    enablePerfMonitoring = true
+  end
+  if enablePerfMonitoring then
+    Performance.enable()
+  else
+    Performance.disable()
+  end
+
+  local enablePerfWarnings = config.performanceWarnings or true
+
+  Performance.setConfig("warningsEnabled", enablePerfWarnings)
+  if enablePerfWarnings then
+    Performance.setConfig("logWarnings", true)
+  end
+
+  -- Configure performance HUD toggle key (default: "f3")
+  if config.performanceHudKey then
+    Performance.setConfig("hudToggleKey", config.performanceHudKey)
+  end
+
+  -- Configure performance HUD position (default: {x = 10, y = 10})
+  if config.performanceHudPosition then
+    Performance.setConfig("hudPosition", config.performanceHudPosition)
+  end
+
+  -- Configure memory profiling (default: false)
+  if config.memoryProfiling then
+    Performance.enableMemoryProfiling()
+    -- Register key tables for leak detection
+    Performance.registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
+    Performance.registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
+    Performance.registerTableForMonitoring("FONT_CACHE", utils.FONT_CACHE)
   end
 
   if config.baseScale then
@@ -171,11 +224,64 @@ function flexlove.init(config)
 
   flexlove._autoFrameManagement = config.autoFrameManagement or false
 
+  -- Configure GC strategy
+  if config.gcStrategy then
+    flexlove._gcConfig.strategy = config.gcStrategy
+  end
+  if config.gcMemoryThreshold then
+    flexlove._gcConfig.memoryThreshold = config.gcMemoryThreshold
+  end
+  if config.gcInterval then
+    flexlove._gcConfig.interval = config.gcInterval
+  end
+  if config.gcStepSize then
+    flexlove._gcConfig.stepSize = config.gcStepSize
+  end
+
   if config.stateRetentionFrames or config.maxStateEntries then
     StateManager.configure({
       stateRetentionFrames = config.stateRetentionFrames,
       maxStateEntries = config.maxStateEntries,
     })
+  end
+end
+
+--- Queue a callback to be executed after the current frame's canvas operations complete
+--- This is necessary for operations that cannot run while a Canvas is active (e.g., love.window.setMode)
+---@param callback function The callback to execute
+function flexlove.deferCallback(callback)
+  if type(callback) ~= "function" then
+    ErrorHandler.warn("FlexLove", "deferCallback expects a function")
+    return
+  end
+  table.insert(flexlove._deferredCallbacks, callback)
+end
+
+--- Execute all deferred callbacks and clear the queue
+--- IMPORTANT: This MUST be called at the very end of love.draw() after ALL canvases
+--- have been released, including any canvases created by the application (not just FlexLove's canvases)
+--- @usage
+--- function love.draw()
+---   love.graphics.setCanvas(myCanvas)
+---   FlexLove.draw()
+---   love.graphics.setCanvas() -- Release ALL canvases
+---   FlexLove.executeDeferredCallbacks() -- Now safe to execute
+--- end
+function flexlove.executeDeferredCallbacks()
+  if #flexlove._deferredCallbacks == 0 then
+    return
+  end
+  
+  -- Copy callbacks and clear queue before execution
+  -- This prevents infinite loops if callbacks defer more callbacks
+  local callbacks = flexlove._deferredCallbacks
+  flexlove._deferredCallbacks = {}
+  
+  for _, callback in ipairs(callbacks) do
+    local success, err = xpcall(callback, debug.traceback)
+    if not success then
+      ErrorHandler.warn("FlexLove", string.format("Deferred callback failed: %s", tostring(err)))
+    end
   end
 end
 
@@ -188,6 +294,14 @@ function flexlove.resize()
   end
 
   Blur.clearCache()
+
+  -- Release old canvases explicitly
+  if flexlove._gameCanvas then
+    flexlove._gameCanvas:release()
+  end
+  if flexlove._backdropCanvas then
+    flexlove._backdropCanvas:release()
+  end
 
   flexlove._gameCanvas = nil
   flexlove._backdropCanvas = nil
@@ -229,6 +343,9 @@ function flexlove.beginFrame()
   if not flexlove._immediateMode then
     return
   end
+
+  -- Start performance frame timing
+  Performance.startFrame()
 
   flexlove._frameNumber = flexlove._frameNumber + 1
   StateManager.incrementFrame()
@@ -301,6 +418,10 @@ function flexlove.endFrame()
   StateManager.cleanup()
   StateManager.forceCleanupIfNeeded()
   flexlove._frameStarted = false
+
+  -- End performance frame timing
+  Performance.endFrame()
+  Performance.resetFrameCounters()
 end
 
 flexlove._gameCanvas = nil
@@ -322,6 +443,14 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
     local width, height = love.graphics.getDimensions()
 
     if not flexlove._gameCanvas or flexlove._canvasDimensions.width ~= width or flexlove._canvasDimensions.height ~= height then
+      -- Release old canvases before creating new ones
+      if flexlove._gameCanvas then
+        flexlove._gameCanvas:release()
+      end
+      if flexlove._backdropCanvas then
+        flexlove._backdropCanvas:release()
+      end
+
       flexlove._gameCanvas = love.graphics.newCanvas(width, height)
       flexlove._backdropCanvas = love.graphics.newCanvas(width, height)
       flexlove._canvasDimensions.width = width
@@ -404,7 +533,15 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
     postDrawFunc()
   end
 
+  -- Render performance HUD if enabled
+  Performance.renderHUD()
+
   love.graphics.setCanvas(outerCanvas)
+  
+  -- NOTE: Deferred callbacks are NOT executed here because the calling code
+  -- (e.g., main.lua) might still have a canvas active. Callbacks must be
+  -- executed by calling FlexLove.executeDeferredCallbacks() at the very end
+  -- of love.draw() after ALL canvases have been released.
 end
 
 ---@param element Element
@@ -519,6 +656,12 @@ end
 
 ---@param dt number
 function flexlove.update(dt)
+  -- Update Performance module with actual delta time for accurate FPS
+  Performance.updateDeltaTime(dt)
+
+  -- Garbage collection management
+  flexlove._manageGC()
+
   local mx, my = love.mouse.getPosition()
   local topElement = flexlove.getElementAtPosition(mx, my)
 
@@ -551,6 +694,86 @@ function flexlove.update(dt)
   end
 end
 
+--- Internal GC management function (called from update)
+function flexlove._manageGC()
+  local strategy = flexlove._gcConfig.strategy
+
+  if strategy == "disabled" then
+    return
+  end
+
+  local currentMemory = collectgarbage("count") / 1024 -- Convert to MB
+  flexlove._gcState.lastMemory = currentMemory
+  flexlove._gcState.framesSinceLastGC = flexlove._gcState.framesSinceLastGC + 1
+
+  -- Check memory threshold (applies to all strategies except disabled)
+  if currentMemory > flexlove._gcConfig.memoryThreshold then
+    -- Force full GC when exceeding threshold
+    collectgarbage("collect")
+    flexlove._gcState.gcCount = flexlove._gcState.gcCount + 1
+    flexlove._gcState.framesSinceLastGC = 0
+    return
+  end
+
+  -- Strategy-specific GC
+  if strategy == "periodic" then
+    -- Run incremental GC step every N frames
+    if flexlove._gcState.framesSinceLastGC >= flexlove._gcConfig.interval then
+      collectgarbage("step", flexlove._gcConfig.stepSize)
+      flexlove._gcState.gcCount = flexlove._gcState.gcCount + 1
+      flexlove._gcState.framesSinceLastGC = 0
+    end
+  elseif strategy == "auto" then
+    -- Let Lua's automatic GC handle it, but help with incremental steps
+    -- Run a small step every frame to keep memory under control
+    if flexlove._gcState.framesSinceLastGC >= 5 then
+      collectgarbage("step", 50) -- Small steps to avoid frame drops
+      flexlove._gcState.framesSinceLastGC = 0
+    end
+  end
+  -- "manual" strategy: no automatic GC, user must call flexlove.collectGarbage()
+end
+
+--- Manual garbage collection control
+---@param mode? string "collect" for full GC, "step" for incremental (default: "collect")
+---@param stepSize? number Work units for step mode (default: 200)
+function flexlove.collectGarbage(mode, stepSize)
+  mode = mode or "collect"
+  stepSize = stepSize or 200
+
+  if mode == "collect" then
+    collectgarbage("collect")
+    flexlove._gcState.gcCount = flexlove._gcState.gcCount + 1
+    flexlove._gcState.framesSinceLastGC = 0
+  elseif mode == "step" then
+    collectgarbage("step", stepSize)
+  elseif mode == "count" then
+    return collectgarbage("count") / 1024 -- Return memory in MB
+  end
+end
+
+--- Set GC strategy
+---@param strategy string "auto", "periodic", "manual", or "disabled"
+function flexlove.setGCStrategy(strategy)
+  if strategy == "auto" or strategy == "periodic" or strategy == "manual" or strategy == "disabled" then
+    flexlove._gcConfig.strategy = strategy
+  else
+    ErrorHandler.warn("FlexLove", "Invalid GC strategy: " .. tostring(strategy))
+  end
+end
+
+--- Get GC statistics
+---@return table stats {gcCount, framesSinceLastGC, currentMemoryMB, strategy}
+function flexlove.getGCStats()
+  return {
+    gcCount = flexlove._gcState.gcCount,
+    framesSinceLastGC = flexlove._gcState.framesSinceLastGC,
+    currentMemoryMB = flexlove._gcState.lastMemory,
+    strategy = flexlove._gcConfig.strategy,
+    threshold = flexlove._gcConfig.memoryThreshold,
+  }
+end
+
 ---@param text string
 function flexlove.textinput(text)
   if flexlove._focusedElement then
@@ -562,6 +785,8 @@ end
 ---@param scancode string
 ---@param isrepeat boolean
 function flexlove.keypressed(key, scancode, isrepeat)
+  -- Handle performance HUD toggle
+  Performance.keypressed(key)
   if flexlove._focusedElement then
     flexlove._focusedElement:keypressed(key, scancode, isrepeat)
   end
@@ -702,6 +927,15 @@ function flexlove.destroy()
   flexlove.baseScale = nil
   flexlove.scaleFactors = { x = 1.0, y = 1.0 }
   flexlove._cachedViewport = { width = 0, height = 0 }
+
+  -- Release canvases explicitly before destroying
+  if flexlove._gameCanvas then
+    flexlove._gameCanvas:release()
+  end
+  if flexlove._backdropCanvas then
+    flexlove._backdropCanvas:release()
+  end
+
   flexlove._gameCanvas = nil
   flexlove._backdropCanvas = nil
   flexlove._canvasDimensions = { width = 0, height = 0 }

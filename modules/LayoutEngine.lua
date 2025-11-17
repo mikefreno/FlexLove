@@ -21,6 +21,8 @@
 ---@field _AlignItems table
 ---@field _AlignSelf table
 ---@field _FlexWrap table
+---@field _layoutCount number Track layout recalculations per frame
+---@field _lastFrameCount number Last frame number for resetting counters
 local LayoutEngine = {}
 LayoutEngine.__index = LayoutEngine
 
@@ -84,6 +86,10 @@ function LayoutEngine.new(props, deps)
   -- Element reference (will be set via initialize)
   self.element = nil
 
+  -- Performance tracking
+  self._layoutCount = 0
+  self._lastFrameCount = 0
+
   return self
 end
 
@@ -146,6 +152,16 @@ function LayoutEngine:layoutChildren()
     return
   end
 
+  -- Start performance timing
+  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
+  if Performance and Performance.isEnabled() then
+    local elementId = self.element.id or "unnamed"
+    Performance.startTimer("layout_" .. elementId)
+  end
+
+  -- Track layout recalculations for performance warnings
+  self:_trackLayoutRecalculation()
+
   if self.positioning == self._Positioning.ABSOLUTE or self.positioning == self._Positioning.RELATIVE then
     -- Absolute/Relative positioned containers don't layout their children according to flex rules,
     -- but they should still apply CSS positioning offsets to their children
@@ -159,18 +175,32 @@ function LayoutEngine:layoutChildren()
     if self.element._detectOverflow then
       self.element:_detectOverflow()
     end
+    
+    -- Stop performance timing
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+    end
     return
   end
 
   -- Handle grid layout
   if self.positioning == self._Positioning.GRID then
     self._Grid.layoutGridItems(self.element)
+    
+    -- Stop performance timing
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+    end
     return
   end
 
   local childCount = #self.element.children
 
   if childCount == 0 then
+    -- Stop performance timing
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+    end
     return
   end
 
@@ -569,6 +599,11 @@ function LayoutEngine:layoutChildren()
   if self.element._detectOverflow then
     self.element:_detectOverflow()
   end
+  
+  -- Stop performance timing
+  if Performance and Performance.isEnabled() then
+    Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+  end
 end
 
 --- Calculate auto width based on children
@@ -937,6 +972,39 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
   -- Detect overflow after layout calculations
   if self.element._detectOverflow then
     self.element:_detectOverflow()
+  end
+end
+
+--- Track layout recalculations and warn about excessive layouts
+function LayoutEngine:_trackLayoutRecalculation()
+  -- Get Performance module if available
+  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
+  if not Performance or not Performance.areWarningsEnabled() then
+    return
+  end
+  
+  -- Get current frame count from Context
+  local currentFrame = self._Context and self._Context._frameNumber or 0
+  
+  -- Reset counter on new frame
+  if currentFrame ~= self._lastFrameCount then
+    self._lastFrameCount = currentFrame
+    self._layoutCount = 0
+  end
+  
+  -- Increment layout count
+  self._layoutCount = self._layoutCount + 1
+  
+  -- Warn if layout is recalculated excessively this frame
+  if self._layoutCount >= 10 then
+    local elementId = self.element and self.element.id or "unnamed"
+    Performance.logWarning(
+      string.format("excessive_layout_%s", elementId),
+      "LayoutEngine",
+      string.format("Layout recalculated %d times this frame for element '%s'", self._layoutCount, elementId),
+      { layoutCount = self._layoutCount, elementId = elementId },
+      "This may indicate a layout thrashing issue. Check for circular dependencies or dynamic sizing that triggers re-layout"
+    )
   end
 end
 

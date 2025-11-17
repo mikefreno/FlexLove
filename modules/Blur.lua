@@ -4,6 +4,14 @@ local Blur = {}
 local canvasCache = {}
 local MAX_CACHE_SIZE = 20
 
+-- Quad cache to avoid recreating quads every frame
+local quadCache = {}
+local MAX_QUAD_CACHE_SIZE = 20
+
+-- Quad cache to avoid recreating quads every frame
+local quadCache = {}
+local MAX_QUAD_CACHE_SIZE = 20
+
 --- Build Gaussian blur shader with given parameters
 ---@param taps number -- Number of samples (must be odd, >= 3)
 ---@param offset number
@@ -98,6 +106,53 @@ local function releaseCanvas(canvas)
   for _, sizeCache in pairs(canvasCache) do
     for _, entry in ipairs(sizeCache) do
       if entry.canvas == canvas then
+        entry.inUse = false
+        return
+      end
+    end
+  end
+end
+
+--- Get or create a quad from cache
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param sw number -- Source width
+---@param sh number -- Source height
+---@return love.Quad
+local function getQuad(x, y, width, height, sw, sh)
+  local key = string.format("%d,%d,%d,%d,%d,%d", x, y, width, height, sw, sh)
+
+  if not quadCache[key] then
+    quadCache[key] = {}
+  end
+
+  local cache = quadCache[key]
+
+  for i, entry in ipairs(cache) do
+    if not entry.inUse then
+      entry.inUse = true
+      return entry.quad
+    end
+  end
+
+  local quad = love.graphics.newQuad(x, y, width, height, sw, sh)
+  table.insert(cache, { quad = quad, inUse = true })
+
+  if #cache > MAX_QUAD_CACHE_SIZE then
+    table.remove(cache, 1)
+  end
+
+  return quad
+end
+
+--- Release a quad back to the cache
+---@param quad love.Quad
+local function releaseQuad(quad)
+  for _, keyCache in pairs(quadCache) do
+    for _, entry in ipairs(keyCache) do
+      if entry.quad == quad then
         entry.inUse = false
         return
       end
@@ -232,7 +287,7 @@ function Blur.applyBackdrop(blurInstance, intensity, x, y, width, height, backdr
   love.graphics.setBlendMode("alpha", "premultiplied")
 
   local backdropWidth, backdropHeight = backdropCanvas:getDimensions()
-  local quad = love.graphics.newQuad(x, y, width, height, backdropWidth, backdropHeight)
+  local quad = getQuad(x, y, width, height, backdropWidth, backdropHeight)
   love.graphics.draw(backdropCanvas, quad, 0, 0)
 
   love.graphics.setShader(blurInstance.shader)
@@ -259,11 +314,13 @@ function Blur.applyBackdrop(blurInstance, intensity, x, y, width, height, backdr
 
   releaseCanvas(canvas1)
   releaseCanvas(canvas2)
+  releaseQuad(quad)
 end
 
 --- Clear canvas cache (call on window resize)
 function Blur.clearCache()
   canvasCache = {}
+  quadCache = {}
 end
 
 return Blur

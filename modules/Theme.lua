@@ -124,7 +124,17 @@ Theme.__index = Theme
 local themes = {}
 local activeTheme = nil
 
+---Create a new theme instance
+---@param definition ThemeDefinition Theme definition table
+---@return Theme theme The new theme instance
 function Theme.new(definition)
+  -- Validate input type first
+  if type(definition) ~= "table" then
+    ErrorHandler.error("Theme", "THM_001", "Invalid theme definition", {
+      error = "Theme definition must be a table, got " .. type(definition)
+    })
+  end
+  
   -- Validate theme definition
   local valid, err = validateThemeDefinition(definition)
   if not valid then
@@ -303,8 +313,8 @@ function Theme.new(definition)
 end
 
 --- Load a theme from a Lua file
----@param path string -- Path to theme definition file (e.g., "space" or "mytheme")
----@return Theme
+---@param path string Path to theme definition file (e.g., "space" or "mytheme")
+---@return Theme? theme The loaded theme, or nil on error
 function Theme.load(path)
   local definition
   local themePath = FLEXLOVE_BASE_PATH .. ".themes." .. path
@@ -338,7 +348,8 @@ function Theme.load(path)
   return theme
 end
 
----@param themeOrName Theme|string
+---Set the active theme
+---@param themeOrName Theme|string Theme instance or theme name to activate
 function Theme.setActive(themeOrName)
   if type(themeOrName) == "string" then
     -- Try to load if not already loaded
@@ -361,15 +372,15 @@ function Theme.setActive(themeOrName)
 end
 
 --- Get the active theme
----@return Theme?
+---@return Theme? theme The active theme, or nil if none is active
 function Theme.getActive()
   return activeTheme
 end
 
 --- Get a component from the active theme
----@param componentName string -- Name of the component (e.g., "button", "panel")
----@param state string? -- Optional state (e.g., "hover", "pressed", "disabled")
----@return ThemeComponent? -- Returns component or nil if not found
+---@param componentName string Name of the component (e.g., "button", "panel")
+---@param state string? Optional state (e.g., "hover", "pressed", "disabled")
+---@return ThemeComponent? component Returns component or nil if not found
 function Theme.getComponent(componentName, state)
   if not activeTheme then
     return nil
@@ -389,8 +400,8 @@ function Theme.getComponent(componentName, state)
 end
 
 --- Get a font from the active theme
----@param fontName string -- Name of the font family (e.g., "default", "heading")
----@return string? -- Returns font path or nil if not found
+---@param fontName string Name of the font family (e.g., "default", "heading")
+---@return string? fontPath Returns font path or nil if not found
 function Theme.getFont(fontName)
   if not activeTheme then
     return nil
@@ -400,8 +411,8 @@ function Theme.getFont(fontName)
 end
 
 --- Get a color from the active theme
----@param colorName string -- Name of the color (e.g., "primary", "secondary")
----@return Color? -- Returns Color instance or nil if not found
+---@param colorName string Name of the color (e.g., "primary", "secondary")
+---@return Color? color Returns Color instance or nil if not found
 function Theme.getColor(colorName)
   if not activeTheme then
     return nil
@@ -411,13 +422,13 @@ function Theme.getColor(colorName)
 end
 
 --- Check if a theme is currently active
----@return boolean -- Returns true if a theme is active
+---@return boolean active Returns true if a theme is active
 function Theme.hasActive()
   return activeTheme ~= nil
 end
 
 --- Get all registered theme names
----@return table<string> -- Array of theme names
+---@return string[] themeNames Array of theme names
 function Theme.getRegisteredThemes()
   local themeNames = {}
   for name, _ in pairs(themes) do
@@ -427,7 +438,7 @@ function Theme.getRegisteredThemes()
 end
 
 --- Get all available color names from the active theme
----@return table<string>|nil -- Array of color names, or nil if no theme active
+---@return string[]? colorNames Array of color names, or nil if no theme active
 function Theme.getColorNames()
   if not activeTheme or not activeTheme.colors then
     return nil
@@ -441,7 +452,7 @@ function Theme.getColorNames()
 end
 
 --- Get all colors from the active theme
----@return table<string, Color>|nil -- Table of all colors, or nil if no theme active
+---@return table<string, Color>? colors Table of all colors, or nil if no theme active
 function Theme.getAllColors()
   if not activeTheme then
     return nil
@@ -451,9 +462,9 @@ function Theme.getAllColors()
 end
 
 --- Get a color with a fallback if not found
----@param colorName string -- Name of the color to retrieve
----@param fallback Color|nil -- Fallback color if not found (default: white)
----@return Color -- The color or fallback
+---@param colorName string Name of the color to retrieve
+---@param fallback Color? Fallback color if not found (default: white)
+---@return Color color The color or fallback (guaranteed non-nil)
 function Theme.getColorOrDefault(colorName, fallback)
   local color = Theme.getColor(colorName)
   if color then
@@ -464,8 +475,8 @@ function Theme.getColorOrDefault(colorName, fallback)
 end
 
 --- Get a theme by name
----@param themeName string -- Name of the theme
----@return Theme|nil -- Returns theme or nil if not found
+---@param themeName string Name of the theme
+---@return Theme? theme Returns theme or nil if not found
 function Theme.get(themeName)
   return themes[themeName]
 end
@@ -487,8 +498,9 @@ end
 local ThemeManager = {}
 ThemeManager.__index = ThemeManager
 
----@param config table Configuration options
----@return ThemeManager
+---Create a new ThemeManager instance
+---@param config table Configuration options {theme: string?, themeComponent: string?, disabled: boolean?, active: boolean?, disableHighlight: boolean?, scaleCorners: number?, scalingAlgorithm: string?}
+---@return ThemeManager manager The new ThemeManager instance
 function ThemeManager.new(config)
   local self = setmetatable({}, ThemeManager)
 
@@ -506,16 +518,18 @@ function ThemeManager.new(config)
   return self
 end
 
----@param element table The parent Element
+---Initialize the ThemeManager with a parent element
+---@param element Element The parent Element
 function ThemeManager:initialize(element)
   self._element = element
 end
 
+---Update the theme state based on element interaction state
 ---@param isHovered boolean Whether element is hovered
 ---@param isPressed boolean Whether element is pressed
 ---@param isFocused boolean Whether element is focused
 ---@param isDisabled boolean Whether element is disabled
----@return string The new theme state
+---@return string state The new theme state ("normal", "hover", "pressed", "active", "disabled")
 function ThemeManager:updateState(isHovered, isPressed, isFocused, isDisabled)
   local newState = "normal"
 
@@ -533,22 +547,29 @@ function ThemeManager:updateState(isHovered, isPressed, isFocused, isDisabled)
   return newState
 end
 
----@return string The current theme state
+---Get the current theme state
+---@return string state The current theme state
 function ThemeManager:getState()
   return self._themeState
 end
 
----@param state string The theme state to set
+---Set the theme state explicitly
+---@param state string The theme state to set ("normal", "hover", "pressed", "active", "disabled")
 function ThemeManager:setState(state)
+  if type(state) ~= "string" then
+    return
+  end
   self._themeState = state
 end
 
----@return boolean
+---Check if a theme component is set
+---@return boolean hasComponent True if a theme component is set
 function ThemeManager:hasThemeComponent()
   return self.themeComponent ~= nil
 end
 
----@return table?
+---Get the theme (either instance-specific or active theme)
+---@return Theme? theme The theme instance, or nil if not found
 function ThemeManager:getTheme()
   if self.theme then
     return Theme.get(self.theme)
@@ -556,21 +577,27 @@ function ThemeManager:getTheme()
   return Theme.getActive()
 end
 
----@return table?
+---Get the base theme component
+---@return ThemeComponent? component The theme component, or nil if not found
 function ThemeManager:getComponent()
   if not self.themeComponent then
     return nil
   end
 
   local themeToUse = self:getTheme()
-  if not themeToUse or not themeToUse.components[self.themeComponent] then
+  if not themeToUse or not themeToUse.components or type(themeToUse.components) ~= "table" then
+    return nil
+  end
+  
+  if not themeToUse.components[self.themeComponent] then
     return nil
   end
 
   return themeToUse.components[self.themeComponent]
 end
 
----@return table?
+---Get the theme component for the current state
+---@return ThemeComponent? component The state-specific component, or base component, or nil
 function ThemeManager:getStateComponent()
   local component = self:getComponent()
   if not component then
@@ -578,27 +605,33 @@ function ThemeManager:getStateComponent()
   end
 
   local state = self._themeState
-  if state and state ~= "normal" and component.states and component.states[state] then
+  if state and state ~= "normal" and component.states and type(component.states) == "table" and component.states[state] then
     return component.states[state]
   end
 
   return component
 end
 
----@param property string
----@return any?
+---Get a style property from the current state component
+---@param property string The property name
+---@return any? value The property value, or nil if not found
 function ThemeManager:getStyle(property)
+  if type(property) ~= "string" then
+    return nil
+  end
+  
   local stateComponent = self:getStateComponent()
-  if not stateComponent then
+  if not stateComponent or type(stateComponent) ~= "table" then
     return nil
   end
 
   return stateComponent[property]
 end
 
----@param borderBoxWidth number
----@param borderBoxHeight number
----@return table? {left, top, right, bottom} or nil if no contentPadding
+---Get scaled content padding based on border box dimensions
+---@param borderBoxWidth number The border box width
+---@param borderBoxHeight number The border box height
+---@return table? padding Table with {left, top, right, bottom}, or nil if no contentPadding
 function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
   if not self.themeComponent then
     return nil
@@ -639,7 +672,8 @@ function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
   return nil
 end
 
----@return number?
+---Get content auto-sizing multiplier from theme or component
+---@return table? multiplier Table with {width: number?, height: number?}, or nil if not defined
 function ThemeManager:getContentAutoSizingMultiplier()
   if not self.themeComponent then
     return nil
@@ -650,7 +684,7 @@ function ThemeManager:getContentAutoSizingMultiplier()
     return nil
   end
 
-  if self.themeComponent then
+  if self.themeComponent and themeToUse.components and type(themeToUse.components) == "table" then
     local component = themeToUse.components[self.themeComponent]
     if component and component.contentAutoSizingMultiplier then
       return component.contentAutoSizingMultiplier
@@ -666,17 +700,19 @@ function ThemeManager:getContentAutoSizingMultiplier()
   return nil
 end
 
----@return string?
+---Get the default font family path from the theme
+---@return string? fontPath The default font path, or nil if not defined
 function ThemeManager:getDefaultFontFamily()
   local themeToUse = self:getTheme()
-  if themeToUse and themeToUse.fonts and themeToUse.fonts["default"] then
+  if themeToUse and themeToUse.fonts and type(themeToUse.fonts) == "table" and themeToUse.fonts["default"] then
     return themeToUse.fonts["default"]
   end
   return nil
 end
 
----@param themeName string? The theme name
----@param componentName string? The component name
+---Set the theme and component for this ThemeManager
+---@param themeName string? The theme name to use (nil to use active theme)
+---@param componentName string? The component name to use
 function ThemeManager:setTheme(themeName, componentName)
   self.theme = themeName
   self.themeComponent = componentName

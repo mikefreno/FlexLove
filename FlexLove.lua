@@ -8,10 +8,12 @@ local Blur = req("Blur")
 local utils = req("utils")
 local Units = req("Units")
 local Context = req("Context")
+---@type StateManager
 local StateManager = req("StateManager")
 local ErrorCodes = req("ErrorCodes")
 local ErrorHandler = req("ErrorHandler")
 local ImageRenderer = req("ImageRenderer")
+local ImageScaler = req("ImageScaler")
 local NinePatch = req("NinePatch")
 local RoundedRect = req("RoundedRect")
 local ImageCache = req("ImageCache")
@@ -41,6 +43,7 @@ Element.defaultDependencies = {
   Units = Units,
   Blur = Blur,
   ImageRenderer = ImageRenderer,
+  ImageScaler = ImageScaler,
   NinePatch = NinePatch,
   RoundedRect = RoundedRect,
   ImageCache = ImageCache,
@@ -64,14 +67,22 @@ ErrorHandler.init({ ErrorCodes = ErrorCodes })
 
 -- Initialize modules that use ErrorHandler via DI
 local errorHandlerDeps = { ErrorHandler = ErrorHandler }
-if ImageRenderer.init then ImageRenderer.init(errorHandlerDeps) end
-if ImageScaler then 
-  local ImageScaler = req("ImageScaler")
-  if ImageScaler.init then ImageScaler.init(errorHandlerDeps) end
+if ImageRenderer.init then
+  ImageRenderer.init(errorHandlerDeps)
 end
-if NinePatch.init then NinePatch.init(errorHandlerDeps) end
+if ImageScaler then
+  local ImageScaler = req("ImageScaler")
+  if ImageScaler.init then
+    ImageScaler.init(errorHandlerDeps)
+  end
+end
+if NinePatch.init then
+  NinePatch.init(errorHandlerDeps)
+end
 local ImageDataReader = req("ImageDataReader")
-if ImageDataReader.init then ImageDataReader.init(errorHandlerDeps) end
+if ImageDataReader.init then
+  ImageDataReader.init(errorHandlerDeps)
+end
 
 -- Initialize Units module with Context dependency
 Units.initialize(Context)
@@ -111,6 +122,7 @@ flexlove._LICENSE = [[
   SOFTWARE.
 ]]
 
+--- Initialize FlexLove with configuration options, set refence scale for autoscaling on window resize, immediate mode, and error logging / error file path
 ---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean, errorLogFile?: string, enableErrorLogging?: boolean}
 function flexlove.init(config)
   config = config or {}
@@ -186,6 +198,7 @@ function flexlove.resize()
   end
 end
 
+--- Can also be set in init()
 ---@param mode "immediate"|"retained"
 function flexlove.setMode(mode)
   if mode == "immediate" then
@@ -211,6 +224,7 @@ function flexlove.getMode()
 end
 
 --- Begin a new immediate mode frame
+--- You do NOT need to call this directly, it will autodetect, but you can if you need more granular control - must then paired with endFrame()
 function flexlove.beginFrame()
   if not flexlove._immediateMode then
     return
@@ -225,6 +239,9 @@ function flexlove.beginFrame()
   Context.clearFrameElements()
 end
 
+--- End the current immediate mode frame
+--- You do NOT need to call this directly unless you call beginFrame() manually - it will autodetect, but you can if you need more granular control
+--- MUST BE PAIRED WITH beginFrame()
 function flexlove.endFrame()
   if not flexlove._immediateMode then
     return
@@ -290,8 +307,8 @@ flexlove._gameCanvas = nil
 flexlove._backdropCanvas = nil
 flexlove._canvasDimensions = { width = 0, height = 0 }
 
----@param gameDrawFunc function|nil
----@param postDrawFunc function|nil
+---@param gameDrawFunc function|nil pass component draws that should be affected by a backdrop blur
+---@param postDrawFunc function|nil pass component draws that should NOT be affected by a backdrop blur
 function flexlove.draw(gameDrawFunc, postDrawFunc)
   if flexlove._immediateMode and flexlove._autoBeganFrame then
     flexlove.endFrame()
@@ -500,6 +517,7 @@ function flexlove.getElementAtPosition(x, y)
   return blockingElements[1]
 end
 
+---@param dt number
 function flexlove.update(dt)
   local mx, my = love.mouse.getPosition()
   local topElement = flexlove.getElementAtPosition(mx, my)
@@ -549,6 +567,8 @@ function flexlove.keypressed(key, scancode, isrepeat)
   end
 end
 
+---@param dx number
+---@param dy number
 function flexlove.wheelmoved(dx, dy)
   local mx, my = love.mouse.getPosition()
 
@@ -673,6 +693,7 @@ function flexlove.wheelmoved(dx, dy)
   end
 end
 
+--- destroys all top-level elements and resets the framework state
 function flexlove.destroy()
   for _, win in ipairs(flexlove.topElements) do
     win:destroy()
@@ -685,6 +706,7 @@ function flexlove.destroy()
   flexlove._backdropCanvas = nil
   flexlove._canvasDimensions = { width = 0, height = 0 }
   flexlove._focusedElement = nil
+  StateManager:reset()
 end
 
 ---@param props ElementProps
@@ -819,8 +841,8 @@ function flexlove.clearAllStates()
   StateManager.clearAllStates()
 end
 
---- Get state statistics (for debugging)
----@return table
+--- Get state (immediate mode) statistics (for debugging)
+---@return { stateCount: number, frameNumber: number, oldestState: number|nil, newestState: number|nil }
 function flexlove.getStateStats()
   if not flexlove._immediateMode then
     return { stateCount = 0, frameNumber = 0 }

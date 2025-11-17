@@ -54,31 +54,53 @@ local Color = {}
 Color.__index = Color
 
 --- Create a new color instance
----@param r number?
----@param g number?
----@param b number?
----@param a number?
----@return Color
+---@param r number? Red component (0-1), defaults to 0
+---@param g number? Green component (0-1), defaults to 0
+---@param b number? Blue component (0-1), defaults to 0
+---@param a number? Alpha component (0-1), defaults to 1
+---@return Color color The new color instance
 function Color.new(r, g, b, a)
   local self = setmetatable({}, Color)
-  self.r = r or 0
-  self.g = g or 0
-  self.b = b or 0
-  self.a = a or 1
+  
+  -- Sanitize and clamp color components
+  local _, sanitizedR = Color.validateColorChannel(r or 0, 1)
+  local _, sanitizedG = Color.validateColorChannel(g or 0, 1)
+  local _, sanitizedB = Color.validateColorChannel(b or 0, 1)
+  local _, sanitizedA = Color.validateColorChannel(a or 1, 1)
+  
+  self.r = sanitizedR or 0
+  self.g = sanitizedG or 0
+  self.b = sanitizedB or 0
+  self.a = sanitizedA or 1
   return self
 end
 
----@return number r, number g, number b, number a
+---Convert color to RGBA components
+---@return number r Red component (0-1)
+---@return number g Green component (0-1)
+---@return number b Blue component (0-1)
+---@return number a Alpha component (0-1)
 function Color:toRGBA()
   return self.r, self.g, self.b, self.a
 end
 
 --- Convert hex string to color
 --- Supports both 6-digit (#RRGGBB) and 8-digit (#RRGGBBAA) hex formats
----@param hexWithTag string -- e.g. "#RRGGBB" or "#RRGGBBAA"
----@return Color
----@throws Error if hex string format is invalid
+---@param hexWithTag string Hex color string (e.g. "#RRGGBB" or "#RRGGBBAA")
+---@return Color color The parsed color (returns white on error with warning)
 function Color.fromHex(hexWithTag)
+  -- Validate input type
+  if type(hexWithTag) ~= "string" then
+    if ErrorHandler then
+      ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+        input = tostring(hexWithTag),
+        issue = "not a string",
+        fallback = "white (#FFFFFF)"
+      })
+    end
+    return Color.new(1, 1, 1, 1)
+  end
+  
   local hex = hexWithTag:gsub("#", "")
   if #hex == 6 then
     local r = tonumber("0x" .. hex:sub(1, 2))
@@ -125,10 +147,10 @@ function Color.fromHex(hexWithTag)
 end
 
 --- Validate a single color channel value
----@param value any -- Value to validate
----@param max number? -- Maximum value (255 for 0-255 range, 1 for 0-1 range)
----@return boolean valid -- True if valid
----@return number? clamped -- Clamped value in 0-1 range
+---@param value any Value to validate
+---@param max number? Maximum value (255 for 0-255 range, 1 for 0-1 range), defaults to 1
+---@return boolean valid True if valid
+---@return number? clamped Clamped value in 0-1 range, nil if invalid
 function Color.validateColorChannel(value, max)
   max = max or 1
   
@@ -159,9 +181,9 @@ function Color.validateColorChannel(value, max)
 end
 
 --- Validate hex color format
----@param hex string -- Hex color string (with or without #)
----@return boolean valid -- True if valid format
----@return string? error -- Error message if invalid
+---@param hex string Hex color string (with or without #)
+---@return boolean valid True if valid format
+---@return string? error Error message if invalid, nil if valid
 function Color.validateHexColor(hex)
   if type(hex) ~= "string" then
     return false, "Hex color must be a string"
@@ -184,13 +206,13 @@ function Color.validateHexColor(hex)
 end
 
 --- Validate RGB/RGBA color values
----@param r number -- Red component
----@param g number -- Green component
----@param b number -- Blue component
----@param a number? -- Alpha component (optional)
----@param max number? -- Maximum value (255 or 1)
----@return boolean valid -- True if valid
----@return string? error -- Error message if invalid
+---@param r number Red component
+---@param g number Green component
+---@param b number Blue component
+---@param a number? Alpha component (optional, defaults to max)
+---@param max number? Maximum value (255 or 1), defaults to 1
+---@return boolean valid True if valid
+---@return string? error Error message if invalid, nil if valid
 function Color.validateRGBColor(r, g, b, a, max)
   max = max or 1
   a = a or max
@@ -217,9 +239,9 @@ function Color.validateRGBColor(r, g, b, a, max)
 end
 
 --- Validate named color
----@param name string -- Color name
----@return boolean valid -- True if valid
----@return string? error -- Error message if invalid
+---@param name string Color name (e.g. "red", "blue", "transparent")
+---@return boolean valid True if valid
+---@return string? error Error message if invalid, nil if valid
 function Color.validateNamedColor(name)
   if type(name) ~= "string" then
     return false, "Color name must be a string"
@@ -234,8 +256,8 @@ function Color.validateNamedColor(name)
 end
 
 --- Check if a value is a valid color format
----@param value any -- Value to check
----@return string? format -- Format type (hex, rgb, rgba, named, table, nil if invalid)
+---@param value any Value to check
+---@return string? format Format type ("hex", "named", "table"), nil if invalid
 function Color.isValidColorFormat(value)
   local valueType = type(value)
   
@@ -286,10 +308,10 @@ function Color.isValidColorFormat(value)
 end
 
 --- Validate a color value
----@param value any -- Color value to validate
----@param options table? -- Validation options
----@return boolean valid -- True if valid
----@return string? error -- Error message if invalid
+---@param value any Color value to validate
+---@param options table? Validation options {allowNamed: boolean, requireAlpha: boolean}
+---@return boolean valid True if valid
+---@return string? error Error message if invalid, nil if valid
 function Color.validateColor(value, options)
   options = options or {}
   local allowNamed = options.allowNamed ~= false
@@ -320,10 +342,10 @@ function Color.validateColor(value, options)
   return true, nil
 end
 
---- Sanitize a color value
----@param value any -- Color value to sanitize
----@param default Color? -- Default color if invalid
----@return Color -- Sanitized color
+--- Sanitize a color value (always returns a valid Color)
+---@param value any Color value to sanitize (hex, named, table, or Color instance)
+---@param default Color? Default color if invalid (defaults to black)
+---@return Color color Sanitized color instance (guaranteed non-nil)
 function Color.sanitizeColor(value, default)
   default = default or Color.new(0, 0, 0, 1)
   
@@ -396,9 +418,9 @@ function Color.sanitizeColor(value, default)
   return default
 end
 
---- Parse a color from various formats
----@param value any -- Color value (hex, named, table)
----@return Color -- Parsed color
+--- Parse a color from various formats (always returns a valid Color)
+---@param value any Color value (hex string, named color, table, or Color instance)
+---@return Color color Parsed color instance (defaults to black on error)
 function Color.parse(value)
   return Color.sanitizeColor(value, Color.new(0, 0, 0, 1))
 end

@@ -22,28 +22,25 @@ function TestAnimation:testNewWithNilDuration()
 end
 
 function TestAnimation:testNewWithNegativeDuration()
-  -- Should still create but behave oddly
-  local anim = Animation.new({
-    duration = -1,
-    start = { opacity = 0 },
-    final = { opacity = 1 },
-  })
-  luaunit.assertNotNil(anim)
-  -- Update with positive dt should immediately finish
-  local done = anim:update(1)
-  luaunit.assertTrue(done)
+  -- Should throw an error for invalid duration
+  luaunit.assertErrorMsgContains("duration must be a positive number", function()
+    Animation.new({
+      duration = -1,
+      start = { opacity = 0 },
+      final = { opacity = 1 },
+    })
+  end)
 end
 
 function TestAnimation:testNewWithZeroDuration()
-  local anim = Animation.new({
-    duration = 0,
-    start = { opacity = 0 },
-    final = { opacity = 1 },
-  })
-  luaunit.assertNotNil(anim)
-  -- Should be instantly complete
-  local done = anim:update(0.001)
-  luaunit.assertTrue(done)
+  -- Should throw an error for invalid duration
+  luaunit.assertErrorMsgContains("duration must be a positive number", function()
+    Animation.new({
+      duration = 0,
+      start = { opacity = 0 },
+      final = { opacity = 1 },
+    })
+  end)
 end
 
 function TestAnimation:testNewWithInvalidEasing()

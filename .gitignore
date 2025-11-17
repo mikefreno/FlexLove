@@ -12,3 +12,4 @@ docs/doc.json
 docs/doc.md
 docs/node_modules
 releases/
+*.log*

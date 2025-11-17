@@ -1,13 +1,16 @@
---- Standardized error message formatter
----@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string -- Error message
----@return string -- Formatted error message
-local function formatError(module, message)
-  return string.format("[FlexLove.%s] %s", module, message)
-end
-
 ---@class ImageRenderer
 local ImageRenderer = {}
+
+-- ErrorHandler will be injected via init
+local ErrorHandler = nil
+
+--- Initialize ImageRenderer with dependencies
+---@param deps table Dependencies table with ErrorHandler
+function ImageRenderer.init(deps)
+  if deps and deps.ErrorHandler then
+    ErrorHandler = deps.ErrorHandler
+  end
+end
 
 --- Calculate rendering parameters for object-fit modes
 --- Returns source and destination rectangles for rendering
@@ -23,7 +26,12 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
   objectPosition = objectPosition or "center center"
 
   if imageWidth <= 0 or imageHeight <= 0 or boundsWidth <= 0 or boundsHeight <= 0 then
-    error(formatError("ImageRenderer", "Dimensions must be positive"))
+    ErrorHandler.error("ImageRenderer", "VAL_002", "Dimensions must be positive", {
+      imageWidth = imageWidth,
+      imageHeight = imageHeight,
+      boundsWidth = boundsWidth,
+      boundsHeight = boundsHeight,
+    })
   end
 
   local result = {
@@ -104,7 +112,12 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
       return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "contain", objectPosition)
     end
   else
-    error(formatError("ImageRenderer", string.format("Invalid fit mode: '%s'. Must be one of: fill, contain, cover, scale-down, none", tostring(fitMode))))
+    ErrorHandler.warn("ImageRenderer", "VAL_007", string.format("Invalid fit mode: '%s'. Must be one of: fill, contain, cover, scale-down, none", tostring(fitMode)), {
+      fitMode = fitMode,
+      fallback = "fill"
+    })
+    -- Use 'fill' as fallback
+    return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "fill", objectPosition)
   end
 
   return result

@@ -30,6 +30,9 @@
 local Renderer = {}
 Renderer.__index = Renderer
 
+-- Lazy-loaded ErrorHandler
+local ErrorHandler
+
 --- Create a new Renderer instance
 ---@param config table Configuration table with rendering properties
 ---@param deps table Dependencies {Color, RoundedRect, NinePatch, ImageRenderer, ImageCache, Theme, Blur, utils}
@@ -309,7 +312,12 @@ function Renderer:draw(backdropCanvas)
 
   -- Element must be initialized before drawing
   if not self._element then
-    error("Renderer:draw() called before initialize(). Call renderer:initialize(element) first.")
+    if not ErrorHandler then
+      ErrorHandler = require("modules.ErrorHandler")
+    end
+    ErrorHandler.error("Renderer", "SYS_002", "Method called before initialization", {
+      method = "draw"
+    }, "Call renderer:initialize(element) before rendering")
   end
 
   local element = self._element

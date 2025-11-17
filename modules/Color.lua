@@ -1,4 +1,12 @@
---- Standardized error message formatter
+local ErrorHandler = nil
+
+--- Initialize ErrorHandler dependency
+---@param errorHandler table The ErrorHandler module
+local function initializeErrorHandler(errorHandler)
+  ErrorHandler = errorHandler
+end
+
+--- Standardized error message formatter (fallback for when ErrorHandler not available)
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")
 ---@param message string
 ---@return string
@@ -77,7 +85,14 @@ function Color.fromHex(hexWithTag)
     local g = tonumber("0x" .. hex:sub(3, 4))
     local b = tonumber("0x" .. hex:sub(5, 6))
     if not r or not g or not b then
-      error(formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag)))
+      if ErrorHandler then
+        ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+          input = hexWithTag,
+          issue = "invalid hex digits",
+          fallback = "white (#FFFFFF)"
+        })
+      end
+      return Color.new(1, 1, 1, 1) -- Return white as fallback
     end
     return Color.new(r / 255, g / 255, b / 255, 1)
   elseif #hex == 8 then
@@ -86,11 +101,26 @@ function Color.fromHex(hexWithTag)
     local b = tonumber("0x" .. hex:sub(5, 6))
     local a = tonumber("0x" .. hex:sub(7, 8))
     if not r or not g or not b or not a then
-      error(formatError("Color", string.format("Invalid hex string format: '%s'. Contains invalid hex digits", hexWithTag)))
+      if ErrorHandler then
+        ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+          input = hexWithTag,
+          issue = "invalid hex digits",
+          fallback = "white (#FFFFFFFF)"
+        })
+      end
+      return Color.new(1, 1, 1, 1) -- Return white as fallback
     end
     return Color.new(r / 255, g / 255, b / 255, a / 255)
   else
-    error(formatError("Color", string.format("Invalid hex string format: '%s'. Expected #RRGGBB or #RRGGBBAA", hexWithTag)))
+    if ErrorHandler then
+      ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+        input = hexWithTag,
+        expected = "#RRGGBB or #RRGGBBAA",
+        hexLength = #hex,
+        fallback = "white (#FFFFFF)"
+      })
+    end
+    return Color.new(1, 1, 1, 1) -- Return white as fallback
   end
 end
 
@@ -372,5 +402,8 @@ end
 function Color.parse(value)
   return Color.sanitizeColor(value, Color.new(0, 0, 0, 1))
 end
+
+-- Export ErrorHandler initializer
+Color.initializeErrorHandler = initializeErrorHandler
 
 return Color

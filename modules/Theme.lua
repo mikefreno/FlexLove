@@ -6,14 +6,7 @@ end
 local NinePatchParser = req("NinePatchParser")
 local Color = req("Color")
 local utils = req("utils")
-
---- Standardized error message formatter
----@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string -- Error message
----@return string -- Formatted error message
-local function formatError(module, message)
-  return string.format("[FlexLove.%s] %s", module, message)
-end
+local ErrorHandler = req("ErrorHandler")
 
 --- Auto-detect the base path where FlexLove is located
 ---@return string modulePath, string filesystemPath
@@ -135,7 +128,9 @@ function Theme.new(definition)
   -- Validate theme definition
   local valid, err = validateThemeDefinition(definition)
   if not valid then
-    error("[FlexLove] Invalid theme definition: " .. tostring(err))
+    ErrorHandler.error("Theme", "THM_001", "Invalid theme definition", {
+      error = tostring(err)
+    })
   end
 
   local self = setmetatable({}, Theme)
@@ -150,7 +145,11 @@ function Theme.new(definition)
         self.atlas = image
         self.atlasData = imageData
       else
-        print("[FlexLove] Warning: Failed to load global atlas for theme '" .. definition.name .. "'" .. "(" .. loaderr .. ")")
+        ErrorHandler.warn("Theme", "RES_001", "Failed to load global atlas", {
+          theme = definition.name,
+          path = resolvedPath,
+          error = loaderr
+        })
       end
     else
       self.atlas = definition.atlas
@@ -174,7 +173,11 @@ function Theme.new(definition)
     local contentHeight = srcHeight - 2
 
     if contentWidth <= 0 or contentHeight <= 0 then
-      error(formatError("NinePatch", "Image too small to strip border"))
+      ErrorHandler.error("Theme", "RES_002", "Nine-patch image too small", {
+        width = srcWidth,
+        height = srcHeight,
+        reason = "Image must be larger than 2x2 pixels to have content after stripping 1px border"
+      })
     end
 
     -- Create new ImageData for content only
@@ -204,7 +207,11 @@ function Theme.new(definition)
         comp.insets = parseResult.insets
         comp._ninePatchData = parseResult
       else
-        print("[FlexLove] Warning: Failed to parse 9-patch " .. errorContext .. ": " .. tostring(parseErr))
+        ErrorHandler.warn("Theme", "RES_003", "Failed to parse nine-patch image", {
+          context = errorContext,
+          path = resolvedPath,
+          error = tostring(parseErr)
+        })
       end
     end
 
@@ -221,7 +228,11 @@ function Theme.new(definition)
         comp._loadedAtlasData = imageData
       end
     else
-      print("[FlexLove] Warning: Failed to load atlas " .. errorContext .. ": " .. tostring(loaderr))
+      ErrorHandler.warn("Theme", "RES_001", "Failed to load atlas", {
+        context = errorContext,
+        path = resolvedPath,
+        error = tostring(loaderr)
+      })
     end
   end
 
@@ -310,7 +321,13 @@ function Theme.load(path)
     if success then
       definition = result
     else
-      error("Failed to load theme '" .. path .. "'\nTried: " .. themePath .. "\nError: " .. tostring(result))
+      ErrorHandler.warn("Theme", "RES_004", "Failed to load theme file", {
+        theme = path,
+        tried = themePath,
+        error = tostring(result),
+        fallback = "nil (no theme loaded)"
+      }, "Check that the theme file exists in the themes/ directory or provide a valid module path")
+      return nil
     end
   end
 
@@ -334,7 +351,12 @@ function Theme.setActive(themeOrName)
   end
 
   if not activeTheme then
-    error("Failed to set active theme: " .. tostring(themeOrName))
+    ErrorHandler.warn("Theme", "THM_002", "Failed to set active theme", {
+      theme = tostring(themeOrName),
+      reason = "Theme not found or not loaded",
+      fallback = "current theme unchanged"
+    }, "Ensure the theme is loaded with Theme.load() before setting it active")
+    -- Keep current activeTheme unchanged (fallback behavior)
   end
 end
 

@@ -148,7 +148,8 @@ Element.__index = Element
 ---@return Element
 function Element.new(props, deps)
   if not deps then
-    error("[Element] deps parameter is required. Pass Element.defaultDependencies from FlexLove.")
+    -- Can't use ErrorHandler yet since deps contains it
+    error("[FlexLove - Element] Error: deps parameter is required. Pass Element.defaultDependencies from FlexLove.")
   end
 
   local self = setmetatable({}, Element)

@@ -24,7 +24,13 @@ function Units.parse(value)
 
   if type(value) ~= "string" then
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Invalid unit value type. Expected string or number, got %s", type(value)))
+      ErrorHandler.warn("Units", "VAL_001", "Invalid property type", {
+        property = "unit value",
+        expected = "string or number",
+        got = type(value)
+      }, "Using fallback: 0px")
+    else
+      print(string.format("[FlexLove - Units] Warning: Invalid unit value type. Expected string or number, got %s. Using fallback: 0px", type(value)))
     end
     return 0, "px"
   end
@@ -33,7 +39,12 @@ function Units.parse(value)
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   if validUnits[value] then
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Missing numeric value before unit '%s'. Use format like '50%s' (e.g., '50px', '10%%', '2vw')", value, value))
+      ErrorHandler.warn("Units", "VAL_005", "Invalid unit format", {
+        input = value,
+        expected = "number + unit (e.g., '50" .. value .. "')"
+      }, string.format("Add a numeric value before '%s', like '50%s'. Using fallback: 0px", value, value))
+    else
+      print(string.format("[FlexLove - Units] Warning: Missing numeric value before unit '%s'. Use format like '50%s'. Using fallback: 0px", value, value))
     end
     return 0, "px"
   end
@@ -41,7 +52,12 @@ function Units.parse(value)
   -- Check for invalid format (space between number and unit)
   if value:match("%d%s+%a") then
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Invalid unit string '%s' (contains space). Use format like '50px' or '50%%'", value))
+      ErrorHandler.warn("Units", "VAL_005", "Invalid unit format", {
+        input = value,
+        issue = "contains space between number and unit"
+      }, "Remove spaces: use '50px' not '50 px'. Using fallback: 0px")
+    else
+      print(string.format("[FlexLove - Units] Warning: Invalid unit string '%s' (contains space). Use format like '50px' or '50%%'. Using fallback: 0px", value))
     end
     return 0, "px"
   end
@@ -50,7 +66,11 @@ function Units.parse(value)
   local numStr, unit = value:match("^([%-]?[%d%.]+)(.*)$")
   if not numStr then
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Invalid unit format '%s'. Expected format: number + unit (e.g., '50px', '10%%', '2vw')", value))
+      ErrorHandler.warn("Units", "VAL_005", "Invalid unit format", {
+        input = value
+      }, "Expected format: number + unit (e.g., '50px', '10%', '2vw'). Using fallback: 0px")
+    else
+      print(string.format("[FlexLove - Units] Warning: Invalid unit format '%s'. Expected format: number + unit (e.g., '50px', '10%%', '2vw'). Using fallback: 0px", value))
     end
     return 0, "px"
   end
@@ -58,7 +78,12 @@ function Units.parse(value)
   local num = tonumber(numStr)
   if not num then
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Invalid numeric value in '%s'", value))
+      ErrorHandler.warn("Units", "VAL_005", "Invalid unit format", {
+        input = value,
+        issue = "numeric value cannot be parsed"
+      }, "Using fallback: 0px")
+    else
+      print(string.format("[FlexLove - Units] Warning: Invalid numeric value in '%s'. Using fallback: 0px", value))
     end
     return 0, "px"
   end
@@ -71,7 +96,13 @@ function Units.parse(value)
   -- validUnits is already defined at the top of the function
   if not validUnits[unit] then
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Unknown unit '%s' in '%s'. Valid units: px, %%, vw, vh, ew, eh", unit, value))
+      ErrorHandler.warn("Units", "VAL_005", "Invalid unit format", {
+        input = value,
+        unit = unit,
+        validUnits = "px, %, vw, vh, ew, eh"
+      }, string.format("Treating '%s' as pixels", value))
+    else
+      print(string.format("[FlexLove - Units] Warning: Unknown unit '%s' in '%s'. Valid units: px, %%, vw, vh, ew, eh. Treating as pixels", unit, value))
     end
     return num, "px"
   end
@@ -93,7 +124,10 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
   elseif unit == "%" then
     if not parentSize then
       if ErrorHandler then
-        ErrorHandler.error("Units", "Percentage units require parent dimension. Element has no parent or parent dimension not available")
+        ErrorHandler.error("Units", "LAY_003", "Invalid dimensions", {
+          unit = "%",
+          issue = "parent dimension not available"
+        }, "Percentage units require a parent element with explicit dimensions")
       else
         error("Percentage units require parent dimension")
       end
@@ -105,7 +139,10 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
     return (value / 100) * viewportHeight
   else
     if ErrorHandler then
-      ErrorHandler.error("Units", string.format("Unknown unit '%s'. Valid units: px, %%, vw, vh, ew, eh", unit))
+      ErrorHandler.error("Units", "VAL_005", "Invalid unit format", {
+        unit = unit,
+        validUnits = "px, %, vw, vh, ew, eh"
+      })
     else
       error(string.format("Unknown unit type: '%s'", unit))
     end

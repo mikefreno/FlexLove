@@ -1,15 +1,22 @@
 local modulePath = (...):match("(.-)[^%.]+$")
 local ImageScaler = require(modulePath .. "ImageScaler")
 
---- Standardized error message formatter
----@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string -- Error message
----@return string -- Formatted error message
-local function formatError(module, message)
-  return string.format("[FlexLove.%s] %s", module, message)
-end
-
 local NinePatch = {}
+
+-- ErrorHandler will be injected via init
+local ErrorHandler = nil
+
+--- Initialize NinePatch with dependencies
+---@param deps table Dependencies table with ErrorHandler
+function NinePatch.init(deps)
+  if deps and deps.ErrorHandler then
+    ErrorHandler = deps.ErrorHandler
+  end
+  -- Also initialize ImageScaler since it's a dependency
+  if ImageScaler.init then
+    ImageScaler.init(deps)
+  end
+end
 
 --- Draw a 9-patch component using Android-style rendering
 --- Corners are scaled by scaleCorners multiplier, edges stretch in one dimension only
@@ -92,7 +99,9 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
       -- Get ImageData from component (stored during theme loading)
       local atlasData = component._loadedAtlasData
       if not atlasData then
-        error(formatError("NinePatch", "No ImageData available for atlas. Image must be loaded with safeLoadImage."))
+        ErrorHandler.error("NinePatch", "REN_007", "No ImageData available for atlas. Image must be loaded with safeLoadImage.", {
+          componentType = component.type,
+        })
       end
 
       local scaledData

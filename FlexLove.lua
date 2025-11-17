@@ -9,6 +9,7 @@ local utils = req("utils")
 local Units = req("Units")
 local Context = req("Context")
 local StateManager = req("StateManager")
+local ErrorCodes = req("ErrorCodes")
 local ErrorHandler = req("ErrorHandler")
 local ImageRenderer = req("ImageRenderer")
 local NinePatch = req("NinePatch")
@@ -58,12 +59,32 @@ Element.defaultDependencies = {
 ---@class FlexLove
 local flexlove = Context
 
+-- Initialize ErrorHandler with ErrorCodes dependency
+ErrorHandler.init({ ErrorCodes = ErrorCodes })
+
+-- Initialize modules that use ErrorHandler via DI
+local errorHandlerDeps = { ErrorHandler = ErrorHandler }
+if ImageRenderer.init then ImageRenderer.init(errorHandlerDeps) end
+if ImageScaler then 
+  local ImageScaler = req("ImageScaler")
+  if ImageScaler.init then ImageScaler.init(errorHandlerDeps) end
+end
+if NinePatch.init then NinePatch.init(errorHandlerDeps) end
+local ImageDataReader = req("ImageDataReader")
+if ImageDataReader.init then ImageDataReader.init(errorHandlerDeps) end
+
 -- Initialize Units module with Context dependency
 Units.initialize(Context)
 Units.initializeErrorHandler(ErrorHandler)
 
+-- Initialize ErrorHandler for Color module
+Color.initializeErrorHandler(ErrorHandler)
+
+-- Initialize ErrorHandler for utils
+utils.initializeErrorHandler(ErrorHandler)
+
 -- Add version and metadata
-flexlove._VERSION = "0.2.1"
+flexlove._VERSION = "0.2.2"
 flexlove._DESCRIPTION = "0I Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
 flexlove._LICENSE = [[
@@ -90,9 +111,19 @@ flexlove._LICENSE = [[
   SOFTWARE.
 ]]
 
----@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean}
+---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean, errorLogFile?: string, enableErrorLogging?: boolean}
 function flexlove.init(config)
   config = config or {}
+
+  -- Configure error logging
+  if config.errorLogFile then
+    ErrorHandler.setLogTarget("file")
+    ErrorHandler.setLogFile(config.errorLogFile)
+  elseif config.enableErrorLogging == true then
+    -- Use default log file if logging enabled but no path specified
+    ErrorHandler.setLogTarget("file")
+    ErrorHandler.setLogFile("flexlove-errors.log")
+  end
 
   if config.baseScale then
     flexlove.baseScale = {

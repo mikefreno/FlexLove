@@ -24,51 +24,67 @@ function TestImageScaler:testScaleNearestWithNilSource()
 end
 
 function TestImageScaler:testScaleNearestWithZeroSourceWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 0, 10, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 0, 10, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithZeroSourceHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 0, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 0, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithNegativeSourceWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, -10, 10, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, -10, 10, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithNegativeSourceHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, -10, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, -10, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithZeroDestWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, 0, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, 0, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithZeroDestHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, 20, 0)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, 20, 0)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithNegativeDestWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, -20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, -20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleNearestWithNegativeDestHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, 20, -20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleNearest(self.mockImageData, 0, 0, 10, 10, 20, -20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 -- Unhappy path tests for scaleBilinear
@@ -80,51 +96,67 @@ function TestImageScaler:testScaleBilinearWithNilSource()
 end
 
 function TestImageScaler:testScaleBilinearWithZeroSourceWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 0, 10, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 0, 10, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithZeroSourceHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 0, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 0, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithNegativeSourceWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, -10, 10, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, -10, 10, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithNegativeSourceHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, -10, 20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, -10, 20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithZeroDestWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, 0, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, 0, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithZeroDestHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, 20, 0)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, 20, 0)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithNegativeDestWidth()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, -20, 20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, -20, 20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 function TestImageScaler:testScaleBilinearWithNegativeDestHeight()
-  luaunit.assertError(function()
-    ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, 20, -20)
-  end)
+  -- Now returns 1x1 transparent fallback with warning instead of error
+  local result = ImageScaler.scaleBilinear(self.mockImageData, 0, 0, 10, 10, 20, -20)
+  luaunit.assertNotNil(result)
+  luaunit.assertEquals(result:getWidth(), 1)
+  luaunit.assertEquals(result:getHeight(), 1)
 end
 
 -- Edge case tests

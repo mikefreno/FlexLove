@@ -36,10 +36,17 @@ if ! git diff-index --quiet HEAD --; then
   echo ""
 fi
 
-CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+# Get current version from latest git tag
+CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
 if [ -z "$CURRENT_VERSION" ]; then
-  echo -e "${RED}Error: Could not extract version from FlexLove.lua${NC}"
-  exit 1
+  echo -e "${YELLOW}Warning: No existing git tags found${NC}"
+  echo -e "${YELLOW}Attempting to read version from FlexLove.lua...${NC}"
+  CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+  if [ -z "$CURRENT_VERSION" ]; then
+    echo -e "${RED}Error: Could not extract version from git tags or FlexLove.lua${NC}"
+    exit 1
+  fi
+  echo -e "${YELLOW}Using version from FlexLove.lua as fallback${NC}"
 fi
 
 echo -e "${CYAN}Current version:${NC} ${GREEN}v${CURRENT_VERSION}${NC}"
@@ -160,9 +167,88 @@ fi
 
 # Commit changes
 echo ""
+echo -e "${YELLOW}Ready to commit and create tag${NC}"
+echo -e "${CYAN}Default commit message:${NC} v${NEW_VERSION} release"
+echo ""
+read -p "Add a custom commit message? (y/n) " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  read -p "Enter commit message: " CUSTOM_COMMIT_MSG
+  COMMIT_MSG="$CUSTOM_COMMIT_MSG"
+else
+  COMMIT_MSG="v${NEW_VERSION} release"
+fi
+echo ""
+echo -e "${CYAN}Commit message:${NC} ${COMMIT_MSG}"
+echo -e "${CYAN}Tag:${NC} v${NEW_VERSION}"
+echo ""
+read -p "Commit changes and create tag? (y/n) " -n 1 -r
+echo ""
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo -e "${YELLOW}Changes staged but not committed${NC}"
+  echo "You can:"
+  echo "  - Review changes: git diff --cached"
+  echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
+  echo "  - Unstage: git restore --staged FlexLove.lua README.md"
+  exit 0
+fi
+
+# Commit changes
+echo ""
 echo -e "${CYAN}[4/4]${NC} Committing and tagging..."
-git commit -m "v${NEW_VERSION} release"
+git commit -m "$COMMIT_MSG"
 git tag -a "v${NEW_VERSION}" -m "Release version ${NEW_VERSION}"
+
+echo -e "${CYAN}Pushing commits...${NC}"
+if ! git push 2>&1; then
+  echo ""
+  echo -e "${RED}═══════════════════════════════════════${NC}"
+  echo -e "${RED}✗ Push failed!${NC}"
+  echo -e "${RED}═══════════════════════════════════════${NC}"
+  echo ""
+  echo -e "${YELLOW}Common reasons:${NC}"
+  echo "  • No network connection"
+  echo "  • Authentication failed (check credentials/SSH keys)"
+  echo "  • Branch protection rules preventing direct push"
+  echo "  • Remote branch diverged (pull needed first)"
+  echo "  • No push permissions for this repository"
+  echo ""
+  echo -e "${YELLOW}The commit and tag were created locally but not pushed.${NC}"
+  echo ""
+  echo -e "${CYAN}To retry pushing:${NC}"
+  echo "  git push"
+  echo "  git push origin tag \"v${NEW_VERSION}\""
+  echo ""
+  echo -e "${CYAN}To undo the tag:${NC}"
+  echo "  git tag -d \"v${NEW_VERSION}\""
+  echo "  git reset --soft HEAD~1"
+  echo ""
+  exit 1
+fi
+
+echo -e "${CYAN}Pushing tags...${NC}"
+if ! git push origin tag "v${NEW_VERSION}" 2>&1; then
+  echo ""
+  echo -e "${RED}═══════════════════════════════════════${NC}"
+  echo -e "${RED}✗ Tag push failed!${NC}"
+  echo -e "${RED}═══════════════════════════════════════${NC}"
+  echo ""
+  echo -e "${YELLOW}Common reasons:${NC}"
+  echo "  • No network connection"
+  echo "  • Authentication failed (check credentials/SSH keys)"
+  echo "  • Tag already exists on remote"
+  echo "  • No push permissions for this repository"
+  echo ""
+  echo -e "${GREEN}The commit was pushed successfully, but the tag was not.${NC}"
+  echo ""
+  echo -e "${CYAN}To retry pushing the tag:${NC}"
+  echo "  git push origin tag \"v${NEW_VERSION}\""
+  echo ""
+  echo -e "${CYAN}To delete the local tag:${NC}"
+  echo "  git tag -d \"v${NEW_VERSION}\""
+  echo ""
+  exit 1
+fi
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════${NC}"

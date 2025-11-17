@@ -1,18 +1,21 @@
---- Standardized error message formatter
----@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string -- Error message
----@return string -- Formatted error message
-local function formatError(module, message)
-  return string.format("[FlexLove.%s] %s", module, message)
-end
-
 local ImageDataReader = {}
+
+-- ErrorHandler will be injected via init
+local ErrorHandler = nil
+
+--- Initialize ImageDataReader with dependencies
+---@param deps table Dependencies table with ErrorHandler
+function ImageDataReader.init(deps)
+  if deps and deps.ErrorHandler then
+    ErrorHandler = deps.ErrorHandler
+  end
+end
 
 ---@param imagePath string
 ---@return love.ImageData
 function ImageDataReader.loadImageData(imagePath)
   if not imagePath then
-    error(formatError("ImageDataReader", "Image path cannot be nil"))
+    ErrorHandler.error("ImageDataReader", "VAL_001", "Image path cannot be nil")
   end
 
   local success, result = pcall(function()
@@ -20,7 +23,10 @@ function ImageDataReader.loadImageData(imagePath)
   end)
 
   if not success then
-    error(formatError("ImageDataReader", "Failed to load image data from '" .. imagePath .. "': " .. tostring(result)))
+    ErrorHandler.error("ImageDataReader", "RES_001", "Failed to load image data from '" .. imagePath .. "': " .. tostring(result), {
+      imagePath = imagePath,
+      error = tostring(result),
+    })
   end
 
   return result
@@ -32,14 +38,17 @@ end
 ---@return table -- Array of {r, g, b, a} values (0-255 range)
 function ImageDataReader.getRow(imageData, rowIndex)
   if not imageData then
-    error(formatError("ImageDataReader", "ImageData cannot be nil"))
+    ErrorHandler.error("ImageDataReader", "VAL_001", "ImageData cannot be nil")
   end
 
   local width = imageData:getWidth()
   local height = imageData:getHeight()
 
   if rowIndex < 0 or rowIndex >= height then
-    error(formatError("ImageDataReader", string.format("Row index %d out of bounds (height: %d)", rowIndex, height)))
+    ErrorHandler.error("ImageDataReader", "VAL_002", string.format("Row index %d out of bounds (height: %d)", rowIndex, height), {
+      rowIndex = rowIndex,
+      height = height,
+    })
   end
 
   local pixels = {}
@@ -62,14 +71,17 @@ end
 ---@return table -- Array of {r, g, b, a} values (0-255 range)
 function ImageDataReader.getColumn(imageData, colIndex)
   if not imageData then
-    error(formatError("ImageDataReader", "ImageData cannot be nil"))
+    ErrorHandler.error("ImageDataReader", "VAL_001", "ImageData cannot be nil")
   end
 
   local width = imageData:getWidth()
   local height = imageData:getHeight()
 
   if colIndex < 0 or colIndex >= width then
-    error(formatError("ImageDataReader", string.format("Column index %d out of bounds (width: %d)", colIndex, width)))
+    ErrorHandler.error("ImageDataReader", "VAL_002", string.format("Column index %d out of bounds (width: %d)", colIndex, width), {
+      colIndex = colIndex,
+      width = width,
+    })
   end
 
   local pixels = {}

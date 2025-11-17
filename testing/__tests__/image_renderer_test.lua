@@ -65,9 +65,12 @@ function TestImageRenderer:testCalculateFitWithNegativeBoundsHeight()
 end
 
 function TestImageRenderer:testCalculateFitWithInvalidFitMode()
-  luaunit.assertError(function()
-    ImageRenderer.calculateFit(100, 100, 200, 200, "invalid-mode")
-  end)
+  -- Now uses 'fill' fallback with warning instead of error
+  local result = ImageRenderer.calculateFit(100, 100, 200, 200, "invalid-mode")
+  luaunit.assertNotNil(result)
+  -- Should fall back to 'fill' mode behavior (scales to fill bounds)
+  luaunit.assertEquals(result.scaleX, 2)
+  luaunit.assertEquals(result.scaleY, 2)
 end
 
 function TestImageRenderer:testCalculateFitWithNilFitMode()
@@ -208,9 +211,10 @@ function TestImageRenderer:testDrawWithOpacityGreaterThanOne()
 end
 
 function TestImageRenderer:testDrawWithInvalidFitMode()
-  luaunit.assertError(function()
-    ImageRenderer.draw(self.mockImage, 0, 0, 100, 100, "invalid")
-  end)
+  -- Now uses 'fill' fallback with warning instead of error
+  -- Should not throw an error, just use fill mode
+  ImageRenderer.draw(self.mockImage, 0, 0, 100, 100, "invalid")
+  luaunit.assertTrue(true) -- If we reach here, no error was thrown
 end
 
 function TestImageRenderer:testCalculateFitWithVerySmallBounds()

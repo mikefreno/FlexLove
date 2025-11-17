@@ -1,16 +1,19 @@
---- Standardized error message formatter
----@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string -- Error message
----@return string -- Formatted error message
-local function formatError(module, message)
-  return string.format("[FlexLove.%s] %s", module, message)
-end
-
 -- ====================
 -- ImageScaler
 -- ====================
 
 local ImageScaler = {}
+
+-- ErrorHandler will be injected via init
+local ErrorHandler = nil
+
+--- Initialize ImageScaler with dependencies
+---@param deps table Dependencies table with ErrorHandler
+function ImageScaler.init(deps)
+  if deps and deps.ErrorHandler then
+    ErrorHandler = deps.ErrorHandler
+  end
+end
 
 --- Scale an ImageData region using nearest-neighbor sampling
 --- Produces sharp, pixelated scaling - ideal for pixel art
@@ -24,11 +27,21 @@ local ImageScaler = {}
 ---@return love.ImageData -- Scaled image data
 function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
   if not sourceImageData then
-    error(formatError("ImageScaler", "Source ImageData cannot be nil"))
+    ErrorHandler.error("ImageScaler", "VAL_001", "Source ImageData cannot be nil")
   end
 
   if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
-    error(formatError("ImageScaler", "Dimensions must be positive"))
+    ErrorHandler.warn("ImageScaler", "VAL_002", "Dimensions must be positive", {
+      srcW = srcW,
+      srcH = srcH,
+      destW = destW,
+      destH = destH,
+      fallback = "1x1 transparent image"
+    })
+    -- Return a minimal 1x1 transparent image as fallback
+    local fallbackImageData = love.image.newImageData(1, 1)
+    fallbackImageData:setPixel(0, 0, 0, 0, 0, 0)
+    return fallbackImageData
   end
 
   -- Create destination ImageData
@@ -82,11 +95,21 @@ end
 ---@return love.ImageData -- Scaled image data
 function ImageScaler.scaleBilinear(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
   if not sourceImageData then
-    error(formatError("ImageScaler", "Source ImageData cannot be nil"))
+    ErrorHandler.error("ImageScaler", "VAL_001", "Source ImageData cannot be nil")
   end
 
   if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
-    error(formatError("ImageScaler", "Dimensions must be positive"))
+    ErrorHandler.warn("ImageScaler", "VAL_002", "Dimensions must be positive", {
+      srcW = srcW,
+      srcH = srcH,
+      destW = destW,
+      destH = destH,
+      fallback = "1x1 transparent image"
+    })
+    -- Return a minimal 1x1 transparent image as fallback
+    local fallbackImageData = love.image.newImageData(1, 1)
+    fallbackImageData:setPixel(0, 0, 0, 0, 0, 0)
+    return fallbackImageData
   end
 
   -- Create destination ImageData

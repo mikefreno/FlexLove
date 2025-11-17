@@ -1,5 +1,3 @@
---- Error code definitions for FlexLove
---- Provides centralized error codes, descriptions, and suggested fixes
 ---@class ErrorCodes
 local ErrorCodes = {}
 

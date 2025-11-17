@@ -161,22 +161,24 @@ end
 -- Test: new() with imagePath (successful load via cache)
 function TestRenderer:testNewWithImagePathSuccessfulLoad()
   local mockImage = {
-    getDimensions = function() return 50, 50 end
+    getDimensions = function()
+      return 50, 50
+    end,
   }
-  
+
   -- Pre-populate the cache so load succeeds
   ImageCache._cache["test/image.png"] = {
     image = mockImage,
-    imageData = nil
+    imageData = nil,
   }
-  
+
   local renderer = Renderer.new({
     imagePath = "test/image.png",
   }, createDeps())
 
   luaunit.assertEquals(renderer.imagePath, "test/image.png")
   luaunit.assertEquals(renderer._loadedImage, mockImage)
-  
+
   -- Clean up cache
   ImageCache._cache["test/image.png"] = nil
 end

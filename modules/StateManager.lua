@@ -1,6 +1,9 @@
 ---@class StateManager
 local StateManager = {}
 
+-- Load error handler (loaded lazily since it's in a sibling module)
+local ErrorHandler
+
 -- State storage: ID -> state table
 local stateStore = {}
 
@@ -181,7 +184,14 @@ end
 ---@return table state State table for the element
 function StateManager.getState(id, defaultState)
   if not id then
-    error("StateManager.getState: id is required")
+    -- Lazy load ErrorHandler
+    if not ErrorHandler then
+      ErrorHandler = require("modules.ErrorHandler")
+    end
+    ErrorHandler.error("StateManager", "SYS_001", "Invalid state ID", {
+      parameter = "id",
+      value = "nil"
+    }, "Provide a valid non-nil ID string to getState()")
   end
 
   -- Create state if it doesn't exist
@@ -303,7 +313,14 @@ end
 ---@param state table State to store
 function StateManager.setState(id, state)
   if not id then
-    error("StateManager.setState: id is required")
+    -- Lazy load ErrorHandler
+    if not ErrorHandler then
+      ErrorHandler = require("modules.ErrorHandler")
+    end
+    ErrorHandler.error("StateManager", "SYS_001", "Invalid state ID", {
+      parameter = "id",
+      value = "nil"
+    }, "Provide a valid non-nil ID string to setState()")
   end
 
   stateStore[id] = state

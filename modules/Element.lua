@@ -109,6 +109,8 @@
 ---@field objectFit "fill"|"contain"|"cover"|"scale-down"|"none"? -- Image fit mode (default: "fill")
 ---@field objectPosition string? -- Image position like "center center", "top left", "50% 50%" (default: "center center")
 ---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
+---@field imageRepeat "no-repeat"|"repeat"|"repeat-x"|"repeat-y"|"space"|"round"? -- Image repeat/tiling mode (default: "no-repeat")
+---@field imageTint Color? -- Color to tint the image (default: nil/white, no tint)
 ---@field _loadedImage love.Image? -- Internal: cached loaded image
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
 ---@field userdata table?
@@ -176,6 +178,7 @@ function Element.new(props, deps)
     ImageCache = deps.ImageCache,
     Theme = deps.Theme,
     Blur = deps.Blur,
+    Transform = deps.Transform,
     utils = deps.utils,
   }
   
@@ -389,6 +392,9 @@ function Element.new(props, deps)
   -- Set visibility property (default: "visible")
   self.visibility = props.visibility or "visible"
 
+  -- Set transform property (optional)
+  self.transform = props.transform or nil
+
   -- Handle cornerRadius (can be number or table)
   if props.cornerRadius then
     if type(props.cornerRadius) == "number" then
@@ -451,6 +457,23 @@ function Element.new(props, deps)
   end
   self.imageOpacity = props.imageOpacity or 1
 
+  -- Validate and set imageRepeat
+  if props.imageRepeat then
+    local validImageRepeat = { 
+      ["no-repeat"] = "no-repeat", 
+      ["repeat"] = "repeat", 
+      ["repeat-x"] = "repeat-x", 
+      ["repeat-y"] = "repeat-y",
+      space = "space",
+      round = "round"
+    }
+    self._deps.utils.validateEnum(props.imageRepeat, validImageRepeat, "imageRepeat")
+  end
+  self.imageRepeat = props.imageRepeat or "no-repeat"
+
+  -- Set imageTint
+  self.imageTint = props.imageTint
+
   -- Auto-load image if imagePath is provided
   if self.imagePath and not self.image then
     local loadedImage, err = self._deps.ImageCache.load(self.imagePath)
@@ -483,6 +506,8 @@ function Element.new(props, deps)
     objectFit = self.objectFit,
     objectPosition = self.objectPosition,
     imageOpacity = self.imageOpacity,
+    imageRepeat = self.imageRepeat,
+    imageTint = self.imageTint,
     contentBlur = self.contentBlur,
     backdropBlur = self.backdropBlur,
   }, rendererDeps)
@@ -2026,17 +2051,75 @@ function Element:update(dt)
 
   -- Update animation if exists
   if self.animation then
-    local finished = self.animation:update(dt)
+    -- Ensure animation has Color module reference for color interpolation
+    if not self.animation._Color and self._deps.Color then
+      self.animation:setColorModule(self._deps.Color)
+    end
+    
+    -- Ensure animation has Transform module reference for transform interpolation
+    if not self.animation._Transform and self._deps.Transform then
+      self.animation:setTransformModule(self._deps.Transform)
+    end
+    
+    local finished = self.animation:update(dt, self)
     if finished then
+      -- Animation:update() already called onComplete callback
       self.animation = nil -- remove finished animation
     else
       -- Apply animation interpolation during update
       local anim = self.animation:interpolate()
+      
+      -- Apply numeric properties
       self.width = anim.width or self.width
       self.height = anim.height or self.height
       self.opacity = anim.opacity or self.opacity
-      -- Update background color with interpolated opacity
-      if anim.opacity then
+      self.x = anim.x or self.x
+      self.y = anim.y or self.y
+      self.gap = anim.gap or self.gap
+      self.imageOpacity = anim.imageOpacity or self.imageOpacity
+      self.scrollbarWidth = anim.scrollbarWidth or self.scrollbarWidth
+      self.borderWidth = anim.borderWidth or self.borderWidth
+      self.fontSize = anim.fontSize or self.fontSize
+      self.lineHeight = anim.lineHeight or self.lineHeight
+      
+      -- Apply color properties
+      if anim.backgroundColor then
+        self.backgroundColor = anim.backgroundColor
+      end
+      if anim.borderColor then
+        self.borderColor = anim.borderColor
+      end
+      if anim.textColor then
+        self.textColor = anim.textColor
+      end
+      if anim.scrollbarColor then
+        self.scrollbarColor = anim.scrollbarColor
+      end
+      if anim.scrollbarBackgroundColor then
+        self.scrollbarBackgroundColor = anim.scrollbarBackgroundColor
+      end
+      if anim.imageTint then
+        self.imageTint = anim.imageTint
+      end
+      
+      -- Apply table properties
+      if anim.padding then
+        self.padding = anim.padding
+      end
+      if anim.margin then
+        self.margin = anim.margin
+      end
+      if anim.cornerRadius then
+        self.cornerRadius = anim.cornerRadius
+      end
+      
+      -- Apply transform property
+      if anim.transform then
+        self.transform = anim.transform
+      end
+      
+      -- Backward compatibility: Update background color with interpolated opacity
+      if anim.opacity and not anim.backgroundColor then
         self.backgroundColor.a = anim.opacity
       end
     end
@@ -2739,6 +2822,87 @@ function Element:_trackActiveAnimations()
       "High animation counts may impact frame rate. Consider reducing concurrent animations or using CSS-style transitions"
     )
   end
+end
+
+--- Set image tint color
+---@param color Color Color to tint the image
+function Element:setImageTint(color)
+  self.imageTint = color
+  if self._renderer then
+    self._renderer.imageTint = color
+  end
+end
+
+--- Set image opacity
+---@param opacity number Opacity 0-1
+function Element:setImageOpacity(opacity)
+  if opacity ~= nil then
+    self._deps.utils.validateRange(opacity, 0, 1, "imageOpacity")
+  end
+  self.imageOpacity = opacity
+  if self._renderer then
+    self._renderer.imageOpacity = opacity
+  end
+end
+
+--- Set image repeat mode
+---@param repeatMode string Repeat mode: "no-repeat", "repeat", "repeat-x", "repeat-y", "space", "round"
+function Element:setImageRepeat(repeatMode)
+  local validImageRepeat = { 
+    ["no-repeat"] = "no-repeat", 
+    ["repeat"] = "repeat", 
+    ["repeat-x"] = "repeat-x", 
+    ["repeat-y"] = "repeat-y",
+    space = "space",
+    round = "round"
+  }
+  self._deps.utils.validateEnum(repeatMode, validImageRepeat, "imageRepeat")
+  self.imageRepeat = repeatMode
+  if self._renderer then
+    self._renderer.imageRepeat = repeatMode
+  end
+end
+
+--- Rotate element by angle
+---@param angle number Angle in radians
+function Element:rotate(angle)
+  if not self.transform then
+    self.transform = self._deps.Transform.new({})
+  end
+  self.transform.rotate = angle
+end
+
+--- Scale element
+---@param scaleX number X-axis scale
+---@param scaleY number? Y-axis scale (defaults to scaleX)
+function Element:scale(scaleX, scaleY)
+  if not self.transform then
+    self.transform = self._deps.Transform.new({})
+  end
+  self.transform.scaleX = scaleX
+  self.transform.scaleY = scaleY or scaleX
+end
+
+--- Translate element
+---@param x number X translation
+---@param y number Y translation
+function Element:translate(x, y)
+  if not self.transform then
+    self.transform = self._deps.Transform.new({})
+  end
+  self.transform.translateX = x
+  self.transform.translateY = y
+end
+
+--- Set transform origin
+---@param originX number X origin (0-1, where 0.5 is center)
+---@param originY number Y origin (0-1, where 0.5 is center)
+function Element:setTransformOrigin(originX, originY)
+  if not self.transform then
+    self.transform = self._deps.Transform.new({})
+  end
+  self.transform.originX = originX
+  self.transform.originY = originY
 end
 
 return Element

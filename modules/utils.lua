@@ -64,6 +64,15 @@ local enums = {
     XL3 = "3xl",
     XL4 = "4xl",
   },
+  ---@enum ImageRepeat
+  ImageRepeat = {
+    NO_REPEAT = "no-repeat",
+    REPEAT = "repeat",
+    REPEAT_X = "repeat-x",
+    REPEAT_Y = "repeat-y",
+    SPACE = "space",
+    ROUND = "round",
+  },
 }
 
 --- Get current keyboard modifiers state

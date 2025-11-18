@@ -11,7 +11,6 @@ This library is under active development. While many features are functional, so
 ### Coming Soon
 The following features are currently being actively developed:
 - **Animations**(in progress): Simple to use animations for UI transitions and effects
-- **Generic Image Support**(in progress): Enhanced image rendering capabilities and utilities
 - **Multi-touch Support**(on hold): Support for multi-touch events with additional parameters
 
 
@@ -24,6 +23,7 @@ The following features are currently being actively developed:
 - **Theme System**: 9-patch (NinePatch) theming with state support (normal, hover, pressed, disabled)
 - **Android 9-Patch Auto-Parsing**: Automatic parsing of *.9.png files with multi-region support
 - **Animations**: Built-in animation support for transitions and effects
+- **Image Support**: CSS-like object-fit, object-position, tiling/repeat modes, tinting, and opacity control
 - **Responsive Design**: Automatic resizing with viewport units (vw, vh, %)
 - **Color Handling**: Utility classes for managing colors in various formats
 - **Text Rendering**: Flexible text display with alignment and auto-scaling
@@ -231,6 +231,15 @@ Common properties for all elements:
   textColor = Color.new(1, 1, 1, 1),
   textAlign = "start",      -- "start", "center", "end"
   textSize = "md",          -- Number or preset ("xs", "sm", "md", "lg", "xl", etc.)
+  
+  -- Images
+  imagePath = "path/to/image.png",  -- Path to image file (auto-loads)
+  image = imageObject,              -- Or provide love.Image directly
+  objectFit = "fill",               -- "fill", "contain", "cover", "scale-down", "none"
+  objectPosition = "center center", -- Image positioning (keywords or percentages)
+  imageRepeat = "no-repeat",        -- "no-repeat", "repeat", "repeat-x", "repeat-y", "space", "round"
+  imageTint = Color.new(1, 1, 1, 1), -- Color tint overlay (default: white/no tint)
+  imageOpacity = 1,                 -- Image opacity 0-1 (combines with element opacity)
   
   -- Theming
   theme = "space",          -- Theme name
@@ -556,6 +565,56 @@ local customAnim = Animation.new({
 })
 customAnim:apply(element)
 ```
+
+### Images
+
+Display images with CSS-like object-fit and positioning:
+
+```lua
+local Gui = FlexLove.Gui
+
+-- Basic image display
+local imageBox = Gui.new({
+  width = 200,
+  height = 200,
+  imagePath = "assets/photo.jpg",
+  objectFit = "cover",          -- fill, contain, cover, scale-down, none
+  objectPosition = "center center", -- positioning within bounds
+  imageOpacity = 1.0,
+  imageTint = Color.new(1, 1, 1, 1), -- optional color tint
+})
+```
+
+**Object-fit modes:**
+- `fill` - Stretch to fill (may distort)
+- `contain` - Fit within bounds (preserves aspect ratio)
+- `cover` - Cover bounds (preserves aspect ratio, may crop)
+- `scale-down` - Use smaller of none or contain
+- `none` - Natural size (no scaling)
+
+**Object-position examples:**
+- `"center center"` - Center both axes
+- `"top left"` - Top-left corner
+- `"bottom right"` - Bottom-right corner
+- `"50% 20%"` - Custom percentage positioning
+
+**Image tiling:**
+```lua
+{
+  imagePath = "pattern.png",
+  imageRepeat = "repeat",  -- repeat, repeat-x, repeat-y, no-repeat, space, round
+}
+```
+
+**Image effects:**
+```lua
+{
+  imageTint = Color.new(1, 0, 0, 1),  -- Red tint overlay
+  imageOpacity = 0.8,                   -- 80% opacity
+}
+```
+
+See `examples/image_showcase.lua` for a comprehensive demonstration of all image features.
 
 ### Creating Colors
 

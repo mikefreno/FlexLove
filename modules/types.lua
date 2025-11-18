@@ -125,3 +125,15 @@ local ElementProps = {}
 ---@field bottom boolean
 ---@field left boolean
 local Border = {}
+
+---@class TransformProps
+---@field rotate number? Rotation in radians (default: 0)
+---@field scaleX number? X-axis scale (default: 1)
+---@field scaleY number? Y-axis scale (default: 1)
+---@field translateX number? X translation in pixels (default: 0)
+---@field translateY number? Y translation in pixels (default: 0)
+---@field skewX number? X-axis skew in radians (default: 0)
+---@field skewY number? Y-axis skew in radians (default: 0)
+---@field originX number? Transform origin X (0-1, default: 0.5)
+---@field originY number? Transform origin Y (0-1, default: 0.5)
+local TransformProps

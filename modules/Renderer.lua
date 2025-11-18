@@ -35,7 +35,7 @@ local ErrorHandler
 
 --- Create a new Renderer instance
 ---@param config table Configuration table with rendering properties
----@param deps table Dependencies {Color, RoundedRect, NinePatch, ImageRenderer, ImageCache, Theme, Blur, utils}
+---@param deps table Dependencies {Color, RoundedRect, NinePatch, ImageRenderer, ImageCache, Theme, Blur, Transform, utils}
 function Renderer.new(config, deps)
   local Color = deps.Color
   local ImageCache = deps.ImageCache
@@ -50,6 +50,7 @@ function Renderer.new(config, deps)
   self._ImageCache = ImageCache
   self._Theme = deps.Theme
   self._Blur = deps.Blur
+  self._Transform = deps.Transform
   self._utils = deps.utils
   self._FONT_CACHE = deps.utils.FONT_CACHE
   self._TextAlign = deps.utils.enums.TextAlign
@@ -90,6 +91,8 @@ function Renderer.new(config, deps)
   self.objectFit = config.objectFit or "fill"
   self.objectPosition = config.objectPosition or "center center"
   self.imageOpacity = config.imageOpacity or 1
+  self.imageRepeat = config.imageRepeat or "no-repeat"
+  self.imageTint = config.imageTint
 
   -- Blur effects
   self.contentBlur = config.contentBlur
@@ -193,8 +196,14 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
     love.graphics.setStencilTest("greater", 0)
   end
 
-  -- Draw the image
-  self._ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity)
+  -- Draw the image based on repeat mode
+  if self.imageRepeat and self.imageRepeat ~= "no-repeat" then
+    -- Use tiled rendering
+    self._ImageRenderer.drawTiled(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.imageRepeat, finalOpacity, self.imageTint)
+  else
+    -- Use standard fit-based rendering
+    self._ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity, self.imageTint)
+  end
 
   -- Clear stencil if it was used
   if hasCornerRadius then
@@ -347,6 +356,12 @@ function Renderer:draw(backdropCanvas)
   local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
   local borderBoxHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
+  -- Apply transform if exists
+  local hasTransform = element.transform and self._Transform and not self._Transform.isIdentity(element.transform)
+  if hasTransform then
+    self._Transform.apply(element.transform, element.x, element.y, element.width, element.height)
+  end
+
   -- LAYER 0.5: Draw backdrop blur if configured (before background)
   if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
     local blurInstance = self:getBlurInstance()
@@ -366,6 +381,11 @@ function Renderer:draw(backdropCanvas)
 
   -- LAYER 3: Draw borders on top of theme
   self:_drawBorders(element.x, element.y, borderBoxWidth, borderBoxHeight)
+
+  -- Unapply transform if it was applied
+  if hasTransform then
+    self._Transform.unapply()
+  end
   
   -- Stop performance timing
   if Performance and Performance.isEnabled() and elementId then

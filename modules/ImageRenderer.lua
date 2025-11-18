@@ -197,7 +197,8 @@ end
 ---@param fitMode string? -- Object-fit mode (default: "fill")
 ---@param objectPosition string? -- Object-position (default: "center center")
 ---@param opacity number? -- Opacity 0-1 (default: 1)
-function ImageRenderer.draw(image, x, y, width, height, fitMode, objectPosition, opacity)
+---@param tintColor Color? -- Color to tint the image (default: white/no tint)
+function ImageRenderer.draw(image, x, y, width, height, fitMode, objectPosition, opacity, tintColor)
   if not image then
     return -- Nothing to draw
   end
@@ -212,8 +213,12 @@ function ImageRenderer.draw(image, x, y, width, height, fitMode, objectPosition,
   -- Save current color
   local r, g, b, a = love.graphics.getColor()
 
-  -- Apply opacity
-  love.graphics.setColor(1, 1, 1, opacity)
+  -- Apply opacity and tint
+  if tintColor then
+    love.graphics.setColor(tintColor.r, tintColor.g, tintColor.b, tintColor.a * opacity)
+  else
+    love.graphics.setColor(1, 1, 1, opacity)
+  end
 
   -- Draw image
   if params.sx ~= 0 or params.sy ~= 0 or params.sw ~= imgWidth or params.sh ~= imgHeight then
@@ -223,6 +228,141 @@ function ImageRenderer.draw(image, x, y, width, height, fitMode, objectPosition,
   else
     -- Simple draw with scaling
     love.graphics.draw(image, x + params.dx, y + params.dy, 0, params.scaleX, params.scaleY)
+  end
+
+  -- Restore color
+  love.graphics.setColor(r, g, b, a)
+end
+
+--- Draw an image with tiling/repeat mode
+---@param image love.Image -- Image to draw
+---@param x number -- X position of bounds
+---@param y number -- Y position of bounds
+---@param width number -- Width of bounds
+---@param height number -- Height of bounds
+---@param repeatMode string? -- Repeat mode: "repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round" (default: "no-repeat")
+---@param opacity number? -- Opacity 0-1 (default: 1)
+---@param tintColor Color? -- Color to tint the image (default: white/no tint)
+function ImageRenderer.drawTiled(image, x, y, width, height, repeatMode, opacity, tintColor)
+  if not image then
+    return -- Nothing to draw
+  end
+
+  opacity = opacity or 1
+  repeatMode = repeatMode or "no-repeat"
+
+  local imgWidth, imgHeight = image:getDimensions()
+
+  -- Save current color
+  local r, g, b, a = love.graphics.getColor()
+
+  -- Apply opacity and tint
+  if tintColor then
+    love.graphics.setColor(tintColor.r, tintColor.g, tintColor.b, tintColor.a * opacity)
+  else
+    love.graphics.setColor(1, 1, 1, opacity)
+  end
+
+  if repeatMode == "no-repeat" then
+    -- Just draw once, no tiling
+    love.graphics.draw(image, x, y)
+  elseif repeatMode == "repeat" then
+    -- Tile in both directions
+    local tilesX = math.ceil(width / imgWidth)
+    local tilesY = math.ceil(height / imgHeight)
+
+    for tileY = 0, tilesY - 1 do
+      for tileX = 0, tilesX - 1 do
+        local drawX = x + (tileX * imgWidth)
+        local drawY = y + (tileY * imgHeight)
+
+        -- Calculate how much of the tile to draw (for partial tiles at edges)
+        local drawWidth = math.min(imgWidth, width - (tileX * imgWidth))
+        local drawHeight = math.min(imgHeight, height - (tileY * imgHeight))
+
+        if drawWidth < imgWidth or drawHeight < imgHeight then
+          -- Use quad for partial tile
+          local quad = love.graphics.newQuad(0, 0, drawWidth, drawHeight, imgWidth, imgHeight)
+          love.graphics.draw(image, quad, drawX, drawY)
+        else
+          -- Draw full tile
+          love.graphics.draw(image, drawX, drawY)
+        end
+      end
+    end
+  elseif repeatMode == "repeat-x" then
+    -- Tile horizontally only
+    local tilesX = math.ceil(width / imgWidth)
+
+    for tileX = 0, tilesX - 1 do
+      local drawX = x + (tileX * imgWidth)
+      local drawWidth = math.min(imgWidth, width - (tileX * imgWidth))
+
+      if drawWidth < imgWidth then
+        -- Use quad for partial tile
+        local quad = love.graphics.newQuad(0, 0, drawWidth, imgHeight, imgWidth, imgHeight)
+        love.graphics.draw(image, quad, drawX, y)
+      else
+        -- Draw full tile
+        love.graphics.draw(image, drawX, y)
+      end
+    end
+  elseif repeatMode == "repeat-y" then
+    -- Tile vertically only
+    local tilesY = math.ceil(height / imgHeight)
+
+    for tileY = 0, tilesY - 1 do
+      local drawY = y + (tileY * imgHeight)
+      local drawHeight = math.min(imgHeight, height - (tileY * imgHeight))
+
+      if drawHeight < imgHeight then
+        -- Use quad for partial tile
+        local quad = love.graphics.newQuad(0, 0, imgWidth, drawHeight, imgWidth, imgHeight)
+        love.graphics.draw(image, quad, x, drawY)
+      else
+        -- Draw full tile
+        love.graphics.draw(image, x, drawY)
+      end
+    end
+  elseif repeatMode == "space" then
+    -- Distribute tiles with even spacing
+    local tilesX = math.floor(width / imgWidth)
+    local tilesY = math.floor(height / imgHeight)
+
+    if tilesX < 1 then tilesX = 1 end
+    if tilesY < 1 then tilesY = 1 end
+
+    local spaceX = tilesX > 1 and (width - (tilesX * imgWidth)) / (tilesX - 1) or 0
+    local spaceY = tilesY > 1 and (height - (tilesY * imgHeight)) / (tilesY - 1) or 0
+
+    for tileY = 0, tilesY - 1 do
+      for tileX = 0, tilesX - 1 do
+        local drawX = x + (tileX * (imgWidth + spaceX))
+        local drawY = y + (tileY * (imgHeight + spaceY))
+        love.graphics.draw(image, drawX, drawY)
+      end
+    end
+  elseif repeatMode == "round" then
+    -- Scale tiles to fit bounds exactly
+    local tilesX = math.max(1, math.round(width / imgWidth))
+    local tilesY = math.max(1, math.round(height / imgHeight))
+
+    local scaleX = width / (tilesX * imgWidth)
+    local scaleY = height / (tilesY * imgHeight)
+
+    for tileY = 0, tilesY - 1 do
+      for tileX = 0, tilesX - 1 do
+        local drawX = x + (tileX * imgWidth * scaleX)
+        local drawY = y + (tileY * imgHeight * scaleY)
+        love.graphics.draw(image, drawX, drawY, 0, scaleX, scaleY)
+      end
+    end
+  else
+    ErrorHandler.warn("ImageRenderer", "VAL_007", string.format("Invalid repeat mode: '%s'. Using 'no-repeat'", tostring(repeatMode)), {
+      repeatMode = repeatMode,
+      fallback = "no-repeat"
+    })
+    love.graphics.draw(image, x, y)
   end
 
   -- Restore color

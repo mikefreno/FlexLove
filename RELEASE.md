@@ -148,7 +148,7 @@ The release package includes **only** the files needed to use FlexLöve:
 - `FlexLove.lua` - Main library
 - `modules/` - All module files
 - `LICENSE` - License terms
-- `README.txt` - Installation instructions
+- `README.md` - Installation instructions
 
 ❌ **Not included:**
 - `docs/` - Documentation (hosted on GitHub Pages)

@@ -5,14 +5,17 @@ local ErrorHandler = nil
 
 --- Initialize Units module with Context dependency
 ---@param context table The Context module
-function Units.initialize(context)
-  Context = context
-end
-
---- Initialize ErrorHandler dependency
----@param errorHandler table The ErrorHandler module
-function Units.initializeErrorHandler(errorHandler)
-  ErrorHandler = errorHandler
+--- Initialize dependencies
+---@param deps table Dependencies: { Context = Context?, ErrorHandler = ErrorHandler? }
+function Units.init(deps)
+  if type(deps) == "table" then
+    if deps.Context then
+      Context = deps.Context
+    end
+    if deps.ErrorHandler then
+      ErrorHandler = deps.ErrorHandler
+    end
+  end
 end
 
 ---@param value string|number

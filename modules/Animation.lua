@@ -1,11 +1,6 @@
---- Easing function type
----@alias EasingFunction fun(t: number): number
-
--- ErrorHandler dependency (injected via initializeErrorHandler)
 local ErrorHandler = nil
-
--- Easing module for easing functions
-local Easing = require("modules.Easing")
+local Easing = nil
+local Color = nil
 ---@class Keyframe
 ---@field at number Normalized time position (0-1)
 ---@field values table Property values at this keyframe
@@ -47,19 +42,19 @@ function Animation.new(props)
   -- Validate input
   if type(props) ~= "table" then
     ErrorHandler.warn("Animation", "Animation.new() requires a table argument. Using default values.")
-    props = {duration = 1, start = {}, final = {}}
+    props = { duration = 1, start = {}, final = {} }
   end
-  
+
   if type(props.duration) ~= "number" or props.duration <= 0 then
     ErrorHandler.warn("Animation", "Animation duration must be a positive number. Using 1 second.")
     props.duration = 1
   end
-  
+
   if type(props.start) ~= "table" then
     ErrorHandler.warn("Animation", "Animation start must be a table. Using empty table.")
     props.start = {}
   end
-  
+
   if type(props.final) ~= "table" then
     ErrorHandler.warn("Animation", "Animation final must be a table. Using empty table.")
     props.final = {}
@@ -114,12 +109,12 @@ function Animation:update(dt, element)
   if type(dt) ~= "number" or dt < 0 or dt ~= dt or dt == math.huge then
     dt = 0
   end
-  
+
   -- Don't update if paused
   if self._paused then
     return false
   end
-  
+
   -- Handle delay
   if self._delay and self._delayElapsed then
     if self._delayElapsed < self._delay then
@@ -127,7 +122,7 @@ function Animation:update(dt, element)
       return false
     end
   end
-  
+
   -- Call onStart on first update
   if not self._hasStarted then
     self._hasStarted = true
@@ -140,10 +135,10 @@ function Animation:update(dt, element)
       end
     end
   end
-  
+
   -- Apply speed multiplier
   dt = dt * self._speed
-  
+
   -- Update elapsed time (reversed if needed)
   if self._reversed then
     self.elapsed = self.elapsed - dt
@@ -165,11 +160,11 @@ function Animation:update(dt, element)
     if self.elapsed >= self.duration then
       self.elapsed = self.duration
       self._resultDirty = true
-      
+
       -- Handle repeat and yoyo
       if self._repeatCount then
         self._repeatCurrent = (self._repeatCurrent or 0) + 1
-        
+
         if self._repeatCount == 0 or self._repeatCurrent < self._repeatCount then
           -- Continue repeating
           if self._yoyo then
@@ -187,7 +182,7 @@ function Animation:update(dt, element)
           return false
         end
       end
-      
+
       -- Animation truly completed
       self._state = "completed"
       -- Call onComplete callback
@@ -200,9 +195,9 @@ function Animation:update(dt, element)
       return true
     end
   end
-  
+
   self._resultDirty = true
-  
+
   -- Call onUpdate callback
   if self.onUpdate and type(self.onUpdate) == "function" then
     local progress = self.elapsed / self.duration
@@ -211,7 +206,7 @@ function Animation:update(dt, element)
       print(string.format("[Animation] onUpdate error: %s", tostring(err)))
     end
   end
-  
+
   return false
 end
 
@@ -231,15 +226,21 @@ end
 ---@param ColorModule table Color module reference
 ---@return any interpolated Interpolated Color instance
 local function lerpColor(startColor, finalColor, easedT, ColorModule)
-  if not ColorModule then
-    return nil
+  -- Use provided ColorModule or fall back to module-level Color or static _ColorModule
+  local CM = ColorModule or Color or Animation._ColorModule
+
+  if not CM or not CM.parse or not CM.lerp then
+    if ErrorHandler then
+      ErrorHandler.warn("Animation", "Color module not properly initialized. Cannot interpolate colors.")
+    end
+    return startColor -- Return start color as fallback
   end
-  
+
   -- Parse colors if needed
-  local colorA = ColorModule.parse(startColor)
-  local colorB = ColorModule.parse(finalColor)
-  
-  return ColorModule.lerp(colorA, colorB, easedT)
+  local colorA = CM.parse(startColor)
+  local colorB = CM.parse(finalColor)
+
+  return CM.lerp(colorA, colorB, easedT)
 end
 
 --- Helper function to interpolate table values (padding, margin, cornerRadius)
@@ -249,16 +250,20 @@ end
 ---@return table interpolated Interpolated table
 local function lerpTable(startTable, finalTable, easedT)
   local result = {}
-  
+
   -- Iterate through all keys in both tables
   local keys = {}
-  for k in pairs(startTable) do keys[k] = true end
-  for k in pairs(finalTable) do keys[k] = true end
-  
+  for k in pairs(startTable) do
+    keys[k] = true
+  end
+  for k in pairs(finalTable) do
+    keys[k] = true
+  end
+
   for key in pairs(keys) do
     local startVal = startTable[key]
     local finalVal = finalTable[key]
-    
+
     if type(startVal) == "number" and type(finalVal) == "number" then
       result[key] = lerpNumber(startVal, finalVal, easedT)
     elseif startVal ~= nil then
@@ -267,7 +272,7 @@ local function lerpTable(startTable, finalTable, easedT)
       result[key] = finalVal
     end
   end
-  
+
   return result
 end
 
@@ -279,11 +284,11 @@ function Animation:findKeyframes(progress)
   if not self.keyframes or #self.keyframes < 2 then
     return nil, nil
   end
-  
+
   -- Find surrounding keyframes
   local prevFrame = self.keyframes[1]
   local nextFrame = self.keyframes[#self.keyframes]
-  
+
   for i = 1, #self.keyframes - 1 do
     if progress >= self.keyframes[i].at and progress <= self.keyframes[i + 1].at then
       prevFrame = self.keyframes[i]
@@ -291,7 +296,7 @@ function Animation:findKeyframes(progress)
       break
     end
   end
-  
+
   return prevFrame, nextFrame
 end
 
@@ -302,50 +307,74 @@ end
 ---@return table result Interpolated values
 function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
   local result = {}
-  
+
   -- Get all unique property keys
   local keys = {}
-  for k in pairs(prevFrame.values) do keys[k] = true end
-  for k in pairs(nextFrame.values) do keys[k] = true end
-  
+  for k in pairs(prevFrame.values) do
+    keys[k] = true
+  end
+  for k in pairs(nextFrame.values) do
+    keys[k] = true
+  end
+
   -- Define properties that should be animated as numbers
   local numericProperties = {
-    "width", "height", "opacity", "x", "y", 
-    "gap", "imageOpacity", "scrollbarWidth",
-    "borderWidth", "fontSize", "lineHeight"
+    "width",
+    "height",
+    "opacity",
+    "x",
+    "y",
+    "gap",
+    "imageOpacity",
+    "scrollbarWidth",
+    "borderWidth",
+    "fontSize",
+    "lineHeight",
   }
-  
+
   -- Define properties that should be animated as Colors
   local colorProperties = {
-    "backgroundColor", "borderColor", "textColor",
-    "scrollbarColor", "scrollbarBackgroundColor", "imageTint"
+    "backgroundColor",
+    "borderColor",
+    "textColor",
+    "scrollbarColor",
+    "scrollbarBackgroundColor",
+    "imageTint",
   }
-  
+
   -- Define properties that should be animated as tables
   local tableProperties = {
-    "padding", "margin", "cornerRadius"
+    "padding",
+    "margin",
+    "cornerRadius",
   }
-  
+
   -- Create lookup sets for faster property type checking
   local numericSet = {}
-  for _, prop in ipairs(numericProperties) do numericSet[prop] = true end
-  
+  for _, prop in ipairs(numericProperties) do
+    numericSet[prop] = true
+  end
+
   local colorSet = {}
-  for _, prop in ipairs(colorProperties) do colorSet[prop] = true end
-  
+  for _, prop in ipairs(colorProperties) do
+    colorSet[prop] = true
+  end
+
   local tableSet = {}
-  for _, prop in ipairs(tableProperties) do tableSet[prop] = true end
-  
+  for _, prop in ipairs(tableProperties) do
+    tableSet[prop] = true
+  end
+
   -- Interpolate each property
   for key in pairs(keys) do
     local startVal = prevFrame.values[key]
     local finalVal = nextFrame.values[key]
-    
+
     if numericSet[key] and type(startVal) == "number" and type(finalVal) == "number" then
       result[key] = lerpNumber(startVal, finalVal, easedT)
-    elseif colorSet[key] and self._Color then
+    elseif colorSet[key] and (self._Color or Animation._ColorModule) then
       if startVal ~= nil and finalVal ~= nil then
-        result[key] = lerpColor(startVal, finalVal, easedT, self._Color)
+        result[key] = lerpColor(startVal, finalVal, easedT, self._Color or Animation._ColorModule)
       end
     elseif tableSet[key] and type(startVal) == "table" and type(finalVal) == "table" then
       result[key] = lerpTable(startVal, finalVal, easedT)
@@ -359,7 +388,7 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
       end
     end
   end
-  
+
   return result
 end
 
@@ -373,18 +402,18 @@ function Animation:interpolate()
   end
 
   local t = math.min(self.elapsed / self.duration, 1)
-  
+
   -- Handle keyframe animations
-  if self.keyframes and #self.keyframes >= 2 then
+  if self.keyframes and type(self.keyframes) == "table" and #self.keyframes >= 2 then
     local prevFrame, nextFrame = self:findKeyframes(t)
-    
+
     if prevFrame and nextFrame then
       -- Calculate local progress between keyframes
       local localProgress = 0
       if nextFrame.at > prevFrame.at then
         localProgress = (t - prevFrame.at) / (nextFrame.at - prevFrame.at)
       end
-      
+
       -- Apply per-keyframe easing
       local easingFn = Easing.linear
       if prevFrame.easing then
@@ -394,15 +423,15 @@ function Animation:interpolate()
           easingFn = prevFrame.easing
         end
       end
-      
+
       local success, easedT = pcall(easingFn, localProgress)
       if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
         easedT = localProgress
       end
-      
+
       -- Interpolate between keyframes
       local keyframeResult = self:lerpKeyframes(prevFrame, nextFrame, easedT)
-      
+
       -- Copy to cached result
       local result = self._cachedResult
       for k in pairs(result) do
@@ -411,71 +440,86 @@ function Animation:interpolate()
       for k, v in pairs(keyframeResult) do
         result[k] = v
       end
-      
+
       self._resultDirty = false
       return result
     end
   end
-  
+
   -- Standard interpolation (non-keyframe)
   -- Apply easing function with protection
   local success, easedT = pcall(self.easing, t)
   if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
     easedT = t -- Fallback to linear if easing fails
   end
-  
+
   local result = self._cachedResult -- Reuse existing table
-  
+
   -- Clear previous results
   for k in pairs(result) do
     result[k] = nil
   end
-  
+
   -- Define properties that should be animated as numbers
   local numericProperties = {
-    "width", "height", "opacity", "x", "y", 
-    "gap", "imageOpacity", "scrollbarWidth",
-    "borderWidth", "fontSize", "lineHeight"
+    "width",
+    "height",
+    "opacity",
+    "x",
+    "y",
+    "gap",
+    "imageOpacity",
+    "scrollbarWidth",
+    "borderWidth",
+    "fontSize",
+    "lineHeight",
   }
-  
+
   -- Define properties that should be animated as Colors
   local colorProperties = {
-    "backgroundColor", "borderColor", "textColor",
-    "scrollbarColor", "scrollbarBackgroundColor", "imageTint"
+    "backgroundColor",
+    "borderColor",
+    "textColor",
+    "scrollbarColor",
+    "scrollbarBackgroundColor",
+    "imageTint",
   }
-  
+
   -- Define properties that should be animated as tables
   local tableProperties = {
-    "padding", "margin", "cornerRadius"
+    "padding",
+    "margin",
+    "cornerRadius",
   }
-  
+
   -- Interpolate numeric properties
   for _, prop in ipairs(numericProperties) do
     local startVal = self.start[prop]
     local finalVal = self.final[prop]
-    
+
     if type(startVal) == "number" and type(finalVal) == "number" then
       result[prop] = lerpNumber(startVal, finalVal, easedT)
     end
   end
-  
+
   -- Interpolate color properties (if Color module is available)
-  if self._Color then
+  local ColorModule = self._Color or Animation._ColorModule
+  if ColorModule then
     for _, prop in ipairs(colorProperties) do
       local startVal = self.start[prop]
       local finalVal = self.final[prop]
-      
+
       if startVal ~= nil and finalVal ~= nil then
-        result[prop] = lerpColor(startVal, finalVal, easedT, self._Color)
+        result[prop] = lerpColor(startVal, finalVal, easedT, ColorModule)
       end
     end
   end
-  
+
   -- Interpolate table properties
   for _, prop in ipairs(tableProperties) do
     local startVal = self.start[prop]
     local finalVal = self.final[prop]
-    
+
     if type(startVal) == "table" and type(finalVal) == "table" then
       result[prop] = lerpTable(startVal, finalVal, easedT)
     end
@@ -504,7 +548,7 @@ function Animation:apply(element)
   if not ErrorHandler then
     ErrorHandler = require("modules.ErrorHandler")
   end
-  
+
   if not element or type(element) ~= "table" then
     ErrorHandler.warn("Animation", "Cannot apply animation to nil or non-table element. Animation not applied.")
     return
@@ -635,7 +679,7 @@ function Animation:chain(nextAnimation)
   if not ErrorHandler then
     ErrorHandler = require("modules.ErrorHandler")
   end
-  
+
   if type(nextAnimation) == "function" then
     self._nextFactory = nextAnimation
     return self
@@ -656,7 +700,7 @@ function Animation:delay(seconds)
   if not ErrorHandler then
     ErrorHandler = require("modules.ErrorHandler")
   end
-  
+
   if type(seconds) ~= "number" or seconds < 0 then
     ErrorHandler.warn("Animation", "delay() requires a non-negative number. Using 0.")
     seconds = 0
@@ -674,7 +718,7 @@ function Animation:repeatCount(count)
   if not ErrorHandler then
     ErrorHandler = require("modules.ErrorHandler")
   end
-  
+
   if type(count) ~= "number" or count < 0 then
     ErrorHandler.warn("Animation", "repeatCount() requires a non-negative number. Using 0.")
     count = 0
@@ -714,7 +758,7 @@ function Animation.fade(duration, fromOpacity, toOpacity, easing)
   if type(toOpacity) ~= "number" then
     toOpacity = 0
   end
-  
+
   return Animation.new({
     duration = duration,
     start = { opacity = fromOpacity },
@@ -743,7 +787,7 @@ function Animation.scale(duration, fromScale, toScale, easing)
   if type(toScale) ~= "table" then
     toScale = { width = 1, height = 1 }
   end
-  
+
   return Animation.new({
     duration = duration,
     start = { width = fromScale.width or 0, height = fromScale.height or 0 },
@@ -762,26 +806,26 @@ function Animation.keyframes(props)
   if not ErrorHandler then
     ErrorHandler = require("modules.ErrorHandler")
   end
-  
+
   -- Validate input
   if type(props) ~= "table" then
     ErrorHandler.warn("Animation", "Animation.keyframes() requires a table argument. Using default values.")
-    props = {duration = 1, keyframes = {}}
+    props = { duration = 1, keyframes = {} }
   end
-  
+
   if type(props.duration) ~= "number" or props.duration <= 0 then
     ErrorHandler.warn("Animation", "Keyframe animation duration must be a positive number. Using 1 second.")
     props.duration = 1
   end
-  
+
   if type(props.keyframes) ~= "table" or #props.keyframes < 2 then
     ErrorHandler.warn("Animation", "Keyframe animation requires at least 2 keyframes. Using empty animation.")
     props.keyframes = {
-      {at = 0, values = {}},
-      {at = 1, values = {}}
+      { at = 0, values = {} },
+      { at = 1, values = {} },
     }
   end
-  
+
   -- Sort keyframes by 'at' position
   local sortedKeyframes = {}
   for i, kf in ipairs(props.keyframes) do
@@ -789,19 +833,21 @@ function Animation.keyframes(props)
       table.insert(sortedKeyframes, kf)
     end
   end
-  
-  table.sort(sortedKeyframes, function(a, b) return a.at < b.at end)
-  
+
+  table.sort(sortedKeyframes, function(a, b)
+    return a.at < b.at
+  end)
+
   -- Ensure keyframes start at 0 and end at 1
   if #sortedKeyframes > 0 then
     if sortedKeyframes[1].at > 0 then
-      table.insert(sortedKeyframes, 1, {at = 0, values = sortedKeyframes[1].values})
+      table.insert(sortedKeyframes, 1, { at = 0, values = sortedKeyframes[1].values })
     end
     if sortedKeyframes[#sortedKeyframes].at < 1 then
-      table.insert(sortedKeyframes, {at = 1, values = sortedKeyframes[#sortedKeyframes].values})
+      table.insert(sortedKeyframes, { at = 1, values = sortedKeyframes[#sortedKeyframes].values })
     end
   end
-  
+
   -- Create animation with keyframes
   return Animation.new({
     duration = props.duration,
@@ -815,13 +861,22 @@ function Animation.keyframes(props)
   })
 end
 
---- Initialize ErrorHandler dependency
----@param errorHandler table The ErrorHandler module
-local function initializeErrorHandler(errorHandler)
-  ErrorHandler = errorHandler
+--- Initialize dependencies
+---@param deps table Dependencies: { ErrorHandler = ErrorHandler, Easing = Easing, Color = Color? }
+function Animation.init(deps)
+  if type(deps) == "table" then
+    ErrorHandler = deps.ErrorHandler
+    Easing = deps.Easing
+    if deps.Color then
+      Color = deps.Color
+      Animation._ColorModule = deps.Color
+    end
+  end
 end
 
--- Export ErrorHandler initializer
-Animation.initializeErrorHandler = initializeErrorHandler
+-- Static method for Color module injection (for per-instance Color override)
+function Animation.setColorModule(ColorModule)
+  Animation._ColorModule = ColorModule
+end
 
 return Animation

@@ -300,10 +300,12 @@ end
 -- Validation utilities
 local ErrorHandler = nil
 
---- Initialize ErrorHandler dependency for validation utilities
----@param errorHandler table The ErrorHandler module
-local function initializeErrorHandler(errorHandler)
-  ErrorHandler = errorHandler
+--- Initialize dependencies
+---@param deps table Dependencies: { ErrorHandler = ErrorHandler }
+local function init(deps)
+  if type(deps) == "table" then
+    ErrorHandler = deps.ErrorHandler
+  end
 end
 
 --- Validate that a value is in an enum table
@@ -1104,7 +1106,7 @@ return {
   resolveTextSizePreset = resolveTextSizePreset,
   getModifiers = getModifiers,
   TEXT_SIZE_PRESETS = TEXT_SIZE_PRESETS,
-  initializeErrorHandler = initializeErrorHandler,
+  init = init,
   validateEnum = validateEnum,
   validateRange = validateRange,
   validateType = validateType,

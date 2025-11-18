@@ -327,13 +327,12 @@ function AnimationGroup:apply(element)
   element.animationGroup = self
 end
 
---- Initialize ErrorHandler dependency
----@param errorHandler table The ErrorHandler module
-local function initializeErrorHandler(errorHandler)
-  ErrorHandler = errorHandler
+--- Initialize dependencies
+---@param deps table Dependencies: { ErrorHandler = ErrorHandler }
+function AnimationGroup.init(deps)
+  if type(deps) == "table" then
+    ErrorHandler = deps.ErrorHandler
+  end
 end
-
--- Export ErrorHandler initializer
-AnimationGroup.initializeErrorHandler = initializeErrorHandler
 
 return AnimationGroup

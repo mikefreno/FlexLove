@@ -31,6 +31,8 @@ local Element = req("Element")
 -- externals
 ---@type Animation
 local Animation = req("Animation")
+---@type AnimationGroup
+local AnimationGroup = req("AnimationGroup")
 ---@type Color
 local Color = req("Color")
 ---@type Theme
@@ -94,6 +96,12 @@ Color.initializeErrorHandler(ErrorHandler)
 
 -- Initialize ErrorHandler for utils
 utils.initializeErrorHandler(ErrorHandler)
+
+-- Initialize ErrorHandler for Animation module
+Animation.initializeErrorHandler(ErrorHandler)
+
+-- Initialize ErrorHandler for AnimationGroup module
+AnimationGroup.initializeErrorHandler(ErrorHandler)
 
 -- Add version and metadata
 flexlove._VERSION = "0.2.3"
@@ -1085,6 +1093,7 @@ function flexlove.getStateStats()
 end
 
 flexlove.Animation = Animation
+flexlove.AnimationGroup = AnimationGroup
 flexlove.Color = Color
 flexlove.Theme = Theme
 flexlove.enums = enums

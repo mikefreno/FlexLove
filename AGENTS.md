@@ -19,7 +19,7 @@
 ## Architecture
 - **Immediate mode**: Elements recreated each frame, layout triggered by `endFrame()` → `layoutChildren()` called on top-level elements
 - **Retained mode**: Elements persist, must manually update properties (default)
-- **Dependencies**: Pass via `deps` table parameter in constructors (e.g., `{utils, ErrorHandler, Units}`)
+- **Dependencies**: Pass via `deps` table parameter in constructors (e.g., `{utils, ErrorHandler, Units}`). Do not use require outside of `FlexLove.lua`.
 - **Layout flow**: `Element.new()` → `layoutChildren()` on construction → `resize()` on viewport change → `layoutChildren()` again
 - **CSS positioning**: `top/right/bottom/left` applied via `LayoutEngine:applyPositioningOffsets()` for absolute/relative containers
 

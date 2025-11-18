@@ -2,6 +2,12 @@ local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 
 local Animation = require("modules.Animation")
+local ErrorHandler = require("modules.ErrorHandler")
+local ErrorCodes = require("modules.ErrorCodes")
+
+-- Initialize ErrorHandler for Animation module
+ErrorHandler.init({ ErrorCodes = ErrorCodes })
+Animation.initializeErrorHandler(ErrorHandler)
 
 TestAnimation = {}
 
@@ -22,25 +28,25 @@ function TestAnimation:testNewWithNilDuration()
 end
 
 function TestAnimation:testNewWithNegativeDuration()
-  -- Should throw an error for invalid duration
-  luaunit.assertErrorMsgContains("duration must be a positive number", function()
-    Animation.new({
-      duration = -1,
-      start = { opacity = 0 },
-      final = { opacity = 1 },
-    })
-  end)
+  -- Should warn and use default duration (1 second) for invalid duration
+  local anim = Animation.new({
+    duration = -1,
+    start = { opacity = 0 },
+    final = { opacity = 1 },
+  })
+  luaunit.assertNotNil(anim)
+  luaunit.assertEquals(anim.duration, 1) -- Default value
 end
 
 function TestAnimation:testNewWithZeroDuration()
-  -- Should throw an error for invalid duration
-  luaunit.assertErrorMsgContains("duration must be a positive number", function()
-    Animation.new({
-      duration = 0,
-      start = { opacity = 0 },
-      final = { opacity = 1 },
-    })
-  end)
+  -- Should warn and use default duration (1 second) for invalid duration
+  local anim = Animation.new({
+    duration = 0,
+    start = { opacity = 0 },
+    final = { opacity = 1 },
+  })
+  luaunit.assertNotNil(anim)
+  luaunit.assertEquals(anim.duration, 1) -- Default value
 end
 
 function TestAnimation:testNewWithInvalidEasing()

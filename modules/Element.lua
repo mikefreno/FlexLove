@@ -2127,7 +2127,19 @@ function Element:update(dt)
     local finished = self.animation:update(dt, self)
     if finished then
       -- Animation:update() already called onComplete callback
-      self.animation = nil -- remove finished animation
+      -- Check for chained animation
+      if self.animation._next then
+        self.animation = self.animation._next
+      elseif self.animation._nextFactory and type(self.animation._nextFactory) == "function" then
+        local success, nextAnim = pcall(self.animation._nextFactory, self)
+        if success and nextAnim then
+          self.animation = nextAnim
+        else
+          self.animation = nil
+        end
+      else
+        self.animation = nil
+      end
     else
       -- Apply animation interpolation during update
       local anim = self.animation:interpolate()
@@ -2966,6 +2978,123 @@ function Element:setTransformOrigin(originX, originY)
   end
   self.transform.originX = originX
   self.transform.originY = originY
+end
+
+--- Set transition configuration for a property
+---@param property string Property name or "all" for all properties
+---@param config table Transition config {duration, easing, delay, onComplete}
+function Element:setTransition(property, config)
+  if not self.transitions then
+    self.transitions = {}
+  end
+  
+  if type(config) ~= "table" then
+    self._deps.ErrorHandler.warn("Element", "setTransition() requires a config table. Using default config.")
+    config = {}
+  end
+  
+  -- Validate config
+  if config.duration and (type(config.duration) ~= "number" or config.duration < 0) then
+    self._deps.ErrorHandler.warn("Element", "transition duration must be a non-negative number. Using 0.3 seconds.")
+    config.duration = 0.3
+  end
+  
+  self.transitions[property] = {
+    duration = config.duration or 0.3,
+    easing = config.easing or "easeOutQuad",
+    delay = config.delay or 0,
+    onComplete = config.onComplete
+  }
+end
+
+--- Set transition configuration for multiple properties
+---@param groupName string Name for this transition group
+---@param config table Transition config {duration, easing, delay, onComplete}
+---@param properties table Array of property names
+function Element:setTransitionGroup(groupName, config, properties)
+  if type(properties) ~= "table" then
+    self._deps.ErrorHandler.warn("Element", "setTransitionGroup() requires a properties array. No transitions set.")
+    return
+  end
+  
+  for _, prop in ipairs(properties) do
+    self:setTransition(prop, config)
+  end
+end
+
+--- Remove transition configuration for a property
+---@param property string Property name or "all" to remove all
+function Element:removeTransition(property)
+  if not self.transitions then
+    return
+  end
+  
+  if property == "all" then
+    self.transitions = {}
+  else
+    self.transitions[property] = nil
+  end
+end
+
+--- Set property with automatic transition
+---@param property string Property name
+---@param value any New value
+function Element:setProperty(property, value)
+  -- Check if transitions are enabled for this property
+  local shouldTransition = false
+  local transitionConfig = nil
+  
+  if self.transitions then
+    transitionConfig = self.transitions[property] or self.transitions["all"]
+    shouldTransition = transitionConfig ~= nil
+  end
+  
+  -- Don't transition if value is the same
+  if self[property] == value then
+    return
+  end
+  
+  if shouldTransition and transitionConfig then
+    -- Get current value
+    local currentValue = self[property]
+    
+    -- Only transition if we have a valid current value
+    if currentValue ~= nil then
+      -- Create animation for the property change
+      local Animation = require("modules.Animation")
+      local anim = Animation.new({
+        duration = transitionConfig.duration,
+        start = { [property] = currentValue },
+        final = { [property] = value },
+        easing = transitionConfig.easing,
+        onComplete = transitionConfig.onComplete
+      })
+      
+      -- Set Color module reference if needed
+      if self._deps and self._deps.Color then
+        anim:setColorModule(self._deps.Color)
+      end
+      
+      -- Set Transform module reference if needed
+      if self._deps and self._deps.Transform then
+        anim:setTransformModule(self._deps.Transform)
+      end
+      
+      -- Apply delay if configured
+      if transitionConfig.delay and transitionConfig.delay > 0 then
+        anim:delay(transitionConfig.delay)
+      end
+      
+      -- Apply animation
+      anim:apply(self)
+    else
+      -- No current value, set directly
+      self[property] = value
+    end
+  else
+    -- No transition, set directly
+    self[property] = value
+  end
 end
 
 return Element

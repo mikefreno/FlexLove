@@ -33,6 +33,8 @@ local Element = req("Element")
 local Animation = req("Animation")
 ---@type AnimationGroup
 local AnimationGroup = req("AnimationGroup")
+---@type Easing
+local Easing = req("Easing")
 ---@type Color
 local Color = req("Color")
 ---@type Theme
@@ -1120,6 +1122,7 @@ end
 
 flexlove.Animation = Animation
 flexlove.AnimationGroup = AnimationGroup
+flexlove.Easing = Easing
 flexlove.Color = Color
 flexlove.Theme = Theme
 flexlove.enums = enums

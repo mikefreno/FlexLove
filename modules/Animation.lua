@@ -4,54 +4,19 @@
 -- ErrorHandler dependency (injected via initializeErrorHandler)
 local ErrorHandler = nil
 
---- Easing functions for animations
----@type table<string, EasingFunction>
-local Easing = {
-  linear = function(t)
-    return t
-  end,
+-- Easing module for easing functions
+local Easing = require("modules.Easing")
+---@class Keyframe
+---@field at number Normalized time position (0-1)
+---@field values table Property values at this keyframe
+---@field easing string|EasingFunction? Easing to use between this and next keyframe
 
-  easeInQuad = function(t)
-    return t * t
-  end,
-  easeOutQuad = function(t)
-    return t * (2 - t)
-  end,
-  easeInOutQuad = function(t)
-    return t < 0.5 and 2 * t * t or -1 + (4 - 2 * t) * t
-  end,
-
-  easeInCubic = function(t)
-    return t * t * t
-  end,
-  easeOutCubic = function(t)
-    local t1 = t - 1
-    return t1 * t1 * t1 + 1
-  end,
-  easeInOutCubic = function(t)
-    return t < 0.5 and 4 * t * t * t or (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
-  end,
-
-  easeInQuart = function(t)
-    return t * t * t * t
-  end,
-  easeOutQuart = function(t)
-    local t1 = t - 1
-    return 1 - t1 * t1 * t1 * t1
-  end,
-
-  easeInExpo = function(t)
-    return t == 0 and 0 or math.pow(2, 10 * (t - 1))
-  end,
-  easeOutExpo = function(t)
-    return t == 1 and 1 or 1 - math.pow(2, -10 * t)
-  end,
-}
 ---@class AnimationProps
 ---@field duration number Duration in seconds
 ---@field start table Starting values (can contain: width, height, opacity, x, y, gap, imageOpacity, backgroundColor, borderColor, textColor, padding, margin, cornerRadius, etc.)
 ---@field final table Final values (same properties as start)
 ---@field easing string? Easing function name (default: "linear")
+---@field keyframes Keyframe[]? Array of keyframes for complex animations
 ---@field transform table? Additional transform properties
 ---@field transition table? Transition properties
 ---@field onStart function? Called when animation starts: (animation, element)
@@ -65,6 +30,7 @@ local Easing = {
 ---@field final table Final values
 ---@field elapsed number Elapsed time in seconds
 ---@field easing EasingFunction Easing function
+---@field keyframes Keyframe[]? Array of keyframes for complex animations
 ---@field transform table? Additional transform properties
 ---@field transition table? Transition properties
 ---@field _cachedResult table Cached interpolation result
@@ -103,6 +69,7 @@ function Animation.new(props)
   self.duration = props.duration
   self.start = props.start
   self.final = props.final
+  self.keyframes = props.keyframes
   self.transform = props.transform
   self.transition = props.transition
   self.elapsed = 0
@@ -304,6 +271,98 @@ local function lerpTable(startTable, finalTable, easedT)
   return result
 end
 
+--- Find the two keyframes surrounding the current progress
+---@param progress number Current animation progress (0-1)
+---@return Keyframe prevFrame The keyframe before current progress
+---@return Keyframe nextFrame The keyframe after current progress
+function Animation:findKeyframes(progress)
+  if not self.keyframes or #self.keyframes < 2 then
+    return nil, nil
+  end
+  
+  -- Find surrounding keyframes
+  local prevFrame = self.keyframes[1]
+  local nextFrame = self.keyframes[#self.keyframes]
+  
+  for i = 1, #self.keyframes - 1 do
+    if progress >= self.keyframes[i].at and progress <= self.keyframes[i + 1].at then
+      prevFrame = self.keyframes[i]
+      nextFrame = self.keyframes[i + 1]
+      break
+    end
+  end
+  
+  return prevFrame, nextFrame
+end
+
+--- Interpolate between two keyframes
+---@param prevFrame Keyframe Starting keyframe
+---@param nextFrame Keyframe Ending keyframe
+---@param easedT number Eased time (0-1) for interpolation
+---@return table result Interpolated values
+function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
+  local result = {}
+  
+  -- Get all unique property keys
+  local keys = {}
+  for k in pairs(prevFrame.values) do keys[k] = true end
+  for k in pairs(nextFrame.values) do keys[k] = true end
+  
+  -- Define properties that should be animated as numbers
+  local numericProperties = {
+    "width", "height", "opacity", "x", "y", 
+    "gap", "imageOpacity", "scrollbarWidth",
+    "borderWidth", "fontSize", "lineHeight"
+  }
+  
+  -- Define properties that should be animated as Colors
+  local colorProperties = {
+    "backgroundColor", "borderColor", "textColor",
+    "scrollbarColor", "scrollbarBackgroundColor", "imageTint"
+  }
+  
+  -- Define properties that should be animated as tables
+  local tableProperties = {
+    "padding", "margin", "cornerRadius"
+  }
+  
+  -- Create lookup sets for faster property type checking
+  local numericSet = {}
+  for _, prop in ipairs(numericProperties) do numericSet[prop] = true end
+  
+  local colorSet = {}
+  for _, prop in ipairs(colorProperties) do colorSet[prop] = true end
+  
+  local tableSet = {}
+  for _, prop in ipairs(tableProperties) do tableSet[prop] = true end
+  
+  -- Interpolate each property
+  for key in pairs(keys) do
+    local startVal = prevFrame.values[key]
+    local finalVal = nextFrame.values[key]
+    
+    if numericSet[key] and type(startVal) == "number" and type(finalVal) == "number" then
+      result[key] = lerpNumber(startVal, finalVal, easedT)
+    elseif colorSet[key] and self._Color then
+      if startVal ~= nil and finalVal ~= nil then
+        result[key] = lerpColor(startVal, finalVal, easedT, self._Color)
+      end
+    elseif tableSet[key] and type(startVal) == "table" and type(finalVal) == "table" then
+      result[key] = lerpTable(startVal, finalVal, easedT)
+    elseif type(startVal) == type(finalVal) then
+      -- For unknown types, try numeric interpolation if they're numbers
+      if type(startVal) == "number" then
+        result[key] = lerpNumber(startVal, finalVal, easedT)
+      else
+        -- Otherwise use the final value
+        result[key] = finalVal
+      end
+    end
+  end
+  
+  return result
+end
+
 --- Calculate the current animated values between start and end states based on elapsed time
 --- Use this to get the interpolated properties to apply to your element
 ---@return table result Interpolated values {width?, height?, opacity?, x?, y?, backgroundColor?, ...}
@@ -315,6 +374,50 @@ function Animation:interpolate()
 
   local t = math.min(self.elapsed / self.duration, 1)
   
+  -- Handle keyframe animations
+  if self.keyframes and #self.keyframes >= 2 then
+    local prevFrame, nextFrame = self:findKeyframes(t)
+    
+    if prevFrame and nextFrame then
+      -- Calculate local progress between keyframes
+      local localProgress = 0
+      if nextFrame.at > prevFrame.at then
+        localProgress = (t - prevFrame.at) / (nextFrame.at - prevFrame.at)
+      end
+      
+      -- Apply per-keyframe easing
+      local easingFn = Easing.linear
+      if prevFrame.easing then
+        if type(prevFrame.easing) == "string" then
+          easingFn = Easing[prevFrame.easing] or Easing.linear
+        elseif type(prevFrame.easing) == "function" then
+          easingFn = prevFrame.easing
+        end
+      end
+      
+      local success, easedT = pcall(easingFn, localProgress)
+      if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
+        easedT = localProgress
+      end
+      
+      -- Interpolate between keyframes
+      local keyframeResult = self:lerpKeyframes(prevFrame, nextFrame, easedT)
+      
+      -- Copy to cached result
+      local result = self._cachedResult
+      for k in pairs(result) do
+        result[k] = nil
+      end
+      for k, v in pairs(keyframeResult) do
+        result[k] = v
+      end
+      
+      self._resultDirty = false
+      return result
+    end
+  end
+  
+  -- Standard interpolation (non-keyframe)
   -- Apply easing function with protection
   local success, easedT = pcall(self.easing, t)
   if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
@@ -648,6 +751,67 @@ function Animation.scale(duration, fromScale, toScale, easing)
     easing = easing,
     transform = {},
     transition = {},
+  })
+end
+
+--- Create a keyframe-based animation with multiple waypoints and per-keyframe easing
+--- Use this for complex multi-step animations like bounce-in effects or CSS-style @keyframes
+---@param props {duration:number, keyframes:Keyframe[], onStart:function?, onUpdate:function?, onComplete:function?, onCancel:function?} Animation properties
+---@return Animation animation The keyframe animation
+function Animation.keyframes(props)
+  if not ErrorHandler then
+    ErrorHandler = require("modules.ErrorHandler")
+  end
+  
+  -- Validate input
+  if type(props) ~= "table" then
+    ErrorHandler.warn("Animation", "Animation.keyframes() requires a table argument. Using default values.")
+    props = {duration = 1, keyframes = {}}
+  end
+  
+  if type(props.duration) ~= "number" or props.duration <= 0 then
+    ErrorHandler.warn("Animation", "Keyframe animation duration must be a positive number. Using 1 second.")
+    props.duration = 1
+  end
+  
+  if type(props.keyframes) ~= "table" or #props.keyframes < 2 then
+    ErrorHandler.warn("Animation", "Keyframe animation requires at least 2 keyframes. Using empty animation.")
+    props.keyframes = {
+      {at = 0, values = {}},
+      {at = 1, values = {}}
+    }
+  end
+  
+  -- Sort keyframes by 'at' position
+  local sortedKeyframes = {}
+  for i, kf in ipairs(props.keyframes) do
+    if type(kf) == "table" and type(kf.at) == "number" and type(kf.values) == "table" then
+      table.insert(sortedKeyframes, kf)
+    end
+  end
+  
+  table.sort(sortedKeyframes, function(a, b) return a.at < b.at end)
+  
+  -- Ensure keyframes start at 0 and end at 1
+  if #sortedKeyframes > 0 then
+    if sortedKeyframes[1].at > 0 then
+      table.insert(sortedKeyframes, 1, {at = 0, values = sortedKeyframes[1].values})
+    end
+    if sortedKeyframes[#sortedKeyframes].at < 1 then
+      table.insert(sortedKeyframes, {at = 1, values = sortedKeyframes[#sortedKeyframes].values})
+    end
+  end
+  
+  -- Create animation with keyframes
+  return Animation.new({
+    duration = props.duration,
+    start = {},
+    final = {},
+    keyframes = sortedKeyframes,
+    onStart = props.onStart,
+    onUpdate = props.onUpdate,
+    onComplete = props.onComplete,
+    onCancel = props.onCancel,
   })
 end
 

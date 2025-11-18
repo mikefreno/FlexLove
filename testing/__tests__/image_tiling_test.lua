@@ -16,8 +16,12 @@ TestImageTiling = {}
 function TestImageTiling:setUp()
   -- Create a mock image
   self.mockImage = {
-    getDimensions = function() return 64, 64 end,
-    type = function() return "Image" end,
+    getDimensions = function()
+      return 64, 64
+    end,
+    type = function()
+      return "Image"
+    end,
   }
 end
 
@@ -30,7 +34,7 @@ function TestImageTiling:testDrawTiledNoRepeat()
   local drawCalls = {}
   local originalDraw = love.graphics.draw
   love.graphics.draw = function(...)
-    table.insert(drawCalls, {...})
+    table.insert(drawCalls, { ... })
   end
 
   ImageRenderer.drawTiled(self.mockImage, 100, 100, 200, 200, "no-repeat", 1, nil)
@@ -49,11 +53,11 @@ function TestImageTiling:testDrawTiledRepeat()
   local drawCalls = {}
   local originalDraw = love.graphics.draw
   local originalNewQuad = love.graphics.newQuad
-  
+
   love.graphics.draw = function(...)
-    table.insert(drawCalls, {...})
+    table.insert(drawCalls, { ... })
   end
-  
+
   love.graphics.newQuad = function(...)
     return { type = "quad", ... }
   end
@@ -75,11 +79,11 @@ function TestImageTiling:testDrawTiledRepeatX()
   local drawCalls = {}
   local originalDraw = love.graphics.draw
   local originalNewQuad = love.graphics.newQuad
-  
+
   love.graphics.draw = function(...)
-    table.insert(drawCalls, {...})
+    table.insert(drawCalls, { ... })
   end
-  
+
   love.graphics.newQuad = function(...)
     return { type = "quad", ... }
   end
@@ -100,11 +104,11 @@ function TestImageTiling:testDrawTiledRepeatY()
   local drawCalls = {}
   local originalDraw = love.graphics.draw
   local originalNewQuad = love.graphics.newQuad
-  
+
   love.graphics.draw = function(...)
-    table.insert(drawCalls, {...})
+    table.insert(drawCalls, { ... })
   end
-  
+
   love.graphics.newQuad = function(...)
     return { type = "quad", ... }
   end
@@ -124,9 +128,9 @@ function TestImageTiling:testDrawTiledSpace()
   -- Test space mode (distributes tiles with even spacing)
   local drawCalls = {}
   local originalDraw = love.graphics.draw
-  
+
   love.graphics.draw = function(...)
-    table.insert(drawCalls, {...})
+    table.insert(drawCalls, { ... })
   end
 
   -- Image is 64x64, bounds are 200x200
@@ -142,9 +146,9 @@ function TestImageTiling:testDrawTiledRound()
   -- Test round mode (scales tiles to fit exactly)
   local drawCalls = {}
   local originalDraw = love.graphics.draw
-  
+
   love.graphics.draw = function(...)
-    table.insert(drawCalls, {...})
+    table.insert(drawCalls, { ... })
   end
 
   -- Image is 64x64, bounds are 200x200
@@ -160,9 +164,9 @@ function TestImageTiling:testDrawTiledWithOpacity()
   -- Test tiling with opacity
   local setColorCalls = {}
   local originalSetColor = love.graphics.setColor
-  
+
   love.graphics.setColor = function(...)
-    table.insert(setColorCalls, {...})
+    table.insert(setColorCalls, { ... })
   end
 
   ImageRenderer.drawTiled(self.mockImage, 100, 100, 200, 200, "no-repeat", 0.5, nil)
@@ -186,9 +190,9 @@ function TestImageTiling:testDrawTiledWithTint()
   -- Test tiling with tint color
   local setColorCalls = {}
   local originalSetColor = love.graphics.setColor
-  
+
   love.graphics.setColor = function(...)
-    table.insert(setColorCalls, {...})
+    table.insert(setColorCalls, { ... })
   end
 
   local redTint = Color.new(1, 0, 0, 1)
@@ -219,7 +223,7 @@ function TestImageTiling:testElementImageRepeatProperty()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
-  
+
   local deps = {
     utils = utils,
     Color = Color,
@@ -231,7 +235,7 @@ function TestImageTiling:testElementImageRepeatProperty()
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
   }
-  
+
   local element = Element.new({
     width = 200,
     height = 200,
@@ -251,7 +255,7 @@ function TestImageTiling:testElementImageRepeatDefault()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
-  
+
   local deps = {
     utils = utils,
     Color = Color,
@@ -263,7 +267,7 @@ function TestImageTiling:testElementImageRepeatDefault()
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
   }
-  
+
   local element = Element.new({
     width = 200,
     height = 200,
@@ -282,7 +286,7 @@ function TestImageTiling:testElementSetImageRepeat()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
-  
+
   local deps = {
     utils = utils,
     Color = Color,
@@ -294,7 +298,7 @@ function TestImageTiling:testElementSetImageRepeat()
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
   }
-  
+
   local element = Element.new({
     width = 200,
     height = 200,
@@ -313,9 +317,9 @@ function TestImageTiling:testElementImageTintProperty()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
-  
+
   local redTint = Color.new(1, 0, 0, 1)
-  
+
   local deps = {
     utils = utils,
     Color = Color,
@@ -327,7 +331,7 @@ function TestImageTiling:testElementImageTintProperty()
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
   }
-  
+
   local element = Element.new({
     width = 200,
     height = 200,
@@ -346,7 +350,7 @@ function TestImageTiling:testElementSetImageTint()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
-  
+
   local deps = {
     utils = utils,
     Color = Color,
@@ -358,7 +362,7 @@ function TestImageTiling:testElementSetImageTint()
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
   }
-  
+
   local element = Element.new({
     width = 200,
     height = 200,
@@ -379,7 +383,7 @@ function TestImageTiling:testElementSetImageOpacity()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
-  
+
   local deps = {
     utils = utils,
     Color = Color,
@@ -391,7 +395,7 @@ function TestImageTiling:testElementSetImageOpacity()
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
   }
-  
+
   local element = Element.new({
     width = 200,
     height = 200,
@@ -401,5 +405,6 @@ function TestImageTiling:testElementSetImageOpacity()
   luaunit.assertEquals(element.imageOpacity, 0.7)
 end
 
--- Run the tests
-os.exit(luaunit.LuaUnit.run())
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

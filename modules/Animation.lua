@@ -73,7 +73,8 @@ local Easing = {
 local Animation = {}
 Animation.__index = Animation
 
----Create a new animation instance
+--- Build smooth, timed transitions between visual states to create polished, professional UIs
+--- Use this to animate position, size, opacity, colors, and other properties with customizable easing
 ---@param props AnimationProps Animation properties
 ---@return Animation animation The new animation instance
 function Animation.new(props)
@@ -136,7 +137,8 @@ function Animation.new(props)
   return self
 end
 
----Update the animation with delta time
+--- Advance the animation timeline and calculate interpolated values for the current frame
+--- Call this each frame to progress the animation; returns true when complete for cleanup
 ---@param dt number Delta time in seconds
 ---@param element table? Optional element reference for callbacks
 ---@return boolean completed True if animation is complete
@@ -302,7 +304,8 @@ local function lerpTable(startTable, finalTable, easedT)
   return result
 end
 
----Interpolate animation values at current time
+--- Calculate the current animated values between start and end states based on elapsed time
+--- Use this to get the interpolated properties to apply to your element
 ---@return table result Interpolated values {width?, height?, opacity?, x?, y?, backgroundColor?, ...}
 function Animation:interpolate()
   -- Return cached result if not dirty (avoids recalculation)
@@ -391,7 +394,8 @@ function Animation:interpolate()
   return result
 end
 
----Apply this animation to an element
+--- Attach this animation to an element so it automatically updates and applies changes
+--- Use this for hands-off animation that integrates with FlexLove's rendering system
 ---@param element Element The element to apply animation to
 function Animation:apply(element)
   if not ErrorHandler then
@@ -417,7 +421,8 @@ function Animation:setTransformModule(TransformModule)
   self._Transform = TransformModule
 end
 
----Pause the animation
+--- Temporarily halt the animation without losing progress
+--- Use this to freeze animations during pause menus or cutscenes
 function Animation:pause()
   if self._state == "playing" or self._state == "pending" then
     self._paused = true
@@ -425,7 +430,8 @@ function Animation:pause()
   end
 end
 
----Resume the animation
+--- Continue a paused animation from where it left off
+--- Use this to unpause animations when returning from pause menus
 function Animation:resume()
   if self._state == "paused" then
     self._paused = false
@@ -433,24 +439,28 @@ function Animation:resume()
   end
 end
 
----Check if animation is paused
+--- Query pause state to conditionally handle animation logic
+--- Use this to sync UI behavior with animation state
 ---@return boolean paused
 function Animation:isPaused()
   return self._paused
 end
 
----Reverse the animation direction
+--- Flip the animation to play backwards, creating smooth transitions in both directions
+--- Use this for hover effects that reverse on mouse-out or toggleable UI elements
 function Animation:reverse()
   self._reversed = not self._reversed
 end
 
----Check if animation is reversed
+--- Determine current playback direction for conditional animation logic
+--- Use this to track which direction the animation is playing
 ---@return boolean reversed
 function Animation:isReversed()
   return self._reversed
 end
 
----Set animation playback speed
+--- Control animation tempo for slow-motion or fast-forward effects
+--- Use this for bullet-time, game speed multipliers, or debugging
 ---@param speed number Speed multiplier (1.0 = normal, 2.0 = double speed, 0.5 = half speed)
 function Animation:setSpeed(speed)
   if type(speed) == "number" and speed > 0 then
@@ -458,13 +468,15 @@ function Animation:setSpeed(speed)
   end
 end
 
----Get animation playback speed
+--- Check current playback speed for debugging or UI display
+--- Use this to show animation speed in dev tools
 ---@return number speed Current speed multiplier
 function Animation:getSpeed()
   return self._speed
 end
 
----Seek to a specific time in the animation
+--- Jump to any point in the animation timeline for previewing or state restoration
+--- Use this to skip ahead, rewind, or restore saved animation states
 ---@param time number Time in seconds (clamped to 0-duration)
 function Animation:seek(time)
   if type(time) == "number" then
@@ -473,13 +485,15 @@ function Animation:seek(time)
   end
 end
 
----Get current animation state
+--- Query animation lifecycle state for conditional logic and debugging
+--- Use this to determine if cleanup is needed or to prevent duplicate animations
 ---@return string state Current state: "pending", "playing", "paused", "completed", "cancelled"
 function Animation:getState()
   return self._state
 end
 
----Cancel the animation
+--- Stop the animation immediately without completing, triggering the onCancel callback
+--- Use this to abort animations when UI elements are removed or user cancels an action
 ---@param element table? Optional element reference for callback
 function Animation:cancel(element)
   if self._state ~= "cancelled" and self._state ~= "completed" then
@@ -493,7 +507,8 @@ function Animation:cancel(element)
   end
 end
 
----Reset the animation to its initial state
+--- Return the animation to the beginning for replay
+--- Use this to reuse animation instances without recreating them
 function Animation:reset()
   self.elapsed = 0
   self._hasStarted = false
@@ -502,13 +517,15 @@ function Animation:reset()
   self._resultDirty = true
 end
 
----Get the current progress of the animation
+--- Get normalized animation progress for progress bars or synchronized effects
+--- Use this to drive secondary animations or display completion percentage
 ---@return number progress Progress from 0 to 1
 function Animation:getProgress()
   return math.min(self.elapsed / self.duration, 1)
 end
 
----Chain another animation after this one completes
+--- Create sequential animation flows that play one after another
+--- Use this to build complex multi-step animations like slide-in-then-fade
 ---@param nextAnimation Animation|function Animation instance or factory function that returns an animation
 ---@return Animation nextAnimation The chained animation (for further chaining)
 function Animation:chain(nextAnimation)
@@ -528,7 +545,8 @@ function Animation:chain(nextAnimation)
   end
 end
 
----Add delay before animation starts
+--- Introduce a wait period before animation begins for staggered effects
+--- Use this to create cascading animations or timed sequences
 ---@param seconds number Delay duration in seconds
 ---@return Animation self For chaining
 function Animation:delay(seconds)
@@ -545,7 +563,8 @@ function Animation:delay(seconds)
   return self
 end
 
----Repeat animation multiple times
+--- Loop the animation for pulsing effects, loading indicators, or continuous motion
+--- Use this for idle animations and attention-grabbing elements
 ---@param count number Number of times to repeat (0 = infinite loop)
 ---@return Animation self For chaining
 function Animation:repeatCount(count)
@@ -562,7 +581,8 @@ function Animation:repeatCount(count)
   return self
 end
 
----Enable yoyo mode (animation reverses direction on each repeat)
+--- Make repeating animations play forwards then backwards for smooth oscillation
+--- Use this for breathing effects, pulsing highlights, or pendulum motions
 ---@param enabled boolean? Enable yoyo mode (default: true)
 ---@return Animation self For chaining
 function Animation:yoyo(enabled)
@@ -573,7 +593,8 @@ function Animation:yoyo(enabled)
   return self
 end
 
---- Create a simple fade animation
+--- Quickly create fade in/out effects without manually specifying start/end states
+--- Use this convenience method for common opacity transitions in tooltips, notifications, and overlays
 ---@param duration number Duration in seconds
 ---@param fromOpacity number Starting opacity (0-1)
 ---@param toOpacity number Ending opacity (0-1)
@@ -601,7 +622,8 @@ function Animation.fade(duration, fromOpacity, toOpacity, easing)
   })
 end
 
---- Create a simple scale animation
+--- Quickly create grow/shrink effects without manually specifying dimensions
+--- Use this convenience method for bounce effects, pop-ups, and attention animations
 ---@param duration number Duration in seconds
 ---@param fromScale {width:number,height:number} Starting scale
 ---@param toScale {width:number,height:number} Ending scale

@@ -124,7 +124,8 @@ Theme.__index = Theme
 local themes = {}
 local activeTheme = nil
 
----Create a new theme instance
+--- Create reusable design systems with consistent styling, 9-patch assets, and component states
+--- Use this to build professional-looking UIs with minimal per-element configuration
 ---@param definition ThemeDefinition Theme definition table
 ---@return Theme theme The new theme instance
 function Theme.new(definition)
@@ -312,7 +313,8 @@ function Theme.new(definition)
   return self
 end
 
---- Load a theme from a Lua file
+--- Import a theme definition from a file to enable hot-reloading and modular design systems
+--- Use this to load bundled or user-created themes dynamically
 ---@param path string Path to theme definition file (e.g., "space" or "mytheme")
 ---@return Theme? theme The loaded theme, or nil on error
 function Theme.load(path)
@@ -348,7 +350,8 @@ function Theme.load(path)
   return theme
 end
 
----Set the active theme
+--- Switch the global theme to instantly restyle all themed UI elements
+--- Use this to implement light/dark mode toggles or user-selectable skins
 ---@param themeOrName Theme|string Theme instance or theme name to activate
 function Theme.setActive(themeOrName)
   if type(themeOrName) == "string" then
@@ -371,13 +374,15 @@ function Theme.setActive(themeOrName)
   end
 end
 
---- Get the active theme
+--- Access the current theme to query colors, fonts, or create theme-aware components
+--- Use this to build UI that adapts to the active design system
 ---@return Theme? theme The active theme, or nil if none is active
 function Theme.getActive()
   return activeTheme
 end
 
---- Get a component from the active theme
+--- Retrieve pre-configured visual styles for UI components to maintain consistency
+--- Use this to apply theme definitions to custom elements
 ---@param componentName string Name of the component (e.g., "button", "panel")
 ---@param state string? Optional state (e.g., "hover", "pressed", "disabled")
 ---@return ThemeComponent? component Returns component or nil if not found
@@ -399,7 +404,8 @@ function Theme.getComponent(componentName, state)
   return component
 end
 
---- Get a font from the active theme
+--- Access theme-defined fonts for consistent typography across your UI
+--- Use this to load fonts specified in your theme definition
 ---@param fontName string Name of the font family (e.g., "default", "heading")
 ---@return string? fontPath Returns font path or nil if not found
 function Theme.getFont(fontName)
@@ -410,7 +416,8 @@ function Theme.getFont(fontName)
   return activeTheme.fonts and activeTheme.fonts[fontName]
 end
 
---- Get a color from the active theme
+--- Retrieve semantic colors from the theme palette for consistent brand identity
+--- Use this instead of hardcoding colors to support themeing and color scheme switches
 ---@param colorName string Name of the color (e.g., "primary", "secondary")
 ---@return Color? color Returns Color instance or nil if not found
 function Theme.getColor(colorName)
@@ -461,7 +468,8 @@ function Theme.getAllColors()
   return activeTheme.colors
 end
 
---- Get a color with a fallback if not found
+--- Safely get theme colors with guaranteed fallbacks to prevent missing color errors
+--- Use this when you need a color value no matter what
 ---@param colorName string Name of the color to retrieve
 ---@param fallback Color? Fallback color if not found (default: white)
 ---@return Color color The color or fallback (guaranteed non-nil)
@@ -721,7 +729,8 @@ end
 -- Export both Theme and ThemeManager
 Theme.Manager = ThemeManager
 
----Validate a theme definition for structural correctness (non-aggressive)
+--- Check theme definitions for correctness before use to catch configuration errors early
+--- Use this during development to verify custom themes are properly structured
 ---@param theme table? The theme to validate
 ---@param options table? Optional validation options {strict: boolean}
 ---@return boolean valid, table errors List of validation errors
@@ -908,7 +917,8 @@ function Theme.validateTheme(theme, options)
   return #errors == 0, errors
 end
 
----Sanitize a theme definition by removing invalid values and providing defaults
+--- Clean up malformed theme data to make it usable without crashing
+--- Use this to robustly handle user-created or external themes
 ---@param theme table? The theme to sanitize
 ---@return table sanitized The sanitized theme
 function Theme.sanitizeTheme(theme)

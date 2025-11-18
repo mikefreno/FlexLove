@@ -147,7 +147,8 @@ flexlove._gcState = {
 -- Deferred callback queue for operations that cannot run while Canvas is active
 flexlove._deferredCallbacks = {}
 
---- Initialize FlexLove with configuration options, set refence scale for autoscaling on window resize, immediate mode, and error logging / error file path
+--- Set up FlexLove for your application's specific needs - configure responsive scaling, theming, rendering mode, and debugging tools
+--- Use this to establish a consistent UI foundation that adapts to different screen sizes and provides performance insights
 ---@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean, errorLogFile?: string, enableErrorLogging?: boolean, performanceMonitoring?: boolean, performanceWarnings?: boolean, performanceHudKey?: string, performanceHudPosition?: {x: number, y: number} }
 function flexlove.init(config)
   config = config or {}
@@ -254,8 +255,8 @@ function flexlove.init(config)
   end
 end
 
---- Queue a callback to be executed after the current frame's canvas operations complete
---- This is necessary for operations that cannot run while a Canvas is active (e.g., love.window.setMode)
+--- Safely schedule operations that modify LÖVE's rendering state (like window mode changes) to execute after all canvas operations complete
+--- Prevents crashes from attempting canvas-incompatible operations during rendering
 ---@param callback function The callback to execute
 function flexlove.deferCallback(callback)
   if type(callback) ~= "function" then
@@ -265,9 +266,8 @@ function flexlove.deferCallback(callback)
   table.insert(flexlove._deferredCallbacks, callback)
 end
 
---- Execute all deferred callbacks and clear the queue
---- IMPORTANT: This MUST be called at the very end of love.draw() after ALL canvases
---- have been released, including any canvases created by the application (not just FlexLove's canvases)
+--- Execute deferred operations at the safest point in the render cycle - after all canvas operations are complete
+--- Call this at the end of love.draw() to enable window resizing and other state-modifying operations without crashes
 --- @usage
 --- function love.draw()
 ---   love.graphics.setCanvas(myCanvas)
@@ -293,6 +293,8 @@ function flexlove.executeDeferredCallbacks()
   end
 end
 
+--- Recalculate all UI layouts when the window size changes - ensures your interface adapts seamlessly to new dimensions
+--- Hook this to love.resize() to maintain proper scaling and positioning across window size changes
 function flexlove.resize()
   local newWidth, newHeight = love.window.getMode()
 
@@ -320,7 +322,8 @@ function flexlove.resize()
   end
 end
 
---- Can also be set in init()
+--- Switch between immediate mode (React-like, recreates UI each frame) and retained mode (persistent elements) to match your architectural needs
+--- Use immediate for simpler state management and declarative UIs, retained for performance-critical applications with complex state
 ---@param mode "immediate"|"retained"
 function flexlove.setMode(mode)
   if mode == "immediate" then
@@ -340,13 +343,15 @@ function flexlove.setMode(mode)
   end
 end
 
+--- Check which rendering mode is active to conditionally handle state management logic
+--- Useful for libraries and reusable components that need to adapt to different rendering strategies
 ---@return "immediate"|"retained"
 function flexlove.getMode()
   return flexlove._immediateMode and "immediate" or "retained"
 end
 
---- Begin a new immediate mode frame
---- You do NOT need to call this directly, it will autodetect, but you can if you need more granular control - must then paired with endFrame()
+--- Manually start a new frame in immediate mode for precise control over the UI lifecycle
+--- Only needed when you want explicit frame boundaries; otherwise FlexLove auto-manages frames
 function flexlove.beginFrame()
   if not flexlove._immediateMode then
     return
@@ -364,9 +369,8 @@ function flexlove.beginFrame()
   Context.clearFrameElements()
 end
 
---- End the current immediate mode frame
---- You do NOT need to call this directly unless you call beginFrame() manually - it will autodetect, but you can if you need more granular control
---- MUST BE PAIRED WITH beginFrame()
+--- Finalize the frame in immediate mode, triggering layout calculations and state persistence
+--- Only needed when manually controlling frames with beginFrame(); otherwise handled automatically
 function flexlove.endFrame()
   if not flexlove._immediateMode then
     return
@@ -436,6 +440,8 @@ flexlove._gameCanvas = nil
 flexlove._backdropCanvas = nil
 flexlove._canvasDimensions = { width = 0, height = 0 }
 
+--- Render all UI elements with optional backdrop blur support for glassmorphic effects
+--- Place your game scene in gameDrawFunc to enable backdrop blur on UI elements; use postDrawFunc for overlays
 ---@param gameDrawFunc function|nil pass component draws that should be affected by a backdrop blur
 ---@param postDrawFunc function|nil pass component draws that should NOT be affected by a backdrop blur
 function flexlove.draw(gameDrawFunc, postDrawFunc)
@@ -566,7 +572,8 @@ local function isAncestor(element, target)
   return false
 end
 
---- Find the topmost element at given coordinates
+--- Determine which UI element the user is interacting with at a specific screen position
+--- Essential for custom input handling, tooltips, or debugging click targets in complex layouts
 ---@param x number
 ---@param y number
 ---@return Element?
@@ -662,6 +669,8 @@ function flexlove.getElementAtPosition(x, y)
   return blockingElements[1]
 end
 
+--- Update all UI animations, interactions, and state changes each frame
+--- Hook this to love.update() to enable hover effects, animations, text cursors, and scrolling
 ---@param dt number
 function flexlove.update(dt)
   -- Update Performance module with actual delta time for accurate FPS
@@ -742,7 +751,8 @@ function flexlove._manageGC()
   -- "manual" strategy: no automatic GC, user must call flexlove.collectGarbage()
 end
 
---- Manual garbage collection control
+--- Manually trigger garbage collection to prevent frame drops during critical gameplay moments
+--- Use this to control when memory cleanup happens rather than letting it occur unpredictably
 ---@param mode? string "collect" for full GC, "step" for incremental (default: "collect")
 ---@param stepSize? number Work units for step mode (default: 200)
 function flexlove.collectGarbage(mode, stepSize)
@@ -760,7 +770,8 @@ function flexlove.collectGarbage(mode, stepSize)
   end
 end
 
---- Set GC strategy
+--- Choose how FlexLove manages memory cleanup to balance performance and memory usage for your app's needs
+--- Use "manual" for tight control in performance-critical sections, "auto" for hands-off operation
 ---@param strategy string "auto", "periodic", "manual", or "disabled"
 function flexlove.setGCStrategy(strategy)
   if strategy == "auto" or strategy == "periodic" or strategy == "manual" or strategy == "disabled" then
@@ -770,7 +781,8 @@ function flexlove.setGCStrategy(strategy)
   end
 end
 
---- Get GC statistics
+--- Monitor memory management behavior to diagnose performance issues and tune GC settings
+--- Use this to identify memory leaks or optimize garbage collection timing
 ---@return table stats {gcCount, framesSinceLastGC, currentMemoryMB, strategy}
 function flexlove.getGCStats()
   return {
@@ -782,6 +794,8 @@ function flexlove.getGCStats()
   }
 end
 
+--- Forward text input to focused editable elements like text fields and text areas
+--- Hook this to love.textinput() to enable text entry in your UI
 ---@param text string
 function flexlove.textinput(text)
   if flexlove._focusedElement then
@@ -789,6 +803,8 @@ function flexlove.textinput(text)
   end
 end
 
+--- Handle keyboard input for text editing, navigation, and performance overlay toggling
+--- Hook this to love.keypressed() to enable text selection, cursor movement, and the performance HUD
 ---@param key string
 ---@param scancode string
 ---@param isrepeat boolean
@@ -800,6 +816,8 @@ function flexlove.keypressed(key, scancode, isrepeat)
   end
 end
 
+--- Enable mouse wheel scrolling in scrollable containers and lists
+--- Hook this to love.wheelmoved() to allow users to scroll through content naturally
 ---@param dx number
 ---@param dy number
 function flexlove.wheelmoved(dx, dy)
@@ -926,7 +944,8 @@ function flexlove.wheelmoved(dx, dy)
   end
 end
 
---- destroys all top-level elements and resets the framework state
+--- Clean up all UI elements and reset FlexLove to initial state when changing scenes or shutting down
+--- Use this to prevent memory leaks when transitioning between game states or menus
 function flexlove.destroy()
   for _, win in ipairs(flexlove.topElements) do
     win:destroy()
@@ -951,6 +970,8 @@ function flexlove.destroy()
   StateManager:reset()
 end
 
+--- Create a new UI element with flexbox layout, styling, and interaction capabilities
+--- This is your primary API for building interfaces - buttons, panels, text, images, and containers
 ---@param props ElementProps
 ---@return Element
 function flexlove.new(props)
@@ -1058,6 +1079,8 @@ function flexlove.new(props)
   return element
 end
 
+--- Check how many UI element states are being tracked in immediate mode to detect memory leaks
+--- Use this during development to ensure states are properly cleaned up
 ---@return number
 function flexlove.getStateCount()
   if not flexlove._immediateMode then
@@ -1066,7 +1089,8 @@ function flexlove.getStateCount()
   return StateManager.getStateCount()
 end
 
---- Clear state for a specific element ID
+--- Remove stored state for a specific element when you know it won't be rendered again
+--- Use this to immediately free memory for elements you've removed from your UI
 ---@param id string
 function flexlove.clearState(id)
   if not flexlove._immediateMode then
@@ -1075,7 +1099,8 @@ function flexlove.clearState(id)
   StateManager.clearState(id)
 end
 
---- Clear all immediate mode states
+--- Wipe all element state when transitioning between completely different UI screens
+--- Use this for scene transitions to start with a clean slate and prevent state pollution
 function flexlove.clearAllStates()
   if not flexlove._immediateMode then
     return
@@ -1083,7 +1108,8 @@ function flexlove.clearAllStates()
   StateManager.clearAllStates()
 end
 
---- Get state (immediate mode) statistics (for debugging)
+--- Inspect state management metrics to diagnose performance issues and optimize immediate mode usage
+--- Use this to understand state lifecycle and identify unexpected state accumulation
 ---@return { stateCount: number, frameNumber: number, oldestState: number|nil, newestState: number|nil }
 function flexlove.getStateStats()
   if not flexlove._immediateMode then

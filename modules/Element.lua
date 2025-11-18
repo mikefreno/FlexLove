@@ -1415,13 +1415,15 @@ function Element.new(props, deps)
   return self
 end
 
---- Get element bounds (content box)
+--- Retrieve the element's screen-space rectangle for collision detection and positioning calculations
+--- Use this for custom layout logic, tooltips, or detecting overlaps between elements
 ---@return { x:number, y:number, width:number, height:number }
 function Element:getBounds()
   return { x = self.x, y = self.y, width = self:getBorderBoxWidth(), height = self:getBorderBoxHeight() }
 end
 
---- Check if point is inside element bounds
+--- Test if a screen coordinate falls within the element's clickable area
+--- Use this for custom hit detection or determining which element the mouse is over
 --- @param x number
 --- @param y number
 --- @return boolean
@@ -1430,13 +1432,15 @@ function Element:contains(x, y)
   return bounds.x <= x and bounds.y <= y and bounds.x + bounds.width >= x and bounds.y + bounds.height >= y
 end
 
---- Get border-box width (including padding)
+--- Get the element's total width including padding for layout calculations
+--- Use this when you need the full visual width rather than just content width
 ---@return number
 function Element:getBorderBoxWidth()
   return self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
 end
 
---- Get border-box height (including padding)
+--- Get the element's total height including padding for layout calculations
+--- Use this when you need the full visual height rather than just content height
 ---@return number
 function Element:getBorderBoxHeight()
   return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
@@ -1473,7 +1477,8 @@ function Element:_detectOverflow()
   end
 end
 
---- Set scroll position with bounds clamping (delegates to ScrollManager)
+--- Programmatically scroll content to any position for implementing "scroll to top" buttons or navigation anchors
+--- Use this to create custom scrolling controls or jump to specific content sections
 ---@param x number? -- X scroll position (nil to keep current)
 ---@param y number? -- Y scroll position (nil to keep current)
 function Element:setScrollPosition(x, y)
@@ -1561,7 +1566,8 @@ function Element:_handleWheelScroll(x, y)
   return false
 end
 
---- Get current scroll position (delegates to ScrollManager)
+--- Query how far content is scrolled to implement scroll-aware UI like "back to top" buttons
+--- Use this to create scroll position indicators or trigger lazy-loading
 ---@return number scrollX, number scrollY
 function Element:getScrollPosition()
   if self._scrollManager then
@@ -1570,7 +1576,8 @@ function Element:getScrollPosition()
   return 0, 0
 end
 
---- Get maximum scroll bounds (delegates to ScrollManager)
+--- Find the scroll limits for validation and scroll position clamping
+--- Use this to determine if content is fully scrolled or calculate remaining scroll distance
 ---@return number maxScrollX, number maxScrollY
 function Element:getMaxScroll()
   if self._scrollManager then
@@ -1579,7 +1586,8 @@ function Element:getMaxScroll()
   return 0, 0
 end
 
---- Get scroll percentage (0-1) (delegates to ScrollManager)
+--- Get normalized scroll progress for scroll-based animations or position indicators
+--- Use this to drive progress bars or parallax effects based on scroll position
 ---@return number percentX, number percentY
 function Element:getScrollPercentage()
   if self._scrollManager then
@@ -1588,7 +1596,8 @@ function Element:getScrollPercentage()
   return 0, 0
 end
 
---- Check if element has overflow (delegates to ScrollManager)
+--- Determine if content extends beyond visible bounds to conditionally show scrollbars or overflow indicators
+--- Use this to decide whether to display scroll hints or enable scroll interactions
 ---@return boolean hasOverflowX, boolean hasOverflowY
 function Element:hasOverflow()
   if self._scrollManager then
@@ -1597,7 +1606,8 @@ function Element:hasOverflow()
   return false, false
 end
 
---- Get content dimensions (including overflow) (delegates to ScrollManager)
+--- Measure total content size including overflowed areas for scroll calculations
+--- Use this to understand how much content exists beyond the visible viewport
 ---@return number contentWidth, number contentHeight
 function Element:getContentSize()
   if self._scrollManager then
@@ -1606,7 +1616,8 @@ function Element:getContentSize()
   return 0, 0
 end
 
---- Scroll by delta amount (delegates to ScrollManager)
+--- Scroll content by a relative amount for smooth scrolling animations or gesture-based scrolling
+--- Use this to implement custom scroll controls or smooth scroll transitions
 ---@param dx number? -- X delta (nil for no change)
 ---@param dy number? -- Y delta (nil for no change)
 function Element:scrollBy(dx, dy)
@@ -1616,7 +1627,8 @@ function Element:scrollBy(dx, dy)
   end
 end
 
---- Scroll to top
+--- Jump to the beginning of scrollable content instantly
+--- Use this for "back to top" buttons or resetting scroll position
 function Element:scrollToTop()
   self:setScrollPosition(nil, 0)
 end
@@ -1634,7 +1646,8 @@ function Element:scrollToLeft()
   self:setScrollPosition(0, nil)
 end
 
---- Scroll to right
+--- Jump to the rightmost position of horizontally scrollable content
+--- Use this to navigate to the end of horizontal lists or carousels
 function Element:scrollToRight()
   if self._scrollManager then
     local maxScrollX, _ = self._scrollManager:getMaxScroll()
@@ -1718,7 +1731,8 @@ function Element:getAvailableContentHeight()
   return math.max(0, availableHeight)
 end
 
---- Add child to element
+--- Dynamically insert a child element into the hierarchy for runtime UI construction
+--- Use this to build interfaces procedurally or add elements based on application state
 ---@param child Element
 function Element:addChild(child)
   child.parent = self
@@ -1790,7 +1804,8 @@ function Element:addChild(child)
   end
 end
 
---- Remove a specific child from this element
+--- Remove a child element from the hierarchy to dynamically update UIs
+--- Use this to delete elements when they're no longer needed or respond to user actions
 ---@param child Element
 function Element:removeChild(child)
   for i, c in ipairs(self.children) do
@@ -1822,7 +1837,8 @@ function Element:removeChild(child)
   end
 end
 
---- Remove all children from this element
+--- Delete all child elements at once for resetting containers or clearing lists
+--- Use this to efficiently empty containers when rebuilding UI from scratch
 function Element:clearChildren()
   -- Clear parent references for all children
   for _, child in ipairs(self.children) do
@@ -2661,21 +2677,24 @@ end
 -- Input Handling - Focus Management
 -- ====================
 
---- Focus this element for keyboard input
+--- Give this element keyboard focus to enable text input or keyboard navigation
+--- Use this to automatically focus text fields when showing forms or dialogs
 function Element:focus()
   if self._textEditor then
     self._textEditor:focus()
   end
 end
 
---- Remove focus from this element
+--- Remove keyboard focus to stop capturing input events
+--- Use this when closing popups or switching focus to other elements
 function Element:blur()
   if self._textEditor then
     self._textEditor:blur()
   end
 end
 
---- Check if this element is focused
+--- Query focus state to conditionally render focus indicators or handle keyboard input
+--- Use this to style focused elements or determine which element receives keyboard events
 ---@return boolean
 function Element:isFocused()
   if self._textEditor then
@@ -2688,7 +2707,8 @@ end
 -- Input Handling - Text Buffer Management
 -- ====================
 
---- Get current text buffer
+--- Retrieve the element's current text content for processing or validation
+--- Use this to read user input from text fields or get display text
 ---@return string
 function Element:getText()
   if self._textEditor then
@@ -2697,7 +2717,8 @@ function Element:getText()
   return self.text or ""
 end
 
---- Set text buffer and mark dirty
+--- Update the element's text content programmatically for dynamic labels or resetting inputs
+--- Use this to change text without user input, like clearing fields or updating status messages
 ---@param text string
 function Element:setText(text)
   if self._textEditor then
@@ -2709,7 +2730,8 @@ function Element:setText(text)
   self.text = text
 end
 
---- Insert text at position
+--- Programmatically insert text at any position for autocomplete or text manipulation
+--- Use this to implement suggestions, templates, or text snippets
 ---@param text string -- Text to insert
 ---@param position number? -- Position to insert at (default: cursor position)
 function Element:insertText(text, position)
@@ -2899,7 +2921,8 @@ function Element:_trackActiveAnimations()
   end
 end
 
---- Set image tint color
+--- Change the tint color of an image element dynamically for hover effects or state indication
+--- Use this to recolor images without replacing the asset, like highlighting selected items
 ---@param color Color Color to tint the image
 function Element:setImageTint(color)
   self.imageTint = color
@@ -2908,7 +2931,8 @@ function Element:setImageTint(color)
   end
 end
 
---- Set image opacity
+--- Adjust image transparency independently from the element for fade effects
+--- Use this to create image-specific fade animations or disabled states
 ---@param opacity number Opacity 0-1
 function Element:setImageOpacity(opacity)
   if opacity ~= nil then
@@ -2938,7 +2962,8 @@ function Element:setImageRepeat(repeatMode)
   end
 end
 
---- Rotate element by angle
+--- Apply rotation transform to create spinning animations or rotated layouts
+--- Use this for loading spinners, compass needles, or angled UI elements
 ---@param angle number Angle in radians
 function Element:rotate(angle)
   if not self.transform then
@@ -2947,7 +2972,8 @@ function Element:rotate(angle)
   self.transform.rotate = angle
 end
 
---- Scale element
+--- Resize element visually using scale transforms for zoom effects
+--- Use this for hover magnification, shrinking animations, or responsive scaling
 ---@param scaleX number X-axis scale
 ---@param scaleY number? Y-axis scale (defaults to scaleX)
 function Element:scale(scaleX, scaleY)
@@ -2958,7 +2984,8 @@ function Element:scale(scaleX, scaleY)
   self.transform.scaleY = scaleY or scaleX
 end
 
---- Translate element
+--- Offset element position using transforms for smooth movement without layout recalculation
+--- Use this for parallax effects, draggable elements, or position animations
 ---@param x number X translation
 ---@param y number Y translation
 function Element:translate(x, y)
@@ -2969,7 +2996,8 @@ function Element:translate(x, y)
   self.transform.translateY = y
 end
 
---- Set transform origin
+--- Define the pivot point for rotation and scaling transforms
+--- Use this to rotate around corners, edges, or custom points rather than the center
 ---@param originX number X origin (0-1, where 0.5 is center)
 ---@param originY number Y origin (0-1, where 0.5 is center)
 function Element:setTransformOrigin(originX, originY)

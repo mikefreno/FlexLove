@@ -13,7 +13,8 @@ local ErrorHandler = nil
 ---@field onComplete function? Called when all animations complete: (group)
 ---@field onStart function? Called when group starts: (group)
 
---- Create a new animation group
+--- Coordinate multiple animations to play together, in sequence, or staggered for complex choreographed effects
+--- Use this to synchronize related UI changes like simultaneous fades or sequential reveals
 ---@param props AnimationGroupProps
 ---@return AnimationGroup group
 function AnimationGroup.new(props)
@@ -142,7 +143,8 @@ function AnimationGroup:_updateStagger(dt, element)
   return allFinished
 end
 
---- Update the animation group
+--- Advance all animations in the group according to their coordination mode
+--- Call this each frame to progress parallel, sequential, or staggered animations
 ---@param dt number Delta time
 ---@param element table? Optional element reference for callbacks
 ---@return boolean finished True if group is complete
@@ -191,7 +193,8 @@ function AnimationGroup:update(dt, element)
   return finished
 end
 
---- Pause all animations in the group
+--- Freeze the entire animation sequence in unison
+--- Use this to pause complex multi-part animations during game pauses
 function AnimationGroup:pause()
   self._paused = true
   for _, anim in ipairs(self.animations) do
@@ -201,7 +204,8 @@ function AnimationGroup:pause()
   end
 end
 
---- Resume all animations in the group
+--- Continue all paused animations simultaneously from their paused states
+--- Use this to unpause coordinated animation sequences
 function AnimationGroup:resume()
   self._paused = false
   for _, anim in ipairs(self.animations) do
@@ -211,13 +215,15 @@ function AnimationGroup:resume()
   end
 end
 
---- Check if group is paused
+--- Determine if the entire group is currently paused
+--- Use this to sync other game logic with animation group state
 ---@return boolean paused
 function AnimationGroup:isPaused()
   return self._paused
 end
 
---- Reverse all animations in the group
+--- Flip all animations to play backwards together
+--- Use this to reverse complex transitions like panel opens/closes
 function AnimationGroup:reverse()
   for _, anim in ipairs(self.animations) do
     if type(anim.reverse) == "function" then
@@ -226,7 +232,8 @@ function AnimationGroup:reverse()
   end
 end
 
---- Set speed for all animations in the group
+--- Control the tempo of all animations simultaneously
+--- Use this for slow-motion effects or debugging without adjusting individual animations
 ---@param speed number Speed multiplier
 function AnimationGroup:setSpeed(speed)
   for _, anim in ipairs(self.animations) do
@@ -236,7 +243,8 @@ function AnimationGroup:setSpeed(speed)
   end
 end
 
---- Cancel all animations in the group
+--- Abort all animations in the group immediately without completion
+--- Use this when UI is dismissed mid-animation or transitions are interrupted
 ---@param element table? Optional element reference for callbacks
 function AnimationGroup:cancel(element)
   if self._state ~= "cancelled" and self._state ~= "completed" then
@@ -249,7 +257,8 @@ function AnimationGroup:cancel(element)
   end
 end
 
---- Reset the animation group to initial state
+--- Restart the entire group from the beginning for reuse
+--- Use this to replay animation sequences without recreating objects
 function AnimationGroup:reset()
   self._currentIndex = 1
   self._staggerElapsed = 0
@@ -265,13 +274,15 @@ function AnimationGroup:reset()
   end
 end
 
---- Get the current state of the group
+--- Check the overall lifecycle state of the animation group
+--- Use this to conditionally trigger follow-up actions or cleanup
 ---@return string state "ready", "playing", "completed", "cancelled"
 function AnimationGroup:getState()
   return self._state
 end
 
---- Get the overall progress of the group (0-1)
+--- Calculate completion percentage across all animations in the group
+--- Use this for progress bars or to synchronize other effects with the group
 ---@return number progress
 function AnimationGroup:getProgress()
   if #self.animations == 0 then
@@ -305,7 +316,8 @@ function AnimationGroup:getProgress()
   end
 end
 
---- Apply this animation group to an element
+--- Attach this group to an element for automatic updates and integration
+--- Use this for hands-off animation management within FlexLove's system
 ---@param element Element The element to apply animations to
 function AnimationGroup:apply(element)
   if not element or type(element) ~= "table" then

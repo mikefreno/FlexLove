@@ -6,7 +6,7 @@ themes/metal/
 themes/space/
 .DS_STORE
 tasks
-testoutput
+testoutput*
 luacov.*
 docs/doc.json
 docs/doc.md

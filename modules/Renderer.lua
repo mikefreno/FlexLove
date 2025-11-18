@@ -190,10 +190,45 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
 
   if hasCornerRadius then
     -- Use stencil to clip image to rounded corners
-    love.graphics.stencil(function()
-      self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
-    end, "replace", 1)
-    love.graphics.setStencilTest("greater", 0)
+    local success, err = pcall(function()
+      love.graphics.stencil(function()
+        self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      end, "replace", 1)
+      love.graphics.setStencilTest("greater", 0)
+    end)
+
+    if not success then
+      -- Lazy-load ErrorHandler if needed
+      if not ErrorHandler then
+        ErrorHandler = require("modules.ErrorHandler")
+      end
+
+      -- Check if it's a stencil buffer error
+      if err and err:match("stencil") then
+        ErrorHandler.warn(
+          "Renderer",
+          "IMG_001",
+          "Cannot apply corner radius to image: stencil buffer not available",
+          {
+            imagePath = self.imagePath or "unknown",
+            cornerRadius = string.format(
+              "TL:%d TR:%d BL:%d BR:%d",
+              self.cornerRadius.topLeft,
+              self.cornerRadius.topRight,
+              self.cornerRadius.bottomLeft,
+              self.cornerRadius.bottomRight
+            ),
+            error = tostring(err),
+          },
+          "Ensure the active canvas has stencil=true enabled, or remove cornerRadius from images"
+        )
+        -- Continue without corner radius
+        hasCornerRadius = false
+      else
+        -- Re-throw if it's a different error
+        error(err, 2)
+      end
+    end
   end
 
   -- Draw the image based on repeat mode

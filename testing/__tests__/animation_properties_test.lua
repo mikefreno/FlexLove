@@ -3,6 +3,17 @@ require("testing.loveStub")
 
 local Animation = require("modules.Animation")
 local Color = require("modules.Color")
+local Transform = require("modules.Transform")
+local ErrorHandler = require("modules.ErrorHandler")
+local ErrorCodes = require("modules.ErrorCodes")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({ ErrorCodes = ErrorCodes })
+Animation.initializeErrorHandler(ErrorHandler)
+Color.initializeErrorHandler(ErrorHandler)
+
+-- Make Color module available to Animation
+Animation.setColorModule(Color)
 
 TestAnimationProperties = {}
 

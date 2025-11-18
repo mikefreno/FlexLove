@@ -1,6 +1,9 @@
 --- Easing function type
 ---@alias EasingFunction fun(t: number): number
 
+-- ErrorHandler dependency (injected via initializeErrorHandler)
+local ErrorHandler = nil
+
 --- Easing functions for animations
 ---@type table<string, EasingFunction>
 local Easing = {
@@ -76,19 +79,23 @@ Animation.__index = Animation
 function Animation.new(props)
   -- Validate input
   if type(props) ~= "table" then
-    error("[FlexLove.Animation] Animation.new() requires a table argument")
+    ErrorHandler.warn("Animation", "Animation.new() requires a table argument. Using default values.")
+    props = {duration = 1, start = {}, final = {}}
   end
   
   if type(props.duration) ~= "number" or props.duration <= 0 then
-    error("[FlexLove.Animation] Animation duration must be a positive number")
+    ErrorHandler.warn("Animation", "Animation duration must be a positive number. Using 1 second.")
+    props.duration = 1
   end
   
   if type(props.start) ~= "table" then
-    error("[FlexLove.Animation] Animation start must be a table")
+    ErrorHandler.warn("Animation", "Animation start must be a table. Using empty table.")
+    props.start = {}
   end
   
   if type(props.final) ~= "table" then
-    error("[FlexLove.Animation] Animation final must be a table")
+    ErrorHandler.warn("Animation", "Animation final must be a table. Using empty table.")
+    props.final = {}
   end
 
   local self = setmetatable({}, Animation)
@@ -144,6 +151,14 @@ function Animation:update(dt, element)
     return false
   end
   
+  -- Handle delay
+  if self._delay and self._delayElapsed then
+    if self._delayElapsed < self._delay then
+      self._delayElapsed = self._delayElapsed + dt
+      return false
+    end
+  end
+  
   -- Call onStart on first update
   if not self._hasStarted then
     self._hasStarted = true
@@ -180,8 +195,32 @@ function Animation:update(dt, element)
     self.elapsed = self.elapsed + dt
     if self.elapsed >= self.duration then
       self.elapsed = self.duration
-      self._state = "completed"
       self._resultDirty = true
+      
+      -- Handle repeat and yoyo
+      if self._repeatCount then
+        self._repeatCurrent = (self._repeatCurrent or 0) + 1
+        
+        if self._repeatCount == 0 or self._repeatCurrent < self._repeatCount then
+          -- Continue repeating
+          if self._yoyo then
+            -- Reverse direction for yoyo
+            self._reversed = not self._reversed
+            if self._reversed then
+              self.elapsed = self.duration
+            else
+              self.elapsed = 0
+            end
+          else
+            -- Reset to beginning
+            self.elapsed = 0
+          end
+          return false
+        end
+      end
+      
+      -- Animation truly completed
+      self._state = "completed"
       -- Call onComplete callback
       if self.onComplete and type(self.onComplete) == "function" then
         local success, err = pcall(self.onComplete, self, element)
@@ -355,8 +394,13 @@ end
 ---Apply this animation to an element
 ---@param element Element The element to apply animation to
 function Animation:apply(element)
+  if not ErrorHandler then
+    ErrorHandler = require("modules.ErrorHandler")
+  end
+  
   if not element or type(element) ~= "table" then
-    error("[FlexLove.Animation] Cannot apply animation to nil or non-table element")
+    ErrorHandler.warn("Animation", "Cannot apply animation to nil or non-table element. Animation not applied.")
+    return
   end
   element.animation = self
 end
@@ -464,6 +508,71 @@ function Animation:getProgress()
   return math.min(self.elapsed / self.duration, 1)
 end
 
+---Chain another animation after this one completes
+---@param nextAnimation Animation|function Animation instance or factory function that returns an animation
+---@return Animation nextAnimation The chained animation (for further chaining)
+function Animation:chain(nextAnimation)
+  if not ErrorHandler then
+    ErrorHandler = require("modules.ErrorHandler")
+  end
+  
+  if type(nextAnimation) == "function" then
+    self._nextFactory = nextAnimation
+    return self
+  elseif type(nextAnimation) == "table" then
+    self._next = nextAnimation
+    return nextAnimation
+  else
+    ErrorHandler.warn("Animation", "chain() requires an Animation or function. Chaining not applied.")
+    return self
+  end
+end
+
+---Add delay before animation starts
+---@param seconds number Delay duration in seconds
+---@return Animation self For chaining
+function Animation:delay(seconds)
+  if not ErrorHandler then
+    ErrorHandler = require("modules.ErrorHandler")
+  end
+  
+  if type(seconds) ~= "number" or seconds < 0 then
+    ErrorHandler.warn("Animation", "delay() requires a non-negative number. Using 0.")
+    seconds = 0
+  end
+  self._delay = seconds
+  self._delayElapsed = 0
+  return self
+end
+
+---Repeat animation multiple times
+---@param count number Number of times to repeat (0 = infinite loop)
+---@return Animation self For chaining
+function Animation:repeatCount(count)
+  if not ErrorHandler then
+    ErrorHandler = require("modules.ErrorHandler")
+  end
+  
+  if type(count) ~= "number" or count < 0 then
+    ErrorHandler.warn("Animation", "repeatCount() requires a non-negative number. Using 0.")
+    count = 0
+  end
+  self._repeatCount = count
+  self._repeatCurrent = 0
+  return self
+end
+
+---Enable yoyo mode (animation reverses direction on each repeat)
+---@param enabled boolean? Enable yoyo mode (default: true)
+---@return Animation self For chaining
+function Animation:yoyo(enabled)
+  if enabled == nil then
+    enabled = true
+  end
+  self._yoyo = enabled
+  return self
+end
+
 --- Create a simple fade animation
 ---@param duration number Duration in seconds
 ---@param fromOpacity number Starting opacity (0-1)
@@ -519,5 +628,14 @@ function Animation.scale(duration, fromScale, toScale, easing)
     transition = {},
   })
 end
+
+--- Initialize ErrorHandler dependency
+---@param errorHandler table The ErrorHandler module
+local function initializeErrorHandler(errorHandler)
+  ErrorHandler = errorHandler
+end
+
+-- Export ErrorHandler initializer
+Animation.initializeErrorHandler = initializeErrorHandler
 
 return Animation

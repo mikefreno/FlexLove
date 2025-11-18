@@ -243,8 +243,8 @@ function TestTransform:testClone_AllProperties()
   luaunit.assertAlmostEquals(clone.originX, 0.25, 0.01)
   luaunit.assertAlmostEquals(clone.originY, 0.75, 0.01)
 
-  -- Ensure it's a different object
-  luaunit.assertNotEquals(clone, original)
+  -- Ensure it's a different object (use raw comparison)
+  luaunit.assertFalse(rawequal(clone, original), "Clone should be a different table instance")
 end
 
 function TestTransform:testClone_Nil()
@@ -289,4 +289,6 @@ function TestTransform:testTransformAnimation()
   luaunit.assertAlmostEquals(result.transform.scaleX, 1.5, 0.01)
 end
 
-os.exit(luaunit.LuaUnit.run())
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

@@ -92,55 +92,60 @@ end
 
 -- Test: warn() prints with correct format (backward compatibility)
 function TestErrorHandler:test_warn_prints_with_format()
-  -- Capture print output by mocking print
+  -- Capture io.write output by mocking io.write
   local captured = nil
-  local originalPrint = print
-  print = function(msg)
+  local originalWrite = io.write
+  io.write = function(msg)
     captured = msg
   end
 
+  ErrorHandler.setLogTarget("console")
   ErrorHandler.warn("TestModule", "This is a warning")
+  ErrorHandler.setLogTarget("none")
 
-  print = originalPrint
+  io.write = originalWrite
 
   luaunit.assertNotNil(captured, "warn() should print")
-  luaunit.assertEquals(captured, "[FlexLove - TestModule] Warning: This is a warning")
+  luaunit.assertStrContains(captured, "[WARNING] [TestModule] This is a warning")
 end
 
 -- Test: warn() with error code
 function TestErrorHandler:test_warn_with_code()
   local captured = nil
-  local originalPrint = print
-  print = function(msg)
+  local originalWrite = io.write
+  io.write = function(msg)
     captured = msg
   end
 
+  ErrorHandler.setLogTarget("console")
   ErrorHandler.warn("TestModule", "VAL_001", "Potentially invalid property")
+  ErrorHandler.setLogTarget("none")
 
-  print = originalPrint
+  io.write = originalWrite
 
   luaunit.assertNotNil(captured, "warn() should print")
-  luaunit.assertStrContains(captured, "[FlexLove - TestModule] Warning [FLEXLOVE_VAL_001]")
+  luaunit.assertStrContains(captured, "[WARNING] [TestModule] [VAL_001]")
   luaunit.assertStrContains(captured, "Potentially invalid property")
 end
 
 -- Test: warn() with details
 function TestErrorHandler:test_warn_with_details()
   local captured = nil
-  local originalPrint = print
-  print = function(msg)
-    captured = msg
+  local originalWrite = io.write
+  io.write = function(msg)
+    captured = (captured or "") .. msg
   end
 
+  ErrorHandler.setLogTarget("console")
   ErrorHandler.warn("TestModule", "VAL_001", "Check this property", {
     property = "height",
     value = "auto",
   })
+  ErrorHandler.setLogTarget("none")
 
-  print = originalPrint
+  io.write = originalWrite
 
   luaunit.assertNotNil(captured, "warn() should print")
-  luaunit.assertStrContains(captured, "Details:")
   luaunit.assertStrContains(captured, "Property: height")
   luaunit.assertStrContains(captured, "Value: auto")
 end
@@ -225,14 +230,16 @@ end
 -- Test: warnDeprecated prints deprecation warning
 function TestErrorHandler:test_warnDeprecated_prints_message()
   local captured = nil
-  local originalPrint = print
-  print = function(msg)
+  local originalWrite = io.write
+  io.write = function(msg)
     captured = msg
   end
 
+  ErrorHandler.setLogTarget("console")
   ErrorHandler.warnDeprecated("TestModule", "oldFunction", "newFunction")
+  ErrorHandler.setLogTarget("none")
 
-  print = originalPrint
+  io.write = originalWrite
 
   luaunit.assertNotNil(captured, "warnDeprecated should print")
   luaunit.assertStrContains(captured, "'oldFunction' is deprecated. Use 'newFunction' instead")
@@ -241,14 +248,16 @@ end
 -- Test: warnCommonMistake prints helpful message
 function TestErrorHandler:test_warnCommonMistake_prints_message()
   local captured = nil
-  local originalPrint = print
-  print = function(msg)
+  local originalWrite = io.write
+  io.write = function(msg)
     captured = msg
   end
 
+  ErrorHandler.setLogTarget("console")
   ErrorHandler.warnCommonMistake("TestModule", "Width is zero", "Set width to positive value")
+  ErrorHandler.setLogTarget("none")
 
-  print = originalPrint
+  io.write = originalWrite
 
   luaunit.assertNotNil(captured, "warnCommonMistake should print")
   luaunit.assertStrContains(captured, "Width is zero. Suggestion: Set width to positive value")

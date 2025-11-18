@@ -105,6 +105,9 @@ function love_helper.graphics.newCanvas(width, height)
     getDimensions = function()
       return width or mockWindowWidth, height or mockWindowHeight
     end,
+    release = function()
+      -- Mock canvas release
+    end,
   }
 end
 

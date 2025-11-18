@@ -27,7 +27,7 @@ function TestAnimationProperties:testColorLerp_MidPoint()
   local colorA = Color.new(0, 0, 0, 1) -- Black
   local colorB = Color.new(1, 1, 1, 1) -- White
   local result = Color.lerp(colorA, colorB, 0.5)
-  
+
   luaunit.assertAlmostEquals(result.r, 0.5, 0.01)
   luaunit.assertAlmostEquals(result.g, 0.5, 0.01)
   luaunit.assertAlmostEquals(result.b, 0.5, 0.01)
@@ -38,7 +38,7 @@ function TestAnimationProperties:testColorLerp_StartPoint()
   local colorA = Color.new(1, 0, 0, 1) -- Red
   local colorB = Color.new(0, 0, 1, 1) -- Blue
   local result = Color.lerp(colorA, colorB, 0)
-  
+
   luaunit.assertAlmostEquals(result.r, 1, 0.01)
   luaunit.assertAlmostEquals(result.g, 0, 0.01)
   luaunit.assertAlmostEquals(result.b, 0, 0.01)
@@ -48,7 +48,7 @@ function TestAnimationProperties:testColorLerp_EndPoint()
   local colorA = Color.new(1, 0, 0, 1) -- Red
   local colorB = Color.new(0, 0, 1, 1) -- Blue
   local result = Color.lerp(colorA, colorB, 1)
-  
+
   luaunit.assertAlmostEquals(result.r, 0, 0.01)
   luaunit.assertAlmostEquals(result.g, 0, 0.01)
   luaunit.assertAlmostEquals(result.b, 1, 0.01)
@@ -58,7 +58,7 @@ function TestAnimationProperties:testColorLerp_Alpha()
   local colorA = Color.new(1, 1, 1, 0) -- Transparent white
   local colorB = Color.new(1, 1, 1, 1) -- Opaque white
   local result = Color.lerp(colorA, colorB, 0.5)
-  
+
   luaunit.assertAlmostEquals(result.a, 0.5, 0.01)
 end
 
@@ -72,11 +72,11 @@ end
 function TestAnimationProperties:testColorLerp_ClampT()
   local colorA = Color.new(0, 0, 0, 1)
   local colorB = Color.new(1, 1, 1, 1)
-  
+
   -- Test t > 1
   local result1 = Color.lerp(colorA, colorB, 1.5)
   luaunit.assertAlmostEquals(result1.r, 1, 0.01)
-  
+
   -- Test t < 0
   local result2 = Color.lerp(colorA, colorB, -0.5)
   luaunit.assertAlmostEquals(result2.r, 0, 0.01)
@@ -90,10 +90,10 @@ function TestAnimationProperties:testPositionAnimation_XProperty()
     start = { x = 0 },
     final = { x = 100 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.x, 50, 0.01)
 end
 
@@ -103,10 +103,10 @@ function TestAnimationProperties:testPositionAnimation_YProperty()
     start = { y = 0 },
     final = { y = 200 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.y, 100, 0.01)
 end
 
@@ -116,10 +116,10 @@ function TestAnimationProperties:testPositionAnimation_XY()
     start = { x = 10, y = 20 },
     final = { x = 110, y = 220 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.x, 60, 0.01)
   luaunit.assertAlmostEquals(result.y, 120, 0.01)
 end
@@ -133,10 +133,10 @@ function TestAnimationProperties:testColorAnimation_BackgroundColor()
     final = { backgroundColor = Color.new(0, 0, 1, 1) }, -- Blue
   })
   anim:setColorModule(Color)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.backgroundColor)
   luaunit.assertAlmostEquals(result.backgroundColor.r, 0.5, 0.01)
   luaunit.assertAlmostEquals(result.backgroundColor.b, 0.5, 0.01)
@@ -157,14 +157,14 @@ function TestAnimationProperties:testColorAnimation_MultipleColors()
     },
   })
   anim:setColorModule(Color)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.backgroundColor)
   luaunit.assertNotNil(result.borderColor)
   luaunit.assertNotNil(result.textColor)
-  
+
   -- Mid-point should be (0.5, 0.5, 0.5) for backgroundColor
   luaunit.assertAlmostEquals(result.backgroundColor.r, 0.5, 0.01)
   luaunit.assertAlmostEquals(result.backgroundColor.g, 0.5, 0.01)
@@ -178,10 +178,10 @@ function TestAnimationProperties:testColorAnimation_WithoutColorModule()
     final = { backgroundColor = Color.new(0, 0, 1, 1) },
   })
   -- Don't set Color module
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNil(result.backgroundColor)
 end
 
@@ -192,10 +192,10 @@ function TestAnimationProperties:testColorAnimation_HexColors()
     final = { backgroundColor = "#0000FF" }, -- Blue
   })
   anim:setColorModule(Color)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.backgroundColor)
   luaunit.assertAlmostEquals(result.backgroundColor.r, 0.5, 0.01)
 end
@@ -207,10 +207,10 @@ function TestAnimationProperties:testColorAnimation_NamedColors()
     final = { backgroundColor = "blue" },
   })
   anim:setColorModule(Color)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.backgroundColor)
   luaunit.assertAlmostEquals(result.backgroundColor.r, 0.5, 0.01)
 end
@@ -223,10 +223,10 @@ function TestAnimationProperties:testNumericAnimation_Gap()
     start = { gap = 0 },
     final = { gap = 20 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.gap, 10, 0.01)
 end
 
@@ -236,10 +236,10 @@ function TestAnimationProperties:testNumericAnimation_ImageOpacity()
     start = { imageOpacity = 0 },
     final = { imageOpacity = 1 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.imageOpacity, 0.5, 0.01)
 end
 
@@ -249,10 +249,10 @@ function TestAnimationProperties:testNumericAnimation_BorderWidth()
     start = { borderWidth = 1 },
     final = { borderWidth = 10 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.borderWidth, 5.5, 0.01)
 end
 
@@ -262,10 +262,10 @@ function TestAnimationProperties:testNumericAnimation_FontSize()
     start = { fontSize = 12 },
     final = { fontSize = 24 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.fontSize, 18, 0.01)
 end
 
@@ -275,10 +275,10 @@ function TestAnimationProperties:testNumericAnimation_MultipleProperties()
     start = { gap = 0, imageOpacity = 0, borderWidth = 1 },
     final = { gap = 20, imageOpacity = 1, borderWidth = 5 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.gap, 10, 0.01)
   luaunit.assertAlmostEquals(result.imageOpacity, 0.5, 0.01)
   luaunit.assertAlmostEquals(result.borderWidth, 3, 0.01)
@@ -292,10 +292,10 @@ function TestAnimationProperties:testTableAnimation_Padding()
     start = { padding = { top = 0, right = 0, bottom = 0, left = 0 } },
     final = { padding = { top = 10, right = 20, bottom = 10, left = 20 } },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.padding)
   luaunit.assertAlmostEquals(result.padding.top, 5, 0.01)
   luaunit.assertAlmostEquals(result.padding.right, 10, 0.01)
@@ -309,10 +309,10 @@ function TestAnimationProperties:testTableAnimation_Margin()
     start = { margin = { top = 0, right = 0, bottom = 0, left = 0 } },
     final = { margin = { top = 20, right = 20, bottom = 20, left = 20 } },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.margin)
   luaunit.assertAlmostEquals(result.margin.top, 10, 0.01)
   luaunit.assertAlmostEquals(result.margin.right, 10, 0.01)
@@ -324,10 +324,10 @@ function TestAnimationProperties:testTableAnimation_CornerRadius()
     start = { cornerRadius = { topLeft = 0, topRight = 0, bottomLeft = 0, bottomRight = 0 } },
     final = { cornerRadius = { topLeft = 10, topRight = 10, bottomLeft = 10, bottomRight = 10 } },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.cornerRadius)
   luaunit.assertAlmostEquals(result.cornerRadius.topLeft, 5, 0.01)
   luaunit.assertAlmostEquals(result.cornerRadius.topRight, 5, 0.01)
@@ -340,10 +340,10 @@ function TestAnimationProperties:testTableAnimation_PartialKeys()
     start = { padding = { top = 0, left = 0 } },
     final = { padding = { top = 10, right = 20, left = 10 } },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.padding)
   luaunit.assertAlmostEquals(result.padding.top, 5, 0.01)
   luaunit.assertAlmostEquals(result.padding.left, 5, 0.01)
@@ -357,10 +357,10 @@ function TestAnimationProperties:testTableAnimation_NonNumericValues()
     start = { padding = { top = 0, special = "value" } },
     final = { padding = { top = 10, special = "value" } },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertNotNil(result.padding)
   luaunit.assertAlmostEquals(result.padding.top, 5, 0.01)
 end
@@ -392,10 +392,10 @@ function TestAnimationProperties:testCombinedAnimation_AllTypes()
     },
   })
   anim:setColorModule(Color)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   -- Check all properties interpolated correctly
   luaunit.assertAlmostEquals(result.width, 150, 0.01)
   luaunit.assertAlmostEquals(result.height, 150, 0.01)
@@ -415,10 +415,10 @@ function TestAnimationProperties:testCombinedAnimation_WithEasing()
     easing = "easeInQuad",
   })
   anim:setColorModule(Color)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   -- With easeInQuad, at t=0.5, eased value should be 0.25
   luaunit.assertAlmostEquals(result.x, 25, 0.01)
   luaunit.assertAlmostEquals(result.backgroundColor.r, 0.25, 0.01)
@@ -433,10 +433,10 @@ function TestAnimationProperties:testBackwardCompatibility_WidthHeightOpacity()
     start = { width = 100, height = 100, opacity = 0 },
     final = { width = 200, height = 200, opacity = 1 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.width, 150, 0.01)
   luaunit.assertAlmostEquals(result.height, 150, 0.01)
   luaunit.assertAlmostEquals(result.opacity, 0.5, 0.01)
@@ -444,19 +444,19 @@ end
 
 function TestAnimationProperties:testBackwardCompatibility_FadeHelper()
   local anim = Animation.fade(1, 0, 1)
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.opacity, 0.5, 0.01)
 end
 
 function TestAnimationProperties:testBackwardCompatibility_ScaleHelper()
   local anim = Animation.scale(1, { width = 100, height = 100 }, { width = 200, height = 200 })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.width, 150, 0.01)
   luaunit.assertAlmostEquals(result.height, 150, 0.01)
 end
@@ -469,10 +469,10 @@ function TestAnimationProperties:testEdgeCase_MissingStartValue()
     start = { x = 0 },
     final = { x = 100, y = 100 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.x, 50, 0.01)
   luaunit.assertNil(result.y) -- Should be nil since start.y is missing
 end
@@ -483,10 +483,10 @@ function TestAnimationProperties:testEdgeCase_MissingFinalValue()
     start = { x = 0, y = 0 },
     final = { x = 100 },
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   luaunit.assertAlmostEquals(result.x, 50, 0.01)
   luaunit.assertNil(result.y) -- Should be nil since final.y is missing
 end
@@ -497,10 +497,10 @@ function TestAnimationProperties:testEdgeCase_EmptyTables()
     start = {},
     final = {},
   })
-  
+
   anim:update(0.5)
   local result = anim:interpolate()
-  
+
   -- Should not error, just return empty result
   luaunit.assertNotNil(result)
 end
@@ -512,11 +512,11 @@ function TestAnimationProperties:testEdgeCase_CachedResult()
     start = { x = 0 },
     final = { x = 100 },
   })
-  
+
   anim:update(0.5)
   local result1 = anim:interpolate()
   local result2 = anim:interpolate() -- Should use cached result
-  
+
   luaunit.assertEquals(result1, result2) -- Same table reference
   luaunit.assertAlmostEquals(result1.x, 50, 0.01)
 end
@@ -527,15 +527,15 @@ function TestAnimationProperties:testEdgeCase_ResultInvalidatedOnUpdate()
     start = { x = 0 },
     final = { x = 100 },
   })
-  
+
   anim:update(0.5)
   local result1 = anim:interpolate()
   local x1 = result1.x -- Store value, not reference
-  
+
   anim:update(0.25) -- Update again
   local result2 = anim:interpolate()
   local x2 = result2.x
-  
+
   -- Should recalculate
   -- Note: result1 and result2 are the same cached table, but values should be updated
   luaunit.assertAlmostEquals(x1, 50, 0.01)
@@ -544,4 +544,6 @@ function TestAnimationProperties:testEdgeCase_ResultInvalidatedOnUpdate()
   luaunit.assertAlmostEquals(result1.x, 75, 0.01)
 end
 
-os.exit(luaunit.LuaUnit.run())
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

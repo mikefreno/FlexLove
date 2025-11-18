@@ -53,7 +53,8 @@ local NAMED_COLORS = {
 local Color = {}
 Color.__index = Color
 
---- Create a new color instance
+--- Build type-safe color objects with automatic validation and clamping
+--- Use this to avoid invalid color values and ensure consistent LÖVE-compatible colors (0-1 range)
 ---@param r number? Red component (0-1), defaults to 0
 ---@param g number? Green component (0-1), defaults to 0
 ---@param b number? Blue component (0-1), defaults to 0
@@ -75,7 +76,8 @@ function Color.new(r, g, b, a)
   return self
 end
 
----Convert color to RGBA components
+--- Extract individual color channels for use with love.graphics.setColor()
+--- Use this to pass colors to LÖVE's rendering functions
 ---@return number r Red component (0-1)
 ---@return number g Green component (0-1)
 ---@return number b Blue component (0-1)
@@ -84,8 +86,8 @@ function Color:toRGBA()
   return self.r, self.g, self.b, self.a
 end
 
---- Convert hex string to color
---- Supports both 6-digit (#RRGGBB) and 8-digit (#RRGGBBAA) hex formats
+--- Parse CSS-style hex colors into Color objects for designer-friendly workflows
+--- Use this to work with colors from design tools that export hex values
 ---@param hexWithTag string Hex color string (e.g. "#RRGGBB" or "#RRGGBBAA")
 ---@return Color color The parsed color (returns white on error with warning)
 function Color.fromHex(hexWithTag)
@@ -146,7 +148,8 @@ function Color.fromHex(hexWithTag)
   end
 end
 
---- Validate a single color channel value
+--- Verify and sanitize individual color components to prevent rendering errors
+--- Use this to safely process user input or external color data
 ---@param value any Value to validate
 ---@param max number? Maximum value (255 for 0-255 range, 1 for 0-1 range), defaults to 1
 ---@return boolean valid True if valid
@@ -307,7 +310,8 @@ function Color.isValidColorFormat(value)
   return nil
 end
 
---- Validate a color value
+--- Check if a color value is usable before processing to provide clear error messages
+--- Use this for config validation and debugging malformed color data
 ---@param value any Color value to validate
 ---@param options table? Validation options {allowNamed: boolean, requireAlpha: boolean}
 ---@return boolean valid True if valid
@@ -342,7 +346,8 @@ function Color.validateColor(value, options)
   return true, nil
 end
 
---- Sanitize a color value (always returns a valid Color)
+--- Convert any color format to a valid Color object with graceful fallbacks
+--- Use this to robustly handle colors from any source without crashes
 ---@param value any Color value to sanitize (hex, named, table, or Color instance)
 ---@param default Color? Default color if invalid (defaults to black)
 ---@return Color color Sanitized color instance (guaranteed non-nil)
@@ -418,14 +423,16 @@ function Color.sanitizeColor(value, default)
   return default
 end
 
---- Parse a color from various formats (always returns a valid Color)
+--- Universally convert any color format (hex, named, table) into a Color object
+--- Use this as your main color input handler to accept flexible color specifications
 ---@param value any Color value (hex string, named color, table, or Color instance)
 ---@return Color color Parsed color instance (defaults to black on error)
 function Color.parse(value)
   return Color.sanitizeColor(value, Color.new(0, 0, 0, 1))
 end
 
---- Linear interpolation between two colors
+--- Smoothly transition between two colors for animations and gradients
+--- Use this to create color-based animations without manual channel calculations
 ---@param colorA Color Starting color
 ---@param colorB Color Ending color
 ---@param t number Interpolation factor (0-1)

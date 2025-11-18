@@ -86,12 +86,19 @@ function Transform.lerp(from, to, t)
   if type(to) ~= "table" then
     to = Transform.new()
   end
-  if type(t) ~= "number" or t ~= t or t == math.huge or t == -math.huge then
+  if type(t) ~= "number" or t ~= t then
+    -- NaN or invalid type
     t = 0
+  elseif t == math.huge then
+    -- Positive infinity
+    t = 1
+  elseif t == -math.huge then
+    -- Negative infinity
+    t = 0
+  else
+    -- Clamp t to 0-1 range
+    t = math.max(0, math.min(1, t))
   end
-
-  -- Clamp t to 0-1 range
-  t = math.max(0, math.min(1, t))
 
   return Transform.new({
     rotate = (from.rotate or 0) * (1 - t) + (to.rotate or 0) * t,

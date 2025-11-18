@@ -153,4 +153,6 @@ function TestPerformanceWarnings:testLayoutRecalculationTracking()
   luaunit.assertNotNil(root)
 end
 
-return TestPerformanceWarnings
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

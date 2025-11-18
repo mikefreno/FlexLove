@@ -21,7 +21,7 @@ end
 function TestFlexLove:testModuleLoads()
   luaunit.assertNotNil(FlexLove)
   luaunit.assertNotNil(FlexLove._VERSION)
-  luaunit.assertEquals(FlexLove._VERSION, "0.2.2")
+  luaunit.assertEquals(FlexLove._VERSION, "0.2.3")
   luaunit.assertNotNil(FlexLove._DESCRIPTION)
   luaunit.assertNotNil(FlexLove._URL)
   luaunit.assertNotNil(FlexLove._LICENSE)

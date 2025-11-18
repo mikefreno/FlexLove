@@ -141,4 +141,3 @@ function ThemeExample:render()
 end
 
 return ThemeExample
-

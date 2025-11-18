@@ -18,6 +18,8 @@ local luaunit = require("testing.luaunit")
 -- Run all tests in the __tests__ directory
 local testFiles = {
   "testing/__tests__/animation_test.lua",
+  "testing/__tests__/animation_properties_test.lua",
+  "testing/__tests__/transform_test.lua",
   "testing/__tests__/blur_test.lua",
   "testing/__tests__/color_validation_test.lua",
   "testing/__tests__/element_test.lua",

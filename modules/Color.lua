@@ -425,6 +425,35 @@ function Color.parse(value)
   return Color.sanitizeColor(value, Color.new(0, 0, 0, 1))
 end
 
+--- Linear interpolation between two colors
+---@param colorA Color Starting color
+---@param colorB Color Ending color
+---@param t number Interpolation factor (0-1)
+---@return Color color Interpolated color
+function Color.lerp(colorA, colorB, t)
+  -- Sanitize inputs
+  if type(colorA) ~= "table" or getmetatable(colorA) ~= Color then
+    colorA = Color.new(0, 0, 0, 1)
+  end
+  if type(colorB) ~= "table" or getmetatable(colorB) ~= Color then
+    colorB = Color.new(0, 0, 0, 1)
+  end
+  if type(t) ~= "number" or t ~= t or t == math.huge or t == -math.huge then
+    t = 0
+  end
+  
+  -- Clamp t to 0-1 range
+  t = math.max(0, math.min(1, t))
+  
+  -- Linear interpolation for each channel
+  local r = colorA.r * (1 - t) + colorB.r * t
+  local g = colorA.g * (1 - t) + colorB.g * t
+  local b = colorA.b * (1 - t) + colorB.b * t
+  local a = colorA.a * (1 - t) + colorB.a * t
+  
+  return Color.new(r, g, b, a)
+end
+
 -- Export ErrorHandler initializer
 Color.initializeErrorHandler = initializeErrorHandler
 

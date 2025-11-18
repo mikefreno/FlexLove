@@ -244,4 +244,3 @@ function StatefulUIExample:render()
 end
 
 return StatefulUIExample
-

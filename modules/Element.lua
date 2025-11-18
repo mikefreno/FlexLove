@@ -111,6 +111,10 @@
 ---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
 ---@field imageRepeat "no-repeat"|"repeat"|"repeat-x"|"repeat-y"|"space"|"round"? -- Image repeat/tiling mode (default: "no-repeat")
 ---@field imageTint Color? -- Color to tint the image (default: nil/white, no tint)
+---@field onImageLoad fun(element:Element, image:love.Image)? -- Callback when image loads successfully
+---@field onImageLoadDeferred boolean? -- Whether onImageLoad callback should be deferred (default: false)
+---@field onImageError fun(element:Element, error:string)? -- Callback when image fails to load
+---@field onImageErrorDeferred boolean? -- Whether onImageError callback should be deferred (default: false)
 ---@field _loadedImage love.Image? -- Internal: cached loaded image
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control)
 ---@field userdata table?
@@ -162,14 +166,14 @@ function Element.new(props, deps)
 
   local self = setmetatable({}, Element)
   self._deps = deps
-  
+
   -- Create dependency subsets for sub-modules (defined once, used throughout)
   local eventHandlerDeps = {
     InputEvent = deps.InputEvent,
     Context = deps.Context,
     utils = deps.utils,
   }
-  
+
   local rendererDeps = {
     Color = deps.Color,
     RoundedRect = deps.RoundedRect,
@@ -181,7 +185,7 @@ function Element.new(props, deps)
     Transform = deps.Transform,
     utils = deps.utils,
   }
-  
+
   local layoutEngineDeps = {
     utils = deps.utils,
     Grid = deps.Grid,
@@ -189,19 +193,19 @@ function Element.new(props, deps)
     Context = deps.Context,
     ErrorHandler = deps.ErrorHandler,
   }
-  
+
   local textEditorDeps = {
     Context = deps.Context,
     StateManager = deps.StateManager,
     Color = deps.Color,
     utils = deps.utils,
   }
-  
+
   local scrollManagerDeps = {
     utils = deps.utils,
     Color = deps.Color,
   }
-  
+
   self.children = {}
   self.onEvent = props.onEvent
 
@@ -215,18 +219,23 @@ function Element.new(props, deps)
   self.userdata = props.userdata
 
   self.onFocus = props.onFocus
+  self.onFocusDeferred = props.onFocusDeferred or false
   self.onBlur = props.onBlur
+  self.onBlurDeferred = props.onBlurDeferred or false
   self.onTextInput = props.onTextInput
+  self.onTextInputDeferred = props.onTextInputDeferred or false
   self.onTextChange = props.onTextChange
+  self.onTextChangeDeferred = props.onTextChangeDeferred or false
   self.onEnter = props.onEnter
+  self.onEnterDeferred = props.onEnterDeferred or false
 
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
   -- In immediate mode, restore EventHandler state from StateManager
-  local eventHandlerConfig = { 
+  local eventHandlerConfig = {
     onEvent = self.onEvent,
-    onEventDeferred = props.onEventDeferred
+    onEventDeferred = props.onEventDeferred,
   }
   if self._deps.Context._immediateMode and self._stateId and self._stateId ~= "" then
     local state = self._deps.StateManager.getState(self._stateId)
@@ -459,13 +468,13 @@ function Element.new(props, deps)
 
   -- Validate and set imageRepeat
   if props.imageRepeat then
-    local validImageRepeat = { 
-      ["no-repeat"] = "no-repeat", 
-      ["repeat"] = "repeat", 
-      ["repeat-x"] = "repeat-x", 
+    local validImageRepeat = {
+      ["no-repeat"] = "no-repeat",
+      ["repeat"] = "repeat",
+      ["repeat-x"] = "repeat-x",
       ["repeat-y"] = "repeat-y",
       space = "space",
-      round = "round"
+      round = "round",
     }
     self._deps.utils.validateEnum(props.imageRepeat, validImageRepeat, "imageRepeat")
   end
@@ -474,17 +483,71 @@ function Element.new(props, deps)
   -- Set imageTint
   self.imageTint = props.imageTint
 
+  -- Image callbacks
+  self.onImageLoad = props.onImageLoad
+  self.onImageLoadDeferred = props.onImageLoadDeferred or false
+  self.onImageError = props.onImageError
+  self.onImageErrorDeferred = props.onImageErrorDeferred or false
+
   -- Auto-load image if imagePath is provided
   if self.imagePath and not self.image then
     local loadedImage, err = self._deps.ImageCache.load(self.imagePath)
     if loadedImage then
       self._loadedImage = loadedImage
+      -- Call onImageLoad callback if provided
+      if self.onImageLoad and type(self.onImageLoad) == "function" then
+        if self.onImageLoadDeferred then
+          self._deps.Context.deferCallback(function()
+            local success, callbackErr = pcall(self.onImageLoad, self, loadedImage)
+            if not success then
+              print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+            end
+          end)
+        else
+          local success, callbackErr = pcall(self.onImageLoad, self, loadedImage)
+          if not success then
+            print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+          end
+        end
+      end
     else
-      -- Silently fail - image will just not render
+      -- Image failed to load
       self._loadedImage = nil
+      -- Call onImageError callback if provided
+      if self.onImageError and type(self.onImageError) == "function" then
+        if self.onImageErrorDeferred then
+          self._deps.Context.deferCallback(function()
+            local success, callbackErr = pcall(self.onImageError, self, err or "Unknown error")
+            if not success then
+              print(string.format("[Element] onImageError error: %s", tostring(callbackErr)))
+            end
+          end)
+        else
+          local success, callbackErr = pcall(self.onImageError, self, err or "Unknown error")
+          if not success then
+            print(string.format("[Element] onImageError error: %s", tostring(callbackErr)))
+          end
+        end
+      end
     end
   elseif self.image then
     self._loadedImage = self.image
+    -- Call onImageLoad for directly provided images
+    if self.onImageLoad and type(self.onImageLoad) == "function" then
+      if self.onImageLoadDeferred then
+        self._deps.Context.deferCallback(function()
+          local success, callbackErr = pcall(self.onImageLoad, self, self.image)
+          if not success then
+            print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+          end
+        end)
+      else
+        local success, callbackErr = pcall(self.onImageLoad, self, self.image)
+        if not success then
+          print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+        end
+      end
+    end
   else
     self._loadedImage = nil
   end
@@ -1734,7 +1797,7 @@ function Element:removeChild(child)
     if c == child then
       table.remove(self.children, i)
       child.parent = nil
-      
+
       -- Recalculate auto-sizing if needed
       if self.autosizing.width or self.autosizing.height then
         if self.autosizing.width then
@@ -1748,12 +1811,12 @@ function Element:removeChild(child)
           self.height = contentHeight
         end
       end
-      
+
       -- Re-layout children after removal
       if not self._deps.Context._immediateMode then
         self:layoutChildren()
       end
-      
+
       break
     end
   end
@@ -1765,10 +1828,10 @@ function Element:clearChildren()
   for _, child in ipairs(self.children) do
     child.parent = nil
   end
-  
+
   -- Clear the children table
   self.children = {}
-  
+
   -- Recalculate auto-sizing if needed
   if self.autosizing.width or self.autosizing.height then
     if self.autosizing.width then
@@ -1782,7 +1845,7 @@ function Element:clearChildren()
       self.height = contentHeight
     end
   end
-  
+
   -- Re-layout (though there are no children now)
   if not self._deps.Context._immediateMode then
     self:layoutChildren()
@@ -1807,7 +1870,7 @@ function Element:layoutChildren()
   if not self.parent then
     self:_checkPerformanceWarnings()
   end
-  
+
   -- Delegate layout to LayoutEngine
   self._layoutEngine:layoutChildren()
 end
@@ -2019,7 +2082,7 @@ function Element:update(dt)
   if not self.parent then
     self:_trackActiveAnimations()
   end
-  
+
   -- Restore scrollbar state from StateManager in immediate mode
   if self._stateId and self._deps.Context._immediateMode then
     local state = self._deps.StateManager.getState(self._stateId)
@@ -2055,12 +2118,12 @@ function Element:update(dt)
     if not self.animation._Color and self._deps.Color then
       self.animation:setColorModule(self._deps.Color)
     end
-    
+
     -- Ensure animation has Transform module reference for transform interpolation
     if not self.animation._Transform and self._deps.Transform then
       self.animation:setTransformModule(self._deps.Transform)
     end
-    
+
     local finished = self.animation:update(dt, self)
     if finished then
       -- Animation:update() already called onComplete callback
@@ -2068,7 +2131,7 @@ function Element:update(dt)
     else
       -- Apply animation interpolation during update
       local anim = self.animation:interpolate()
-      
+
       -- Apply numeric properties
       self.width = anim.width or self.width
       self.height = anim.height or self.height
@@ -2081,7 +2144,7 @@ function Element:update(dt)
       self.borderWidth = anim.borderWidth or self.borderWidth
       self.fontSize = anim.fontSize or self.fontSize
       self.lineHeight = anim.lineHeight or self.lineHeight
-      
+
       -- Apply color properties
       if anim.backgroundColor then
         self.backgroundColor = anim.backgroundColor
@@ -2101,7 +2164,7 @@ function Element:update(dt)
       if anim.imageTint then
         self.imageTint = anim.imageTint
       end
-      
+
       -- Apply table properties
       if anim.padding then
         self.padding = anim.padding
@@ -2112,12 +2175,12 @@ function Element:update(dt)
       if anim.cornerRadius then
         self.cornerRadius = anim.cornerRadius
       end
-      
+
       -- Apply transform property
       if anim.transform then
         self.transform = anim.transform
       end
-      
+
       -- Backward compatibility: Update background color with interpolated opacity
       if anim.opacity and not anim.backgroundColor then
         self.backgroundColor.a = anim.opacity
@@ -2767,7 +2830,7 @@ function Element:_checkPerformanceWarnings()
   if not Performance or not Performance.areWarningsEnabled() then
     return
   end
-  
+
   -- Check hierarchy depth
   local depth = self:getHierarchyDepth()
   if depth >= 15 then
@@ -2779,7 +2842,7 @@ function Element:_checkPerformanceWarnings()
       "Deep nesting can impact performance. Consider flattening the structure or using absolute positioning"
     )
   end
-  
+
   -- Check total element count (only for root elements)
   if not self.parent then
     local totalElements = self:countElements()
@@ -2811,7 +2874,7 @@ function Element:_trackActiveAnimations()
   if not Performance or not Performance.areWarningsEnabled() then
     return
   end
-  
+
   local animCount = self:_countActiveAnimations()
   if animCount >= 50 then
     Performance.logWarning(
@@ -2848,13 +2911,13 @@ end
 --- Set image repeat mode
 ---@param repeatMode string Repeat mode: "no-repeat", "repeat", "repeat-x", "repeat-y", "space", "round"
 function Element:setImageRepeat(repeatMode)
-  local validImageRepeat = { 
-    ["no-repeat"] = "no-repeat", 
-    ["repeat"] = "repeat", 
-    ["repeat-x"] = "repeat-x", 
+  local validImageRepeat = {
+    ["no-repeat"] = "no-repeat",
+    ["repeat"] = "repeat",
+    ["repeat-x"] = "repeat-x",
     ["repeat-y"] = "repeat-y",
     space = "space",
-    round = "round"
+    round = "round",
   }
   self._deps.utils.validateEnum(repeatMode, validImageRepeat, "imageRepeat")
   self.imageRepeat = repeatMode

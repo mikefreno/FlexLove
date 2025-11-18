@@ -6,11 +6,16 @@
 -- For Animation.lua
 --=====================================--
 ---@class AnimationProps
----@field duration number
----@field start {width?:number, height?:number, opacity?:number}
----@field final {width?:number, height?:number, opacity?:number}
----@field transform table?
----@field transition table?
+---@field duration number -- Duration in seconds
+---@field start table -- Starting values (can contain: width, height, opacity, x, y, gap, imageOpacity, backgroundColor, borderColor, textColor, padding, margin, cornerRadius, transform, etc.)
+---@field final table -- Final values (same properties as start)
+---@field easing string? -- Easing function name: "linear", "easeInQuad", "easeOutQuad", "easeInOutQuad", "easeInCubic", "easeOutCubic", "easeInOutCubic", "easeInQuart", "easeOutQuart", "easeInExpo", "easeOutExpo" (default: "linear")
+---@field onStart fun(animation:Animation, element:Element?)? -- Called when animation starts
+---@field onUpdate fun(animation:Animation, element:Element?, progress:number)? -- Called each frame with progress (0-1)
+---@field onComplete fun(animation:Animation, element:Element?)? -- Called when animation completes
+---@field onCancel fun(animation:Animation, element:Element?)? -- Called when animation is cancelled
+---@field transform table? -- Additional transform properties (legacy support)
+---@field transition table? -- Transition properties (legacy support)
 local AnimationProps = {}
 
 ---@class TransformProps
@@ -41,6 +46,7 @@ local AnimationProps = {}
 ---@field border Border? -- Border configuration for the element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field opacity number? -- Element opacity 0-1 (default: 1)
+---@field visibility "visible"|"hidden"? -- Element visibility (default: "visible")
 ---@field backgroundColor Color? -- Background color (default: transparent)
 ---@field cornerRadius number|{topLeft:number?, topRight:number?, bottomLeft:number?, bottomRight:number?}? -- Corner radius: number (all corners) or table for individual corners (default: 0)
 ---@field gap number|string? -- Space between children elements (default: 0)
@@ -63,11 +69,17 @@ local AnimationProps = {}
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
----@field onFocus fun(element:Element, event:InputEvent)? -- Callback when element receives focus
----@field onBlur fun(element:Element, event:InputEvent)? -- Callback when element loses focus
+---@field onEventDeferred boolean? -- Whether onEvent callback should be deferred until after canvases are released (default: false)
+---@field onFocus fun(element:Element)? -- Callback when element receives focus
+---@field onFocusDeferred boolean? -- Whether onFocus callback should be deferred (default: false)
+---@field onBlur fun(element:Element)? -- Callback when element loses focus
+---@field onBlurDeferred boolean? -- Whether onBlur callback should be deferred (default: false)
 ---@field onTextInput fun(element:Element, text:string)? -- Callback when text is input
+---@field onTextInputDeferred boolean? -- Whether onTextInput callback should be deferred (default: false)
 ---@field onTextChange fun(element:Element, text:string)? -- Callback when text content changes
+---@field onTextChangeDeferred boolean? -- Whether onTextChange callback should be deferred (default: false)
 ---@field onEnter fun(element:Element)? -- Callback when Enter key is pressed
+---@field onEnterDeferred boolean? -- Whether onEnter callback should be deferred (default: false)
 ---@field transform TransformProps? -- Transform properties for animations and styling
 ---@field transition TransitionProps? -- Transition settings for animations
 ---@field gridRows number? -- Number of rows in the grid (default: 1)
@@ -114,6 +126,12 @@ local AnimationProps = {}
 ---@field objectFit "fill"|"contain"|"cover"|"scale-down"|"none"? -- Image fit mode (default: "fill")
 ---@field objectPosition string? -- Image position like "center center", "top left", "50% 50%" (default: "center center")
 ---@field imageOpacity number? -- Image opacity 0-1 (default: 1, combines with element opacity)
+---@field imageRepeat "no-repeat"|"repeat"|"repeat-x"|"repeat-y"|"space"|"round"? -- Image repeat/tiling mode (default: "no-repeat")
+---@field imageTint Color? -- Color to tint the image (default: nil/white, no tint)
+---@field onImageLoad fun(element:Element, image:love.Image)? -- Callback when image loads successfully
+---@field onImageLoadDeferred boolean? -- Whether onImageLoad callback should be deferred (default: false)
+---@field onImageError fun(element:Element, error:string)? -- Callback when image fails to load
+---@field onImageErrorDeferred boolean? -- Whether onImageError callback should be deferred (default: false)
 ---@field _scrollX number? -- Internal: scroll X position (restored in immediate mode)
 ---@field _scrollY number? -- Internal: scroll Y position (restored in immediate mode)
 ---@field userdata table? -- User-defined data storage for custom properties

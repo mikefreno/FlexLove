@@ -2,18 +2,16 @@ local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 
 local Animation = require("modules.Animation")
+local Easing = require("modules.Easing")
 local Color = require("modules.Color")
 local Transform = require("modules.Transform")
 local ErrorHandler = require("modules.ErrorHandler")
 local ErrorCodes = require("modules.ErrorCodes")
 
--- Initialize ErrorHandler
+-- Initialize modules
 ErrorHandler.init({ ErrorCodes = ErrorCodes })
-Animation.initializeErrorHandler(ErrorHandler)
-Color.initializeErrorHandler(ErrorHandler)
-
--- Make Color module available to Animation
-Animation.setColorModule(Color)
+Color.init({ ErrorHandler = ErrorHandler })
+Animation.init({ ErrorHandler = ErrorHandler, Easing = Easing, Color = Color })
 
 TestAnimationProperties = {}
 

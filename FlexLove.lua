@@ -89,25 +89,16 @@ if ImageDataReader.init then
   ImageDataReader.init(errorHandlerDeps)
 end
 
--- Initialize Units module with Context dependency
-Units.initialize(Context)
-Units.initializeErrorHandler(ErrorHandler)
-
--- Initialize ErrorHandler for Color module
-Color.initializeErrorHandler(ErrorHandler)
-
--- Initialize ErrorHandler for utils
-utils.initializeErrorHandler(ErrorHandler)
-
--- Initialize ErrorHandler for Animation module
-Animation.initializeErrorHandler(ErrorHandler)
-
--- Initialize ErrorHandler for AnimationGroup module
-AnimationGroup.initializeErrorHandler(ErrorHandler)
+-- Initialize modules with dependencies
+Units.init({ Context = Context, ErrorHandler = ErrorHandler })
+Color.init({ ErrorHandler = ErrorHandler })
+utils.init({ ErrorHandler = ErrorHandler })
+Animation.init({ ErrorHandler = ErrorHandler, Easing = Easing, Color = Color })
+AnimationGroup.init({ ErrorHandler = ErrorHandler })
 
 -- Add version and metadata
 flexlove._VERSION = "0.2.3"
-flexlove._DESCRIPTION = "0I Library for LÖVE Framework based on flexbox"
+flexlove._DESCRIPTION = "UI Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
 flexlove._LICENSE = [[
   MIT License
@@ -281,12 +272,12 @@ function flexlove.executeDeferredCallbacks()
   if #flexlove._deferredCallbacks == 0 then
     return
   end
-  
+
   -- Copy callbacks and clear queue before execution
   -- This prevents infinite loops if callbacks defer more callbacks
   local callbacks = flexlove._deferredCallbacks
   flexlove._deferredCallbacks = {}
-  
+
   for _, callback in ipairs(callbacks) do
     local success, err = xpcall(callback, debug.traceback)
     if not success then
@@ -553,7 +544,7 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   Performance.renderHUD()
 
   love.graphics.setCanvas(outerCanvas)
-  
+
   -- NOTE: Deferred callbacks are NOT executed here because the calling code
   -- (e.g., main.lua) might still have a canvas active. Callbacks must be
   -- executed by calling FlexLove.executeDeferredCallbacks() at the very end

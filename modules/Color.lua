@@ -1,11 +1,5 @@
 local ErrorHandler = nil
 
---- Initialize ErrorHandler dependency
----@param errorHandler table The ErrorHandler module
-local function initializeErrorHandler(errorHandler)
-  ErrorHandler = errorHandler
-end
-
 --- Standardized error message formatter (fallback for when ErrorHandler not available)
 ---@param module string -- Module name (e.g., "Color", "Theme", "Units")
 ---@param message string
@@ -461,7 +455,12 @@ function Color.lerp(colorA, colorB, t)
   return Color.new(r, g, b, a)
 end
 
--- Export ErrorHandler initializer
-Color.initializeErrorHandler = initializeErrorHandler
+--- Initialize dependencies
+---@param deps table Dependencies: { ErrorHandler = ErrorHandler }
+function Color.init(deps)
+  if type(deps) == "table" then
+    ErrorHandler = deps.ErrorHandler
+  end
+end
 
 return Color

@@ -9,7 +9,10 @@
 ---@field _dragStartY table<number, number>
 ---@field _lastMouseX table<number, number>
 ---@field _lastMouseY table<number, number>
----@field _touchPressed table<number, boolean>
+---@field _touches table<string, table> -- Multi-touch state per touch ID
+---@field _touchStartPositions table<string, table> -- Touch start positions
+---@field _lastTouchPositions table<string, table> -- Last touch positions for delta
+---@field _touchHistory table<string, table> -- Touch position history for gestures (last 5)
 ---@field _hovered boolean
 ---@field _element Element?
 ---@field _scrollbarPressHandled boolean
@@ -46,7 +49,11 @@ function EventHandler.new(config, deps)
   self._lastMouseX = config._lastMouseX or {}
   self._lastMouseY = config._lastMouseY or {}
 
-  self._touchPressed = config._touchPressed or {}
+  -- Multi-touch tracking
+  self._touches = config._touches or {}
+  self._touchStartPositions = config._touchStartPositions or {}
+  self._lastTouchPositions = config._lastTouchPositions or {}
+  self._touchHistory = config._touchHistory or {}
 
   self._hovered = config._hovered or false
 
@@ -75,6 +82,10 @@ function EventHandler:getState()
     _dragStartY = self._dragStartY,
     _lastMouseX = self._lastMouseX,
     _lastMouseY = self._lastMouseY,
+    _touches = self._touches,
+    _touchStartPositions = self._touchStartPositions,
+    _lastTouchPositions = self._lastTouchPositions,
+    _touchHistory = self._touchHistory,
     _hovered = self._hovered,
   }
 end
@@ -94,6 +105,10 @@ function EventHandler:setState(state)
   self._dragStartY = state._dragStartY or {}
   self._lastMouseX = state._lastMouseX or {}
   self._lastMouseY = state._lastMouseY or {}
+  self._touches = state._touches or {}
+  self._touchStartPositions = state._touchStartPositions or {}
+  self._lastTouchPositions = state._lastTouchPositions or {}
+  self._touchHistory = state._touchHistory or {}
   self._hovered = state._hovered or false
 end
 
@@ -395,36 +410,232 @@ end
 
 --- Process touch events in the update cycle
 function EventHandler:processTouchEvents()
+  -- Start performance timing
+  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
+  if Performance and Performance.isEnabled() then
+    Performance.startTimer("event_touch")
+  end
+
   if not self._element then
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("event_touch")
+    end
     return
   end
 
   local element = self._element
+
+  -- Check if element can process events
+  local canProcessEvents = (self.onEvent or element.editable) and not element.disabled
+
+  if not canProcessEvents then
+    if Performance and Performance.isEnabled() then
+      Performance.stopTimer("event_touch")
+    end
+    return
+  end
 
   local bx = element.x
   local by = element.y
   local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
   local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
+  -- Get current active touches from LÖVE
+  local activeTouches = {}
   local touches = love.touch.getTouches()
   for _, id in ipairs(touches) do
+    activeTouches[tostring(id)] = true
+  end
+
+  -- Process active touches
+  for _, id in ipairs(touches) do
+    local touchId = tostring(id)
     local tx, ty = love.touch.getPosition(id)
-    if tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh then
-      self._touchPressed[id] = true
-    elseif self._touchPressed[id] then
-      -- Create touch event (treat as left click)
-      local touchEvent = self._InputEvent.new({
-        type = "click",
-        button = 1,
-        x = tx,
-        y = ty,
-        modifiers = self._utils.getModifiers(),
-        clickCount = 1,
-      })
-      self:_invokeCallback(element, touchEvent)
-      self._touchPressed[id] = false
+    local pressure = 1.0 -- LÖVE doesn't provide pressure by default
+    
+    -- Check if touch is within element bounds
+    local isInside = tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh
+    
+    if isInside then
+      if not self._touches[touchId] then
+        -- New touch began
+        self:_handleTouchBegan(touchId, tx, ty, pressure)
+      else
+        -- Touch moved
+        self:_handleTouchMoved(touchId, tx, ty, pressure)
+      end
+    elseif self._touches[touchId] then
+      -- Touch moved outside or ended
+      if activeTouches[touchId] then
+        -- Still active but outside - fire moved event
+        self:_handleTouchMoved(touchId, tx, ty, pressure)
+      else
+        -- Touch ended
+        self:_handleTouchEnded(touchId, tx, ty, pressure)
+      end
     end
   end
+
+  -- Check for ended touches (touches that were tracked but are no longer active)
+  for touchId, _ in pairs(self._touches) do
+    if not activeTouches[touchId] then
+      -- Touch ended or cancelled
+      local lastPos = self._lastTouchPositions[touchId]
+      if lastPos then
+        self:_handleTouchEnded(touchId, lastPos.x, lastPos.y, 1.0)
+      else
+        -- Cleanup orphaned touch
+        self:_cleanupTouch(touchId)
+      end
+    end
+  end
+
+  -- Stop performance timing
+  if Performance and Performance.isEnabled() then
+    Performance.stopTimer("event_touch")
+  end
+end
+
+--- Handle touch began event
+---@param touchId string Touch ID
+---@param x number Touch X position
+---@param y number Touch Y position
+---@param pressure number Touch pressure (0-1)
+function EventHandler:_handleTouchBegan(touchId, x, y, pressure)
+  if not self._element then
+    return
+  end
+
+  local element = self._element
+
+  -- Create touch state
+  self._touches[touchId] = {
+    x = x,
+    y = y,
+    pressure = pressure,
+    timestamp = love.timer.getTime(),
+    phase = "began",
+  }
+
+  -- Record start position
+  self._touchStartPositions[touchId] = { x = x, y = y }
+  self._lastTouchPositions[touchId] = { x = x, y = y }
+
+  -- Initialize touch history
+  self._touchHistory[touchId] = { { x = x, y = y, timestamp = love.timer.getTime() } }
+
+  -- Create and fire touch press event
+  local touchEvent = self._InputEvent.fromTouch(touchId, x, y, "began", pressure)
+  touchEvent.type = "touchpress"
+  touchEvent.dx = 0
+  touchEvent.dy = 0
+  self:_invokeCallback(element, touchEvent)
+end
+
+--- Handle touch moved event
+---@param touchId string Touch ID
+---@param x number Touch X position
+---@param y number Touch Y position
+---@param pressure number Touch pressure (0-1)
+function EventHandler:_handleTouchMoved(touchId, x, y, pressure)
+  if not self._element then
+    return
+  end
+
+  local element = self._element
+  local touchState = self._touches[touchId]
+
+  if not touchState then
+    -- Touch not tracked, ignore
+    return
+  end
+
+  local lastPos = self._lastTouchPositions[touchId]
+  if not lastPos or lastPos.x ~= x or lastPos.y ~= y then
+    -- Touch position changed
+    local startPos = self._touchStartPositions[touchId]
+    local dx = x - startPos.x
+    local dy = y - startPos.y
+
+    -- Update touch state
+    touchState.x = x
+    touchState.y = y
+    touchState.pressure = pressure
+    touchState.phase = "moved"
+
+    -- Update last position
+    self._lastTouchPositions[touchId] = { x = x, y = y }
+
+    -- Add to touch history (keep last 5 positions)
+    local history = self._touchHistory[touchId] or {}
+    table.insert(history, { x = x, y = y, timestamp = love.timer.getTime() })
+    if #history > 5 then
+      table.remove(history, 1)
+    end
+    self._touchHistory[touchId] = history
+
+    -- Create and fire touch move event
+    local touchEvent = self._InputEvent.fromTouch(touchId, x, y, "moved", pressure)
+    touchEvent.type = "touchmove"
+    touchEvent.dx = dx
+    touchEvent.dy = dy
+    self:_invokeCallback(element, touchEvent)
+  end
+end
+
+--- Handle touch ended event
+---@param touchId string Touch ID
+---@param x number Touch X position
+---@param y number Touch Y position
+---@param pressure number Touch pressure (0-1)
+function EventHandler:_handleTouchEnded(touchId, x, y, pressure)
+  if not self._element then
+    return
+  end
+
+  local element = self._element
+  local touchState = self._touches[touchId]
+
+  if not touchState then
+    -- Touch not tracked, ignore
+    return
+  end
+
+  local startPos = self._touchStartPositions[touchId]
+  local dx = x - startPos.x
+  local dy = y - startPos.y
+
+  -- Create and fire touch release event
+  local touchEvent = self._InputEvent.fromTouch(touchId, x, y, "ended", pressure)
+  touchEvent.type = "touchrelease"
+  touchEvent.dx = dx
+  touchEvent.dy = dy
+  self:_invokeCallback(element, touchEvent)
+
+  -- Cleanup touch state
+  self:_cleanupTouch(touchId)
+end
+
+--- Cleanup touch state
+---@param touchId string Touch ID
+function EventHandler:_cleanupTouch(touchId)
+  self._touches[touchId] = nil
+  self._touchStartPositions[touchId] = nil
+  self._lastTouchPositions[touchId] = nil
+  self._touchHistory[touchId] = nil
+end
+
+--- Get active touches on this element
+---@return table<string, table> Active touches
+function EventHandler:getActiveTouches()
+  return self._touches
+end
+
+--- Get touch history for gesture recognition
+---@param touchId string Touch ID
+---@return table? Touch history (last 5 positions)
+function EventHandler:getTouchHistory(touchId)
+  return self._touchHistory[touchId]
 end
 
 --- Reset scrollbar press flag (called each frame)

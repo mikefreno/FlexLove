@@ -1,41 +1,33 @@
 local ErrorHandler = nil
 
---- Standardized error message formatter (fallback for when ErrorHandler not available)
----@param module string -- Module name (e.g., "Color", "Theme", "Units")
----@param message string
----@return string
-local function formatError(module, message)
-  return string.format("[FlexLove.%s] %s", module, message)
-end
-
 -- Named colors (CSS3 color names)
 local NAMED_COLORS = {
   -- Basic colors
-  black = {0, 0, 0, 1},
-  white = {1, 1, 1, 1},
-  red = {1, 0, 0, 1},
-  green = {0, 0.502, 0, 1},
-  blue = {0, 0, 1, 1},
-  yellow = {1, 1, 0, 1},
-  cyan = {0, 1, 1, 1},
-  magenta = {1, 0, 1, 1},
-  
+  black = { 0, 0, 0, 1 },
+  white = { 1, 1, 1, 1 },
+  red = { 1, 0, 0, 1 },
+  green = { 0, 0.502, 0, 1 },
+  blue = { 0, 0, 1, 1 },
+  yellow = { 1, 1, 0, 1 },
+  cyan = { 0, 1, 1, 1 },
+  magenta = { 1, 0, 1, 1 },
+
   -- Extended colors
-  gray = {0.502, 0.502, 0.502, 1},
-  grey = {0.502, 0.502, 0.502, 1},
-  silver = {0.753, 0.753, 0.753, 1},
-  maroon = {0.502, 0, 0, 1},
-  olive = {0.502, 0.502, 0, 1},
-  lime = {0, 1, 0, 1},
-  aqua = {0, 1, 1, 1},
-  teal = {0, 0.502, 0.502, 1},
-  navy = {0, 0, 0.502, 1},
-  fuchsia = {1, 0, 1, 1},
-  purple = {0.502, 0, 0.502, 1},
-  orange = {1, 0.647, 0, 1},
-  pink = {1, 0.753, 0.796, 1},
-  brown = {0.647, 0.165, 0.165, 1},
-  transparent = {0, 0, 0, 0},
+  gray = { 0.502, 0.502, 0.502, 1 },
+  grey = { 0.502, 0.502, 0.502, 1 },
+  silver = { 0.753, 0.753, 0.753, 1 },
+  maroon = { 0.502, 0, 0, 1 },
+  olive = { 0.502, 0.502, 0, 1 },
+  lime = { 0, 1, 0, 1 },
+  aqua = { 0, 1, 1, 1 },
+  teal = { 0, 0.502, 0.502, 1 },
+  navy = { 0, 0, 0.502, 1 },
+  fuchsia = { 1, 0, 1, 1 },
+  purple = { 0.502, 0, 0.502, 1 },
+  orange = { 1, 0.647, 0, 1 },
+  pink = { 1, 0.753, 0.796, 1 },
+  brown = { 0.647, 0.165, 0.165, 1 },
+  transparent = { 0, 0, 0, 0 },
 }
 
 --- Utility class for color handling
@@ -56,13 +48,13 @@ Color.__index = Color
 ---@return Color color The new color instance
 function Color.new(r, g, b, a)
   local self = setmetatable({}, Color)
-  
+
   -- Sanitize and clamp color components
   local _, sanitizedR = Color.validateColorChannel(r or 0, 1)
   local _, sanitizedG = Color.validateColorChannel(g or 0, 1)
   local _, sanitizedB = Color.validateColorChannel(b or 0, 1)
   local _, sanitizedA = Color.validateColorChannel(a or 1, 1)
-  
+
   self.r = sanitizedR or 0
   self.g = sanitizedG or 0
   self.b = sanitizedB or 0
@@ -91,12 +83,12 @@ function Color.fromHex(hexWithTag)
       ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
         input = tostring(hexWithTag),
         issue = "not a string",
-        fallback = "white (#FFFFFF)"
+        fallback = "white (#FFFFFF)",
       })
     end
     return Color.new(1, 1, 1, 1)
   end
-  
+
   local hex = hexWithTag:gsub("#", "")
   if #hex == 6 then
     local r = tonumber("0x" .. hex:sub(1, 2))
@@ -107,7 +99,7 @@ function Color.fromHex(hexWithTag)
         ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
           input = hexWithTag,
           issue = "invalid hex digits",
-          fallback = "white (#FFFFFF)"
+          fallback = "white (#FFFFFF)",
         })
       end
       return Color.new(1, 1, 1, 1) -- Return white as fallback
@@ -123,7 +115,7 @@ function Color.fromHex(hexWithTag)
         ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
           input = hexWithTag,
           issue = "invalid hex digits",
-          fallback = "white (#FFFFFFFF)"
+          fallback = "white (#FFFFFFFF)",
         })
       end
       return Color.new(1, 1, 1, 1) -- Return white as fallback
@@ -135,7 +127,7 @@ function Color.fromHex(hexWithTag)
         input = hexWithTag,
         expected = "#RRGGBB or #RRGGBBAA",
         hexLength = #hex,
-        fallback = "white (#FFFFFF)"
+        fallback = "white (#FFFFFF)",
       })
     end
     return Color.new(1, 1, 1, 1) -- Return white as fallback
@@ -150,30 +142,30 @@ end
 ---@return number? clamped Clamped value in 0-1 range, nil if invalid
 function Color.validateColorChannel(value, max)
   max = max or 1
-  
+
   if type(value) ~= "number" then
     return false, nil
   end
-  
+
   -- Check for NaN
   if value ~= value then
     return false, nil
   end
-  
+
   -- Check for Infinity
   if value == math.huge or value == -math.huge then
     return false, nil
   end
-  
+
   -- Normalize to 0-1 range
   local normalized = value
   if max == 255 then
     normalized = value / 255
   end
-  
+
   -- Clamp to valid range
   normalized = math.max(0, math.min(1, normalized))
-  
+
   return true, normalized
 end
 
@@ -185,20 +177,20 @@ function Color.validateHexColor(hex)
   if type(hex) ~= "string" then
     return false, "Hex color must be a string"
   end
-  
+
   -- Remove # prefix
   local cleanHex = hex:gsub("^#", "")
-  
+
   -- Check length (3, 6, or 8 characters)
   if #cleanHex ~= 3 and #cleanHex ~= 6 and #cleanHex ~= 8 then
     return false, string.format("Invalid hex length: %d. Expected 3, 6, or 8 characters", #cleanHex)
   end
-  
+
   -- Check for valid hex characters
   if not cleanHex:match("^[0-9A-Fa-f]+$") then
     return false, "Invalid hex characters. Use only 0-9, A-F"
   end
-  
+
   return true, nil
 end
 
@@ -213,12 +205,12 @@ end
 function Color.validateRGBColor(r, g, b, a, max)
   max = max or 1
   a = a or max
-  
+
   local rValid = Color.validateColorChannel(r, max)
   local gValid = Color.validateColorChannel(g, max)
   local bValid = Color.validateColorChannel(b, max)
   local aValid = Color.validateColorChannel(a, max)
-  
+
   if not rValid then
     return false, string.format("Invalid red channel: %s", tostring(r))
   end
@@ -231,7 +223,7 @@ function Color.validateRGBColor(r, g, b, a, max)
   if not aValid then
     return false, string.format("Invalid alpha channel: %s", tostring(a))
   end
-  
+
   return true, nil
 end
 
@@ -243,12 +235,12 @@ function Color.validateNamedColor(name)
   if type(name) ~= "string" then
     return false, "Color name must be a string"
   end
-  
+
   local lowerName = name:lower()
   if not NAMED_COLORS[lowerName] then
     return false, string.format("Unknown color name: '%s'", name)
   end
-  
+
   return true, nil
 end
 
@@ -257,7 +249,7 @@ end
 ---@return string? format Format type ("hex", "named", "table"), nil if invalid
 function Color.isValidColorFormat(value)
   local valueType = type(value)
-  
+
   -- Check for hex string
   if valueType == "string" then
     if value:match("^#?[0-9A-Fa-f]+$") then
@@ -266,22 +258,22 @@ function Color.isValidColorFormat(value)
         return "hex"
       end
     end
-    
+
     -- Check for named color
     if NAMED_COLORS[value:lower()] then
       return "named"
     end
-    
+
     return nil
   end
-  
+
   -- Check for table format
   if valueType == "table" then
     -- Check for Color instance
     if getmetatable(value) == Color then
       return "table"
     end
-    
+
     -- Check for array format {r, g, b, a}
     if value[1] and value[2] and value[3] then
       local valid = Color.validateRGBColor(value[1], value[2], value[3], value[4])
@@ -289,7 +281,7 @@ function Color.isValidColorFormat(value)
         return "table"
       end
     end
-    
+
     -- Check for named format {r=, g=, b=, a=}
     if value.r and value.g and value.b then
       local valid = Color.validateRGBColor(value.r, value.g, value.b, value.a)
@@ -297,10 +289,10 @@ function Color.isValidColorFormat(value)
         return "table"
       end
     end
-    
+
     return nil
   end
-  
+
   return nil
 end
 
@@ -314,21 +306,21 @@ function Color.validateColor(value, options)
   options = options or {}
   local allowNamed = options.allowNamed ~= false
   local requireAlpha = options.requireAlpha or false
-  
+
   if value == nil then
     return false, "Color value is nil"
   end
-  
+
   local format = Color.isValidColorFormat(value)
-  
+
   if not format then
     return false, string.format("Invalid color format: %s", tostring(value))
   end
-  
+
   if format == "named" and not allowNamed then
     return false, "Named colors not allowed"
   end
-  
+
   -- Additional validation for alpha requirement
   if requireAlpha and format == "hex" then
     local cleanHex = value:gsub("^#", "")
@@ -336,7 +328,7 @@ function Color.validateColor(value, options)
       return false, "Alpha channel required (use 8-digit hex)"
     end
   end
-  
+
   return true, nil
 end
 
@@ -347,22 +339,22 @@ end
 ---@return Color color Sanitized color instance (guaranteed non-nil)
 function Color.sanitizeColor(value, default)
   default = default or Color.new(0, 0, 0, 1)
-  
+
   local format = Color.isValidColorFormat(value)
-  
+
   if not format then
     return default
   end
-  
+
   -- Handle hex format
   if format == "hex" then
     local cleanHex = value:gsub("^#", "")
-    
+
     -- Expand 3-digit hex to 6-digit
     if #cleanHex == 3 then
       cleanHex = cleanHex:gsub("(.)", "%1%1")
     end
-    
+
     -- Try to parse
     local success, result = pcall(Color.fromHex, "#" .. cleanHex)
     if success then
@@ -371,7 +363,7 @@ function Color.sanitizeColor(value, default)
       return default
     end
   end
-  
+
   -- Handle named format
   if format == "named" then
     local lowerName = value:lower()
@@ -381,39 +373,39 @@ function Color.sanitizeColor(value, default)
     end
     return default
   end
-  
+
   -- Handle table format
   if format == "table" then
     -- Color instance
     if getmetatable(value) == Color then
       return value
     end
-    
+
     -- Array format
     if value[1] then
       local _, r = Color.validateColorChannel(value[1], 1)
       local _, g = Color.validateColorChannel(value[2], 1)
       local _, b = Color.validateColorChannel(value[3], 1)
       local _, a = Color.validateColorChannel(value[4] or 1, 1)
-      
+
       if r and g and b and a then
         return Color.new(r, g, b, a)
       end
     end
-    
+
     -- Named format
     if value.r then
       local _, r = Color.validateColorChannel(value.r, 1)
       local _, g = Color.validateColorChannel(value.g, 1)
       local _, b = Color.validateColorChannel(value.b, 1)
       local _, a = Color.validateColorChannel(value.a or 1, 1)
-      
+
       if r and g and b and a then
         return Color.new(r, g, b, a)
       end
     end
   end
-  
+
   return default
 end
 
@@ -442,16 +434,16 @@ function Color.lerp(colorA, colorB, t)
   if type(t) ~= "number" or t ~= t or t == math.huge or t == -math.huge then
     t = 0
   end
-  
+
   -- Clamp t to 0-1 range
   t = math.max(0, math.min(1, t))
-  
+
   -- Linear interpolation for each channel
   local r = colorA.r * (1 - t) + colorB.r * t
   local g = colorA.g * (1 - t) + colorB.g * t
   local b = colorA.b * (1 - t) + colorB.b * t
   local a = colorA.a * (1 - t) + colorB.a * t
-  
+
   return Color.new(r, g, b, a)
 end
 

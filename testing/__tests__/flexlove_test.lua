@@ -642,19 +642,19 @@ end
 -- Test: deferCallback() queues callback
 function TestFlexLove:testDeferCallbackQueuesCallback()
   FlexLove.setMode("retained")
-  
+
   local called = false
   FlexLove.deferCallback(function()
     called = true
   end)
-  
+
   -- Callback should not be called immediately
   luaunit.assertFalse(called)
-  
+
   -- Callback should be called after executeDeferredCallbacks
   FlexLove.draw()
   luaunit.assertFalse(called) -- Still not called
-  
+
   FlexLove.executeDeferredCallbacks()
   luaunit.assertTrue(called) -- Now called
 end
@@ -662,7 +662,7 @@ end
 -- Test: deferCallback() with multiple callbacks
 function TestFlexLove:testDeferCallbackMultiple()
   FlexLove.setMode("retained")
-  
+
   local order = {}
   FlexLove.deferCallback(function()
     table.insert(order, 1)
@@ -673,10 +673,10 @@ function TestFlexLove:testDeferCallbackMultiple()
   FlexLove.deferCallback(function()
     table.insert(order, 3)
   end)
-  
+
   FlexLove.draw()
   FlexLove.executeDeferredCallbacks()
-  
+
   luaunit.assertEquals(#order, 3)
   luaunit.assertEquals(order[1], 1)
   luaunit.assertEquals(order[2], 2)
@@ -686,12 +686,12 @@ end
 -- Test: deferCallback() with non-function argument
 function TestFlexLove:testDeferCallbackInvalidArgument()
   FlexLove.setMode("retained")
-  
+
   -- Should warn but not crash
   FlexLove.deferCallback("not a function")
   FlexLove.deferCallback(123)
   FlexLove.deferCallback(nil)
-  
+
   FlexLove.draw()
   luaunit.assertTrue(true)
 end
@@ -699,16 +699,16 @@ end
 -- Test: deferCallback() clears queue after execution
 function TestFlexLove:testDeferCallbackClearsQueue()
   FlexLove.setMode("retained")
-  
+
   local callCount = 0
   FlexLove.deferCallback(function()
     callCount = callCount + 1
   end)
-  
+
   FlexLove.draw()
   FlexLove.executeDeferredCallbacks() -- First execution
   luaunit.assertEquals(callCount, 1)
-  
+
   FlexLove.draw()
   FlexLove.executeDeferredCallbacks() -- Second execution should not call again
   luaunit.assertEquals(callCount, 1)
@@ -717,7 +717,7 @@ end
 -- Test: deferCallback() handles callback errors gracefully
 function TestFlexLove:testDeferCallbackWithError()
   FlexLove.setMode("retained")
-  
+
   local called = false
   FlexLove.deferCallback(function()
     error("Intentional error")
@@ -725,7 +725,7 @@ function TestFlexLove:testDeferCallbackWithError()
   FlexLove.deferCallback(function()
     called = true
   end)
-  
+
   -- Should not crash, second callback should still execute
   FlexLove.draw()
   FlexLove.executeDeferredCallbacks()
@@ -1329,4 +1329,6 @@ function TestFlexLoveUnhappyPaths:testImmediateModeFrameEdgeCases()
   luaunit.assertTrue(true)
 end
 
-return TestFlexLove
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

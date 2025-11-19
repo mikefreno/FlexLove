@@ -1,6 +1,512 @@
-local ErrorHandler = nil
-local Easing = nil
-local Color = nil
+-- ============================================================================
+-- EASING FUNCTIONS
+-- ============================================================================
+
+--- Easing function type
+---@alias EasingFunction fun(t: number): number
+
+local Easing = {}
+
+-- Linear
+---@type EasingFunction
+function Easing.linear(t)
+  return t
+end
+
+-- Quadratic (Quad)
+---@type EasingFunction
+function Easing.easeInQuad(t)
+  return t * t
+end
+
+---@type EasingFunction
+function Easing.easeOutQuad(t)
+  return t * (2 - t)
+end
+
+---@type EasingFunction
+function Easing.easeInOutQuad(t)
+  return t < 0.5 and 2 * t * t or -1 + (4 - 2 * t) * t
+end
+
+-- Cubic
+---@type EasingFunction
+function Easing.easeInCubic(t)
+  return t * t * t
+end
+
+---@type EasingFunction
+function Easing.easeOutCubic(t)
+  local t1 = t - 1
+  return t1 * t1 * t1 + 1
+end
+
+---@type EasingFunction
+function Easing.easeInOutCubic(t)
+  return t < 0.5 and 4 * t * t * t or (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
+end
+
+-- Quartic (Quart)
+---@type EasingFunction
+function Easing.easeInQuart(t)
+  return t * t * t * t
+end
+
+---@type EasingFunction
+function Easing.easeOutQuart(t)
+  local t1 = t - 1
+  return 1 - t1 * t1 * t1 * t1
+end
+
+---@type EasingFunction
+function Easing.easeInOutQuart(t)
+  if t < 0.5 then
+    return 8 * t * t * t * t
+  else
+    local t1 = t - 1
+    return 1 - 8 * t1 * t1 * t1 * t1
+  end
+end
+
+-- Quintic (Quint)
+---@type EasingFunction
+function Easing.easeInQuint(t)
+  return t * t * t * t * t
+end
+
+---@type EasingFunction
+function Easing.easeOutQuint(t)
+  local t1 = t - 1
+  return 1 + t1 * t1 * t1 * t1 * t1
+end
+
+---@type EasingFunction
+function Easing.easeInOutQuint(t)
+  if t < 0.5 then
+    return 16 * t * t * t * t * t
+  else
+    local t1 = t - 1
+    return 1 + 16 * t1 * t1 * t1 * t1 * t1
+  end
+end
+
+-- Exponential (Expo)
+---@type EasingFunction
+function Easing.easeInExpo(t)
+  return t == 0 and 0 or math.pow(2, 10 * (t - 1))
+end
+
+---@type EasingFunction
+function Easing.easeOutExpo(t)
+  return t == 1 and 1 or 1 - math.pow(2, -10 * t)
+end
+
+---@type EasingFunction
+function Easing.easeInOutExpo(t)
+  if t == 0 then
+    return 0
+  end
+  if t == 1 then
+    return 1
+  end
+
+  if t < 0.5 then
+    return 0.5 * math.pow(2, 20 * t - 10)
+  else
+    return 1 - 0.5 * math.pow(2, -20 * t + 10)
+  end
+end
+
+-- Sine
+---@type EasingFunction
+function Easing.easeInSine(t)
+  return 1 - math.cos(t * math.pi / 2)
+end
+
+---@type EasingFunction
+function Easing.easeOutSine(t)
+  return math.sin(t * math.pi / 2)
+end
+
+---@type EasingFunction
+function Easing.easeInOutSine(t)
+  return -(math.cos(math.pi * t) - 1) / 2
+end
+
+-- Circular (Circ)
+---@type EasingFunction
+function Easing.easeInCirc(t)
+  return 1 - math.sqrt(1 - t * t)
+end
+
+---@type EasingFunction
+function Easing.easeOutCirc(t)
+  local t1 = t - 1
+  return math.sqrt(1 - t1 * t1)
+end
+
+---@type EasingFunction
+function Easing.easeInOutCirc(t)
+  if t < 0.5 then
+    return (1 - math.sqrt(1 - 4 * t * t)) / 2
+  else
+    local t1 = -2 * t + 2
+    return (math.sqrt(1 - t1 * t1) + 1) / 2
+  end
+end
+
+-- Back (Overshoot)
+---@type EasingFunction
+function Easing.easeInBack(t)
+  local c1 = 1.70158
+  local c3 = c1 + 1
+  return c3 * t * t * t - c1 * t * t
+end
+
+---@type EasingFunction
+function Easing.easeOutBack(t)
+  local c1 = 1.70158
+  local c3 = c1 + 1
+  local t1 = t - 1
+  return 1 + c3 * t1 * t1 * t1 + c1 * t1 * t1
+end
+
+---@type EasingFunction
+function Easing.easeInOutBack(t)
+  local c1 = 1.70158
+  local c2 = c1 * 1.525
+
+  if t < 0.5 then
+    return (2 * t * 2 * t * ((c2 + 1) * 2 * t - c2)) / 2
+  else
+    local t1 = 2 * t - 2
+    return (t1 * t1 * ((c2 + 1) * t1 + c2) + 2) / 2
+  end
+end
+
+-- Elastic (Spring)
+---@type EasingFunction
+function Easing.easeInElastic(t)
+  if t == 0 then
+    return 0
+  end
+  if t == 1 then
+    return 1
+  end
+
+  local c4 = (2 * math.pi) / 3
+  return -math.pow(2, 10 * t - 10) * math.sin((t * 10 - 10.75) * c4)
+end
+
+---@type EasingFunction
+function Easing.easeOutElastic(t)
+  if t == 0 then
+    return 0
+  end
+  if t == 1 then
+    return 1
+  end
+
+  local c4 = (2 * math.pi) / 3
+  return math.pow(2, -10 * t) * math.sin((t * 10 - 0.75) * c4) + 1
+end
+
+---@type EasingFunction
+function Easing.easeInOutElastic(t)
+  if t == 0 then
+    return 0
+  end
+  if t == 1 then
+    return 1
+  end
+
+  local c5 = (2 * math.pi) / 4.5
+
+  if t < 0.5 then
+    return -(math.pow(2, 20 * t - 10) * math.sin((20 * t - 11.125) * c5)) / 2
+  else
+    return (math.pow(2, -20 * t + 10) * math.sin((20 * t - 11.125) * c5)) / 2 + 1
+  end
+end
+
+-- Bounce
+---@type EasingFunction
+function Easing.easeOutBounce(t)
+  local n1 = 7.5625
+  local d1 = 2.75
+
+  if t < 1 / d1 then
+    return n1 * t * t
+  elseif t < 2 / d1 then
+    local t1 = t - 1.5 / d1
+    return n1 * t1 * t1 + 0.75
+  elseif t < 2.5 / d1 then
+    local t1 = t - 2.25 / d1
+    return n1 * t1 * t1 + 0.9375
+  else
+    local t1 = t - 2.625 / d1
+    return n1 * t1 * t1 + 0.984375
+  end
+end
+
+---@type EasingFunction
+function Easing.easeInBounce(t)
+  return 1 - Easing.easeOutBounce(1 - t)
+end
+
+---@type EasingFunction
+function Easing.easeInOutBounce(t)
+  if t < 0.5 then
+    return (1 - Easing.easeOutBounce(1 - 2 * t)) / 2
+  else
+    return (1 + Easing.easeOutBounce(2 * t - 1)) / 2
+  end
+end
+
+-- Configurable Easing Factories
+--- Create a custom back easing function with configurable overshoot
+---@param overshoot number? Overshoot amount (default: 1.70158)
+---@return EasingFunction
+function Easing.back(overshoot)
+  overshoot = overshoot or 1.70158
+  local c3 = overshoot + 1
+
+  return function(t)
+    return c3 * t * t * t - overshoot * t * t
+  end
+end
+
+--- Create a custom elastic easing function
+---@param amplitude number? Amplitude (default: 1)
+---@param period number? Period (default: 0.3)
+---@return EasingFunction
+function Easing.elastic(amplitude, period)
+  amplitude = amplitude or 1
+  period = period or 0.3
+
+  return function(t)
+    if t == 0 then
+      return 0
+    end
+    if t == 1 then
+      return 1
+    end
+
+    local s = period / 4
+    local a = amplitude
+
+    if a < 1 then
+      a = 1
+      s = period / 4
+    else
+      s = period / (2 * math.pi) * math.asin(1 / a)
+    end
+
+    return a * math.pow(2, -10 * t) * math.sin((t - s) * (2 * math.pi) / period) + 1
+  end
+end
+
+--- Get list of all available easing function names
+---@return string[] names Array of easing function names
+function Easing.list()
+  return {
+    "linear",
+    "easeInQuad",
+    "easeOutQuad",
+    "easeInOutQuad",
+    "easeInCubic",
+    "easeOutCubic",
+    "easeInOutCubic",
+    "easeInQuart",
+    "easeOutQuart",
+    "easeInOutQuart",
+    "easeInQuint",
+    "easeOutQuint",
+    "easeInOutQuint",
+    "easeInExpo",
+    "easeOutExpo",
+    "easeInOutExpo",
+    "easeInSine",
+    "easeOutSine",
+    "easeInOutSine",
+    "easeInCirc",
+    "easeOutCirc",
+    "easeInOutCirc",
+    "easeInBack",
+    "easeOutBack",
+    "easeInOutBack",
+    "easeInElastic",
+    "easeOutElastic",
+    "easeInOutElastic",
+    "easeInBounce",
+    "easeOutBounce",
+    "easeInOutBounce",
+  }
+end
+
+--- Get an easing function by name
+---@param name string Easing function name
+---@return EasingFunction? easing The easing function, or nil if not found
+function Easing.get(name)
+  return Easing[name]
+end
+
+-- ============================================================================
+-- TRANSFORM
+-- ============================================================================
+
+---@class Transform
+---@field rotate number? Rotation in radians (default: 0)
+---@field scaleX number? X-axis scale (default: 1)
+---@field scaleY number? Y-axis scale (default: 1)
+---@field translateX number? X translation in pixels (default: 0)
+---@field translateY number? Y translation in pixels (default: 0)
+---@field skewX number? X-axis skew in radians (default: 0)
+---@field skewY number? Y-axis skew in radians (default: 0)
+---@field originX number? Transform origin X (0-1, default: 0.5)
+---@field originY number? Transform origin Y (0-1, default: 0.5)
+local Transform = {}
+Transform.__index = Transform
+
+--- Create a new transform instance
+---@param props TransformProps?
+---@return Transform transform
+function Transform.new(props)
+  props = props or {}
+
+  local self = setmetatable({}, Transform)
+
+  self.rotate = props.rotate or 0
+  self.scaleX = props.scaleX or 1
+  self.scaleY = props.scaleY or 1
+  self.translateX = props.translateX or 0
+  self.translateY = props.translateY or 0
+  self.skewX = props.skewX or 0
+  self.skewY = props.skewY or 0
+  self.originX = props.originX or 0.5
+  self.originY = props.originY or 0.5
+
+  return self
+end
+
+--- Apply transform to LÖVE graphics context
+---@param transform Transform Transform instance
+---@param x number Element x position
+---@param y number Element y position
+---@param width number Element width
+---@param height number Element height
+function Transform.apply(transform, x, y, width, height)
+  if not transform then
+    return
+  end
+
+  -- Calculate transform origin
+  local ox = x + width * transform.originX
+  local oy = y + height * transform.originY
+
+  -- Apply transform in correct order: translate → rotate → scale → skew
+  love.graphics.push()
+  love.graphics.translate(ox, oy)
+
+  if transform.rotate ~= 0 then
+    love.graphics.rotate(transform.rotate)
+  end
+
+  if transform.scaleX ~= 1 or transform.scaleY ~= 1 then
+    love.graphics.scale(transform.scaleX, transform.scaleY)
+  end
+
+  if transform.skewX ~= 0 or transform.skewY ~= 0 then
+    love.graphics.shear(transform.skewX, transform.skewY)
+  end
+
+  love.graphics.translate(-ox, -oy)
+  love.graphics.translate(transform.translateX, transform.translateY)
+end
+
+--- Remove transform from LÖVE graphics context
+function Transform.unapply()
+  love.graphics.pop()
+end
+
+--- Interpolate between two transforms
+---@param from Transform Starting transform
+---@param to Transform Ending transform
+---@param t number Interpolation factor (0-1)
+---@return Transform interpolated
+function Transform.lerp(from, to, t)
+  -- Sanitize inputs
+  if type(from) ~= "table" then
+    from = Transform.new()
+  end
+  if type(to) ~= "table" then
+    to = Transform.new()
+  end
+  if type(t) ~= "number" or t ~= t then
+    t = 0
+  elseif t == math.huge then
+    t = 1
+  elseif t == -math.huge then
+    t = 0
+  else
+    t = math.max(0, math.min(1, t))
+  end
+
+  return Transform.new({
+    rotate = (from.rotate or 0) * (1 - t) + (to.rotate or 0) * t,
+    scaleX = (from.scaleX or 1) * (1 - t) + (to.scaleX or 1) * t,
+    scaleY = (from.scaleY or 1) * (1 - t) + (to.scaleY or 1) * t,
+    translateX = (from.translateX or 0) * (1 - t) + (to.translateX or 0) * t,
+    translateY = (from.translateY or 0) * (1 - t) + (to.translateY or 0) * t,
+    skewX = (from.skewX or 0) * (1 - t) + (to.skewX or 0) * t,
+    skewY = (from.skewY or 0) * (1 - t) + (to.skewY or 0) * t,
+    originX = (from.originX or 0.5) * (1 - t) + (to.originX or 0.5) * t,
+    originY = (from.originY or 0.5) * (1 - t) + (to.originY or 0.5) * t,
+  })
+end
+
+--- Check if transform is identity (no transformation)
+---@param transform Transform
+---@return boolean isIdentity
+function Transform.isIdentity(transform)
+  if not transform then
+    return true
+  end
+
+  return transform.rotate == 0
+    and transform.scaleX == 1
+    and transform.scaleY == 1
+    and transform.translateX == 0
+    and transform.translateY == 0
+    and transform.skewX == 0
+    and transform.skewY == 0
+end
+
+--- Clone a transform
+---@param transform Transform
+---@return Transform clone
+function Transform.clone(transform)
+  if not transform then
+    return Transform.new()
+  end
+
+  return Transform.new({
+    rotate = transform.rotate,
+    scaleX = transform.scaleX,
+    scaleY = transform.scaleY,
+    translateX = transform.translateX,
+    translateY = transform.translateY,
+    skewX = transform.skewX,
+    skewY = transform.skewY,
+    originX = transform.originX,
+    originY = transform.originY,
+  })
+end
+
+-- ============================================================================
+-- ANIMATION
+-- ============================================================================
+
 ---@class Keyframe
 ---@field at number Normalized time position (0-1)
 ---@field values table Property values at this keyframe
@@ -41,22 +547,22 @@ Animation.__index = Animation
 function Animation.new(props)
   -- Validate input
   if type(props) ~= "table" then
-    ErrorHandler.warn("Animation", "Animation.new() requires a table argument. Using default values.")
+    Animation._ErrorHandler.warn("Animation", "Animation.new() requires a table argument. Using default values.")
     props = { duration = 1, start = {}, final = {} }
   end
 
   if type(props.duration) ~= "number" or props.duration <= 0 then
-    ErrorHandler.warn("Animation", "Animation duration must be a positive number. Using 1 second.")
+    Animation._ErrorHandler.warn("Animation", "Animation duration must be a positive number. Using 1 second.")
     props.duration = 1
   end
 
   if type(props.start) ~= "table" then
-    ErrorHandler.warn("Animation", "Animation start must be a table. Using empty table.")
+    Animation._ErrorHandler.warn("Animation", "Animation start must be a table. Using empty table.")
     props.start = {}
   end
 
   if type(props.final) ~= "table" then
-    ErrorHandler.warn("Animation", "Animation final must be a table. Using empty table.")
+    Animation._ErrorHandler.warn("Animation", "Animation final must be a table. Using empty table.")
     props.final = {}
   end
 
@@ -80,7 +586,7 @@ function Animation.new(props)
   self._paused = false
   self._reversed = false
   self._speed = 1.0
-  self._state = "pending" -- "pending", "playing", "paused", "completed", "cancelled"
+  self._state = "pending"
 
   -- Validate and set easing function
   local easingName = props.easing or "linear"
@@ -130,7 +636,6 @@ function Animation:update(dt, element)
     if self.onStart and type(self.onStart) == "function" then
       local success, err = pcall(self.onStart, self, element)
       if not success then
-        -- Log error but don't crash
         print(string.format("[Animation] onStart error: %s", tostring(err)))
       end
     end
@@ -146,7 +651,6 @@ function Animation:update(dt, element)
       self.elapsed = 0
       self._state = "completed"
       self._resultDirty = true
-      -- Call onComplete callback
       if self.onComplete and type(self.onComplete) == "function" then
         local success, err = pcall(self.onComplete, self, element)
         if not success then
@@ -166,9 +670,7 @@ function Animation:update(dt, element)
         self._repeatCurrent = (self._repeatCurrent or 0) + 1
 
         if self._repeatCount == 0 or self._repeatCurrent < self._repeatCount then
-          -- Continue repeating
           if self._yoyo then
-            -- Reverse direction for yoyo
             self._reversed = not self._reversed
             if self._reversed then
               self.elapsed = self.duration
@@ -176,7 +678,6 @@ function Animation:update(dt, element)
               self.elapsed = 0
             end
           else
-            -- Reset to beginning
             self.elapsed = 0
           end
           return false
@@ -185,7 +686,6 @@ function Animation:update(dt, element)
 
       -- Animation truly completed
       self._state = "completed"
-      -- Call onComplete callback
       if self.onComplete and type(self.onComplete) == "function" then
         local success, err = pcall(self.onComplete, self, element)
         if not success then
@@ -226,17 +726,15 @@ end
 ---@param ColorModule table Color module reference
 ---@return any interpolated Interpolated Color instance
 local function lerpColor(startColor, finalColor, easedT, ColorModule)
-  -- Use provided ColorModule or fall back to module-level Color or static _ColorModule
   local CM = ColorModule or Color or Animation._ColorModule
 
   if not CM or not CM.parse or not CM.lerp then
-    if ErrorHandler then
-      ErrorHandler.warn("Animation", "Color module not properly initialized. Cannot interpolate colors.")
+    if Animation._ErrorHandler then
+      Animation._ErrorHandler.warn("Animation", "Color module not properly initialized. Cannot interpolate colors.")
     end
-    return startColor -- Return start color as fallback
+    return startColor
   end
 
-  -- Parse colors if needed
   local colorA = CM.parse(startColor)
   local colorB = CM.parse(finalColor)
 
@@ -251,7 +749,6 @@ end
 local function lerpTable(startTable, finalTable, easedT)
   local result = {}
 
-  -- Iterate through all keys in both tables
   local keys = {}
   for k in pairs(startTable) do
     keys[k] = true
@@ -285,7 +782,6 @@ function Animation:findKeyframes(progress)
     return nil, nil
   end
 
-  -- Find surrounding keyframes
   local prevFrame = self.keyframes[1]
   local nextFrame = self.keyframes[#self.keyframes]
 
@@ -308,7 +804,6 @@ end
 function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
   local result = {}
 
-  -- Get all unique property keys
   local keys = {}
   for k in pairs(prevFrame.values) do
     keys[k] = true
@@ -317,7 +812,6 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
     keys[k] = true
   end
 
-  -- Define properties that should be animated as numbers
   local numericProperties = {
     "width",
     "height",
@@ -332,7 +826,6 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
     "lineHeight",
   }
 
-  -- Define properties that should be animated as Colors
   local colorProperties = {
     "backgroundColor",
     "borderColor",
@@ -342,14 +835,12 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
     "imageTint",
   }
 
-  -- Define properties that should be animated as tables
   local tableProperties = {
     "padding",
     "margin",
     "cornerRadius",
   }
 
-  -- Create lookup sets for faster property type checking
   local numericSet = {}
   for _, prop in ipairs(numericProperties) do
     numericSet[prop] = true
@@ -365,7 +856,6 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
     tableSet[prop] = true
   end
 
-  -- Interpolate each property
   for key in pairs(keys) do
     local startVal = prevFrame.values[key]
     local finalVal = nextFrame.values[key]
@@ -379,11 +869,9 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
     elseif tableSet[key] and type(startVal) == "table" and type(finalVal) == "table" then
       result[key] = lerpTable(startVal, finalVal, easedT)
     elseif type(startVal) == type(finalVal) then
-      -- For unknown types, try numeric interpolation if they're numbers
       if type(startVal) == "number" then
         result[key] = lerpNumber(startVal, finalVal, easedT)
       else
-        -- Otherwise use the final value
         result[key] = finalVal
       end
     end
@@ -396,7 +884,7 @@ end
 --- Use this to get the interpolated properties to apply to your element
 ---@return table result Interpolated values {width?, height?, opacity?, x?, y?, backgroundColor?, ...}
 function Animation:interpolate()
-  -- Return cached result if not dirty (avoids recalculation)
+  -- Return cached result if not dirty
   if not self._resultDirty then
     return self._cachedResult
   end
@@ -408,13 +896,11 @@ function Animation:interpolate()
     local prevFrame, nextFrame = self:findKeyframes(t)
 
     if prevFrame and nextFrame then
-      -- Calculate local progress between keyframes
       local localProgress = 0
       if nextFrame.at > prevFrame.at then
         localProgress = (t - prevFrame.at) / (nextFrame.at - prevFrame.at)
       end
 
-      -- Apply per-keyframe easing
       local easingFn = Easing.linear
       if prevFrame.easing then
         if type(prevFrame.easing) == "string" then
@@ -429,10 +915,8 @@ function Animation:interpolate()
         easedT = localProgress
       end
 
-      -- Interpolate between keyframes
       local keyframeResult = self:lerpKeyframes(prevFrame, nextFrame, easedT)
 
-      -- Copy to cached result
       local result = self._cachedResult
       for k in pairs(result) do
         result[k] = nil
@@ -447,20 +931,17 @@ function Animation:interpolate()
   end
 
   -- Standard interpolation (non-keyframe)
-  -- Apply easing function with protection
   local success, easedT = pcall(self.easing, t)
   if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
-    easedT = t -- Fallback to linear if easing fails
+    easedT = t
   end
 
-  local result = self._cachedResult -- Reuse existing table
+  local result = self._cachedResult
 
-  -- Clear previous results
   for k in pairs(result) do
     result[k] = nil
   end
 
-  -- Define properties that should be animated as numbers
   local numericProperties = {
     "width",
     "height",
@@ -475,7 +956,6 @@ function Animation:interpolate()
     "lineHeight",
   }
 
-  -- Define properties that should be animated as Colors
   local colorProperties = {
     "backgroundColor",
     "borderColor",
@@ -485,14 +965,12 @@ function Animation:interpolate()
     "imageTint",
   }
 
-  -- Define properties that should be animated as tables
   local tableProperties = {
     "padding",
     "margin",
     "cornerRadius",
   }
 
-  -- Interpolate numeric properties
   for _, prop in ipairs(numericProperties) do
     local startVal = self.start[prop]
     local finalVal = self.final[prop]
@@ -502,7 +980,6 @@ function Animation:interpolate()
     end
   end
 
-  -- Interpolate color properties (if Color module is available)
   local ColorModule = self._Color or Animation._ColorModule
   if ColorModule then
     for _, prop in ipairs(colorProperties) do
@@ -515,7 +992,6 @@ function Animation:interpolate()
     end
   end
 
-  -- Interpolate table properties
   for _, prop in ipairs(tableProperties) do
     local startVal = self.start[prop]
     local finalVal = self.final[prop]
@@ -525,12 +1001,10 @@ function Animation:interpolate()
     end
   end
 
-  -- Interpolate transform property (if Transform module is available)
   if self._Transform and self.start.transform and self.final.transform then
     result.transform = self._Transform.lerp(self.start.transform, self.final.transform, easedT)
   end
 
-  -- Copy transform properties (legacy support)
   if self.transform and type(self.transform) == "table" then
     for key, value in pairs(self.transform) do
       result[key] = value
@@ -545,27 +1019,11 @@ end
 --- Use this for hands-off animation that integrates with FlexLove's rendering system
 ---@param element Element The element to apply animation to
 function Animation:apply(element)
-  if not ErrorHandler then
-    ErrorHandler = require("modules.ErrorHandler")
-  end
-
   if not element or type(element) ~= "table" then
-    ErrorHandler.warn("Animation", "Cannot apply animation to nil or non-table element. Animation not applied.")
+    Animation._ErrorHandler.warn("Animation", "Cannot apply animation to nil or non-table element. Animation not applied.")
     return
   end
   element.animation = self
-end
-
---- Set Color module reference for color interpolation
----@param ColorModule table Color module
-function Animation:setColorModule(ColorModule)
-  self._Color = ColorModule
-end
-
---- Set Transform module reference for transform interpolation
----@param TransformModule table Transform module
-function Animation:setTransformModule(TransformModule)
-  self._Transform = TransformModule
 end
 
 --- Temporarily halt the animation without losing progress
@@ -676,10 +1134,6 @@ end
 ---@param nextAnimation Animation|function Animation instance or factory function that returns an animation
 ---@return Animation nextAnimation The chained animation (for further chaining)
 function Animation:chain(nextAnimation)
-  if not ErrorHandler then
-    ErrorHandler = require("modules.ErrorHandler")
-  end
-
   if type(nextAnimation) == "function" then
     self._nextFactory = nextAnimation
     return self
@@ -687,7 +1141,7 @@ function Animation:chain(nextAnimation)
     self._next = nextAnimation
     return nextAnimation
   else
-    ErrorHandler.warn("Animation", "chain() requires an Animation or function. Chaining not applied.")
+    Animation._ErrorHandler.warn("Animation", "chain() requires an Animation or function. Chaining not applied.")
     return self
   end
 end
@@ -697,12 +1151,8 @@ end
 ---@param seconds number Delay duration in seconds
 ---@return Animation self For chaining
 function Animation:delay(seconds)
-  if not ErrorHandler then
-    ErrorHandler = require("modules.ErrorHandler")
-  end
-
   if type(seconds) ~= "number" or seconds < 0 then
-    ErrorHandler.warn("Animation", "delay() requires a non-negative number. Using 0.")
+    Animation._ErrorHandler.warn("Animation", "delay() requires a non-negative number. Using 0.")
     seconds = 0
   end
   self._delay = seconds
@@ -715,12 +1165,8 @@ end
 ---@param count number Number of times to repeat (0 = infinite loop)
 ---@return Animation self For chaining
 function Animation:repeatCount(count)
-  if not ErrorHandler then
-    ErrorHandler = require("modules.ErrorHandler")
-  end
-
   if type(count) ~= "number" or count < 0 then
-    ErrorHandler.warn("Animation", "repeatCount() requires a non-negative number. Using 0.")
+    Animation._ErrorHandler.warn("Animation", "repeatCount() requires a non-negative number. Using 0.")
     count = 0
   end
   self._repeatCount = count
@@ -748,7 +1194,6 @@ end
 ---@param easing string? Easing function name (default: "linear")
 ---@return Animation animation The fade animation
 function Animation.fade(duration, fromOpacity, toOpacity, easing)
-  -- Sanitize inputs
   if type(duration) ~= "number" or duration <= 0 then
     duration = 1
   end
@@ -777,7 +1222,6 @@ end
 ---@param easing string? Easing function name (default: "linear")
 ---@return Animation animation The scale animation
 function Animation.scale(duration, fromScale, toScale, easing)
-  -- Sanitize inputs
   if type(duration) ~= "number" or duration <= 0 then
     duration = 1
   end
@@ -803,30 +1247,24 @@ end
 ---@param props {duration:number, keyframes:Keyframe[], onStart:function?, onUpdate:function?, onComplete:function?, onCancel:function?} Animation properties
 ---@return Animation animation The keyframe animation
 function Animation.keyframes(props)
-  if not ErrorHandler then
-    ErrorHandler = require("modules.ErrorHandler")
-  end
-
-  -- Validate input
   if type(props) ~= "table" then
-    ErrorHandler.warn("Animation", "Animation.keyframes() requires a table argument. Using default values.")
+    Animation._ErrorHandler.warn("Animation", "Animation.keyframes() requires a table argument. Using default values.")
     props = { duration = 1, keyframes = {} }
   end
 
   if type(props.duration) ~= "number" or props.duration <= 0 then
-    ErrorHandler.warn("Animation", "Keyframe animation duration must be a positive number. Using 1 second.")
+    Animation._ErrorHandler.warn("Animation", "Keyframe animation duration must be a positive number. Using 1 second.")
     props.duration = 1
   end
 
   if type(props.keyframes) ~= "table" or #props.keyframes < 2 then
-    ErrorHandler.warn("Animation", "Keyframe animation requires at least 2 keyframes. Using empty animation.")
+    Animation._ErrorHandler.warn("Animation", "Keyframe animation requires at least 2 keyframes. Using empty animation.")
     props.keyframes = {
       { at = 0, values = {} },
       { at = 1, values = {} },
     }
   end
 
-  -- Sort keyframes by 'at' position
   local sortedKeyframes = {}
   for i, kf in ipairs(props.keyframes) do
     if type(kf) == "table" and type(kf.at) == "number" and type(kf.values) == "table" then
@@ -838,7 +1276,6 @@ function Animation.keyframes(props)
     return a.at < b.at
   end)
 
-  -- Ensure keyframes start at 0 and end at 1
   if #sortedKeyframes > 0 then
     if sortedKeyframes[1].at > 0 then
       table.insert(sortedKeyframes, 1, { at = 0, values = sortedKeyframes[1].values })
@@ -848,7 +1285,6 @@ function Animation.keyframes(props)
     end
   end
 
-  -- Create animation with keyframes
   return Animation.new({
     duration = props.duration,
     start = {},
@@ -865,18 +1301,345 @@ end
 ---@param deps table Dependencies: { ErrorHandler = ErrorHandler, Easing = Easing, Color = Color? }
 function Animation.init(deps)
   if type(deps) == "table" then
-    ErrorHandler = deps.ErrorHandler
-    Easing = deps.Easing
-    if deps.Color then
-      Color = deps.Color
-      Animation._ColorModule = deps.Color
+    Animation._ErrorHandler = deps.ErrorHandler
+    Animation._Easing = deps.Easing
+    Animation._ColorModule = deps.Color
+    Animation._Transform = Transform
+  end
+end
+
+-- ============================================================================
+-- ANIMATION GROUP
+-- ============================================================================
+
+---@class AnimationGroup
+local AnimationGroup = {}
+AnimationGroup.__index = AnimationGroup
+
+local ErrorHandler = nil
+
+---@class AnimationGroupProps
+---@field animations table Array of Animation instances
+---@field mode string? "parallel", "sequence", or "stagger" (default: "parallel")
+---@field stagger number? Stagger delay in seconds (for stagger mode, default: 0.1)
+---@field onComplete function? Called when all animations complete: (group)
+---@field onStart function? Called when group starts: (group)
+
+--- Coordinate multiple animations to play together, in sequence, or staggered for complex choreographed effects
+--- Use this to synchronize related UI changes like simultaneous fades or sequential reveals
+---@param props AnimationGroupProps
+---@return AnimationGroup group
+function AnimationGroup.new(props)
+  if type(props) ~= "table" then
+    ErrorHandler.warn("AnimationGroup", "AnimationGroup.new() requires a table argument. Using default values.")
+    props = { animations = {} }
+  end
+
+  if type(props.animations) ~= "table" or #props.animations == 0 then
+    ErrorHandler.warn("AnimationGroup", "AnimationGroup requires at least one animation. Creating empty group.")
+    props.animations = {}
+  end
+
+  local self = setmetatable({}, AnimationGroup)
+
+  self.animations = props.animations
+  self.mode = props.mode or "parallel"
+  self.stagger = props.stagger or 0.1
+  self.onComplete = props.onComplete
+  self.onStart = props.onStart
+
+  if self.mode ~= "parallel" and self.mode ~= "sequence" and self.mode ~= "stagger" then
+    ErrorHandler.warn("AnimationGroup", string.format("Invalid mode: %s. Using 'parallel'.", tostring(self.mode)))
+    self.mode = "parallel"
+  end
+
+  self._currentIndex = 1
+  self._staggerElapsed = 0
+  self._startedAnimations = {}
+  self._hasStarted = false
+  self._paused = false
+  self._state = "ready"
+
+  return self
+end
+
+--- Update all animations in parallel
+---@param dt number Delta time
+---@param element table? Optional element reference for callbacks
+---@return boolean finished True if all animations complete
+function AnimationGroup:_updateParallel(dt, element)
+  local allFinished = true
+
+  for i, anim in ipairs(self.animations) do
+    local isCompleted = false
+    if type(anim.getState) == "function" then
+      isCompleted = anim:getState() == "completed"
+    elseif anim._state then
+      isCompleted = anim._state == "completed"
+    end
+
+    if not isCompleted then
+      local finished = anim:update(dt, element)
+      if not finished then
+        allFinished = false
+      end
+    end
+  end
+
+  return allFinished
+end
+
+--- Update animations in sequence (one after another)
+---@param dt number Delta time
+---@param element table? Optional element reference for callbacks
+---@return boolean finished True if all animations complete
+function AnimationGroup:_updateSequence(dt, element)
+  if self._currentIndex > #self.animations then
+    return true
+  end
+
+  local currentAnim = self.animations[self._currentIndex]
+  local finished = currentAnim:update(dt, element)
+
+  if finished then
+    self._currentIndex = self._currentIndex + 1
+    if self._currentIndex > #self.animations then
+      return true
+    end
+  end
+
+  return false
+end
+
+--- Update animations with stagger delay
+---@param dt number Delta time
+---@param element table? Optional element reference for callbacks
+---@return boolean finished True if all animations complete
+function AnimationGroup:_updateStagger(dt, element)
+  self._staggerElapsed = self._staggerElapsed + dt
+
+  for i, anim in ipairs(self.animations) do
+    local startTime = (i - 1) * self.stagger
+
+    if self._staggerElapsed >= startTime and not self._startedAnimations[i] then
+      self._startedAnimations[i] = true
+    end
+  end
+
+  local allFinished = true
+  for i, anim in ipairs(self.animations) do
+    if self._startedAnimations[i] then
+      local isCompleted = false
+      if type(anim.getState) == "function" then
+        isCompleted = anim:getState() == "completed"
+      elseif anim._state then
+        isCompleted = anim._state == "completed"
+      end
+
+      if not isCompleted then
+        local finished = anim:update(dt, element)
+        if not finished then
+          allFinished = false
+        end
+      end
+    else
+      allFinished = false
+    end
+  end
+
+  return allFinished
+end
+
+--- Advance all animations in the group according to their coordination mode
+--- Call this each frame to progress parallel, sequential, or staggered animations
+---@param dt number Delta time
+---@param element table? Optional element reference for callbacks
+---@return boolean finished True if group is complete
+function AnimationGroup:update(dt, element)
+  if type(dt) ~= "number" or dt < 0 or dt ~= dt or dt == math.huge then
+    dt = 0
+  end
+
+  if self._paused or self._state == "completed" or self._state == "cancelled" then
+    return self._state == "completed"
+  end
+
+  if not self._hasStarted then
+    self._hasStarted = true
+    self._state = "playing"
+    if self.onStart and type(self.onStart) == "function" then
+      local success, err = pcall(self.onStart, self)
+      if not success then
+        print(string.format("[AnimationGroup] onStart error: %s", tostring(err)))
+      end
+    end
+  end
+
+  local finished = false
+
+  if self.mode == "parallel" then
+    finished = self:_updateParallel(dt, element)
+  elseif self.mode == "sequence" then
+    finished = self:_updateSequence(dt, element)
+  elseif self.mode == "stagger" then
+    finished = self:_updateStagger(dt, element)
+  end
+
+  if finished then
+    self._state = "completed"
+    if self.onComplete and type(self.onComplete) == "function" then
+      local success, err = pcall(self.onComplete, self)
+      if not success then
+        print(string.format("[AnimationGroup] onComplete error: %s", tostring(err)))
+      end
+    end
+  end
+
+  return finished
+end
+
+--- Freeze the entire animation sequence in unison
+--- Use this to pause complex multi-part animations during game pauses
+function AnimationGroup:pause()
+  self._paused = true
+  for _, anim in ipairs(self.animations) do
+    if type(anim.pause) == "function" then
+      anim:pause()
     end
   end
 end
 
--- Static method for Color module injection (for per-instance Color override)
-function Animation.setColorModule(ColorModule)
-  Animation._ColorModule = ColorModule
+--- Continue all paused animations simultaneously from their paused states
+--- Use this to unpause coordinated animation sequences
+function AnimationGroup:resume()
+  self._paused = false
+  for _, anim in ipairs(self.animations) do
+    if type(anim.resume) == "function" then
+      anim:resume()
+    end
+  end
 end
+
+--- Determine if the entire group is currently paused
+--- Use this to sync other game logic with animation group state
+---@return boolean paused
+function AnimationGroup:isPaused()
+  return self._paused
+end
+
+--- Flip all animations to play backwards together
+--- Use this to reverse complex transitions like panel opens/closes
+function AnimationGroup:reverse()
+  for _, anim in ipairs(self.animations) do
+    if type(anim.reverse) == "function" then
+      anim:reverse()
+    end
+  end
+end
+
+--- Control the tempo of all animations simultaneously
+--- Use this for slow-motion effects or debugging without adjusting individual animations
+---@param speed number Speed multiplier
+function AnimationGroup:setSpeed(speed)
+  for _, anim in ipairs(self.animations) do
+    if type(anim.setSpeed) == "function" then
+      anim:setSpeed(speed)
+    end
+  end
+end
+
+--- Abort all animations in the group immediately without completion
+--- Use this when UI is dismissed mid-animation or transitions are interrupted
+---@param element table? Optional element reference for callbacks
+function AnimationGroup:cancel(element)
+  if self._state ~= "cancelled" and self._state ~= "completed" then
+    self._state = "cancelled"
+    for _, anim in ipairs(self.animations) do
+      if type(anim.cancel) == "function" then
+        anim:cancel(element)
+      end
+    end
+  end
+end
+
+--- Restart the entire group from the beginning for reuse
+--- Use this to replay animation sequences without recreating objects
+function AnimationGroup:reset()
+  self._currentIndex = 1
+  self._staggerElapsed = 0
+  self._startedAnimations = {}
+  self._hasStarted = false
+  self._paused = false
+  self._state = "ready"
+
+  for _, anim in ipairs(self.animations) do
+    if type(anim.reset) == "function" then
+      anim:reset()
+    end
+  end
+end
+
+--- Check the overall lifecycle state of the animation group
+--- Use this to conditionally trigger follow-up actions or cleanup
+---@return string state "ready", "playing", "completed", "cancelled"
+function AnimationGroup:getState()
+  return self._state
+end
+
+--- Calculate completion percentage across all animations in the group
+--- Use this for progress bars or to synchronize other effects with the group
+---@return number progress
+function AnimationGroup:getProgress()
+  if #self.animations == 0 then
+    return 1
+  end
+
+  if self.mode == "sequence" then
+    local completedAnims = self._currentIndex - 1
+    local currentProgress = 0
+
+    if self._currentIndex <= #self.animations then
+      local currentAnim = self.animations[self._currentIndex]
+      if type(currentAnim.getProgress) == "function" then
+        currentProgress = currentAnim:getProgress()
+      end
+    end
+
+    return (completedAnims + currentProgress) / #self.animations
+  else
+    local totalProgress = 0
+    for _, anim in ipairs(self.animations) do
+      if type(anim.getProgress) == "function" then
+        totalProgress = totalProgress + anim:getProgress()
+      else
+        totalProgress = totalProgress + 1
+      end
+    end
+    return totalProgress / #self.animations
+  end
+end
+
+--- Attach this group to an element for automatic updates and integration
+--- Use this for hands-off animation management within FlexLove's system
+---@param element Element The element to apply animations to
+function AnimationGroup:apply(element)
+  if not element or type(element) ~= "table" then
+    ErrorHandler.warn("AnimationGroup", "Cannot apply animation group to nil or non-table element. Group not applied.")
+    return
+  end
+  element.animationGroup = self
+end
+
+--- Initialize dependencies
+---@param deps table Dependencies: { ErrorHandler = ErrorHandler }
+function AnimationGroup.init(deps)
+  if type(deps) == "table" then
+    ErrorHandler = deps.ErrorHandler
+  end
+end
+
+Animation.Easing = Easing
+Animation.Transform = Transform
+Animation.AnimationGroup = AnimationGroup
 
 return Animation

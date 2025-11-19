@@ -524,7 +524,7 @@ function TestEventHandler:test_onEventDeferred()
   local MockFlexLove = {
     deferCallback = function(callback)
       table.insert(deferredCallbacks, callback)
-    end
+    end,
   }
   package.loaded["FlexLove"] = MockFlexLove
 
@@ -533,7 +533,7 @@ function TestEventHandler:test_onEventDeferred()
     onEventDeferred = true,
     onEvent = function(el, event)
       table.insert(eventsReceived, event)
-    end
+    end,
   })
   local element = createMockElement()
   handler:initialize(element)
@@ -545,12 +545,14 @@ function TestEventHandler:test_onEventDeferred()
 
   -- Press and release mouse button
   handler:processMouseEvents(50, 50, true, true)
-  love.mouse.isDown = function() return false end
+  love.mouse.isDown = function()
+    return false
+  end
   handler:processMouseEvents(50, 50, true, true)
 
   -- Events should not be immediately executed
   luaunit.assertEquals(#eventsReceived, 0)
-  
+
   -- Should have deferred callbacks queued
   luaunit.assertTrue(#deferredCallbacks > 0)
 
@@ -561,7 +563,7 @@ function TestEventHandler:test_onEventDeferred()
 
   -- Now events should be received
   luaunit.assertTrue(#eventsReceived > 0)
-  
+
   -- Check that we got a click event
   local hasClick = false
   for _, event in ipairs(eventsReceived) do
@@ -583,7 +585,7 @@ function TestEventHandler:test_onEventDeferred_false()
     onEventDeferred = false,
     onEvent = function(el, event)
       table.insert(eventsReceived, event)
-    end
+    end,
   })
   local element = createMockElement()
   handler:initialize(element)
@@ -595,12 +597,14 @@ function TestEventHandler:test_onEventDeferred_false()
 
   -- Press and release mouse button
   handler:processMouseEvents(50, 50, true, true)
-  love.mouse.isDown = function() return false end
+  love.mouse.isDown = function()
+    return false
+  end
   handler:processMouseEvents(50, 50, true, true)
 
   -- Events should be immediately executed
   luaunit.assertTrue(#eventsReceived > 0)
-  
+
   -- Check that we got a click event
   local hasClick = false
   for _, event in ipairs(eventsReceived) do

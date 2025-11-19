@@ -153,8 +153,6 @@
 local Element = {}
 Element.__index = Element
 
--- Note: Element.defaultDependencies is now defined in FlexLove.lua
-
 ---@param props ElementProps
 ---@param deps table Required dependency table (provided by FlexLove)
 ---@return Element
@@ -3015,23 +3013,23 @@ function Element:setTransition(property, config)
   if not self.transitions then
     self.transitions = {}
   end
-  
+
   if type(config) ~= "table" then
     self._deps.ErrorHandler.warn("Element", "setTransition() requires a config table. Using default config.")
     config = {}
   end
-  
+
   -- Validate config
   if config.duration and (type(config.duration) ~= "number" or config.duration < 0) then
     self._deps.ErrorHandler.warn("Element", "transition duration must be a non-negative number. Using 0.3 seconds.")
     config.duration = 0.3
   end
-  
+
   self.transitions[property] = {
     duration = config.duration or 0.3,
     easing = config.easing or "easeOutQuad",
     delay = config.delay or 0,
-    onComplete = config.onComplete
+    onComplete = config.onComplete,
   }
 end
 
@@ -3044,7 +3042,7 @@ function Element:setTransitionGroup(groupName, config, properties)
     self._deps.ErrorHandler.warn("Element", "setTransitionGroup() requires a properties array. No transitions set.")
     return
   end
-  
+
   for _, prop in ipairs(properties) do
     self:setTransition(prop, config)
   end
@@ -3056,7 +3054,7 @@ function Element:removeTransition(property)
   if not self.transitions then
     return
   end
-  
+
   if property == "all" then
     self.transitions = {}
   else
@@ -3071,21 +3069,21 @@ function Element:setProperty(property, value)
   -- Check if transitions are enabled for this property
   local shouldTransition = false
   local transitionConfig = nil
-  
+
   if self.transitions then
     transitionConfig = self.transitions[property] or self.transitions["all"]
     shouldTransition = transitionConfig ~= nil
   end
-  
+
   -- Don't transition if value is the same
   if self[property] == value then
     return
   end
-  
+
   if shouldTransition and transitionConfig then
     -- Get current value
     local currentValue = self[property]
-    
+
     -- Only transition if we have a valid current value
     if currentValue ~= nil then
       -- Create animation for the property change
@@ -3095,24 +3093,24 @@ function Element:setProperty(property, value)
         start = { [property] = currentValue },
         final = { [property] = value },
         easing = transitionConfig.easing,
-        onComplete = transitionConfig.onComplete
+        onComplete = transitionConfig.onComplete,
       })
-      
+
       -- Set Color module reference if needed
       if self._deps and self._deps.Color then
         anim:setColorModule(self._deps.Color)
       end
-      
+
       -- Set Transform module reference if needed
       if self._deps and self._deps.Transform then
         anim:setTransformModule(self._deps.Transform)
       end
-      
+
       -- Apply delay if configured
       if transitionConfig.delay and transitionConfig.delay > 0 then
         anim:delay(transitionConfig.delay)
       end
-      
+
       -- Apply animation
       anim:apply(self)
     else

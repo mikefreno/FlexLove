@@ -1,7 +1,476 @@
-local ErrorHandler = {}
-local ErrorCodes = nil -- Will be injected via init
+---@class ErrorCodes
+---@field categories table
+---@field codes table
+local ErrorCodes = {
+  categories = {
+    VAL = "Validation",
+    LAY = "Layout",
+    REN = "Render",
+    THM = "Theme",
+    EVT = "Event",
+    RES = "Resource",
+    SYS = "System",
+  },
+  codes = {
+    -- Validation Errors (VAL_001 - VAL_099)
+    VAL_001 = {
+      code = "FLEXLOVE_VAL_001",
+      category = "VAL",
+      description = "Invalid property type",
+      suggestion = "Check the property type matches the expected type (e.g., number, string, table)",
+    },
+    VAL_002 = {
+      code = "FLEXLOVE_VAL_002",
+      category = "VAL",
+      description = "Property value out of range",
+      suggestion = "Ensure the value is within the allowed min/max range",
+    },
+    VAL_003 = {
+      code = "FLEXLOVE_VAL_003",
+      category = "VAL",
+      description = "Required property missing",
+      suggestion = "Provide the required property in your element definition",
+    },
+    VAL_004 = {
+      code = "FLEXLOVE_VAL_004",
+      category = "VAL",
+      description = "Invalid color format",
+      suggestion = "Use valid color format: {r, g, b, a} with values 0-1, hex string, or Color object",
+    },
+    VAL_005 = {
+      code = "FLEXLOVE_VAL_005",
+      category = "VAL",
+      description = "Invalid unit format",
+      suggestion = "Use valid unit format: number (px), '50%', '10vw', '5vh', etc.",
+    },
+    VAL_006 = {
+      code = "FLEXLOVE_VAL_006",
+      category = "VAL",
+      description = "Invalid file path",
+      suggestion = "Check that the file path is correct and the file exists",
+    },
+    VAL_007 = {
+      code = "FLEXLOVE_VAL_007",
+      category = "VAL",
+      description = "Invalid enum value",
+      suggestion = "Use one of the allowed enum values for this property",
+    },
+    VAL_008 = {
+      code = "FLEXLOVE_VAL_008",
+      category = "VAL",
+      description = "Invalid text input",
+      suggestion = "Ensure text meets validation requirements (length, pattern, allowed characters)",
+    },
 
-local LOG_LEVELS = {
+    -- Layout Errors (LAY_001 - LAY_099)
+    LAY_001 = {
+      code = "FLEXLOVE_LAY_001",
+      category = "LAY",
+      description = "Invalid flex direction",
+      suggestion = "Use 'horizontal' or 'vertical' for flexDirection",
+    },
+    LAY_002 = {
+      code = "FLEXLOVE_LAY_002",
+      category = "LAY",
+      description = "Circular dependency detected",
+      suggestion = "Remove circular references in element hierarchy or layout constraints",
+    },
+    LAY_003 = {
+      code = "FLEXLOVE_LAY_003",
+      category = "LAY",
+      description = "Invalid dimensions (negative or NaN)",
+      suggestion = "Ensure width and height are positive numbers",
+    },
+    LAY_004 = {
+      code = "FLEXLOVE_LAY_004",
+      category = "LAY",
+      description = "Layout calculation overflow",
+      suggestion = "Reduce complexity of layout or increase recursion limit",
+    },
+    LAY_005 = {
+      code = "FLEXLOVE_LAY_005",
+      category = "LAY",
+      description = "Invalid alignment value",
+      suggestion = "Use valid alignment values (flex-start, center, flex-end, etc.)",
+    },
+    LAY_006 = {
+      code = "FLEXLOVE_LAY_006",
+      category = "LAY",
+      description = "Invalid positioning mode",
+      suggestion = "Use 'absolute', 'relative', 'flex', or 'grid' for positioning",
+    },
+    LAY_007 = {
+      code = "FLEXLOVE_LAY_007",
+      category = "LAY",
+      description = "Grid layout error",
+      suggestion = "Check grid template columns/rows and item placement",
+    },
+
+    -- Rendering Errors (REN_001 - REN_099)
+    REN_001 = {
+      code = "FLEXLOVE_REN_001",
+      category = "REN",
+      description = "Invalid render state",
+      suggestion = "Ensure element is properly initialized before rendering",
+    },
+    REN_002 = {
+      code = "FLEXLOVE_REN_002",
+      category = "REN",
+      description = "Texture loading failed",
+      suggestion = "Check image path and format, ensure file exists",
+    },
+    REN_003 = {
+      code = "FLEXLOVE_REN_003",
+      category = "REN",
+      description = "Font loading failed",
+      suggestion = "Check font path and format, ensure file exists",
+    },
+    REN_004 = {
+      code = "FLEXLOVE_REN_004",
+      category = "REN",
+      description = "Invalid color value",
+      suggestion = "Color components must be numbers between 0 and 1",
+    },
+    REN_005 = {
+      code = "FLEXLOVE_REN_005",
+      category = "REN",
+      description = "Clipping stack overflow",
+      suggestion = "Reduce nesting depth or check for missing scissor pops",
+    },
+    REN_006 = {
+      code = "FLEXLOVE_REN_006",
+      category = "REN",
+      description = "Shader compilation failed",
+      suggestion = "Check shader code for syntax errors",
+    },
+    REN_007 = {
+      code = "FLEXLOVE_REN_007",
+      category = "REN",
+      description = "Invalid nine-patch configuration",
+      suggestion = "Check nine-patch slice values and image dimensions",
+    },
+
+    -- Theme Errors (THM_001 - THM_099)
+    THM_001 = {
+      code = "FLEXLOVE_THM_001",
+      category = "THM",
+      description = "Theme file not found",
+      suggestion = "Check theme file path and ensure file exists",
+    },
+    THM_002 = {
+      code = "FLEXLOVE_THM_002",
+      category = "THM",
+      description = "Invalid theme structure",
+      suggestion = "Theme must return a table with 'name' and component styles",
+    },
+    THM_003 = {
+      code = "FLEXLOVE_THM_003",
+      category = "THM",
+      description = "Required theme property missing",
+      suggestion = "Ensure theme has required properties (name, base styles, etc.)",
+    },
+    THM_004 = {
+      code = "FLEXLOVE_THM_004",
+      category = "THM",
+      description = "Invalid component style",
+      suggestion = "Component styles must be tables with valid properties",
+    },
+    THM_005 = {
+      code = "FLEXLOVE_THM_005",
+      category = "THM",
+      description = "Theme loading failed",
+      suggestion = "Check theme file for Lua syntax errors",
+    },
+    THM_006 = {
+      code = "FLEXLOVE_THM_006",
+      category = "THM",
+      description = "Invalid theme color",
+      suggestion = "Theme colors must be valid color values (hex, rgba, Color object)",
+    },
+
+    -- Event Errors (EVT_001 - EVT_099)
+    EVT_001 = {
+      code = "FLEXLOVE_EVT_001",
+      category = "EVT",
+      description = "Invalid event type",
+      suggestion = "Use valid event types (mousepressed, textinput, etc.)",
+    },
+    EVT_002 = {
+      code = "FLEXLOVE_EVT_002",
+      category = "EVT",
+      description = "Event handler error",
+      suggestion = "Check event handler function for errors",
+    },
+    EVT_003 = {
+      code = "FLEXLOVE_EVT_003",
+      category = "EVT",
+      description = "Event propagation error",
+      suggestion = "Check event bubbling/capturing logic",
+    },
+    EVT_004 = {
+      code = "FLEXLOVE_EVT_004",
+      category = "EVT",
+      description = "Invalid event target",
+      suggestion = "Ensure event target element exists and is valid",
+    },
+    EVT_005 = {
+      code = "FLEXLOVE_EVT_005",
+      category = "EVT",
+      description = "Event handler not a function",
+      suggestion = "Event handlers must be functions",
+    },
+
+    -- Resource Errors (RES_001 - RES_099)
+    RES_001 = {
+      code = "FLEXLOVE_RES_001",
+      category = "RES",
+      description = "File not found",
+      suggestion = "Check file path and ensure file exists in the filesystem",
+    },
+    RES_002 = {
+      code = "FLEXLOVE_RES_002",
+      category = "RES",
+      description = "Permission denied",
+      suggestion = "Check file permissions and access rights",
+    },
+    RES_003 = {
+      code = "FLEXLOVE_RES_003",
+      category = "RES",
+      description = "Invalid file format",
+      suggestion = "Ensure file format is supported (png, jpg, ttf, etc.)",
+    },
+    RES_004 = {
+      code = "FLEXLOVE_RES_004",
+      category = "RES",
+      description = "Resource loading failed",
+      suggestion = "Check file integrity and format compatibility",
+    },
+    RES_005 = {
+      code = "FLEXLOVE_RES_005",
+      category = "RES",
+      description = "Image cache error",
+      suggestion = "Clear image cache or check memory availability",
+    },
+
+    -- System Errors (SYS_001 - SYS_099)
+    SYS_001 = {
+      code = "FLEXLOVE_SYS_001",
+      category = "SYS",
+      description = "Memory allocation failed",
+      suggestion = "Reduce memory usage or check available memory",
+    },
+    SYS_002 = {
+      code = "FLEXLOVE_SYS_002",
+      category = "SYS",
+      description = "Stack overflow",
+      suggestion = "Reduce recursion depth or check for infinite loops",
+    },
+    SYS_003 = {
+      code = "FLEXLOVE_SYS_003",
+      category = "SYS",
+      description = "Invalid state",
+      suggestion = "Check initialization order and state management",
+    },
+    SYS_004 = {
+      code = "FLEXLOVE_SYS_004",
+      category = "SYS",
+      description = "Module initialization failed",
+      suggestion = "Check module dependencies and initialization order",
+    },
+
+    -- Performance Warnings (PERF_001 - PERF_099)
+    PERF_001 = {
+      code = "FLEXLOVE_PERF_001",
+      category = "PERF",
+      description = "Performance threshold exceeded",
+      suggestion = "Operation took longer than recommended. Monitor for patterns.",
+    },
+    PERF_002 = {
+      code = "FLEXLOVE_PERF_002",
+      category = "PERF",
+      description = "Critical performance threshold exceeded",
+      suggestion = "Operation is causing frame drops. Consider optimizing or reducing frequency.",
+    },
+
+    -- Memory Warnings (MEM_001 - MEM_099)
+    MEM_001 = {
+      code = "FLEXLOVE_MEM_001",
+      category = "MEM",
+      description = "Memory leak detected",
+      suggestion = "Table is growing consistently. Review cache eviction policies and ensure objects are properly released.",
+    },
+
+    -- State Management Warnings (STATE_001 - STATE_099)
+    STATE_001 = {
+      code = "FLEXLOVE_STATE_001",
+      category = "STATE",
+      description = "CallSite counters accumulating",
+      suggestion = "This indicates incrementFrame() may not be called properly. Check immediate mode frame management.",
+    },
+  },
+}
+
+--- Get error information by code
+--- @param code string Error code (e.g., "VAL_001" or "FLEXLOVE_VAL_001")
+--- @return table? errorInfo Error information or nil if not found
+function ErrorCodes.get(code)
+  -- Handle both short and full format
+  local shortCode = code:gsub("^FLEXLOVE_", "")
+  return ErrorCodes.codes[shortCode]
+end
+
+--- Get human-readable description for error code
+--- @param code string Error code
+--- @return string description Error description
+function ErrorCodes.describe(code)
+  local info = ErrorCodes.get(code)
+  if info then
+    return info.description
+  end
+  return "Unknown error code: " .. code
+end
+
+--- Get suggested fix for error code
+--- @param code string Error code
+--- @return string suggestion Suggested fix
+function ErrorCodes.getSuggestion(code)
+  local info = ErrorCodes.get(code)
+  if info then
+    return info.suggestion
+  end
+  return "No suggestion available"
+end
+
+--- Get category for error code
+--- @param code string Error code
+--- @return string category Error category name
+function ErrorCodes.getCategory(code)
+  local info = ErrorCodes.get(code)
+  if info then
+    return ErrorCodes.categories[info.category] or info.category
+  end
+  return "Unknown"
+end
+
+--- List all error codes in a category
+--- @param category string Category code (e.g., "VAL", "LAY")
+--- @return table codes List of error codes in category
+function ErrorCodes.listByCategory(category)
+  local result = {}
+  for code, info in pairs(ErrorCodes.codes) do
+    if info.category == category then
+      table.insert(result, {
+        code = code,
+        fullCode = info.code,
+        description = info.description,
+        suggestion = info.suggestion,
+      })
+    end
+  end
+  table.sort(result, function(a, b)
+    return a.code < b.code
+  end)
+  return result
+end
+
+--- Search error codes by keyword
+--- @param keyword string Keyword to search for
+--- @return table codes Matching error codes
+function ErrorCodes.search(keyword)
+  keyword = keyword:lower()
+  local result = {}
+  for code, info in pairs(ErrorCodes.codes) do
+    local searchText = (code .. " " .. info.description .. " " .. info.suggestion):lower()
+    if searchText:find(keyword, 1, true) then
+      table.insert(result, {
+        code = code,
+        fullCode = info.code,
+        description = info.description,
+        suggestion = info.suggestion,
+        category = ErrorCodes.categories[info.category],
+      })
+    end
+  end
+  return result
+end
+
+--- Get all error codes
+--- @return table codes All error codes
+function ErrorCodes.listAll()
+  local result = {}
+  for code, info in pairs(ErrorCodes.codes) do
+    table.insert(result, {
+      code = code,
+      fullCode = info.code,
+      description = info.description,
+      suggestion = info.suggestion,
+      category = ErrorCodes.categories[info.category],
+    })
+  end
+  table.sort(result, function(a, b)
+    return a.code < b.code
+  end)
+  return result
+end
+
+--- Format error message with code
+--- @param code string Error code
+--- @param message string Error message
+--- @return string formattedMessage Formatted error message with code
+function ErrorCodes.formatMessage(code, message)
+  local info = ErrorCodes.get(code)
+  if info then
+    return string.format("[%s] %s", info.code, message)
+  end
+  return message
+end
+
+--- Validate that all error codes are unique and properly formatted
+--- @return boolean, string? Returns true if valid, or false with error message
+function ErrorCodes.validate()
+  local seen = {}
+  local fullCodes = {}
+
+  for code, info in pairs(ErrorCodes.codes) do
+    -- Check for duplicates
+    if seen[code] then
+      return false, "Duplicate error code: " .. code
+    end
+    seen[code] = true
+
+    if fullCodes[info.code] then
+      return false, "Duplicate full error code: " .. info.code
+    end
+    fullCodes[info.code] = true
+
+    -- Check format
+    if not code:match("^[A-Z]+_[0-9]+$") then
+      return false, "Invalid code format: " .. code .. " (expected CATEGORY_NUMBER)"
+    end
+
+    -- Check full code format
+    local expectedFullCode = "FLEXLOVE_" .. code
+    if info.code ~= expectedFullCode then
+      return false, "Mismatched full code for " .. code .. ": expected " .. expectedFullCode .. ", got " .. info.code
+    end
+
+    -- Check required fields
+    if not info.description or info.description == "" then
+      return false, "Missing description for " .. code
+    end
+    if not info.suggestion or info.suggestion == "" then
+      return false, "Missing suggestion for " .. code
+    end
+    if not info.category or info.category == "" then
+      return false, "Missing category for " .. code
+    end
+  end
+
+  return true, nil
+end
+
+---@enum LOG_LEVEL
+local LOG_LEVEL = {
   CRITICAL = 1,
   ERROR = 2,
   WARNING = 3,
@@ -9,124 +478,64 @@ local LOG_LEVELS = {
   DEBUG = 5,
 }
 
-local config = {
-  debugMode = false,
-  includeStackTrace = false,
-  logLevel = LOG_LEVELS.WARNING, -- Default: log errors and warnings
-  logTarget = "console", -- Options: "console", "file", "both", "none"
-  logFormat = "human", -- Options: "human", "json"
-  logFile = "flexlove-errors.log",
-  maxLogSize = 10 * 1024 * 1024, -- 10MB default
-  maxLogFiles = 5, -- Keep 5 rotated logs
-  enableRotation = true,
+---@enum LOG_TARGET
+local LOG_TARGET = {
+  CONSOLE = "console",
+  FILE = "file",
+  BOTH = "both",
+  NONE = "none",
 }
 
--- Internal state
-local logFileHandle = nil
-local currentLogSize = 0
+---@class ErrorHandler
+---@field errorCodes ErrorCodes
+---@field includeStackTrace boolean -- Default: false
+---@field logLevel LOG_LEVEL --Default: LOG_LEVEL.WARNING
+---@field logTarget "console" | "file" | "both"
+---@field logFile string
+---@field maxLogSize number in bytes
+---@field maxLogFiles number files to rotate
+---@field enableRotation boolean see maxLogFiles
+---@field _currentLogSize number private
+---@field _logFileHandle file* private
+local ErrorHandler = {
+  errorCodes = ErrorCodes,
+}
+ErrorHandler.__index = ErrorHandler
 
---- Initialize ErrorHandler with dependencies
----@param deps table Dependencies table with ErrorCodes
-function ErrorHandler.init(deps)
-  if deps and deps.ErrorCodes then
-    ErrorCodes = deps.ErrorCodes
-  else
-    -- Try to require if not provided (backward compatibility)
-    local success, module = pcall(require, "modules.ErrorCodes")
-    if success then
-      ErrorCodes = module
-    else
-      -- Create minimal stub if ErrorCodes not available
-      ErrorCodes = {
-        get = function() return nil end,
-        describe = function(code) return code end,
-        getSuggestion = function() return "" end,
-      }
-    end
+---@type ErrorHandler|nil
+local instance = nil
+
+---@param config { includeStackTrace?: boolean, logLevel?: LOG_LEVEL, logTarget?: "console" | "file" | "both", logFile?: string, maxLogSize?: number, maxLogFiles?: number, enableRotation?: boolean }|nil
+---@return ErrorHandler
+function ErrorHandler.init(config)
+  if instance == nil then
+    local self = setmetatable({}, ErrorHandler)
+    self.includeStackTrace = config and config.includeStackTrace or false
+    self.logLevel = config and config.logLevel or LOG_LEVEL.WARNING
+    self.logTarget = config and config.logTarget or LOG_TARGET.CONSOLE
+    self.logFile = config and config.logFile or "flexlove-errors.log"
+    self.maxLogSize = config and config.maxLogSize or 10 * 1024 * 1024
+    self.maxLogFiles = config and config.maxLogFiles or 5
+    self.enableRotation = config and config.enableRotation or true
+    self._currentLogSize = 0
+    self._logFileHandle = nil
+    instance = self
   end
+  return instance
 end
 
---- Set debug mode (enables stack traces and verbose output)
----@param enabled boolean Enable debug mode
-function ErrorHandler.setDebugMode(enabled)
-  config.debugMode = enabled
-  config.includeStackTrace = enabled
-  if enabled then
-    config.logLevel = LOG_LEVELS.DEBUG
+--- Get the singleton instance (lazily initializes if needed)
+---@return ErrorHandler
+function ErrorHandler.getInstance()
+  if instance == nil then
+    ErrorHandler.init()
   end
-end
-
---- Set whether to include stack traces
----@param enabled boolean Enable stack traces
-function ErrorHandler.setStackTrace(enabled)
-  config.includeStackTrace = enabled
-end
-
---- Set log level (minimum level to log)
----@param level string|number Log level ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG") or number
-function ErrorHandler.setLogLevel(level)
-  if type(level) == "string" then
-    config.logLevel = LOG_LEVELS[level:upper()] or LOG_LEVELS.WARNING
-  elseif type(level) == "number" then
-    config.logLevel = level
-  end
-end
-
---- Set log target
----@param target string "console", "file", "both", or "none"
-function ErrorHandler.setLogTarget(target)
-  config.logTarget = target
-  -- Note: File will be opened lazily on first write
-  if target == "console" or target == "none" then
-    -- Close log file if open
-    if logFileHandle then
-      logFileHandle:close()
-      logFileHandle = nil
-      currentLogSize = 0
-    end
-  end
-end
-
---- Set log format
----@param format string "human" or "json"
-function ErrorHandler.setLogFormat(format)
-  config.logFormat = format
-end
-
---- Set log file path
----@param path string Path to log file
-function ErrorHandler.setLogFile(path)
-  -- Close existing log file
-  if logFileHandle then
-    logFileHandle:close()
-    logFileHandle = nil
-  end
-
-  config.logFile = path
-  currentLogSize = 0
-
-  -- Note: File will be opened lazily on first write
-end
-
---- Enable/disable log rotation
----@param enabled boolean|table Enable rotation or config table
-function ErrorHandler.enableLogRotation(enabled)
-  if type(enabled) == "boolean" then
-    config.enableRotation = enabled
-  elseif type(enabled) == "table" then
-    config.enableRotation = true
-    if enabled.maxSize then
-      config.maxLogSize = enabled.maxSize
-    end
-    if enabled.maxFiles then
-      config.maxLogFiles = enabled.maxFiles
-    end
-  end
+  return instance
 end
 
 --- Get current timestamp with milliseconds
----@return string Formatted timestamp
-local function getTimestamp()
+---@return string|osdate Formatted timestamp
+function ErrorHandler:_getTimestamp()
   local time = os.time()
   local date = os.date("%Y-%m-%d %H:%M:%S", time)
   -- Note: Lua doesn't have millisecond precision by default, so we approximate
@@ -134,39 +543,39 @@ local function getTimestamp()
 end
 
 --- Rotate log file if needed
-local function rotateLogIfNeeded()
-  if not config.enableRotation then
+function ErrorHandler:_rotateLogIfNeeded()
+  if not self.enableRotation then
     return
   end
-  if currentLogSize < config.maxLogSize then
+  if self._currentLogSize < self.maxLogSize then
     return
   end
 
   -- Close current log
-  if logFileHandle then
-    logFileHandle:close()
-    logFileHandle = nil
+  if self._logFileHandle then
+    self._logFileHandle:close()
+    self._logFileHandle = nil
   end
 
   -- Rotate existing logs
-  for i = config.maxLogFiles - 1, 1, -1 do
-    local oldName = config.logFile .. "." .. i
-    local newName = config.logFile .. "." .. (i + 1)
+  for i = self.maxLogFiles - 1, 1, -1 do
+    local oldName = self.logFile .. "." .. i
+    local newName = self.logFile .. "." .. (i + 1)
     os.rename(oldName, newName) -- Will fail silently if file doesn't exist
   end
 
   -- Move current log to .1
-  os.rename(config.logFile, config.logFile .. ".1")
+  os.rename(self.logFile, self.logFile .. ".1")
 
   -- Create new log file
-  logFileHandle = io.open(config.logFile, "a")
-  currentLogSize = 0
+  self._logFileHandle = io.open(self.logFile, "a")
+  self._currentLogSize = 0
 end
 
 --- Escape string for JSON
 ---@param str string String to escape
 ---@return string Escaped string
-local function escapeJson(str)
+function ErrorHandler:_escapeJson(str)
   str = tostring(str)
   str = str:gsub("\\", "\\\\")
   str = str:gsub('"', '\\"')
@@ -179,15 +588,15 @@ end
 --- Format details as JSON object
 ---@param details table|nil Details object
 ---@return string JSON string
-local function formatDetailsJson(details)
+function ErrorHandler:_formatDetailsJson(details)
   if not details or type(details) ~= "table" then
     return "{}"
   end
 
   local parts = {}
   for key, value in pairs(details) do
-    local jsonKey = escapeJson(tostring(key))
-    local jsonValue = escapeJson(tostring(value))
+    local jsonKey = self:_escapeJson(tostring(key))
+    local jsonValue = self:_escapeJson(tostring(value))
     table.insert(parts, string.format('"%s":"%s"', jsonKey, jsonValue))
   end
 
@@ -197,7 +606,7 @@ end
 --- Format details object as readable key-value pairs
 ---@param details table|nil Details object
 ---@return string Formatted details
-local function formatDetails(details)
+function ErrorHandler:_formatDetails(details)
   if not details or type(details) ~= "table" then
     return ""
   end
@@ -222,8 +631,8 @@ end
 --- Extract and format stack trace
 ---@param level number Stack level to start from
 ---@return string Formatted stack trace
-local function formatStackTrace(level)
-  if not config.includeStackTrace then
+function ErrorHandler:_formatStackTrace(level)
+  if not self.includeStackTrace then
     return ""
   end
 
@@ -263,7 +672,7 @@ end
 ---@param detailsOrSuggestion table|string|nil Details or suggestion
 ---@param suggestionOrNil string|nil Suggestion
 ---@return string Formatted message
-local function formatMessage(module, level, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestionOrNil)
+function ErrorHandler:_formatMessage(module, level, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestionOrNil)
   local code = nil
   local message = codeOrMessage
   local details = nil
@@ -307,7 +716,7 @@ local function formatMessage(module, level, codeOrMessage, messageOrDetails, det
 
   -- Details section
   if details then
-    table.insert(parts, formatDetails(details))
+    table.insert(parts, self:_formatDetails(details))
   end
 
   -- Suggestion section
@@ -326,91 +735,65 @@ end
 ---@param message string Message
 ---@param details table|nil Details
 ---@param suggestion string|nil Suggestion
-local function writeLog(level, levelNum, module, code, message, details, suggestion)
+function ErrorHandler:_writeLog(level, levelNum, module, code, message, details, suggestion)
   -- Check if we should log this level
-  if levelNum > config.logLevel then
+  if levelNum > self.logLevel then
     return
   end
 
-  local timestamp = getTimestamp()
+  local timestamp = self:_getTimestamp()
   local logEntry
 
-  if config.logFormat == "json" then
-    -- JSON format
-    local jsonParts = {
-      string.format('"timestamp":"%s"', escapeJson(timestamp)),
-      string.format('"level":"%s"', level),
-      string.format('"module":"%s"', escapeJson(module)),
-      string.format('"message":"%s"', escapeJson(message)),
-    }
+  local jsonParts = {
+    string.format('"timestamp":"%s"', self:_escapeJson(timestamp)),
+    string.format('"level":"%s"', level),
+    string.format('"module":"%s"', self:_escapeJson(module)),
+    string.format('"message":"%s"', self:_escapeJson(message)),
+  }
 
-    if code then
-      table.insert(jsonParts, string.format('"code":"%s"', escapeJson(code)))
-    end
-
-    if details then
-      table.insert(jsonParts, string.format('"details":%s', formatDetailsJson(details)))
-    end
-
-    if suggestion then
-      table.insert(jsonParts, string.format('"suggestion":"%s"', escapeJson(suggestion)))
-    end
-
-    logEntry = "{" .. table.concat(jsonParts, ",") .. "}\n"
-  else
-    -- Human-readable format
-    local parts = {
-      string.format("[%s] [%s] [%s]", timestamp, level, module),
-    }
-
-    if code then
-      table.insert(parts, string.format("[%s]", code))
-    end
-
-    table.insert(parts, message)
-    logEntry = table.concat(parts, " ") .. "\n"
-
-    if details then
-      logEntry = logEntry .. formatDetails(details):gsub("^\n\n", "") .. "\n"
-    end
-
-    if suggestion then
-      logEntry = logEntry .. "Suggestion: " .. suggestion .. "\n"
-    end
-
-    logEntry = logEntry .. "\n"
+  if code then
+    table.insert(jsonParts, string.format('"code":"%s"', self:_escapeJson(code)))
   end
 
-  -- Write to console
-  if config.logTarget == "console" or config.logTarget == "both" then
+  if details then
+    table.insert(jsonParts, string.format('"details":%s', self:_formatDetailsJson(details)))
+  end
+
+  if suggestion then
+    table.insert(jsonParts, string.format('"suggestion":"%s"', self:_escapeJson(suggestion)))
+  end
+
+  logEntry = "{" .. table.concat(jsonParts, ",") .. "}\n"
+
+  if self.logTarget == "console" or self.logTarget == "both" then
     io.write(logEntry)
     io.flush()
   end
 
   -- Write to file
-  if config.logTarget == "file" or config.logTarget == "both" then
+  if self.logTarget == "file" or self.logTarget == "both" then
     -- Lazy file opening: open on first write
-    if not logFileHandle then
-      logFileHandle = io.open(config.logFile, "a")
-      if logFileHandle then
+    if not self._logFileHandle then
+      self._logFileHandle = io.open(self.logFile, "a")
+      if self._logFileHandle then
         -- Get current file size
-        local currentPos = logFileHandle:seek("end")
-        currentLogSize = currentPos or 0
+        local currentPos = self._logFileHandle:seek("end")
+        self._currentLogSize = currentPos or 0
       end
     end
 
-    if logFileHandle then
-      rotateLogIfNeeded()
+    if self._logFileHandle then
+      self:_rotateLogIfNeeded()
 
       -- Reopen if rotation closed it
-      if not logFileHandle then
-        logFileHandle = io.open(config.logFile, "a")
+      if not self._logFileHandle then
+        self._logFileHandle = io.open(self.logFile, "a")
       end
 
-      if logFileHandle then
-        logFileHandle:write(logEntry)
-        logFileHandle:flush()
-        currentLogSize = currentLogSize + #logEntry
+      if self._logFileHandle then
+        self._logFileHandle:write(logEntry)
+        self._logFileHandle:flush()
+        self._currentLogSize = self._currentLogSize + #logEntry
       end
     end
   end
@@ -422,8 +805,8 @@ end
 ---@param messageOrDetails string|table|nil Message or details
 ---@param detailsOrSuggestion table|string|nil Details or suggestion
 ---@param suggestion string|nil Suggestion
-function ErrorHandler.error(module, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
-  local formattedMessage = formatMessage(module, "Error", codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
+function ErrorHandler:error(module, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
+  local formattedMessage = self:_formatMessage(module, "Error", codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
 
   -- Parse arguments for logging
   local code = nil
@@ -454,11 +837,10 @@ function ErrorHandler.error(module, codeOrMessage, messageOrDetails, detailsOrSu
   end
 
   -- Log the error
-  writeLog("ERROR", LOG_LEVELS.ERROR, module, code, message, details, logSuggestion)
+  self:_writeLog("ERROR", LOG_LEVEL.ERROR, module, code, message, details, logSuggestion)
 
-  -- Add stack trace if enabled
-  if config.includeStackTrace then
-    formattedMessage = formattedMessage .. formatStackTrace(3)
+  if self.includeStackTrace then
+    formattedMessage = formattedMessage .. self:_formatStackTrace(3)
   end
 
   error(formattedMessage, 2)
@@ -470,7 +852,7 @@ end
 ---@param messageOrDetails string|table|nil Message or details
 ---@param detailsOrSuggestion table|string|nil Details or suggestion
 ---@param suggestion string|nil Suggestion
-function ErrorHandler.warn(module, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
+function ErrorHandler:warn(module, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
   -- Parse arguments for logging
   local code = nil
   local message = codeOrMessage
@@ -499,8 +881,8 @@ function ErrorHandler.warn(module, codeOrMessage, messageOrDetails, detailsOrSug
     end
   end
 
-  -- Log the warning (writeLog handles console output based on config.logTarget)
-  writeLog("WARNING", LOG_LEVELS.WARNING, module, code, message, details, logSuggestion)
+  -- Log the warning
+  self:_writeLog("WARNING", LOG_LEVEL.WARNING, module, code, message, details, logSuggestion)
 end
 
 --- Validate that a value is not nil
@@ -508,9 +890,9 @@ end
 ---@param value any The value to check
 ---@param paramName string The parameter name
 ---@return boolean True if valid
-function ErrorHandler.assertNotNil(module, value, paramName)
+function ErrorHandler:assertNotNil(module, value, paramName)
   if value == nil then
-    ErrorHandler.error(module, "VAL_003", "Required parameter missing", {
+    self:error(module, "VAL_003", "Required parameter missing", {
       parameter = paramName,
     })
     return false
@@ -524,10 +906,10 @@ end
 ---@param expectedType string The expected type name
 ---@param paramName string The parameter name
 ---@return boolean True if valid
-function ErrorHandler.assertType(module, value, expectedType, paramName)
+function ErrorHandler:assertType(module, value, expectedType, paramName)
   local actualType = type(value)
   if actualType ~= expectedType then
-    ErrorHandler.error(module, "VAL_001", "Invalid property type", {
+    self:error(module, "VAL_001", "Invalid property type", {
       property = paramName,
       expected = expectedType,
       got = actualType,
@@ -544,9 +926,9 @@ end
 ---@param max number Maximum value (inclusive)
 ---@param paramName string The parameter name
 ---@return boolean True if valid
-function ErrorHandler.assertRange(module, value, min, max, paramName)
+function ErrorHandler:assertRange(module, value, min, max, paramName)
   if value < min or value > max then
-    ErrorHandler.error(module, "VAL_002", "Property value out of range", {
+    self:error(module, "VAL_002", "Property value out of range", {
       property = paramName,
       min = tostring(min),
       max = tostring(max),
@@ -561,16 +943,16 @@ end
 ---@param module string The module name
 ---@param oldName string The deprecated name
 ---@param newName string The new name to use
-function ErrorHandler.warnDeprecated(module, oldName, newName)
-  ErrorHandler.warn(module, string.format("'%s' is deprecated. Use '%s' instead", oldName, newName))
+function ErrorHandler:warnDeprecated(module, oldName, newName)
+  self:warn(module, string.format("'%s' is deprecated. Use '%s' instead", oldName, newName))
 end
 
 --- Warn about a common mistake
 ---@param module string The module name
 ---@param issue string Description of the issue
 ---@param suggestion string Suggested fix
-function ErrorHandler.warnCommonMistake(module, issue, suggestion)
-  ErrorHandler.warn(module, string.format("%s. Suggestion: %s", issue, suggestion))
+function ErrorHandler:warnCommonMistake(module, issue, suggestion)
+  self:warn(module, string.format("%s. Suggestion: %s", issue, suggestion))
 end
 
 return ErrorHandler

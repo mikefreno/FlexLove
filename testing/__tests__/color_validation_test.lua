@@ -7,6 +7,10 @@ require("testing.loveStub")
 
 -- Import the Color module
 local Color = require("modules.Color")
+local ErrorHandler = require("modules.ErrorHandler")
+local ErrorCodes = require("modules.ErrorCodes")
+ErrorHandler.init({ ErrorCodes })
+Color.init({ ErrorHandler })
 
 -- Test Suite for Color Validation
 TestColorValidation = {}

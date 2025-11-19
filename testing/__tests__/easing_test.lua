@@ -20,27 +20,47 @@ function TestEasing:testAllEasingFunctionsExist()
     -- Linear
     "linear",
     -- Quad
-    "easeInQuad", "easeOutQuad", "easeInOutQuad",
+    "easeInQuad",
+    "easeOutQuad",
+    "easeInOutQuad",
     -- Cubic
-    "easeInCubic", "easeOutCubic", "easeInOutCubic",
+    "easeInCubic",
+    "easeOutCubic",
+    "easeInOutCubic",
     -- Quart
-    "easeInQuart", "easeOutQuart", "easeInOutQuart",
+    "easeInQuart",
+    "easeOutQuart",
+    "easeInOutQuart",
     -- Quint
-    "easeInQuint", "easeOutQuint", "easeInOutQuint",
+    "easeInQuint",
+    "easeOutQuint",
+    "easeInOutQuint",
     -- Expo
-    "easeInExpo", "easeOutExpo", "easeInOutExpo",
+    "easeInExpo",
+    "easeOutExpo",
+    "easeInOutExpo",
     -- Sine
-    "easeInSine", "easeOutSine", "easeInOutSine",
+    "easeInSine",
+    "easeOutSine",
+    "easeInOutSine",
     -- Circ
-    "easeInCirc", "easeOutCirc", "easeInOutCirc",
+    "easeInCirc",
+    "easeOutCirc",
+    "easeInOutCirc",
     -- Back
-    "easeInBack", "easeOutBack", "easeInOutBack",
+    "easeInBack",
+    "easeOutBack",
+    "easeInOutBack",
     -- Elastic
-    "easeInElastic", "easeOutElastic", "easeInOutElastic",
+    "easeInElastic",
+    "easeOutElastic",
+    "easeInOutElastic",
     -- Bounce
-    "easeInBounce", "easeOutBounce", "easeInOutBounce",
+    "easeInBounce",
+    "easeOutBounce",
+    "easeInOutBounce",
   }
-  
+
   for _, name in ipairs(easings) do
     luaunit.assertNotNil(Easing[name], "Easing function " .. name .. " should exist")
     luaunit.assertEquals(type(Easing[name]), "function", name .. " should be a function")
@@ -239,7 +259,7 @@ function TestEasing:testList()
   local list = Easing.list()
   luaunit.assertEquals(type(list), "table")
   luaunit.assertEquals(#list, 31, "Should have exactly 31 easing functions")
-  
+
   -- Check that linear is in the list
   local hasLinear = false
   for _, name in ipairs(list) do
@@ -257,7 +277,7 @@ function TestEasing:testGet()
   luaunit.assertNotNil(linear)
   luaunit.assertEquals(type(linear), "function")
   luaunit.assertEquals(linear(0.5), 0.5)
-  
+
   -- Test non-existent easing
   local nonExistent = Easing.get("nonExistentEasing")
   luaunit.assertNil(nonExistent)
@@ -266,11 +286,18 @@ end
 -- Test that all InOut easings are symmetric around 0.5
 function TestEasing:testInOutSymmetry()
   local inOutEasings = {
-    "easeInOutQuad", "easeInOutCubic", "easeInOutQuart", "easeInOutQuint",
-    "easeInOutExpo", "easeInOutSine", "easeInOutCirc", "easeInOutBack",
-    "easeInOutElastic", "easeInOutBounce"
+    "easeInOutQuad",
+    "easeInOutCubic",
+    "easeInOutQuart",
+    "easeInOutQuint",
+    "easeInOutExpo",
+    "easeInOutSine",
+    "easeInOutCirc",
+    "easeInOutBack",
+    "easeInOutElastic",
+    "easeInOutBounce",
   }
-  
+
   for _, name in ipairs(inOutEasings) do
     local easing = Easing[name]
     -- At t=0.5, all InOut easings should be close to 0.5
@@ -283,28 +310,50 @@ end
 function TestEasing:testBoundaryConditions()
   local easings = {
     "linear",
-    "easeInQuad", "easeOutQuad", "easeInOutQuad",
-    "easeInCubic", "easeOutCubic", "easeInOutCubic",
-    "easeInQuart", "easeOutQuart", "easeInOutQuart",
-    "easeInQuint", "easeOutQuint", "easeInOutQuint",
-    "easeInExpo", "easeOutExpo", "easeInOutExpo",
-    "easeInSine", "easeOutSine", "easeInOutSine",
-    "easeInCirc", "easeOutCirc", "easeInOutCirc",
-    "easeInBack", "easeOutBack", "easeInOutBack",
-    "easeInElastic", "easeOutElastic", "easeInOutElastic",
-    "easeInBounce", "easeOutBounce", "easeInOutBounce",
+    "easeInQuad",
+    "easeOutQuad",
+    "easeInOutQuad",
+    "easeInCubic",
+    "easeOutCubic",
+    "easeInOutCubic",
+    "easeInQuart",
+    "easeOutQuart",
+    "easeInOutQuart",
+    "easeInQuint",
+    "easeOutQuint",
+    "easeInOutQuint",
+    "easeInExpo",
+    "easeOutExpo",
+    "easeInOutExpo",
+    "easeInSine",
+    "easeOutSine",
+    "easeInOutSine",
+    "easeInCirc",
+    "easeOutCirc",
+    "easeInOutCirc",
+    "easeInBack",
+    "easeOutBack",
+    "easeInOutBack",
+    "easeInElastic",
+    "easeOutElastic",
+    "easeInOutElastic",
+    "easeInBounce",
+    "easeOutBounce",
+    "easeInOutBounce",
   }
-  
+
   for _, name in ipairs(easings) do
     local easing = Easing[name]
     -- All easings should start at 0
     local start = easing(0)
     luaunit.assertAlmostEquals(start, 0, 0.01, name .. " should start at 0")
-    
+
     -- All easings should end at 1
     local finish = easing(1)
     luaunit.assertAlmostEquals(finish, 1, 0.01, name .. " should end at 1")
   end
 end
 
-os.exit(luaunit.LuaUnit.run())
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

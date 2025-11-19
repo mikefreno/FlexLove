@@ -10,8 +10,6 @@ local Units = req("Units")
 local Context = req("Context")
 ---@type StateManager
 local StateManager = req("StateManager")
-local ErrorCodes = req("ErrorCodes")
-local ErrorHandler = req("ErrorHandler")
 local Performance = req("Performance")
 local ImageRenderer = req("ImageRenderer")
 local ImageScaler = req("ImageScaler")
@@ -26,79 +24,23 @@ local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
+local ImageDataReader = req("ImageDataReader")
+---@type ErrorHandler
+local ErrorHandler = req("ErrorHandler")
 ---@type Element
 local Element = req("Element")
 
 -- externals
 ---@type Animation
 local Animation = req("Animation")
----@type AnimationGroup
-local AnimationGroup = req("AnimationGroup")
----@type Easing
-local Easing = req("Easing")
 ---@type Color
 local Color = req("Color")
 ---@type Theme
 local Theme = req("Theme")
 local enums = utils.enums
 
-Element.defaultDependencies = {
-  Context = Context,
-  Theme = Theme,
-  Color = Color,
-  Units = Units,
-  Blur = Blur,
-  ImageRenderer = ImageRenderer,
-  ImageScaler = ImageScaler,
-  NinePatch = NinePatch,
-  RoundedRect = RoundedRect,
-  ImageCache = ImageCache,
-  utils = utils,
-  Grid = Grid,
-  InputEvent = InputEvent,
-  GestureRecognizer = GestureRecognizer,
-  StateManager = StateManager,
-  TextEditor = TextEditor,
-  LayoutEngine = LayoutEngine,
-  Renderer = Renderer,
-  EventHandler = EventHandler,
-  ScrollManager = ScrollManager,
-  ErrorHandler = ErrorHandler,
-}
-
 ---@class FlexLove
 local flexlove = Context
-
--- Initialize ErrorHandler with ErrorCodes dependency
-ErrorHandler.init({ ErrorCodes = ErrorCodes })
-
--- Initialize modules that use ErrorHandler via DI
-local errorHandlerDeps = { ErrorHandler = ErrorHandler }
-if ImageRenderer.init then
-  ImageRenderer.init(errorHandlerDeps)
-end
-if ImageScaler then
-  local ImageScaler = req("ImageScaler")
-  if ImageScaler.init then
-    ImageScaler.init(errorHandlerDeps)
-  end
-end
-if NinePatch.init then
-  NinePatch.init(errorHandlerDeps)
-end
-local ImageDataReader = req("ImageDataReader")
-if ImageDataReader.init then
-  ImageDataReader.init(errorHandlerDeps)
-end
-
--- Initialize modules with dependencies
-Units.init({ Context = Context, ErrorHandler = ErrorHandler })
-Color.init({ ErrorHandler = ErrorHandler })
-utils.init({ ErrorHandler = ErrorHandler })
-Animation.init({ ErrorHandler = ErrorHandler, Easing = Easing, Color = Color })
-AnimationGroup.init({ ErrorHandler = ErrorHandler })
-
--- Add version and metadata
 flexlove._VERSION = "0.3.0"
 flexlove._DESCRIPTION = "UI Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
@@ -148,16 +90,52 @@ flexlove._deferredCallbacks = {}
 function flexlove.init(config)
   config = config or {}
 
-  if config.errorLogFile then
-    ErrorHandler.setLogTarget("file")
-    ErrorHandler.setLogFile(config.errorLogFile)
-  elseif config.enableErrorLogging == true then
-    -- Use default log file if logging enabled but no path specified
-    ErrorHandler.setLogTarget("file")
-    ErrorHandler.setLogFile("flexlove-errors.log")
-  end
+  flexlove._ErrorHandler = ErrorHandler.init({
+    includeStackTrace = config.includeStackTrace,
+    logLevel = config.reportingLogLevel,
+    logTarget = config.errorLogTarget,
+    logFile = config.errorLogFile,
+    maxLogSize = config.errorLogMaxSize,
+    maxLogFiles = config.maxErrorLogFiles,
+    enableRotation = config.errorLogRotateEnabled,
+  })
 
-  -- Configure performance monitoring (default: true)
+  ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler })
+
+  ImageScaler.init({ ErrorHandler = flexlove._ErrorHandler })
+
+  NinePatch.init({ ErrorHandler = flexlove._ErrorHandler })
+  ImageDataReader.init({ ErrorHandler = flexlove._ErrorHandler })
+
+  Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler })
+  Color.init({ ErrorHandler = flexlove._ErrorHandler })
+  utils.init({ ErrorHandler = flexlove._ErrorHandler })
+  Animation.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color })
+
+  flexlove._defaultDependencies = {
+    Context = Context,
+    Theme = Theme,
+    Color = Color,
+    Units = Units,
+    Blur = Blur,
+    ImageRenderer = ImageRenderer,
+    ImageScaler = ImageScaler,
+    NinePatch = NinePatch,
+    RoundedRect = RoundedRect,
+    ImageCache = ImageCache,
+    utils = utils,
+    Grid = Grid,
+    InputEvent = InputEvent,
+    GestureRecognizer = GestureRecognizer,
+    StateManager = StateManager,
+    TextEditor = TextEditor,
+    LayoutEngine = LayoutEngine,
+    Renderer = Renderer,
+    EventHandler = EventHandler,
+    ScrollManager = ScrollManager,
+    ErrorHandler = flexlove._ErrorHandler,
+  }
+
   local enablePerfMonitoring = config.performanceMonitoring
   if enablePerfMonitoring == nil then
     enablePerfMonitoring = true
@@ -974,7 +952,7 @@ function flexlove.new(props)
 
   -- If not in immediate mode, use standard Element.new
   if not flexlove._immediateMode then
-    return Element.new(props, Element.defaultDependencies)
+    return Element.new(props, flexlove._defaultDependencies)
   end
 
   -- Auto-begin frame if not manually started (convenience feature)
@@ -999,8 +977,7 @@ function flexlove.new(props)
   props._scrollX = state._scrollX or 0
   props._scrollY = state._scrollY or 0
 
-  -- Create the element
-  local element = Element.new(props, Element.defaultDependencies)
+  local element = Element.new(props, flexlove._defaultDependencies)
 
   -- Bind persistent state to element (ImmediateModeState)
   -- Restore event handler state
@@ -1114,8 +1091,6 @@ function flexlove.getStateStats()
 end
 
 flexlove.Animation = Animation
-flexlove.AnimationGroup = AnimationGroup
-flexlove.Easing = Easing
 flexlove.Color = Color
 flexlove.Theme = Theme
 flexlove.enums = enums

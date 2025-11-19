@@ -1,10 +1,19 @@
 ---@class Color
----@field r number -- Red component (0-1)
----@field g number -- Green component (0-1)
----@field b number -- Blue component (0-1)
----@field a number -- Alpha component (0-1)
+---@field r number Red component (0-1)
+---@field g number Green component (0-1)
+---@field b number Blue component (0-1)
+---@field a number Alpha component (0-1)
+---@field _ErrorHandler table? ErrorHandler module dependency
 local Color = {}
 Color.__index = Color
+
+--- Initialize module with shared dependencies
+---@param deps table Dependencies {ErrorHandler}
+function Color.init(deps)
+  if type(deps) == "table" then
+    Color._ErrorHandler = deps.ErrorHandler
+  end
+end
 
 --- Build type-safe color objects with automatic validation and clamping
 --- Use this to avoid invalid color values and ensure consistent LÖVE-compatible colors (0-1 range)
@@ -46,7 +55,7 @@ end
 function Color.fromHex(hexWithTag)
   -- Validate input type
   if type(hexWithTag) ~= "string" then
-    Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+    Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
       input = tostring(hexWithTag),
       issue = "not a string",
       fallback = "white (#FFFFFF)",
@@ -60,7 +69,7 @@ function Color.fromHex(hexWithTag)
     local g = tonumber("0x" .. hex:sub(3, 4))
     local b = tonumber("0x" .. hex:sub(5, 6))
     if not r or not g or not b then
-      Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+      Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
         input = hexWithTag,
         issue = "invalid hex digits",
         fallback = "white (#FFFFFF)",
@@ -74,7 +83,7 @@ function Color.fromHex(hexWithTag)
     local b = tonumber("0x" .. hex:sub(5, 6))
     local a = tonumber("0x" .. hex:sub(7, 8))
     if not r or not g or not b or not a then
-      Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+      Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
         input = hexWithTag,
         issue = "invalid hex digits",
         fallback = "white (#FFFFFFFF)",
@@ -83,7 +92,7 @@ function Color.fromHex(hexWithTag)
     end
     return Color.new(r / 255, g / 255, b / 255, a / 255)
   else
-    Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+    Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
       input = hexWithTag,
       expected = "#RRGGBB or #RRGGBBAA",
       hexLength = #hex,
@@ -335,12 +344,6 @@ function Color.lerp(colorA, colorB, t)
   local a = colorA.a * (1 - t) + colorB.a * t
 
   return Color.new(r, g, b, a)
-end
-
---- Initialize dependencies
----@param deps table Dependencies: { ErrorHandler = ErrorHandler }
-function Color.init(deps)
-  Color._ErrorHandler = deps.ErrorHandler
 end
 
 return Color

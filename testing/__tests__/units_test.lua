@@ -161,31 +161,36 @@ function TestUnitsResolve:testResolveDecimalPercentage()
   luaunit.assertAlmostEquals(result, 99.99, 0.01)
 end
 
--- Test suite for Units.parseAndResolve()
+-- Test suite for Units.parse() + Units.resolve() combination
 TestUnitsParseAndResolve = {}
 
 function TestUnitsParseAndResolve:testParseAndResolvePixels()
-  local result = Units.parseAndResolve("100px", MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
+  local numValue, unit = Units.parse("100px")
+  local result = Units.resolve(numValue, unit, MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
   luaunit.assertEquals(result, 100)
 end
 
 function TestUnitsParseAndResolve:testParseAndResolveNumber()
-  local result = Units.parseAndResolve(100, MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
+  local numValue, unit = Units.parse(100)
+  local result = Units.resolve(numValue, unit, MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
   luaunit.assertEquals(result, 100)
 end
 
 function TestUnitsParseAndResolve:testParseAndResolvePercentage()
-  local result = Units.parseAndResolve("50%", MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT, 400)
+  local numValue, unit = Units.parse("50%")
+  local result = Units.resolve(numValue, unit, MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT, 400)
   luaunit.assertEquals(result, 200)
 end
 
 function TestUnitsParseAndResolve:testParseAndResolveViewportWidth()
-  local result = Units.parseAndResolve("10vw", MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
+  local numValue, unit = Units.parse("10vw")
+  local result = Units.resolve(numValue, unit, MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
   luaunit.assertEquals(result, 192)
 end
 
 function TestUnitsParseAndResolve:testParseAndResolveViewportHeight()
-  local result = Units.parseAndResolve("50vh", MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
+  local numValue, unit = Units.parse("50vh")
+  local result = Units.resolve(numValue, unit, MOCK_VIEWPORT_WIDTH, MOCK_VIEWPORT_HEIGHT)
   luaunit.assertEquals(result, 540)
 end
 

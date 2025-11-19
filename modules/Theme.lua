@@ -1,13 +1,3 @@
-local modulePath = (...):match("(.-)[^%.]+$")
-local function req(name)
-  return require(modulePath .. name)
-end
-
-local NinePatchParser = req("NinePatchParser")
-local Color = req("Color")
-local utils = req("utils")
-local ErrorHandler = req("ErrorHandler")
-
 --- Auto-detect the base path where FlexLove is located
 ---@return string modulePath, string filesystemPath
 local function getFlexLoveBasePath()
@@ -77,6 +67,242 @@ local function validateThemeDefinition(definition)
   return true, nil
 end
 
+--- Load image data from a file path
+---@param imagePath string
+---@return love.ImageData
+local function loadImageData(imagePath)
+  if not imagePath then
+    error("Image path cannot be nil")
+  end
+
+  local success, result = pcall(function()
+    return love.image.newImageData(imagePath)
+  end)
+
+  if not success then
+    error("Failed to load image data from '" .. imagePath .. "': " .. tostring(result))
+  end
+
+  return result
+end
+
+--- Extract all pixels from a specific row
+---@param imageData love.ImageData
+---@param rowIndex number 0-based row index
+---@return table Array of {r, g, b, a} values (0-255 range)
+local function getRow(imageData, rowIndex)
+  if not imageData then
+    error("ImageData cannot be nil")
+  end
+
+  local width = imageData:getWidth()
+  local height = imageData:getHeight()
+
+  if rowIndex < 0 or rowIndex >= height then
+    error(string.format("Row index %d out of bounds (height: %d)", rowIndex, height))
+  end
+
+  local pixels = {}
+  for x = 0, width - 1 do
+    local r, g, b, a = imageData:getPixel(x, rowIndex)
+    table.insert(pixels, {
+      r = math.floor(r * 255 + 0.5),
+      g = math.floor(g * 255 + 0.5),
+      b = math.floor(b * 255 + 0.5),
+      a = math.floor(a * 255 + 0.5),
+    })
+  end
+
+  return pixels
+end
+
+--- Extract all pixels from a specific column
+---@param imageData love.ImageData
+---@param colIndex number 0-based column index
+---@return table Array of {r, g, b, a} values (0-255 range)
+local function getColumn(imageData, colIndex)
+  if not imageData then
+    error("ImageData cannot be nil")
+  end
+
+  local width = imageData:getWidth()
+  local height = imageData:getHeight()
+
+  if colIndex < 0 or colIndex >= width then
+    error(string.format("Column index %d out of bounds (width: %d)", colIndex, width))
+  end
+
+  local pixels = {}
+  for y = 0, height - 1 do
+    local r, g, b, a = imageData:getPixel(colIndex, y)
+    table.insert(pixels, {
+      r = math.floor(r * 255 + 0.5),
+      g = math.floor(g * 255 + 0.5),
+      b = math.floor(b * 255 + 0.5),
+      a = math.floor(a * 255 + 0.5),
+    })
+  end
+
+  return pixels
+end
+
+--- Check if a pixel is black with full alpha (9-patch marker)
+---@param r number Red (0-255)
+---@param g number Green (0-255)
+---@param b number Blue (0-255)
+---@param a number Alpha (0-255)
+---@return boolean
+local function isBlackPixel(r, g, b, a)
+  return r == 0 and g == 0 and b == 0 and a == 255
+end
+
+--- Find all continuous runs of black pixels in a pixel array
+---@param pixels table Array of {r, g, b, a} pixel values
+---@return table Array of {start, end} pairs (1-based indices, inclusive)
+local function findBlackPixelRuns(pixels)
+  local runs = {}
+  local inRun = false
+  local runStart = nil
+
+  for i = 1, #pixels do
+    local pixel = pixels[i]
+    local isBlack = isBlackPixel(pixel.r, pixel.g, pixel.b, pixel.a)
+
+    if isBlack and not inRun then
+      -- Start of a new run
+      inRun = true
+      runStart = i
+    elseif not isBlack and inRun then
+      -- End of current run
+      table.insert(runs, { start = runStart, ["end"] = i - 1 })
+      inRun = false
+      runStart = nil
+    end
+  end
+
+  -- Handle case where run extends to end of array
+  if inRun then
+    table.insert(runs, { start = runStart, ["end"] = #pixels })
+  end
+
+  return runs
+end
+
+--- Parse a 9-patch PNG image to extract stretch regions and content padding
+---@param imagePath string Path to the 9-patch image file
+---@return table|nil, string|nil Returns {insets, stretchX, stretchY} or nil, error message
+local function parseNinePatch(imagePath)
+  if not imagePath then
+    return nil, "Image path cannot be nil"
+  end
+
+  local success, imageData = pcall(function()
+    return loadImageData(imagePath)
+  end)
+
+  if not success then
+    return nil, "Failed to load image data: " .. tostring(imageData)
+  end
+
+  local width = imageData:getWidth()
+  local height = imageData:getHeight()
+
+  -- Validate minimum size (must be at least 3x3 with 1px border)
+  if width < 3 or height < 3 then
+    return nil, string.format("Invalid 9-patch dimensions: %dx%d (minimum 3x3)", width, height)
+  end
+
+  -- Extract border pixels (0-based indexing, but we convert to 1-based for processing)
+  local topBorder = getRow(imageData, 0)
+  local leftBorder = getColumn(imageData, 0)
+  local bottomBorder = getRow(imageData, height - 1)
+  local rightBorder = getColumn(imageData, width - 1)
+
+  -- Remove corner pixels from borders (they're not part of the stretch/content markers)
+  -- Top and bottom borders: remove first and last pixel
+  local topStretchPixels = {}
+  local bottomContentPixels = {}
+  for i = 2, #topBorder - 1 do
+    table.insert(topStretchPixels, topBorder[i])
+  end
+  for i = 2, #bottomBorder - 1 do
+    table.insert(bottomContentPixels, bottomBorder[i])
+  end
+
+  -- Left and right borders: remove first and last pixel
+  local leftStretchPixels = {}
+  local rightContentPixels = {}
+  for i = 2, #leftBorder - 1 do
+    table.insert(leftStretchPixels, leftBorder[i])
+  end
+  for i = 2, #rightBorder - 1 do
+    table.insert(rightContentPixels, rightBorder[i])
+  end
+
+  -- Find stretch regions (top and left borders)
+  local stretchX = findBlackPixelRuns(topStretchPixels)
+  local stretchY = findBlackPixelRuns(leftStretchPixels)
+
+  -- Find content padding regions (bottom and right borders)
+  local contentX = findBlackPixelRuns(bottomContentPixels)
+  local contentY = findBlackPixelRuns(rightContentPixels)
+
+  -- Validate that we have at least one stretch region
+  if #stretchX == 0 or #stretchY == 0 then
+    return nil, "No stretch regions found (top or left border has no black pixels)"
+  end
+
+  -- Calculate stretch insets from stretch regions (top/left guides)
+  -- Use the first stretch region's start and last stretch region's end
+  local firstStretchX = stretchX[1]
+  local lastStretchX = stretchX[#stretchX]
+  local firstStretchY = stretchY[1]
+  local lastStretchY = stretchY[#stretchY]
+
+  -- Stretch insets define the 9-patch regions
+  local stretchLeft = firstStretchX.start
+  local stretchRight = #topStretchPixels - lastStretchX["end"]
+  local stretchTop = firstStretchY.start
+  local stretchBottom = #leftStretchPixels - lastStretchY["end"]
+
+  -- Calculate content padding from content guides (bottom/right guides)
+  -- If content padding is defined, use it; otherwise use stretch regions
+  local contentLeft, contentRight, contentTop, contentBottom
+
+  if #contentX > 0 then
+    contentLeft = contentX[1].start
+    contentRight = #topStretchPixels - contentX[#contentX]["end"]
+  else
+    contentLeft = stretchLeft
+    contentRight = stretchRight
+  end
+
+  if #contentY > 0 then
+    contentTop = contentY[1].start
+    contentBottom = #leftStretchPixels - contentY[#contentY]["end"]
+  else
+    contentTop = stretchTop
+    contentBottom = stretchBottom
+  end
+
+  return {
+    insets = {
+      left = stretchLeft,
+      top = stretchTop,
+      right = stretchRight,
+      bottom = stretchBottom,
+    },
+    contentPadding = {
+      left = contentLeft,
+      top = contentTop,
+      right = contentRight,
+      bottom = contentBottom,
+    },
+    stretchX = stretchX,
+    stretchY = stretchY,
+  }
+end
+
 ---@class ThemeRegion
 ---@field x number -- X position in atlas
 ---@field y number -- Y position in atlas
@@ -117,8 +343,21 @@ end
 ---@field colors table<string, Color>
 ---@field fonts table<string, string> -- Font family definitions
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: default multiplier for auto-sized content dimensions
+---@field _ErrorHandler table? ErrorHandler module dependency
+---@field _Color table? Color module dependency
+---@field _utils table? utils module dependency
 local Theme = {}
 Theme.__index = Theme
+
+--- Initialize module with shared dependencies
+---@param deps table Dependencies {ErrorHandler, Color, utils}
+function Theme.init(deps)
+  if type(deps) == "table" then
+    Theme._ErrorHandler = deps.ErrorHandler
+    Theme._Color = deps.Color
+    Theme._utils = deps.utils
+  end
+end
 
 -- Global theme registry
 local themes = {}
@@ -131,17 +370,19 @@ local activeTheme = nil
 function Theme.new(definition)
   -- Validate input type first
   if type(definition) ~= "table" then
-    ErrorHandler.error("Theme", "THM_001", "Invalid theme definition", {
-      error = "Theme definition must be a table, got " .. type(definition)
+    Theme._ErrorHandler:warn("Theme", "THM_001", "Invalid theme definition", {
+      error = "Theme definition must be a table, got " .. type(definition),
     })
+    return Theme.new({ name = "fallback", components = {}, colors = {}, fonts = {} })
   end
-  
+
   -- Validate theme definition
   local valid, err = validateThemeDefinition(definition)
   if not valid then
-    ErrorHandler.error("Theme", "THM_001", "Invalid theme definition", {
-      error = tostring(err)
+    Theme._ErrorHandler:warn("Theme", "THM_001", "Invalid theme definition", {
+      error = tostring(err),
     })
+    return Theme.new({ name = "fallback", components = {}, colors = {}, fonts = {} })
   end
 
   local self = setmetatable({}, Theme)
@@ -150,16 +391,16 @@ function Theme.new(definition)
   -- Load global atlas if it's a string path
   if definition.atlas then
     if type(definition.atlas) == "string" then
-      local resolvedPath = utils.resolveImagePath(definition.atlas)
-      local image, imageData, loaderr = utils.safeLoadImage(resolvedPath)
+      local resolvedPath = Theme._utils.resolveImagePath(definition.atlas)
+      local image, imageData, loaderr = Theme._utils.safeLoadImage(resolvedPath)
       if image then
         self.atlas = image
         self.atlasData = imageData
       else
-        ErrorHandler.warn("Theme", "RES_001", "Failed to load global atlas", {
+        Theme._ErrorHandler:warn("Theme", "RES_001", "Failed to load global atlas", {
           theme = definition.name,
           path = resolvedPath,
-          error = loaderr
+          error = loaderr,
         })
       end
     else
@@ -184,11 +425,12 @@ function Theme.new(definition)
     local contentHeight = srcHeight - 2
 
     if contentWidth <= 0 or contentHeight <= 0 then
-      ErrorHandler.error("Theme", "RES_002", "Nine-patch image too small", {
+      Theme._ErrorHandler:warn("Theme", "RES_002", "Nine-patch image too small", {
         width = srcWidth,
         height = srcHeight,
-        reason = "Image must be larger than 2x2 pixels to have content after stripping 1px border"
+        reason = "Image must be larger than 2x2 pixels to have content after stripping 1px border",
       })
+      return nil
     end
 
     -- Create new ImageData for content only
@@ -208,25 +450,25 @@ function Theme.new(definition)
   -- Helper function to load atlas with 9-patch support
   local function loadAtlasWithNinePatch(comp, atlasPath, errorContext)
     ---@diagnostic disable-next-line
-    local resolvedPath = utils.resolveImagePath(atlasPath)
+    local resolvedPath = Theme._utils.resolveImagePath(atlasPath)
     ---@diagnostic disable-next-line
     local is9Patch = not comp.insets and atlasPath:match("%.9%.png$")
 
     if is9Patch then
-      local parseResult, parseErr = NinePatchParser.parse(resolvedPath)
+      local parseResult, parseErr = parseNinePatch(resolvedPath)
       if parseResult then
         comp.insets = parseResult.insets
         comp._ninePatchData = parseResult
       else
-        ErrorHandler.warn("Theme", "RES_003", "Failed to parse nine-patch image", {
+        Theme._ErrorHandler:warn("Theme", "RES_003", "Failed to parse nine-patch image", {
           context = errorContext,
           path = resolvedPath,
-          error = tostring(parseErr)
+          error = tostring(parseErr),
         })
       end
     end
 
-    local image, imageData, loaderr = utils.safeLoadImage(resolvedPath)
+    local image, imageData, loaderr = Theme._utils.safeLoadImage(resolvedPath)
     if image then
       -- Strip guide border for 9-patch images
       if is9Patch and imageData then
@@ -239,10 +481,10 @@ function Theme.new(definition)
         comp._loadedAtlasData = imageData
       end
     else
-      ErrorHandler.warn("Theme", "RES_001", "Failed to load atlas", {
+      Theme._ErrorHandler:warn("Theme", "RES_001", "Failed to load atlas", {
         context = errorContext,
         path = resolvedPath,
-        error = tostring(loaderr)
+        error = tostring(loaderr),
       })
     end
   end
@@ -333,11 +575,11 @@ function Theme.load(path)
     if success then
       definition = result
     else
-      ErrorHandler.warn("Theme", "RES_004", "Failed to load theme file", {
+      Theme._ErrorHandler:warn("Theme", "RES_004", "Failed to load theme file", {
         theme = path,
         tried = themePath,
         error = tostring(result),
-        fallback = "nil (no theme loaded)"
+        fallback = "nil (no theme loaded)",
       }, "Check that the theme file exists in the themes/ directory or provide a valid module path")
       return nil
     end
@@ -365,10 +607,10 @@ function Theme.setActive(themeOrName)
   end
 
   if not activeTheme then
-    ErrorHandler.warn("Theme", "THM_002", "Failed to set active theme", {
+    Theme._ErrorHandler:warn("Theme", "THM_002", "Failed to set active theme", {
       theme = tostring(themeOrName),
       reason = "Theme not found or not loaded",
-      fallback = "current theme unchanged"
+      fallback = "current theme unchanged",
     }, "Ensure the theme is loaded with Theme.load() before setting it active")
     -- Keep current activeTheme unchanged (fallback behavior)
   end
@@ -479,7 +721,7 @@ function Theme.getColorOrDefault(colorName, fallback)
     return color
   end
 
-  return fallback or Color.new(1, 1, 1, 1)
+  return fallback or Theme._Color.new(1, 1, 1, 1)
 end
 
 --- Get a theme by name
@@ -596,7 +838,7 @@ function ThemeManager:getComponent()
   if not themeToUse or not themeToUse.components or type(themeToUse.components) ~= "table" then
     return nil
   end
-  
+
   if not themeToUse.components[self.themeComponent] then
     return nil
   end
@@ -627,7 +869,7 @@ function ThemeManager:getStyle(property)
   if type(property) ~= "string" then
     return nil
   end
-  
+
   local stateComponent = self:getStateComponent()
   if not stateComponent or type(stateComponent) ~= "table" then
     return nil
@@ -776,7 +1018,7 @@ function Theme.validateTheme(theme, options)
             end
           elseif colorType == "string" then
             -- Validate color string
-            local isValid, err = Color.validateColor(colorValue)
+            local isValid, err = Theme._Color.validateColor(colorValue)
             if not isValid then
               table.insert(errors, "Color '" .. colorName .. "': " .. err)
             end
@@ -952,12 +1194,12 @@ function Theme.sanitizeTheme(theme)
           sanitized.colors[colorName] = colorValue
         elseif colorType == "string" then
           -- Try to validate color string
-          local isValid = Color.validateColor(colorValue)
+          local isValid = Theme._Color.validateColor(colorValue)
           if isValid then
             sanitized.colors[colorName] = colorValue
           else
             -- Provide fallback color
-            sanitized.colors[colorName] = Color.new(0, 0, 0, 1)
+            sanitized.colors[colorName] = Theme._Color.new(0, 0, 0, 1)
           end
         end
       end

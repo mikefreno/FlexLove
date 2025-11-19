@@ -157,11 +157,6 @@ Element.__index = Element
 ---@param deps table Required dependency table (provided by FlexLove)
 ---@return Element
 function Element.new(props, deps)
-  if not deps then
-    -- Can't use ErrorHandler yet since deps contains it
-    error("[FlexLove - Element] Error: deps parameter is required. Pass Element.defaultDependencies from FlexLove.")
-  end
-
   local self = setmetatable({}, Element)
   self._deps = deps
 
@@ -2855,18 +2850,16 @@ function Element:countElements()
   return count
 end
 
---- Check and warn about performance issues in element hierarchy
 function Element:_checkPerformanceWarnings()
-  -- Check if performance warnings are enabled
-  local Performance = self._deps and (package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"])
-  if not Performance or not Performance.areWarningsEnabled() then
+  local Performance = self._deps and self._deps.Performance
+  if not Performance or not Performance.warningsEnabled then
     return
   end
 
   -- Check hierarchy depth
   local depth = self:getHierarchyDepth()
   if depth >= 15 then
-    Performance.logWarning(
+    Performance:logWarning(
       string.format("hierarchy_depth_%s", self.id),
       "Element",
       string.format("Element hierarchy depth is %d levels for element '%s'", depth, self.id or "unnamed"),
@@ -2879,7 +2872,7 @@ function Element:_checkPerformanceWarnings()
   if not self.parent then
     local totalElements = self:countElements()
     if totalElements >= 1000 then
-      Performance.logWarning(
+      Performance:logWarning(
         "element_count_high",
         "Element",
         string.format("UI contains %d+ elements", totalElements),
@@ -2902,14 +2895,15 @@ end
 
 --- Track active animations and warn if too many
 function Element:_trackActiveAnimations()
-  local Performance = self._deps and (package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"])
-  if not Performance or not Performance.areWarningsEnabled() then
+  -- Get Performance instance from deps if available
+  local Performance = self._deps and self._deps.Performance
+  if not Performance or not Performance.warningsEnabled then
     return
   end
 
   local animCount = self:_countActiveAnimations()
   if animCount >= 50 then
-    Performance.logWarning(
+    Performance:logWarning(
       "animation_count_high",
       "Element",
       string.format("%d+ animations running simultaneously", animCount),

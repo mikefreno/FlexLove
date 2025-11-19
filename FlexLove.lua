@@ -24,7 +24,6 @@ local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
-local ImageDataReader = req("ImageDataReader")
 ---@type ErrorHandler
 local ErrorHandler = req("ErrorHandler")
 ---@type Element
@@ -123,12 +122,12 @@ function flexlove.init(config)
   ImageScaler.init({ ErrorHandler = flexlove._ErrorHandler })
 
   NinePatch.init({ ErrorHandler = flexlove._ErrorHandler })
-  ImageDataReader.init({ ErrorHandler = flexlove._ErrorHandler })
 
   Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler })
   Color.init({ ErrorHandler = flexlove._ErrorHandler })
   utils.init({ ErrorHandler = flexlove._ErrorHandler })
   Animation.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color })
+  Theme.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils })
 
   flexlove._defaultDependencies = {
     Context = Context,
@@ -152,6 +151,7 @@ function flexlove.init(config)
     EventHandler = EventHandler,
     ScrollManager = ScrollManager,
     ErrorHandler = flexlove._ErrorHandler,
+    Performance = flexlove._Performance,
   }
 
   if config.baseScale then

@@ -17,21 +17,26 @@
 ---@field backdropBlur {intensity:number, quality:number}?
 ---@field _blurInstance table?
 ---@field _element Element?
----@field _Color table
+---@field _Color Color
 ---@field _RoundedRect table
 ---@field _NinePatch table
 ---@field _ImageRenderer table
 ---@field _ImageCache table
 ---@field _Theme table
----@field _Blur table
+---@field _Transform Transform
+---@field _Blur Blur
 ---@field _utils table
 ---@field _FONT_CACHE table
 ---@field _TextAlign table
+---@field _ErrorHandler ErrorHandler
 local Renderer = {}
 Renderer.__index = Renderer
 
--- Lazy-loaded ErrorHandler
-local ErrorHandler
+--- Initialize module with shared dependencies
+---@param deps table Dependencies {ErrorHandler}
+function Renderer.init(deps)
+  Renderer._ErrorHandler = deps.ErrorHandler
+end
 
 --- Create a new Renderer instance
 ---@param config table Configuration table with rendering properties
@@ -198,30 +203,19 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
     end)
 
     if not success then
-      -- Lazy-load ErrorHandler if needed
-      if not ErrorHandler then
-        ErrorHandler = require("modules.ErrorHandler")
-      end
-
       -- Check if it's a stencil buffer error
       if err and err:match("stencil") then
-        ErrorHandler.warn(
-          "Renderer",
-          "IMG_001",
-          "Cannot apply corner radius to image: stencil buffer not available",
-          {
-            imagePath = self.imagePath or "unknown",
-            cornerRadius = string.format(
-              "TL:%d TR:%d BL:%d BR:%d",
-              self.cornerRadius.topLeft,
-              self.cornerRadius.topRight,
-              self.cornerRadius.bottomLeft,
-              self.cornerRadius.bottomRight
-            ),
-            error = tostring(err),
-          },
-          "Ensure the active canvas has stencil=true enabled, or remove cornerRadius from images"
-        )
+        Renderer._ErrorHandler:warn("Renderer", "IMG_001", "Cannot apply corner radius to image: stencil buffer not available", {
+          imagePath = self.imagePath or "unknown",
+          cornerRadius = string.format(
+            "TL:%d TR:%d BL:%d BR:%d",
+            self.cornerRadius.topLeft,
+            self.cornerRadius.topRight,
+            self.cornerRadius.bottomLeft,
+            self.cornerRadius.bottomRight
+          ),
+          error = tostring(err),
+        }, "Ensure the active canvas has stencil=true enabled, or remove cornerRadius from images")
         -- Continue without corner radius
         hasCornerRadius = false
       else
@@ -368,12 +362,10 @@ function Renderer:draw(backdropCanvas)
 
   -- Element must be initialized before drawing
   if not self._element then
-    if not ErrorHandler then
-      ErrorHandler = require("modules.ErrorHandler")
-    end
-    ErrorHandler.error("Renderer", "SYS_002", "Method called before initialization", {
-      method = "draw"
+    Renderer._ErrorHandler:warn("Renderer", "SYS_002", "Method called before initialization", {
+      method = "draw",
     }, "Call renderer:initialize(element) before rendering")
+    return
   end
 
   local element = self._element
@@ -421,7 +413,7 @@ function Renderer:draw(backdropCanvas)
   if hasTransform then
     self._Transform.unapply()
   end
-  
+
   -- Stop performance timing
   if Performance and Performance.isEnabled() and elementId then
     Performance.stopTimer("render_" .. elementId)

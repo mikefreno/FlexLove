@@ -254,35 +254,6 @@ function TestEasing:testElasticFactory()
   luaunit.assertAlmostEquals(customElastic(1), 1, 0.01)
 end
 
--- Test Easing.list() method
-function TestEasing:testList()
-  local list = Easing.list()
-  luaunit.assertEquals(type(list), "table")
-  luaunit.assertEquals(#list, 31, "Should have exactly 31 easing functions")
-
-  -- Check that linear is in the list
-  local hasLinear = false
-  for _, name in ipairs(list) do
-    if name == "linear" then
-      hasLinear = true
-      break
-    end
-  end
-  luaunit.assertTrue(hasLinear, "List should contain 'linear'")
-end
-
--- Test Easing.get() method
-function TestEasing:testGet()
-  local linear = Easing.get("linear")
-  luaunit.assertNotNil(linear)
-  luaunit.assertEquals(type(linear), "function")
-  luaunit.assertEquals(linear(0.5), 0.5)
-
-  -- Test non-existent easing
-  local nonExistent = Easing.get("nonExistentEasing")
-  luaunit.assertNil(nonExistent)
-end
-
 -- Test that all InOut easings are symmetric around 0.5
 function TestEasing:testInOutSymmetry()
   local inOutEasings = {

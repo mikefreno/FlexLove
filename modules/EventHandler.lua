@@ -219,7 +219,7 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
       end
     end
   end
-  
+
   -- Stop performance timing
   if Performance and Performance.isEnabled() then
     Performance.stopTimer("event_mouse")
@@ -452,10 +452,10 @@ function EventHandler:processTouchEvents()
     local touchId = tostring(id)
     local tx, ty = love.touch.getPosition(id)
     local pressure = 1.0 -- LÖVE doesn't provide pressure by default
-    
+
     -- Check if touch is within element bounds
     local isInside = tx >= bx and tx <= bx + bw and ty >= by and ty <= by + bh
-    
+
     if isInside then
       if not self._touches[touchId] then
         -- New touch began

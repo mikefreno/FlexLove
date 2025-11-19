@@ -1,26 +1,14 @@
 ---@class Context
 local Context = {
-  -- Top-level elements
   topElements = {},
-
   -- Base scale configuration
   baseScale = nil, -- {width: number, height: number}
-
   -- Current scale factors
   scaleFactors = { x = 1.0, y = 1.0 },
-
-  -- Default theme name
   defaultTheme = nil,
-
-  -- Currently focused element (for keyboard input)
   _focusedElement = nil,
-
-  -- Active event element (for current frame)
   _activeEventElement = nil,
-
-  -- Cached viewport dimensions
   _cachedViewport = { width = 0, height = 0 },
-
   -- Immediate mode state
   _immediateMode = false,
   _frameNumber = 0,
@@ -28,12 +16,10 @@ local Context = {
   _immediateModeState = nil, -- Will be initialized if immediate mode is enabled
   _frameStarted = false,
   _autoBeganFrame = false,
-
   -- Z-index ordered element tracking for immediate mode
   _zIndexOrderedElements = {}, -- Array of elements sorted by z-index (lowest to highest)
 }
 
---- Get current scale factors
 ---@return number, number -- scaleX, scaleY
 function Context.getScaleFactors()
   return Context.scaleFactors.x, Context.scaleFactors.y
@@ -49,7 +35,6 @@ function Context.registerElement(element)
   table.insert(Context._zIndexOrderedElements, element)
 end
 
---- Clear frame elements (called at start of each immediate mode frame)
 function Context.clearFrameElements()
   Context._zIndexOrderedElements = {}
 end
@@ -88,7 +73,7 @@ local function isPointInElement(element, x, y)
   -- Calculate scroll offset from parent chain
   local scrollOffsetX = 0
   local scrollOffsetY = 0
-  
+
   -- Walk up parent chain to check clipping and accumulate scroll offsets
   local current = element.parent
   while current do
@@ -105,7 +90,7 @@ local function isPointInElement(element, x, y)
       if x < parentX or x > parentX + parentW or y < parentY or y > parentY + parentH then
         return false -- Point is clipped by parent
       end
-      
+
       -- Accumulate scroll offset
       scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
       scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
@@ -143,7 +128,6 @@ function Context.getTopElementAt(x, y)
     return nil
   end
 
-  -- Traverse from highest to lowest z-index (reverse order)
   for i = #Context._zIndexOrderedElements, 1, -1 do
     local element = Context._zIndexOrderedElements[i]
 
@@ -152,7 +136,6 @@ function Context.getTopElementAt(x, y)
       if interactive then
         return interactive
       end
-      -- This preserves backward compatibility for non-interactive overlays
       return element
     end
   end

@@ -1,36 +1,3 @@
-local ErrorHandler = nil
-
--- Named colors (CSS3 color names)
-local NAMED_COLORS = {
-  -- Basic colors
-  black = { 0, 0, 0, 1 },
-  white = { 1, 1, 1, 1 },
-  red = { 1, 0, 0, 1 },
-  green = { 0, 0.502, 0, 1 },
-  blue = { 0, 0, 1, 1 },
-  yellow = { 1, 1, 0, 1 },
-  cyan = { 0, 1, 1, 1 },
-  magenta = { 1, 0, 1, 1 },
-
-  -- Extended colors
-  gray = { 0.502, 0.502, 0.502, 1 },
-  grey = { 0.502, 0.502, 0.502, 1 },
-  silver = { 0.753, 0.753, 0.753, 1 },
-  maroon = { 0.502, 0, 0, 1 },
-  olive = { 0.502, 0.502, 0, 1 },
-  lime = { 0, 1, 0, 1 },
-  aqua = { 0, 1, 1, 1 },
-  teal = { 0, 0.502, 0.502, 1 },
-  navy = { 0, 0, 0.502, 1 },
-  fuchsia = { 1, 0, 1, 1 },
-  purple = { 0.502, 0, 0.502, 1 },
-  orange = { 1, 0.647, 0, 1 },
-  pink = { 1, 0.753, 0.796, 1 },
-  brown = { 0.647, 0.165, 0.165, 1 },
-  transparent = { 0, 0, 0, 0 },
-}
-
---- Utility class for color handling
 ---@class Color
 ---@field r number -- Red component (0-1)
 ---@field g number -- Green component (0-1)
@@ -79,13 +46,11 @@ end
 function Color.fromHex(hexWithTag)
   -- Validate input type
   if type(hexWithTag) ~= "string" then
-    if ErrorHandler then
-      ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
-        input = tostring(hexWithTag),
-        issue = "not a string",
-        fallback = "white (#FFFFFF)",
-      })
-    end
+    Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+      input = tostring(hexWithTag),
+      issue = "not a string",
+      fallback = "white (#FFFFFF)",
+    })
     return Color.new(1, 1, 1, 1)
   end
 
@@ -95,13 +60,11 @@ function Color.fromHex(hexWithTag)
     local g = tonumber("0x" .. hex:sub(3, 4))
     local b = tonumber("0x" .. hex:sub(5, 6))
     if not r or not g or not b then
-      if ErrorHandler then
-        ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
-          input = hexWithTag,
-          issue = "invalid hex digits",
-          fallback = "white (#FFFFFF)",
-        })
-      end
+      Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+        input = hexWithTag,
+        issue = "invalid hex digits",
+        fallback = "white (#FFFFFF)",
+      })
       return Color.new(1, 1, 1, 1) -- Return white as fallback
     end
     return Color.new(r / 255, g / 255, b / 255, 1)
@@ -111,25 +74,21 @@ function Color.fromHex(hexWithTag)
     local b = tonumber("0x" .. hex:sub(5, 6))
     local a = tonumber("0x" .. hex:sub(7, 8))
     if not r or not g or not b or not a then
-      if ErrorHandler then
-        ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
-          input = hexWithTag,
-          issue = "invalid hex digits",
-          fallback = "white (#FFFFFFFF)",
-        })
-      end
+      Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+        input = hexWithTag,
+        issue = "invalid hex digits",
+        fallback = "white (#FFFFFFFF)",
+      })
       return Color.new(1, 1, 1, 1) -- Return white as fallback
     end
     return Color.new(r / 255, g / 255, b / 255, a / 255)
   else
-    if ErrorHandler then
-      ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
-        input = hexWithTag,
-        expected = "#RRGGBB or #RRGGBBAA",
-        hexLength = #hex,
-        fallback = "white (#FFFFFF)",
-      })
-    end
+    Color._ErrorHandler.warn("Color", "VAL_004", "Invalid color format", {
+      input = hexWithTag,
+      expected = "#RRGGBB or #RRGGBBAA",
+      hexLength = #hex,
+      fallback = "white (#FFFFFF)",
+    })
     return Color.new(1, 1, 1, 1) -- Return white as fallback
   end
 end
@@ -227,23 +186,6 @@ function Color.validateRGBColor(r, g, b, a, max)
   return true, nil
 end
 
---- Validate named color
----@param name string Color name (e.g. "red", "blue", "transparent")
----@return boolean valid True if valid
----@return string? error Error message if invalid, nil if valid
-function Color.validateNamedColor(name)
-  if type(name) ~= "string" then
-    return false, "Color name must be a string"
-  end
-
-  local lowerName = name:lower()
-  if not NAMED_COLORS[lowerName] then
-    return false, string.format("Unknown color name: '%s'", name)
-  end
-
-  return true, nil
-end
-
 --- Check if a value is a valid color format
 ---@param value any Value to check
 ---@return string? format Format type ("hex", "named", "table"), nil if invalid
@@ -257,11 +199,6 @@ function Color.isValidColorFormat(value)
       if valid then
         return "hex"
       end
-    end
-
-    -- Check for named color
-    if NAMED_COLORS[value:lower()] then
-      return "named"
     end
 
     return nil
@@ -296,42 +233,6 @@ function Color.isValidColorFormat(value)
   return nil
 end
 
---- Check if a color value is usable before processing to provide clear error messages
---- Use this for config validation and debugging malformed color data
----@param value any Color value to validate
----@param options table? Validation options {allowNamed: boolean, requireAlpha: boolean}
----@return boolean valid True if valid
----@return string? error Error message if invalid, nil if valid
-function Color.validateColor(value, options)
-  options = options or {}
-  local allowNamed = options.allowNamed ~= false
-  local requireAlpha = options.requireAlpha or false
-
-  if value == nil then
-    return false, "Color value is nil"
-  end
-
-  local format = Color.isValidColorFormat(value)
-
-  if not format then
-    return false, string.format("Invalid color format: %s", tostring(value))
-  end
-
-  if format == "named" and not allowNamed then
-    return false, "Named colors not allowed"
-  end
-
-  -- Additional validation for alpha requirement
-  if requireAlpha and format == "hex" then
-    local cleanHex = value:gsub("^#", "")
-    if #cleanHex ~= 8 then
-      return false, "Alpha channel required (use 8-digit hex)"
-    end
-  end
-
-  return true, nil
-end
-
 --- Convert any color format to a valid Color object with graceful fallbacks
 --- Use this to robustly handle colors from any source without crashes
 ---@param value any Color value to sanitize (hex, named, table, or Color instance)
@@ -364,17 +265,6 @@ function Color.sanitizeColor(value, default)
     end
   end
 
-  -- Handle named format
-  if format == "named" then
-    local lowerName = value:lower()
-    local rgba = NAMED_COLORS[lowerName]
-    if rgba then
-      return Color.new(rgba[1], rgba[2], rgba[3], rgba[4])
-    end
-    return default
-  end
-
-  -- Handle table format
   if format == "table" then
     -- Color instance
     if getmetatable(value) == Color then
@@ -450,9 +340,7 @@ end
 --- Initialize dependencies
 ---@param deps table Dependencies: { ErrorHandler = ErrorHandler }
 function Color.init(deps)
-  if type(deps) == "table" then
-    ErrorHandler = deps.ErrorHandler
-  end
+  Color._ErrorHandler = deps.ErrorHandler
 end
 
 return Color

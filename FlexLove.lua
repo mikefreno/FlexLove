@@ -10,6 +10,7 @@ local Units = req("Units")
 local Context = req("Context")
 ---@type StateManager
 local StateManager = req("StateManager")
+---@type Performance
 local Performance = req("Performance")
 local ImageRenderer = req("ImageRenderer")
 local ImageScaler = req("ImageScaler")
@@ -20,8 +21,10 @@ local Grid = req("Grid")
 local InputEvent = req("InputEvent")
 local GestureRecognizer = req("GestureRecognizer")
 local TextEditor = req("TextEditor")
+---@type LayoutEngine
 local LayoutEngine = req("LayoutEngine")
 local Renderer = req("Renderer")
+---@type EventHandler
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
 ---@type ErrorHandler
@@ -129,6 +132,8 @@ function flexlove.init(config)
   utils.init({ ErrorHandler = flexlove._ErrorHandler })
   Animation.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color })
   Theme.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils })
+  LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance })
+  EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils })
 
   flexlove._defaultDependencies = {
     Context = Context,

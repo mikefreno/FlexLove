@@ -1,3 +1,4 @@
+
 ---@class ScrollManager
 ---@field overflow string -- "visible"|"hidden"|"auto"|"scroll"
 ---@field overflowX string? -- X-axis specific overflow (overrides overflow)
@@ -39,12 +40,17 @@
 ---@field _lastTouchY number -- Last touch Y position
 ---@field _Color table
 ---@field _utils table
----@field _ErrorHandler table?
+---@field _ErrorHandler table? ErrorHandler module dependency
 local ScrollManager = {}
 ScrollManager.__index = ScrollManager
 
--- Lazy-loaded ErrorHandler
-local ErrorHandler
+--- Initialize module with shared dependencies
+---@param deps table Dependencies {ErrorHandler}
+function ScrollManager.init(deps)
+  if type(deps) == "table" then
+    ScrollManager._ErrorHandler = deps.ErrorHandler
+  end
+end
 
 --- Create a new ScrollManager instance
 ---@param config table Configuration options
@@ -126,12 +132,10 @@ end
 --- Detect if content overflows container bounds
 function ScrollManager:detectOverflow()
   if not self._element then
-    if not ErrorHandler then
-      ErrorHandler = require("modules.ErrorHandler")
-    end
-    ErrorHandler.error("ScrollManager", "SYS_002", "Method called before initialization", {
+    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
       method = "detectOverflow"
     }, "Call scrollManager:initialize(element) before using scroll methods")
+    return
   end
 
   local element = self._element
@@ -258,12 +262,13 @@ end
 ---@return table -- {vertical: {visible, trackHeight, thumbHeight, thumbY}, horizontal: {visible, trackWidth, thumbWidth, thumbX}}
 function ScrollManager:calculateScrollbarDimensions()
   if not self._element then
-    if not ErrorHandler then
-      ErrorHandler = require("modules.ErrorHandler")
-    end
-    ErrorHandler.error("ScrollManager", "SYS_002", "Method called before initialization", {
+    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
       method = "calculateScrollbarDimensions"
     }, "Call scrollManager:initialize(element) before using scroll methods")
+    return {
+      vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
+      horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
+    }
   end
 
   local element = self._element
@@ -356,12 +361,10 @@ end
 ---@return table|nil -- {component: "vertical"|"horizontal", region: "thumb"|"track"}
 function ScrollManager:getScrollbarAtPosition(mouseX, mouseY)
   if not self._element then
-    if not ErrorHandler then
-      ErrorHandler = require("modules.ErrorHandler")
-    end
-    ErrorHandler.error("ScrollManager", "SYS_002", "Method called before initialization", {
+    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
       method = "getScrollbarAtPosition"
     }, "Call scrollManager:initialize(element) before using scroll methods")
+    return nil
   end
 
   local element = self._element
@@ -430,12 +433,10 @@ end
 ---@return boolean -- True if event was consumed
 function ScrollManager:handleMousePress(mouseX, mouseY, button)
   if not self._element then
-    if not ErrorHandler then
-      ErrorHandler = require("modules.ErrorHandler")
-    end
-    ErrorHandler.error("ScrollManager", "SYS_002", "Method called before initialization", {
+    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
       method = "handleMousePress"
     }, "Call scrollManager:initialize(element) before using scroll methods")
+    return false
   end
 
   if button ~= 1 then

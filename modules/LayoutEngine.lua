@@ -23,8 +23,17 @@
 ---@field _FlexWrap table
 ---@field _layoutCount number Track layout recalculations per frame
 ---@field _lastFrameCount number Last frame number for resetting counters
+---@field _ErrorHandler ErrorHandler? ErrorHandler module dependency
+---@field _Performance Performance? Performance module dependency
 local LayoutEngine = {}
 LayoutEngine.__index = LayoutEngine
+
+--- Initialize module with shared dependencies
+---@param deps table Dependencies {ErrorHandler, Performance}
+function LayoutEngine.init(deps)
+  LayoutEngine._ErrorHandler = deps.ErrorHandler
+  LayoutEngine._Performance = deps.Performance
+end
 
 ---@class LayoutEngineProps
 ---@field positioning Positioning? Layout positioning mode (default: RELATIVE)
@@ -153,10 +162,9 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Start performance timing
-  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
-  if Performance and Performance.isEnabled() then
+  if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
     local elementId = self.element.id or "unnamed"
-    Performance.startTimer("layout_" .. elementId)
+    LayoutEngine._Performance:startTimer("layout_" .. elementId)
   end
 
   -- Track layout recalculations for performance warnings
@@ -170,15 +178,15 @@ function LayoutEngine:layoutChildren()
         self:applyPositioningOffsets(child)
       end
     end
-    
+
     -- Detect overflow after children positioning
     if self.element._detectOverflow then
       self.element:_detectOverflow()
     end
-    
+
     -- Stop performance timing
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+    if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
+      LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
     end
     return
   end
@@ -186,10 +194,10 @@ function LayoutEngine:layoutChildren()
   -- Handle grid layout
   if self.positioning == self._Positioning.GRID then
     self._Grid.layoutGridItems(self.element)
-    
+
     -- Stop performance timing
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+    if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
+      LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
     end
     return
   end
@@ -198,8 +206,8 @@ function LayoutEngine:layoutChildren()
 
   if childCount == 0 then
     -- Stop performance timing
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+    if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
+      LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
     end
     return
   end
@@ -210,20 +218,22 @@ function LayoutEngine:layoutChildren()
     local isFlexChild = not (child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute)
     if isFlexChild then
       table.insert(flexChildren, child)
-      
+
       -- Warn if child uses percentage sizing but parent has autosizing
-      if self._ErrorHandler then
-        if child.units and child.units.width then
-          if child.units.width.unit == "%" and self.element.autosizing and self.element.autosizing.width then
-            self._ErrorHandler.warn("LayoutEngine", 
-              string.format("Child '%s' uses percentage width but parent has auto-sizing enabled. This may cause unexpected results", child.id or "unnamed"))
-          end
+      if child.units and child.units.width then
+        if child.units.width.unit == "%" and self.element.autosizing and self.element.autosizing.width then
+          LayoutEngine._ErrorHandler:warn("LayoutEngine", "LAY_004", "Invalid sizing combination", {
+            child = child.id or "unnamed",
+            issue = "percentage width with parent auto-sizing",
+          }, "Use fixed or viewport units instead of percentage when parent has auto-sizing enabled")
         end
-        if child.units and child.units.height then
-          if child.units.height.unit == "%" and self.element.autosizing and self.element.autosizing.height then
-            self._ErrorHandler.warn("LayoutEngine", 
-              string.format("Child '%s' uses percentage height but parent has auto-sizing enabled. This may cause unexpected results", child.id or "unnamed"))
-          end
+      end
+      if child.units and child.units.height then
+        if child.units.height.unit == "%" and self.element.autosizing and self.element.autosizing.height then
+          LayoutEngine._ErrorHandler:warn("LayoutEngine", "LAY_004", "Invalid sizing combination", {
+            child = child.id or "unnamed",
+            issue = "percentage height with parent auto-sizing",
+          }, "Use fixed or viewport units instead of percentage when parent has auto-sizing enabled")
         end
       end
     end
@@ -599,10 +609,10 @@ function LayoutEngine:layoutChildren()
   if self.element._detectOverflow then
     self.element:_detectOverflow()
   end
-  
+
   -- Stop performance timing
-  if Performance and Performance.isEnabled() then
-    Performance.stopTimer("layout_" .. (self.element.id or "unnamed"))
+  if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
+    LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
   end
 end
 
@@ -977,28 +987,26 @@ end
 
 --- Track layout recalculations and warn about excessive layouts
 function LayoutEngine:_trackLayoutRecalculation()
-  -- Get Performance module if available
-  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
-  if not Performance or not Performance.areWarningsEnabled() then
+  if not LayoutEngine._Performance or not LayoutEngine._Performance.warningsEnabled then
     return
   end
-  
+
   -- Get current frame count from Context
   local currentFrame = self._Context and self._Context._frameNumber or 0
-  
+
   -- Reset counter on new frame
   if currentFrame ~= self._lastFrameCount then
     self._lastFrameCount = currentFrame
     self._layoutCount = 0
   end
-  
+
   -- Increment layout count
   self._layoutCount = self._layoutCount + 1
-  
+
   -- Warn if layout is recalculated excessively this frame
   if self._layoutCount >= 10 then
     local elementId = self.element and self.element.id or "unnamed"
-    Performance.logWarning(
+    LayoutEngine._Performance:logWarning(
       string.format("excessive_layout_%s", elementId),
       "LayoutEngine",
       string.format("Layout recalculated %d times this frame for element '%s'", self._layoutCount, elementId),

@@ -29,13 +29,15 @@
 ---@field _FONT_CACHE table
 ---@field _TextAlign table
 ---@field _ErrorHandler ErrorHandler
+---@field _Performance Performance? Performance module dependency
 local Renderer = {}
 Renderer.__index = Renderer
 
 --- Initialize module with shared dependencies
----@param deps table Dependencies {ErrorHandler}
+---@param deps table Dependencies {ErrorHandler, Performance}
 function Renderer.init(deps)
   Renderer._ErrorHandler = deps.ErrorHandler
+  Renderer._Performance = deps.Performance
 end
 
 --- Create a new Renderer instance
@@ -138,9 +140,23 @@ function Renderer:getBlurInstance()
     quality = self.backdropBlur.quality
   end
 
+  -- Map string quality to numeric quality (1-10)
+  local numericQuality = 5 -- default medium
+  if type(quality) == "string" then
+    if quality == "low" then
+      numericQuality = 3
+    elseif quality == "medium" then
+      numericQuality = 5
+    elseif quality == "high" then
+      numericQuality = 8
+    end
+  elseif type(quality) == "number" then
+    numericQuality = quality
+  end
+
   -- Create or reuse blur instance
-  if not self._blurInstance or self._blurInstance.quality ~= quality then
-    self._blurInstance = self._Blur.new(quality)
+  if not self._blurInstance or self._blurInstance.quality ~= numericQuality then
+    self._blurInstance = self._Blur.new({ quality = numericQuality })
   end
 
   return self._blurInstance
@@ -344,18 +360,17 @@ end
 ---@param backdropCanvas table|nil Backdrop canvas for backdrop blur
 function Renderer:draw(backdropCanvas)
   -- Start performance timing
-  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
   local elementId
-  if Performance and Performance.isEnabled() and self._element then
+  if Renderer._Performance and Renderer._Performance.enabled and self._element then
     elementId = self._element.id or "unnamed"
-    Performance.startTimer("render_" .. elementId)
-    Performance.incrementCounter("draw_calls", 1)
+    Renderer._Performance:startTimer("render_" .. elementId)
+    Renderer._Performance:incrementCounter("draw_calls", 1)
   end
 
   -- Early exit if element is invisible (optimization)
   if self.opacity <= 0 then
-    if Performance and Performance.isEnabled() and elementId then
-      Performance.stopTimer("render_" .. elementId)
+    if Renderer._Performance and Renderer._Performance.enabled and elementId then
+      Renderer._Performance:stopTimer("render_" .. elementId)
     end
     return
   end
@@ -415,8 +430,8 @@ function Renderer:draw(backdropCanvas)
   end
 
   -- Stop performance timing
-  if Performance and Performance.isEnabled() and elementId then
-    Performance.stopTimer("render_" .. elementId)
+  if Renderer._Performance and Renderer._Performance.enabled and elementId then
+    Renderer._Performance:stopTimer("render_" .. elementId)
   end
 end
 

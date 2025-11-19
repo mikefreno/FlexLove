@@ -1369,7 +1369,8 @@ function Element.new(props)
     self._layoutEngine.rowGap = self.rowGap
   end
 
-  self.transform = props.transform or {}
+  -- transform is already set at line 424 (props.transform or nil)
+  -- Don't overwrite it here
   self.transition = props.transition or {}
 
   if props.overflow or props.overflowX or props.overflowY then

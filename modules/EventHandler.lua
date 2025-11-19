@@ -17,23 +17,26 @@
 ---@field _element Element?
 ---@field _scrollbarPressHandled boolean
 ---@field _InputEvent table
----@field _Context table
 ---@field _utils table
+---@field _Performance Performance? Performance module dependency
+---@field _ErrorHandler ErrorHandler
 local EventHandler = {}
 EventHandler.__index = EventHandler
 
---- Create a new EventHandler instance
+--- Initialize module with shared dependencies
+---@param deps table Dependencies {Performance, ErrorHandler, InputEvent, Context, utils}
+function EventHandler.init(deps)
+  EventHandler._Performance = deps.Performance
+  EventHandler._ErrorHandler = deps.ErrorHandler
+  EventHandler._InputEvent = deps.InputEvent
+  EventHandler._utils = deps.utils
+end
+
 ---@param config table Configuration options
----@param deps table Dependencies {InputEvent, Context, utils}
 ---@return EventHandler
-function EventHandler.new(config, deps)
+function EventHandler.new(config)
   config = config or {}
-
   local self = setmetatable({}, EventHandler)
-
-  self._InputEvent = deps.InputEvent
-  self._Context = deps.Context
-  self._utils = deps.utils
 
   self.onEvent = config.onEvent
   self.onEventDeferred = config.onEventDeferred
@@ -119,14 +122,14 @@ end
 ---@param isActiveElement boolean Whether this is the top element at mouse position
 function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
   -- Start performance timing
-  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
-  if Performance and Performance.isEnabled() then
-    Performance.startTimer("event_mouse")
+  -- Performance accessed via EventHandler._Performance
+  if EventHandler._Performance and EventHandler._Performance.enabled then
+    EventHandler._Performance:startTimer("event_mouse")
   end
 
   if not self._element then
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("event_mouse")
+    if EventHandler._Performance and EventHandler._Performance.enabled then
+      EventHandler._Performance:stopTimer("event_mouse")
     end
     return
   end
@@ -166,8 +169,8 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
         end
       end
     end
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("event_mouse")
+    if EventHandler._Performance and EventHandler._Performance.enabled then
+      EventHandler._Performance:stopTimer("event_mouse")
     end
     return
   end
@@ -221,8 +224,8 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
   end
 
   -- Stop performance timing
-  if Performance and Performance.isEnabled() then
-    Performance.stopTimer("event_mouse")
+  if EventHandler._Performance and EventHandler._Performance.enabled then
+    EventHandler._Performance:stopTimer("event_mouse")
   end
 end
 
@@ -248,8 +251,8 @@ function EventHandler:_handleMousePress(mx, my, button)
   end
 
   -- Fire press event
-  local modifiers = self._utils.getModifiers()
-  local pressEvent = self._InputEvent.new({
+  local modifiers = EventHandler._utils.getModifiers()
+  local pressEvent = EventHandler._InputEvent.new({
     type = "press",
     button = button,
     x = mx,
@@ -292,11 +295,11 @@ function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
   if lastX ~= mx or lastY ~= my then
     -- Mouse has moved - fire drag event only if still hovering
     if isHovering then
-      local modifiers = self._utils.getModifiers()
+      local modifiers = EventHandler._utils.getModifiers()
       local dx = mx - self._dragStartX[button]
       local dy = my - self._dragStartY[button]
 
-      local dragEvent = self._InputEvent.new({
+      local dragEvent = EventHandler._InputEvent.new({
         type = "drag",
         button = button,
         x = mx,
@@ -332,7 +335,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   local element = self._element
 
   local currentTime = love.timer.getTime()
-  local modifiers = self._utils.getModifiers()
+  local modifiers = EventHandler._utils.getModifiers()
 
   -- Determine click count (double-click detection)
   local clickCount = 1
@@ -357,7 +360,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   end
 
   -- Fire click event
-  local clickEvent = self._InputEvent.new({
+  local clickEvent = EventHandler._InputEvent.new({
     type = eventType,
     button = button,
     x = mx,
@@ -397,7 +400,7 @@ function EventHandler:_handleMouseRelease(mx, my, button)
   end
 
   -- Fire release event
-  local releaseEvent = self._InputEvent.new({
+  local releaseEvent = EventHandler._InputEvent.new({
     type = "release",
     button = button,
     x = mx,
@@ -411,14 +414,14 @@ end
 --- Process touch events in the update cycle
 function EventHandler:processTouchEvents()
   -- Start performance timing
-  local Performance = package.loaded["modules.Performance"] or package.loaded["libs.modules.Performance"]
-  if Performance and Performance.isEnabled() then
-    Performance.startTimer("event_touch")
+  -- Performance accessed via EventHandler._Performance
+  if EventHandler._Performance and EventHandler._Performance.enabled then
+    EventHandler._Performance:startTimer("event_touch")
   end
 
   if not self._element then
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("event_touch")
+    if EventHandler._Performance and EventHandler._Performance.enabled then
+      EventHandler._Performance:stopTimer("event_touch")
     end
     return
   end
@@ -429,8 +432,8 @@ function EventHandler:processTouchEvents()
   local canProcessEvents = (self.onEvent or element.editable) and not element.disabled
 
   if not canProcessEvents then
-    if Performance and Performance.isEnabled() then
-      Performance.stopTimer("event_touch")
+    if EventHandler._Performance and EventHandler._Performance.enabled then
+      EventHandler._Performance:stopTimer("event_touch")
     end
     return
   end
@@ -491,8 +494,8 @@ function EventHandler:processTouchEvents()
   end
 
   -- Stop performance timing
-  if Performance and Performance.isEnabled() then
-    Performance.stopTimer("event_touch")
+  if EventHandler._Performance and EventHandler._Performance.enabled then
+    EventHandler._Performance:stopTimer("event_touch")
   end
 end
 
@@ -525,7 +528,7 @@ function EventHandler:_handleTouchBegan(touchId, x, y, pressure)
   self._touchHistory[touchId] = { { x = x, y = y, timestamp = love.timer.getTime() } }
 
   -- Create and fire touch press event
-  local touchEvent = self._InputEvent.fromTouch(touchId, x, y, "began", pressure)
+  local touchEvent = EventHandler._InputEvent.fromTouch(touchId, x, y, "began", pressure)
   touchEvent.type = "touchpress"
   touchEvent.dx = 0
   touchEvent.dy = 0
@@ -575,7 +578,7 @@ function EventHandler:_handleTouchMoved(touchId, x, y, pressure)
     self._touchHistory[touchId] = history
 
     -- Create and fire touch move event
-    local touchEvent = self._InputEvent.fromTouch(touchId, x, y, "moved", pressure)
+    local touchEvent = EventHandler._InputEvent.fromTouch(touchId, x, y, "moved", pressure)
     touchEvent.type = "touchmove"
     touchEvent.dx = dx
     touchEvent.dy = dy
@@ -606,7 +609,7 @@ function EventHandler:_handleTouchEnded(touchId, x, y, pressure)
   local dy = y - startPos.y
 
   -- Create and fire touch release event
-  local touchEvent = self._InputEvent.fromTouch(touchId, x, y, "ended", pressure)
+  local touchEvent = EventHandler._InputEvent.fromTouch(touchId, x, y, "ended", pressure)
   touchEvent.type = "touchrelease"
   touchEvent.dx = dx
   touchEvent.dy = dy
@@ -677,11 +680,11 @@ function EventHandler:_invokeCallback(element, event)
         self.onEvent(element, event)
       end)
     else
-      -- Fallback: execute immediately if FlexLove not available
-      self.onEvent(element, event)
+      EventHandler._ErrorHandler:error("EventHandler", "SYS_003", "FlexLove.deferCallback not available", {
+        eventType = event.type,
+      }, "Ensure FlexLove module is properly loaded")
     end
   else
-    -- Execute immediately
     self.onEvent(element, event)
   end
 end

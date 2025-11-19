@@ -6,10 +6,7 @@ FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a f
 
 ## ⚠️ Development Status
 
-This library is under active development. While many features are functional, some aspects may change or have incomplete/broken implementations.
-
-### Recently Completed
-- **Multi-touch Support**: Multi-touch event tracking and gesture recognition (tap, swipe, pinch, rotate, pan) with touch scrolling
+This library is under, rapid active development. While many features are functional, some aspects may change or have incomplete/broken implementations.
 
 
 ## Features

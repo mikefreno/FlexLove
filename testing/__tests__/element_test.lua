@@ -1238,12 +1238,15 @@ function TestElementUnhappyPaths:tearDown()
 end
 
 -- Test: Element with missing deps parameter
-function TestElementUnhappyPaths:test_element_without_deps()
+function TestElementUnhappyPaths:test_element_with_init()
+  -- Test that Element.new() works after FlexLove.init() is called
+  -- Element now uses module-level dependencies initialized via Element.init()
+  FlexLove.init() -- Ensure FlexLove is initialized
   local Element = require("modules.Element")
   local success = pcall(function()
-    Element.new({}, nil)
+    Element.new({})
   end)
-  luaunit.assertFalse(success) -- Should error without deps
+  luaunit.assertTrue(success) -- Should work after Element.init() is called by FlexLove
 end
 
 -- Test: Element with negative dimensions

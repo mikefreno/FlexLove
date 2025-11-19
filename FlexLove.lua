@@ -32,6 +32,7 @@ local Element = req("Element")
 -- externals
 ---@type Animation
 local Animation = req("Animation")
+local Transform = Animation.Transform
 ---@type Color
 local Color = req("Color")
 ---@type Theme
@@ -152,7 +153,11 @@ function flexlove.init(config)
     ScrollManager = ScrollManager,
     ErrorHandler = flexlove._ErrorHandler,
     Performance = flexlove._Performance,
+    Transform = Transform,
   }
+
+  -- Initialize Element module with dependencies
+  Element.init(flexlove._defaultDependencies)
 
   if config.baseScale then
     flexlove.baseScale = {
@@ -934,7 +939,7 @@ function flexlove.new(props)
 
   -- If not in immediate mode, use standard Element.new
   if not flexlove._immediateMode then
-    return Element.new(props, flexlove._defaultDependencies)
+    return Element.new(props)
   end
 
   -- Auto-begin frame if not manually started (convenience feature)
@@ -959,7 +964,7 @@ function flexlove.new(props)
   props._scrollX = state._scrollX or 0
   props._scrollY = state._scrollY or 0
 
-  local element = Element.new(props, flexlove._defaultDependencies)
+  local element = Element.new(props)
 
   -- Bind persistent state to element (ImmediateModeState)
   -- Restore event handler state

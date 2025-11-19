@@ -9,6 +9,12 @@
 ---@field scrollbarPadding number -- Padding around scrollbar
 ---@field scrollSpeed number -- Scroll speed for wheel events (pixels per wheel unit)
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
+---@field touchScrollEnabled boolean -- Enable touch scrolling
+---@field momentumScrollEnabled boolean -- Enable momentum scrolling
+---@field bounceEnabled boolean -- Enable bounce effects at boundaries
+---@field scrollFriction number -- Friction coefficient for momentum (0.95-0.98)
+---@field bounceStiffness number -- Bounce spring constant (0.1-0.3)
+---@field maxOverscroll number -- Maximum overscroll distance (pixels)
 ---@field _element Element? -- Reference to parent Element (set via initialize)
 ---@field _overflowX boolean -- True if content overflows horizontally
 ---@field _overflowY boolean -- True if content overflows vertically
@@ -24,6 +30,13 @@
 ---@field _hoveredScrollbar string? -- "vertical" or "horizontal" when dragging
 ---@field _scrollbarDragOffset number -- Offset from thumb top when drag started
 ---@field _scrollbarPressHandled boolean -- Track if scrollbar press was handled this frame
+---@field _touchScrolling boolean -- True if currently touch scrolling
+---@field _scrollVelocityX number -- Current horizontal scroll velocity (px/s)
+---@field _scrollVelocityY number -- Current vertical scroll velocity (px/s)
+---@field _momentumScrolling boolean -- True if momentum scrolling is active
+---@field _lastTouchTime number -- Timestamp of last touch move
+---@field _lastTouchX number -- Last touch X position
+---@field _lastTouchY number -- Last touch Y position
 ---@field _Color table
 ---@field _utils table
 ---@field _ErrorHandler table?
@@ -61,6 +74,14 @@ function ScrollManager.new(config, deps)
   -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
   self.hideScrollbars = self._utils.normalizeBooleanTable(config.hideScrollbars, false)
 
+  -- Touch scrolling configuration
+  self.touchScrollEnabled = config.touchScrollEnabled ~= false -- Default true
+  self.momentumScrollEnabled = config.momentumScrollEnabled ~= false -- Default true
+  self.bounceEnabled = config.bounceEnabled ~= false -- Default true
+  self.scrollFriction = config.scrollFriction or 0.95 -- Exponential decay per frame
+  self.bounceStiffness = config.bounceStiffness or 0.2 -- Spring constant
+  self.maxOverscroll = config.maxOverscroll or 100 -- pixels
+
   -- Internal overflow state
   self._overflowX = false
   self._overflowY = false
@@ -80,6 +101,15 @@ function ScrollManager.new(config, deps)
   self._hoveredScrollbar = nil -- "vertical" or "horizontal"
   self._scrollbarDragOffset = 0
   self._scrollbarPressHandled = false
+
+  -- Touch scrolling state
+  self._touchScrolling = false
+  self._scrollVelocityX = 0
+  self._scrollVelocityY = 0
+  self._momentumScrolling = false
+  self._lastTouchTime = 0
+  self._lastTouchX = 0
+  self._lastTouchY = 0
 
   -- Element reference (set via initialize)
   self._element = nil
@@ -666,6 +696,226 @@ function ScrollManager:setState(state)
   if state.scrollbarDragOffset then
     self._scrollbarDragOffset = state.scrollbarDragOffset
   end
+end
+
+--- Handle touch press for scrolling
+---@param touchX number
+---@param touchY number
+---@return boolean -- True if touch scroll started
+function ScrollManager:handleTouchPress(touchX, touchY)
+  if not self.touchScrollEnabled then
+    return false
+  end
+
+  local overflowX = self.overflowX or self.overflow
+  local overflowY = self.overflowY or self.overflow
+
+  if not (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") then
+    return false
+  end
+
+  -- Stop momentum scrolling if active
+  if self._momentumScrolling then
+    self._momentumScrolling = false
+    self._scrollVelocityX = 0
+    self._scrollVelocityY = 0
+  end
+
+  -- Start touch scrolling
+  self._touchScrolling = true
+  self._lastTouchX = touchX
+  self._lastTouchY = touchY
+  self._lastTouchTime = love.timer.getTime()
+
+  return true
+end
+
+--- Handle touch move for scrolling
+---@param touchX number
+---@param touchY number
+---@return boolean -- True if touch scroll was handled
+function ScrollManager:handleTouchMove(touchX, touchY)
+  if not self._touchScrolling then
+    return false
+  end
+
+  local currentTime = love.timer.getTime()
+  local dt = currentTime - self._lastTouchTime
+
+  if dt <= 0 then
+    return false
+  end
+
+  -- Calculate delta and velocity
+  local dx = touchX - self._lastTouchX
+  local dy = touchY - self._lastTouchY
+
+  -- Invert deltas (touch moves opposite to scroll)
+  dx = -dx
+  dy = -dy
+
+  -- Calculate velocity (pixels per second)
+  self._scrollVelocityX = dx / dt
+  self._scrollVelocityY = dy / dt
+
+  -- Apply scroll with bounce if enabled
+  if self.bounceEnabled then
+    -- Allow overscroll
+    local newScrollX = self._scrollX + dx
+    local newScrollY = self._scrollY + dy
+
+    -- Clamp to max overscroll limits
+    local minScrollX = -self.maxOverscroll
+    local maxScrollX = self._maxScrollX + self.maxOverscroll
+    local minScrollY = -self.maxOverscroll
+    local maxScrollY = self._maxScrollY + self.maxOverscroll
+
+    newScrollX = self._utils.clamp(newScrollX, minScrollX, maxScrollX)
+    newScrollY = self._utils.clamp(newScrollY, minScrollY, maxScrollY)
+
+    self._scrollX = newScrollX
+    self._scrollY = newScrollY
+  else
+    -- Normal clamped scrolling
+    self:scrollBy(dx, dy)
+  end
+
+  -- Update last touch state
+  self._lastTouchX = touchX
+  self._lastTouchY = touchY
+  self._lastTouchTime = currentTime
+
+  return true
+end
+
+--- Handle touch release for scrolling
+---@return boolean -- True if touch scroll was active
+function ScrollManager:handleTouchRelease()
+  if not self._touchScrolling then
+    return false
+  end
+
+  self._touchScrolling = false
+
+  -- Start momentum scrolling if enabled and velocity is significant
+  if self.momentumScrollEnabled then
+    local velocityThreshold = 50 -- pixels per second
+    local totalVelocity = math.sqrt(self._scrollVelocityX^2 + self._scrollVelocityY^2)
+
+    if totalVelocity > velocityThreshold then
+      self._momentumScrolling = true
+    else
+      self._scrollVelocityX = 0
+      self._scrollVelocityY = 0
+    end
+  else
+    self._scrollVelocityX = 0
+    self._scrollVelocityY = 0
+  end
+
+  return true
+end
+
+--- Update momentum scrolling (call every frame with dt)
+---@param dt number Delta time in seconds
+function ScrollManager:update(dt)
+  if not self._momentumScrolling then
+    -- Handle bounce back if overscrolled
+    if self.bounceEnabled then
+      self:_updateBounce(dt)
+    end
+    return
+  end
+
+  -- Apply velocity to scroll position
+  local dx = self._scrollVelocityX * dt
+  local dy = self._scrollVelocityY * dt
+
+  if self.bounceEnabled then
+    -- Allow overscroll during momentum
+    self._scrollX = self._scrollX + dx
+    self._scrollY = self._scrollY + dy
+  else
+    self:scrollBy(dx, dy)
+  end
+
+  -- Apply friction (exponential decay)
+  self._scrollVelocityX = self._scrollVelocityX * self.scrollFriction
+  self._scrollVelocityY = self._scrollVelocityY * self.scrollFriction
+
+  -- Stop momentum when velocity is very low
+  local totalVelocity = math.sqrt(self._scrollVelocityX^2 + self._scrollVelocityY^2)
+  if totalVelocity < 1 then
+    self._momentumScrolling = false
+    self._scrollVelocityX = 0
+    self._scrollVelocityY = 0
+  end
+
+  -- Handle bounce back if overscrolled
+  if self.bounceEnabled then
+    self:_updateBounce(dt)
+  end
+end
+
+--- Update bounce effect when overscrolled (internal)
+---@param dt number Delta time in seconds
+function ScrollManager:_updateBounce(dt)
+  local bounced = false
+
+  -- Bounce back horizontal overscroll
+  if self._scrollX < 0 then
+    local springForce = -self._scrollX * self.bounceStiffness
+    self._scrollX = self._scrollX + springForce
+    if math.abs(self._scrollX) < 0.5 then
+      self._scrollX = 0
+    end
+    bounced = true
+  elseif self._scrollX > self._maxScrollX then
+    local overflow = self._scrollX - self._maxScrollX
+    local springForce = -overflow * self.bounceStiffness
+    self._scrollX = self._scrollX + springForce
+    if math.abs(overflow) < 0.5 then
+      self._scrollX = self._maxScrollX
+    end
+    bounced = true
+  end
+
+  -- Bounce back vertical overscroll
+  if self._scrollY < 0 then
+    local springForce = -self._scrollY * self.bounceStiffness
+    self._scrollY = self._scrollY + springForce
+    if math.abs(self._scrollY) < 0.5 then
+      self._scrollY = 0
+    end
+    bounced = true
+  elseif self._scrollY > self._maxScrollY then
+    local overflow = self._scrollY - self._maxScrollY
+    local springForce = -overflow * self.bounceStiffness
+    self._scrollY = self._scrollY + springForce
+    if math.abs(overflow) < 0.5 then
+      self._scrollY = self._maxScrollY
+    end
+    bounced = true
+  end
+
+  -- Stop momentum if bouncing
+  if bounced and self._momentumScrolling then
+    -- Reduce velocity during bounce
+    self._scrollVelocityX = self._scrollVelocityX * 0.9
+    self._scrollVelocityY = self._scrollVelocityY * 0.9
+  end
+end
+
+--- Check if currently touch scrolling
+---@return boolean
+function ScrollManager:isTouchScrolling()
+  return self._touchScrolling
+end
+
+--- Check if currently momentum scrolling
+---@return boolean
+function ScrollManager:isMomentumScrolling()
+  return self._momentumScrolling
 end
 
 return ScrollManager

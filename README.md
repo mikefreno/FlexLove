@@ -8,10 +8,8 @@ FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a f
 
 This library is under active development. While many features are functional, some aspects may change or have incomplete/broken implementations.
 
-### Coming Soon
-The following features are currently being actively developed:
-- **Animations**(in progress): Simple to use animations for UI transitions and effects
-- **Multi-touch Support**(on hold): Support for multi-touch events with additional parameters
+### Recently Completed
+- **Multi-touch Support**: Multi-touch event tracking and gesture recognition (tap, swipe, pinch, rotate, pan) with touch scrolling
 
 
 ## Features
@@ -29,6 +27,7 @@ The following features are currently being actively developed:
 - **Text Rendering**: Flexible text display with alignment and auto-scaling
 - **Corner Radius**: Rounded corners with individual corner control
 - **Advanced Positioning**: Absolute, relative, flex, and grid positioning modes
+- **Multi-Touch & Gestures**: Touch event tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), and touch scrolling with momentum/bounce
 
 ## Quick Start
 
@@ -79,6 +78,10 @@ Complete API reference with all classes, methods, and properties is available on
 - Syntax-highlighted code examples
 - Version selector (access docs for previous versions)
 - Detailed parameter and return value descriptions
+
+### Feature Guides
+
+- **[Multi-Touch & Gesture Recognition](docs/MULTI_TOUCH.md)** - Comprehensive guide to touch events, gestures, and touch scrolling
 
 ### Documentation Versions
 
@@ -390,17 +393,34 @@ Enhanced event handling with detailed event information:
 
 ```lua
 onEvent = function(element, event)
+  -- Mouse events:
   -- event.type: "click", "press", "release", "rightclick", "middleclick"
   -- event.button: 1 (left), 2 (right), 3 (middle)
   -- event.x, event.y: Mouse position
   -- event.clickCount: Number of clicks (for double-click detection)
   -- event.modifiers: { shift, ctrl, alt, gui }
   
+  -- Touch events:
+  -- event.type: "touchpress", "touchmove", "touchrelease", "touchcancel"
+  -- event.touchId: Unique identifier for this touch
+  -- event.pressure: Touch pressure (0.0-1.0)
+  -- event.phase: "began", "moved", "ended", or "cancelled"
+  
   if event.type == "click" and event.modifiers.shift then
     print("Shift-clicked!")
+  elseif event.type == "touchpress" then
+    print("Touch began at:", event.x, event.y)
   end
 end
 ```
+
+**Multi-Touch Support:**
+
+FlexLöve provides comprehensive multi-touch event tracking and gesture recognition. See the [Multi-Touch Documentation](docs/MULTI_TOUCH.md) for:
+- Touch event handling
+- 7 gesture types (tap, double-tap, long-press, swipe, pan, pinch, rotate)
+- Touch scrolling with momentum and bounce effects
+- Complete API reference and examples
 
 ### Deferred Callbacks
 
@@ -706,6 +726,8 @@ The `examples/` directory contains comprehensive demos:
 - `TextSizePresets.lua` - Text sizing options
 - `OnClickAnimations.lua` - Animation examples
 - `ZIndexDemo.lua` - Layering demonstration
+- `touch_demo.lua` - Interactive multi-touch and gesture demo
+- `image_showcase.lua` - Image display and manipulation features
 
 ## Testing
 

@@ -86,7 +86,7 @@ flexlove._deferredCallbacks = {}
 
 --- Set up FlexLove for your application's specific needs - configure responsive scaling, theming, rendering mode, and debugging tools
 --- Use this to establish a consistent UI foundation that adapts to different screen sizes and provides performance insights
----@param config {baseScale?: {width?:number, height?:number}, theme?: string|ThemeDefinition, immediateMode?: boolean, stateRetentionFrames?: number, maxStateEntries?: number, autoFrameManagement?: boolean, errorLogFile?: string, enableErrorLogging?: boolean, performanceMonitoring?: boolean, performanceWarnings?: boolean, performanceHudKey?: string, performanceHudPosition?: {x: number, y: number} }
+---@param config FlexLoveConfig?
 function flexlove.init(config)
   config = config or {}
 
@@ -99,6 +99,24 @@ function flexlove.init(config)
     maxLogFiles = config.maxErrorLogFiles,
     enableRotation = config.errorLogRotateEnabled,
   })
+
+  flexlove._Performance = Performance.init({
+    enabled = config.performanceMonitoring or true,
+    hudEnabled = false, -- Start with HUD disabled
+    hudToggleKey = config.performanceHudKey or "f3",
+    hudPosition = config.performanceHudPosition or { x = 10, y = 10 },
+    warningThresholdMs = config.performanceWarningThreshold or 13.0,
+    criticalThresholdMs = config.performanceCriticalThreshold or 16.67,
+    logToConsole = config.performanceLogToConsole or false,
+    logWarnings = config.performanceWarnings or false,
+    warningsEnabled = config.performanceWarnings or false,
+    memoryProfiling = config.memoryProfiling or config.immediateMode and true or false,
+  }, { ErrorHandler = flexlove._ErrorHandler })
+
+  if config.immediateMode then
+    flexlove._Performance:registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
+    flexlove._Performance:registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
+  end
 
   ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler })
 
@@ -135,42 +153,6 @@ function flexlove.init(config)
     ScrollManager = ScrollManager,
     ErrorHandler = flexlove._ErrorHandler,
   }
-
-  local enablePerfMonitoring = config.performanceMonitoring
-  if enablePerfMonitoring == nil then
-    enablePerfMonitoring = true
-  end
-  if enablePerfMonitoring then
-    Performance.enable()
-  else
-    Performance.disable()
-  end
-
-  local enablePerfWarnings = config.performanceWarnings or true
-
-  Performance.setConfig("warningsEnabled", enablePerfWarnings)
-  if enablePerfWarnings then
-    Performance.setConfig("logWarnings", true)
-  end
-
-  -- Configure performance HUD toggle key (default: "f3")
-  if config.performanceHudKey then
-    Performance.setConfig("hudToggleKey", config.performanceHudKey)
-  end
-
-  -- Configure performance HUD position (default: {x = 10, y = 10})
-  if config.performanceHudPosition then
-    Performance.setConfig("hudPosition", config.performanceHudPosition)
-  end
-
-  -- Configure memory profiling (default: false)
-  if config.memoryProfiling then
-    Performance.enableMemoryProfiling()
-    -- Register key tables for leak detection
-    Performance.registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
-    Performance.registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
-    Performance.registerTableForMonitoring("FONT_CACHE", utils.FONT_CACHE)
-  end
 
   if config.baseScale then
     flexlove.baseScale = {
@@ -331,7 +313,7 @@ function flexlove.beginFrame()
   end
 
   -- Start performance frame timing
-  Performance.startFrame()
+  flexlove._Performance:startFrame()
 
   flexlove._frameNumber = flexlove._frameNumber + 1
   StateManager.incrementFrame()
@@ -405,8 +387,8 @@ function flexlove.endFrame()
   flexlove._frameStarted = false
 
   -- End performance frame timing
-  Performance.endFrame()
-  Performance.resetFrameCounters()
+  flexlove._Performance:endFrame()
+  flexlove._Performance:resetFrameCounters()
 end
 
 flexlove._gameCanvas = nil
@@ -521,7 +503,7 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   end
 
   -- Render performance HUD if enabled
-  Performance.renderHUD()
+  flexlove._Performance:renderHUD()
 
   love.graphics.setCanvas(outerCanvas)
 
@@ -647,7 +629,7 @@ end
 ---@param dt number
 function flexlove.update(dt)
   -- Update Performance module with actual delta time for accurate FPS
-  Performance.updateDeltaTime(dt)
+  flexlove._Performance:updateDeltaTime(dt)
 
   -- Garbage collection management
   flexlove._manageGC()
@@ -783,7 +765,7 @@ end
 ---@param isrepeat boolean
 function flexlove.keypressed(key, scancode, isrepeat)
   -- Handle performance HUD toggle
-  Performance.keypressed(key)
+  flexlove._Performance:keypressed(key)
   if flexlove._focusedElement then
     flexlove._focusedElement:keypressed(key, scancode, isrepeat)
   end

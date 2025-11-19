@@ -29,7 +29,7 @@ local METRICS_RETENTION_TIME = 10
 local MAX_METRICS_COUNT = 500
 local CORE_METRICS = { frame = true, layout = true, render = true }
 
----@param config {enabled?: boolean, hudEnabled?: boolean, hudToggleKey?: string, hudPosition?: {x: number, y: number}, warningThresholdMs?: number, criticalThresholdMs?: number, logToConsole?: boolean, logWarnings?: boolean, warningsEnabled?: boolean}?
+---@param config {enabled?: boolean, hudEnabled?: boolean, hudToggleKey?: string, hudPosition?: {x: number, y: number}, warningThresholdMs?: number, criticalThresholdMs?: number, logToConsole?: boolean, logWarnings?: boolean, warningsEnabled?: boolean, memoryProfiling?: boolean}?
 ---@param deps {ErrorHandler: ErrorHandler}
 ---@return Performance
 function Performance.init(config, deps)
@@ -70,7 +70,7 @@ function Performance.init(config, deps)
     self._lastFrameStart = nil
     self._shownWarnings = {}
     self._memoryProfiler = {
-      enabled = false,
+      enabled = config and config.memoryProfiling or false,
       sampleInterval = 60,
       framesSinceLastSample = 0,
       samples = {},

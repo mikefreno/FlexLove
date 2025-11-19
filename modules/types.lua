@@ -155,3 +155,34 @@ local Border = {}
 ---@field originX number? Transform origin X (0-1, default: 0.5)
 ---@field originY number? Transform origin Y (0-1, default: 0.5)
 local TransformProps
+
+--=====================================--
+-- For FlexLove.init()
+--=====================================--
+---@class FlexLoveConfig
+---@field baseScale {width:number?, height:number?}? -- Base resolution for responsive scaling (default: nil, no scaling)
+---@field theme string|table? -- Theme name (string) or ThemeDefinition (table) to use (default: nil, no theme)
+---@field immediateMode boolean? -- Enable immediate mode (React-like, recreates UI each frame) vs retained mode (default: false)
+---@field autoFrameManagement boolean? -- Automatically call beginFrame/endFrame (default: false)
+---@field stateRetentionFrames number? -- Number of frames to retain unused state in immediate mode (default: 60)
+---@field maxStateEntries number? -- Maximum number of state entries before forcing cleanup (default: 1000)
+---@field includeStackTrace boolean? -- Include stack traces in error messages (default: true)
+---@field reportingLogLevel LOG_LEVEL? -- Error log level: 1: critical, 2: error, 3: warn, 4: info, 5: debug/all (default: 3:warn)
+---@field errorLogTarget string? -- Error log target: "console", "file", "both" (default: "console")
+---@field errorLogFile string? -- Path to error log file (default: "flexlove_errors.log")
+---@field errorLogMaxSize number? -- Maximum error log file size in bytes (default: 1048576, 1MB)
+---@field maxErrorLogFiles number? -- Maximum number of rotated error log files (default: 5)
+---@field errorLogRotateEnabled boolean? -- Enable error log rotation (default: true)
+---@field performanceMonitoring boolean? -- Enable performance monitoring (default: true)
+---@field performanceHudKey string? -- Key to toggle performance HUD (default: "f3")
+---@field performanceHudPosition {x:number, y:number}? -- Position of performance HUD (default: {x=10, y=10})
+---@field performanceWarningThreshold number? -- Frame time warning threshold in ms (default: 13.0)
+---@field performanceCriticalThreshold number? -- Frame time critical threshold in ms (default: 16.67)
+---@field performanceLogToConsole boolean? -- Log performance metrics to console (default: false)
+---@field performanceWarnings boolean? -- Enable performance warnings (default: false)
+---@field memoryProfiling boolean? -- Enable memory profiling (default: false, auto-enabled in immediate mode)
+---@field gcStrategy string? -- Garbage collection strategy: "auto", "periodic", "manual", "disabled" (default: "auto")
+---@field gcMemoryThreshold number? -- Memory threshold in MB before forcing GC (default: 100)
+---@field gcInterval number? -- Frames between GC steps in periodic mode (default: 60)
+---@field gcStepSize number? -- Work units per GC step, higher = more aggressive (default: 200)
+local FlexLoveConfig = {}

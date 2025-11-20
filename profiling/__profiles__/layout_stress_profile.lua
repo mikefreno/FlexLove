@@ -127,11 +127,29 @@ function profile.draw()
   love.graphics.print("Press - to remove 50 elements", 10, love.graphics.getHeight() - 45)
 end
 
-function profile.keypressed(key)
+function profile.keypressed(key, profiler)
   if key == "=" or key == "+" then
+    -- Create snapshot before changing element count
+    if profiler then
+      local label = string.format("%d elements", profile.elementCount)
+      profiler:createSnapshot(label, {
+        elementCount = profile.elementCount,
+        nestingDepth = profile.nestingDepth
+      })
+    end
+    
     profile.elementCount = math.min(profile.maxElements, profile.elementCount + 50)
     profile.buildLayout()
   elseif key == "-" or key == "_" then
+    -- Create snapshot before changing element count
+    if profiler then
+      local label = string.format("%d elements", profile.elementCount)
+      profiler:createSnapshot(label, {
+        elementCount = profile.elementCount,
+        nestingDepth = profile.nestingDepth
+      })
+    end
+    
     profile.elementCount = math.max(10, profile.elementCount - 50)
     profile.buildLayout()
   end

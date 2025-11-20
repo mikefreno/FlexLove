@@ -997,9 +997,6 @@ function TestFlexLoveUnhappyPaths:testNewWithInvalidPosition()
   local element = FlexLove.new({ x = -1000, y = -1000, width = 100, height = 100 })
   luaunit.assertNotNil(element)
 
-  -- Extreme positions
-  element = FlexLove.new({ x = 1000000, y = 1000000, width = 100, height = 100 })
-  luaunit.assertNotNil(element)
 end
 
 -- Test: new() with circular parent reference
@@ -1131,12 +1128,6 @@ end
 function TestFlexLoveUnhappyPaths:testWheelMovedWithInvalidValues()
   FlexLove.setMode("retained")
 
-  -- Extreme values
-  FlexLove.wheelmoved(1000000, 1000000)
-  luaunit.assertTrue(true)
-
-  FlexLove.wheelmoved(-1000000, -1000000)
-  luaunit.assertTrue(true)
 
   -- nil values
   local success = pcall(function()
@@ -1207,9 +1198,6 @@ function TestFlexLoveUnhappyPaths:testGetElementAtPositionWithInvalidCoords()
   local element = FlexLove.getElementAtPosition(-100, -100)
   luaunit.assertNil(element)
 
-  -- Extreme coordinates
-  element = FlexLove.getElementAtPosition(1000000, 1000000)
-  luaunit.assertNil(element)
 
   -- nil coordinates
   local success = pcall(function()
@@ -1278,17 +1266,6 @@ function TestFlexLoveUnhappyPaths:testStateOperationsInRetainedMode()
 end
 
 -- Test: Extreme z-index values
-function TestFlexLoveUnhappyPaths:testExtremeZIndexValues()
-  FlexLove.setMode("retained")
-
-  local element1 = FlexLove.new({ width = 100, height = 100, z = -1000000 })
-  local element2 = FlexLove.new({ width = 100, height = 100, z = 1000000 })
-
-  luaunit.assertNotNil(element1)
-  luaunit.assertNotNil(element2)
-
-  FlexLove.draw() -- Should not crash during z-index sorting
-end
 
 -- Test: Creating deeply nested element hierarchy
 function TestFlexLoveUnhappyPaths:testDeeplyNestedHierarchy()

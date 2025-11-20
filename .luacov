@@ -13,6 +13,13 @@ return {
     "tasks",
     "themes",
     "luarocks",
+    "loveStub",  -- Exclude LÖVE stub from coverage
+  },
+  
+  -- Include patterns - focus coverage on core modules
+  include = {
+    "modules/",
+    "FlexLove%.lua",
   },
   
   -- Run reporter by default
@@ -21,6 +28,7 @@ return {
   -- Delete stats file after reporting
   deletestats = false,
   
-  -- Tick options
-  tick = true
+  -- Tick options - enable for better line-by-line tracking
+  -- Note: With cluacov this is faster than pure Lua luacov
+  tick = true,
 }

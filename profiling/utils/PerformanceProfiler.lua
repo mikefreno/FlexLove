@@ -9,6 +9,8 @@
 ---@field _currentFrameStart number?
 ---@field _maxHistorySize number
 ---@field _lastGcCount number
+---@field _snapshots table
+---@field _currentSnapshot table?
 local PerformanceProfiler = {}
 PerformanceProfiler.__index = PerformanceProfiler
 
@@ -29,6 +31,8 @@ function PerformanceProfiler.new(config)
   self._markers = {}
   self._currentFrameStart = nil
   self._lastGcCount = collectgarbage("count")
+  self._snapshots = {}
+  self._currentSnapshot = nil
 
   return self
 end
@@ -379,6 +383,42 @@ function PerformanceProfiler:reset()
   self._markers = {}
   self._currentFrameStart = nil
   self._lastGcCount = collectgarbage("count")
+  -- Don't reset snapshots - they persist across resets
+end
+
+--- Create a snapshot of current metrics with a label
+---@param label string Label for this snapshot (e.g., "100 elements", "500 elements")
+---@param metadata table? Additional metadata to store with snapshot
+---@return nil
+function PerformanceProfiler:createSnapshot(label, metadata)
+  local report = self:getReport()
+  
+  table.insert(self._snapshots, {
+    label = label,
+    timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+    metadata = metadata or {},
+    report = report,
+  })
+  
+  -- Reset current metrics for next snapshot period
+  self._frameCount = 0
+  self._startTime = love.timer.getTime()
+  self._frameTimes = {}
+  self._fpsHistory = {}
+  self._memoryHistory = {}
+  self._currentFrameStart = nil
+end
+
+--- Get all snapshots
+---@return table
+function PerformanceProfiler:getSnapshots()
+  return self._snapshots
+end
+
+--- Clear all snapshots
+---@return nil
+function PerformanceProfiler:clearSnapshots()
+  self._snapshots = {}
 end
 
 ---@return string
@@ -569,6 +609,45 @@ function PerformanceProfiler:_saveWithIO(filepath, profileName)
       table.insert(lines, string.format("| Count | %d |", data.count))
       table.insert(lines, "")
     end
+  end
+
+  -- Snapshots (if any)
+  if #self._snapshots > 0 then
+    table.insert(lines, "## Snapshots")
+    table.insert(lines, "")
+    table.insert(lines, "> Performance metrics captured at different configuration points")
+    table.insert(lines, "")
+    
+    for i, snapshot in ipairs(self._snapshots) do
+      table.insert(lines, string.format("### %d. %s", i, snapshot.label))
+      table.insert(lines, "")
+      table.insert(lines, string.format("**Captured:** %s", snapshot.timestamp))
+      
+      -- Show metadata if present
+      if next(snapshot.metadata) then
+        table.insert(lines, "")
+        table.insert(lines, "**Configuration:**")
+        for key, value in pairs(snapshot.metadata) do
+          table.insert(lines, string.format("- %s: `%s`", key, tostring(value)))
+        end
+      end
+      
+      table.insert(lines, "")
+      
+      local r = snapshot.report
+      
+      -- Compact FPS/Frame Time table
+      table.insert(lines, "| FPS | Frame Time (ms) | Memory (MB) | Frames |")
+      table.insert(lines, "|-----|-----------------|-------------|--------|")
+      table.insert(lines, string.format("| Avg: %.1f | Avg: %.2f | Avg: %.2f | %d |",
+        r.fps.average, r.frameTime.average, r.memory.average, r.frameCount))
+      table.insert(lines, string.format("| 1%% Worst: **%.1f** | P99: %.2f | Peak: %.2f | Duration: %.1fs |",
+        r.fps.worst_1_percent, r.frameTime.p99, r.memory.peak, r.totalTime))
+      table.insert(lines, "")
+    end
+    
+    table.insert(lines, "---")
+    table.insert(lines, "")
   end
 
   table.insert(lines, "---")

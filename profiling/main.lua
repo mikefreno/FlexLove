@@ -335,7 +335,7 @@ function love.keypressed(key)
 
     if state.currentProfile and type(state.currentProfile.keypressed) == "function" then
       pcall(function()
-        state.currentProfile.keypressed(key)
+        state.currentProfile.keypressed(key, state.profiler)
       end)
     end
   end

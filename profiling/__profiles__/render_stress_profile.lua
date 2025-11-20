@@ -152,11 +152,41 @@ function profile.draw()
   love.graphics.print("Press R/T/L to toggle features", 10, love.graphics.getHeight() - 50)
 end
 
-function profile.keypressed(key)
+function profile.keypressed(key, profiler)
   if key == "=" or key == "+" then
+    -- Create snapshot before changing element count
+    if profiler then
+      local label = string.format("%d elements (R:%s T:%s L:%s)", 
+        profile.elementCount,
+        profile.showRounded and "on" or "off",
+        profile.showText and "on" or "off", 
+        profile.showLayering and "on" or "off")
+      profiler:createSnapshot(label, {
+        elementCount = profile.elementCount,
+        showRounded = profile.showRounded,
+        showText = profile.showText,
+        showLayering = profile.showLayering
+      })
+    end
+    
     profile.elementCount = math.min(profile.maxElements, profile.elementCount + 50)
     profile.buildLayout()
   elseif key == "-" or key == "_" then
+    -- Create snapshot before changing element count
+    if profiler then
+      local label = string.format("%d elements (R:%s T:%s L:%s)", 
+        profile.elementCount,
+        profile.showRounded and "on" or "off",
+        profile.showText and "on" or "off",
+        profile.showLayering and "on" or "off")
+      profiler:createSnapshot(label, {
+        elementCount = profile.elementCount,
+        showRounded = profile.showRounded,
+        showText = profile.showText,
+        showLayering = profile.showLayering
+      })
+    end
+    
     profile.elementCount = math.max(profile.minElements, profile.elementCount - 50)
     profile.buildLayout()
   elseif key == "r" then

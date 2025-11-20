@@ -737,7 +737,7 @@ end
 ---@param suggestion string|nil Suggestion
 function ErrorHandler:_writeLog(level, levelNum, module, code, message, details, suggestion)
   -- Check if we should log this level
-  if levelNum > self.logLevel then
+  if not levelNum or not self.logLevel or levelNum > self.logLevel then
     return
   end
 

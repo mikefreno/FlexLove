@@ -225,6 +225,35 @@ function Element.new(props)
     Color = Element._Color,
   }
 
+  -- Normalize flexDirection: convert "row"→"horizontal", "column"→"vertical"
+  if props.flexDirection == "row" then
+    props.flexDirection = "horizontal"
+  elseif props.flexDirection == "column" then
+    props.flexDirection = "vertical"
+  end
+
+  -- Normalize padding: convert single value to table with all sides
+  if props.padding ~= nil and type(props.padding) ~= "table" then
+    local singleValue = props.padding
+    props.padding = {
+      top = singleValue,
+      right = singleValue,
+      bottom = singleValue,
+      left = singleValue,
+    }
+  end
+
+  -- Normalize margin: convert single value to table with all sides
+  if props.margin ~= nil and type(props.margin) ~= "table" then
+    local singleValue = props.margin
+    props.margin = {
+      top = singleValue,
+      right = singleValue,
+      bottom = singleValue,
+      left = singleValue,
+    }
+  end
+
   self.children = {}
   self.onEvent = props.onEvent
 

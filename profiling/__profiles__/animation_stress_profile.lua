@@ -194,11 +194,29 @@ function profile.draw()
   love.graphics.print("Press - to remove 10 animated elements", 10, love.graphics.getHeight() - 45)
 end
 
-function profile.keypressed(key)
+function profile.keypressed(key, profiler)
   if key == "=" or key == "+" then
+    -- Create snapshot before changing animation count
+    if profiler then
+      local label = string.format("%d animations", profile.animationCount)
+      profiler:createSnapshot(label, {
+        animationCount = profile.animationCount,
+        activeAnimations = #profile.animations
+      })
+    end
+    
     profile.animationCount = math.min(profile.maxAnimations, profile.animationCount + 10)
     profile.buildLayout()
   elseif key == "-" or key == "_" then
+    -- Create snapshot before changing animation count
+    if profiler then
+      local label = string.format("%d animations", profile.animationCount)
+      profiler:createSnapshot(label, {
+        animationCount = profile.animationCount,
+        activeAnimations = #profile.animations
+      })
+    end
+    
     profile.animationCount = math.max(profile.minAnimations, profile.animationCount - 10)
     profile.buildLayout()
   end

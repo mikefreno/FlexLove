@@ -1,3 +1,6 @@
+-- Lua 5.2+ compatibility for unpack
+local unpack = table.unpack or unpack
+
 local Cache = {
   canvases = {},
   quads = {},
@@ -368,7 +371,9 @@ end
 --- Initialize Blur module with dependencies
 ---@param deps table Dependencies: { ErrorHandler = ErrorHandler? }
 function Blur.init(deps)
-  Blur._ErrorHandler = deps.ErrorHandler
+  if type(deps) == "table" then
+    Blur._ErrorHandler = deps.ErrorHandler
+  end
 end
 
 Blur.Cache = Cache

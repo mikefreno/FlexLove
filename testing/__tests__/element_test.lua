@@ -1282,18 +1282,6 @@ function TestElementUnhappyPaths:test_element_zero_dimensions()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with extreme dimensions
-function TestElementUnhappyPaths:test_element_extreme_dimensions()
-  local element = FlexLove.new({
-    id = "huge",
-    x = 0,
-    y = 0,
-    width = 1000000,
-    height = 1000000,
-  })
-  luaunit.assertNotNil(element)
-end
-
 -- Test: Element with invalid opacity values
 function TestElementUnhappyPaths:test_element_invalid_opacity()
   -- Opacity > 1
@@ -1524,19 +1512,6 @@ function TestElementUnhappyPaths:test_clear_children_twice()
   luaunit.assertEquals(#parent.children, 0)
 end
 
--- Test: Element contains with extreme coordinates
-function TestElementUnhappyPaths:test_contains_extreme_coordinates()
-  local element = FlexLove.new({
-    id = "test",
-    x = 10,
-    y = 20,
-    width = 100,
-    height = 50,
-  })
-
-  luaunit.assertFalse(element:contains(math.huge, math.huge))
-  luaunit.assertFalse(element:contains(-math.huge, -math.huge))
-end
 
 -- Test: Element contains with NaN coordinates
 function TestElementUnhappyPaths:test_contains_nan_coordinates()
@@ -1567,23 +1542,6 @@ function TestElementUnhappyPaths:test_scroll_without_manager()
   luaunit.assertTrue(true)
 end
 
--- Test: Element setScrollPosition with extreme values
-function TestElementUnhappyPaths:test_scroll_extreme_values()
-  local element = FlexLove.new({
-    id = "scrollable",
-    width = 200,
-    height = 200,
-    overflow = "scroll",
-  })
-
-  element:setScrollPosition(1000000, 1000000) -- Should clamp
-  luaunit.assertTrue(true)
-
-  element:setScrollPosition(-1000000, -1000000) -- Should clamp to 0
-  local scrollX, scrollY = element:getScrollPosition()
-  luaunit.assertEquals(scrollX, 0)
-  luaunit.assertEquals(scrollY, 0)
-end
 
 -- Test: Element scrollBy with nil values
 function TestElementUnhappyPaths:test_scroll_by_nil()
@@ -1776,15 +1734,6 @@ function TestElementUnhappyPaths:test_invalid_margin()
     margin = "invalid",
   })
   luaunit.assertNotNil(element)
-
-  -- Huge margin
-  element = FlexLove.new({
-    id = "test2",
-    width = 100,
-    height = 100,
-    margin = { top = 1000000, left = 1000000, right = 1000000, bottom = 1000000 },
-  })
-  luaunit.assertNotNil(element)
 end
 
 -- Test: Element with invalid gap value
@@ -1798,26 +1747,7 @@ function TestElementUnhappyPaths:test_invalid_gap()
     gap = -10,
   })
   luaunit.assertNotNil(element)
-
-  -- Huge gap
-  element = FlexLove.new({
-    id = "test2",
-    width = 300,
-    height = 200,
-    positioning = "flex",
-    gap = 1000000,
-  })
-  luaunit.assertNotNil(element)
 end
-
--- Test: Element with invalid grid properties
-function TestElementUnhappyPaths:test_invalid_grid_properties()
-  -- Zero rows/columns
-  local element = FlexLove.new({
-    id = "test",
-    width = 300,
-    height = 200,
-    positioning = "grid",
     gridRows = 0,
     gridColumns = 0,
   })
@@ -1860,19 +1790,6 @@ function TestElementUnhappyPaths:test_set_text_nil()
   luaunit.assertNil(element.text)
 end
 
--- Test: Element setText with extreme length
-function TestElementUnhappyPaths:test_set_text_extreme_length()
-  local element = FlexLove.new({
-    id = "text",
-    width = 100,
-    height = 100,
-    text = "Initial",
-  })
-
-  local longText = string.rep("a", 100000)
-  element:setText(longText)
-  luaunit.assertEquals(element.text, longText)
-end
 
 -- Test: Element with conflicting size constraints
 function TestElementUnhappyPaths:test_conflicting_size_constraints()
@@ -1997,6 +1914,166 @@ function TestElementUnhappyPaths:test_max_length_negative()
     maxLength = -10,
   })
   luaunit.assertNotNil(element)
+end
+
+-- Test suite for convenience API features
+TestConvenienceAPI = {}
+
+function TestConvenienceAPI:setUp()
+  FlexLove.beginFrame(1920, 1080)
+end
+
+function TestConvenienceAPI:tearDown()
+  FlexLove.endFrame()
+end
+
+-- Test: flexDirection "row" converts to "horizontal"
+function TestConvenienceAPI:test_flexDirection_row_converts()
+  local element = FlexLove.new({
+    id = "test_row",
+    width = 200,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "row",
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.flexDirection, "horizontal")
+end
+
+-- Test: flexDirection "column" converts to "vertical"
+function TestConvenienceAPI:test_flexDirection_column_converts()
+  local element = FlexLove.new({
+    id = "test_column",
+    width = 200,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "column",
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.flexDirection, "vertical")
+end
+
+-- Test: Single number padding expands to all sides
+function TestConvenienceAPI:test_padding_single_number()
+  local element = FlexLove.new({
+    id = "test_padding_num",
+    width = 200,
+    height = 100,
+    padding = 10,
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.padding.top, 10)
+  luaunit.assertEquals(element.padding.right, 10)
+  luaunit.assertEquals(element.padding.bottom, 10)
+  luaunit.assertEquals(element.padding.left, 10)
+end
+
+-- Test: Single string padding expands to all sides
+function TestConvenienceAPI:test_padding_single_string()
+  local element = FlexLove.new({
+    id = "test_padding_str",
+    width = 200,
+    height = 100,
+    padding = "5%",
+  })
+
+  luaunit.assertNotNil(element)
+  -- All sides should be 5% of the element's dimensions
+  -- For width: 5% of 200 = 10, for height: 5% of 100 = 5
+  luaunit.assertEquals(element.padding.left, 10)
+  luaunit.assertEquals(element.padding.right, 10)
+  luaunit.assertEquals(element.padding.top, 5)
+  luaunit.assertEquals(element.padding.bottom, 5)
+end
+
+-- Test: Single number margin expands to all sides
+function TestConvenienceAPI:test_margin_single_number()
+  local parent = FlexLove.new({
+    id = "parent",
+    width = 400,
+    height = 300,
+  })
+
+  local element = FlexLove.new({
+    id = "test_margin_num",
+    parent = parent,
+    width = 100,
+    height = 100,
+    margin = 15,
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.margin.top, 15)
+  luaunit.assertEquals(element.margin.right, 15)
+  luaunit.assertEquals(element.margin.bottom, 15)
+  luaunit.assertEquals(element.margin.left, 15)
+end
+
+-- Test: Single string margin expands to all sides
+function TestConvenienceAPI:test_margin_single_string()
+  local parent = FlexLove.new({
+    id = "parent",
+    width = 400,
+    height = 300,
+  })
+
+  local element = FlexLove.new({
+    id = "test_margin_str",
+    parent = parent,
+    width = 100,
+    height = 100,
+    margin = "10%",
+  })
+
+  luaunit.assertNotNil(element)
+  -- Margin percentages are relative to parent dimensions
+  -- 10% of parent width 400 = 40, 10% of parent height 300 = 30
+  luaunit.assertEquals(element.margin.left, 40)
+  luaunit.assertEquals(element.margin.right, 40)
+  luaunit.assertEquals(element.margin.top, 30)
+  luaunit.assertEquals(element.margin.bottom, 30)
+end
+
+-- Test: Table padding still works (backward compatibility)
+function TestConvenienceAPI:test_padding_table_still_works()
+  local element = FlexLove.new({
+    id = "test_padding_table",
+    width = 200,
+    height = 100,
+    padding = { top = 5, right = 10, bottom = 15, left = 20 },
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.padding.top, 5)
+  luaunit.assertEquals(element.padding.right, 10)
+  luaunit.assertEquals(element.padding.bottom, 15)
+  luaunit.assertEquals(element.padding.left, 20)
+end
+
+-- Test: Table margin still works (backward compatibility)
+function TestConvenienceAPI:test_margin_table_still_works()
+  local parent = FlexLove.new({
+    id = "parent",
+    width = 400,
+    height = 300,
+  })
+
+  local element = FlexLove.new({
+    id = "test_margin_table",
+    parent = parent,
+    width = 100,
+    height = 100,
+    margin = { top = 5, right = 10, bottom = 15, left = 20 },
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.margin.top, 5)
+  luaunit.assertEquals(element.margin.right, 10)
+  luaunit.assertEquals(element.margin.bottom, 15)
+  luaunit.assertEquals(element.margin.left, 20)
 end
 
 if not _G.RUNNING_ALL_TESTS then

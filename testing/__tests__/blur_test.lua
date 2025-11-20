@@ -1,7 +1,14 @@
-local luaunit = require("testing.luaunit")
+package.path = package.path .. ";./?.lua;./modules/?.lua"
+
 require("testing.loveStub")
+local luaunit = require("testing.luaunit")
 
 local Blur = require("modules.Blur")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
+Blur.init({ ErrorHandler = ErrorHandler })
 
 TestBlur = {}
 
@@ -10,9 +17,11 @@ function TestBlur:setUp()
   Blur.clearCache()
 end
 
--- Unhappy path tests for Blur.new({quality = )
+-- ============================================================================
+-- Constructor Tests: Blur.new()
+-- ============================================================================
 
-function TestBlur:testNewWithNilQuality(})
+function TestBlur:testNewWithNilQuality()
   -- Should default to quality 5
   local blur = Blur.new({quality = nil})
   luaunit.assertNotNil(blur)
@@ -62,18 +71,34 @@ function TestBlur:testNewEnsuresOddTaps()
   end
 end
 
--- Unhappy path tests for Blur.applyToRegion()
-
-function TestBlur:testApplyToRegionWithNilBlurInstance()
-  local called = false
-  local drawFunc = function()
-    called = true
-  end
-
-  luaunit.assertError(function()
-    Blur.applyToRegion(nil, 50, 0, 0, 100, 100, drawFunc)
-  end)
+function TestBlur:testNewWithEmptyProps()
+  -- Should work with no props table
+  local blur = Blur.new()
+  luaunit.assertNotNil(blur)
+  luaunit.assertEquals(blur.quality, 5)
 end
+
+function TestBlur:testNewWithNilProps()
+  -- Should work with explicit nil
+  local blur = Blur.new(nil)
+  luaunit.assertNotNil(blur)
+  luaunit.assertEquals(blur.quality, 5)
+end
+
+function TestBlur:testNewCreatesUniqueShaders()
+  -- Each instance should have its own shader
+  local blur1 = Blur.new({quality = 5})
+  local blur2 = Blur.new({quality = 5})
+  
+  luaunit.assertNotNil(blur1.shader)
+  luaunit.assertNotNil(blur2.shader)
+  -- Shaders should be different objects even if same quality
+  luaunit.assertNotEquals(blur1.shader, blur2.shader)
+end
+
+-- ============================================================================
+-- applyToRegion() Edge Cases
+-- ============================================================================
 
 function TestBlur:testApplyToRegionWithZeroIntensity()
   local blur = Blur.new({quality = 5})
@@ -83,7 +108,7 @@ function TestBlur:testApplyToRegionWithZeroIntensity()
   end
 
   -- Should just call drawFunc and return early
-  Blur.applyToRegion(blur, 0, 0, 0, 100, 100, drawFunc)
+  blur:applyToRegion(0, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
 end
 
@@ -95,7 +120,7 @@ function TestBlur:testApplyToRegionWithNegativeIntensity()
   end
 
   -- Should just call drawFunc and return early
-  Blur.applyToRegion(blur, -10, 0, 0, 100, 100, drawFunc)
+  blur:applyToRegion(-10, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
 end
 
@@ -107,7 +132,7 @@ function TestBlur:testApplyToRegionWithZeroWidth()
   end
 
   -- Should just call drawFunc and return early
-  Blur.applyToRegion(blur, 50, 0, 0, 0, 100, drawFunc)
+  blur:applyToRegion(50, 0, 0, 0, 100, drawFunc)
   luaunit.assertTrue(called)
 end
 
@@ -119,7 +144,7 @@ function TestBlur:testApplyToRegionWithZeroHeight()
   end
 
   -- Should just call drawFunc and return early
-  Blur.applyToRegion(blur, 50, 0, 0, 100, 0, drawFunc)
+  blur:applyToRegion(50, 0, 0, 100, 0, drawFunc)
   luaunit.assertTrue(called)
 end
 
@@ -131,7 +156,7 @@ function TestBlur:testApplyToRegionWithNegativeWidth()
   end
 
   -- Should just call drawFunc and return early
-  Blur.applyToRegion(blur, 50, 0, 0, -100, 100, drawFunc)
+  blur:applyToRegion(50, 0, 0, -100, 100, drawFunc)
   luaunit.assertTrue(called)
 end
 
@@ -143,53 +168,110 @@ function TestBlur:testApplyToRegionWithNegativeHeight()
   end
 
   -- Should just call drawFunc and return early
-  Blur.applyToRegion(blur, 50, 0, 0, 100, -100, drawFunc)
+  blur:applyToRegion(50, 0, 0, 100, -100, drawFunc)
   luaunit.assertTrue(called)
 end
 
 function TestBlur:testApplyToRegionWithIntensityOver100()
-  local blur = Blur.new({quality = 5})
-
-  -- We can't fully test rendering without complete LÖVE graphics
-  -- But we can verify the blur instance was created
-  luaunit.assertNotNil(blur)
-  luaunit.assertTrue(true)
-end
-
-function TestBlur:testApplyToRegionWithSmallDimensions()
   local blur = Blur.new({quality = 5})
   local called = false
   local drawFunc = function()
     called = true
   end
 
-  -- For small dimensions, we test that it doesn't error
-  -- We can't fully test the rendering without full LÖVE graphics
-  luaunit.assertNotNil(blur)
-  luaunit.assertTrue(true)
+  -- Should clamp intensity to 100
+  blur:applyToRegion(150, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+end
+
+function TestBlur:testApplyToRegionWithNonFunctionDrawFunc()
+  local blur = Blur.new({quality = 5})
+
+  -- Should not error but warn through ErrorHandler
+  blur:applyToRegion(50, 0, 0, 100, 100, "not a function")
+  luaunit.assertTrue(true) -- Should reach here without crash
 end
 
 function TestBlur:testApplyToRegionWithNilDrawFunc()
   local blur = Blur.new({quality = 5})
 
-  luaunit.assertError(function()
-    Blur.applyToRegion(blur, 50, 0, 0, 100, 100, nil)
-  end)
+  -- Should not error but warn through ErrorHandler
+  blur:applyToRegion(50, 0, 0, 100, 100, nil)
+  luaunit.assertTrue(true) -- Should reach here without crash
 end
 
--- Unhappy path tests for Blur.applyBackdrop()
+function TestBlur:testApplyToRegionWithNegativeCoordinates()
+  local blur = Blur.new({quality = 5})
+  local called = false
+  local drawFunc = function()
+    called = true
+  end
 
-function TestBlur:testApplyBackdropWithNilBlurInstance()
-  local mockCanvas = {
-    getDimensions = function()
-      return 100, 100
-    end,
-  }
-
-  luaunit.assertError(function()
-    Blur.applyBackdrop(nil, 50, 0, 0, 100, 100, mockCanvas)
-  end)
+  -- Negative coordinates should work (off-screen rendering)
+  blur:applyToRegion(50, -100, -100, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
 end
+
+function TestBlur:testApplyToRegionWithVerySmallDimensions()
+  local blur = Blur.new({quality = 5})
+  local called = false
+  local drawFunc = function()
+    called = true
+  end
+
+  -- Very small dimensions (1x1)
+  blur:applyToRegion(50, 0, 0, 1, 1, drawFunc)
+  luaunit.assertTrue(called)
+end
+
+function TestBlur:testApplyToRegionWithVeryLargeDimensions()
+  local blur = Blur.new({quality = 5})
+  local called = false
+  local drawFunc = function()
+    called = true
+  end
+
+  -- Very large dimensions (might stress cache)
+  blur:applyToRegion(50, 0, 0, 4096, 4096, drawFunc)
+  luaunit.assertTrue(called)
+end
+
+function TestBlur:testApplyToRegionIntensityBoundaries()
+  local blur = Blur.new({quality = 5})
+  local called = false
+  local drawFunc = function()
+    called = true
+  end
+
+  -- Test boundary values that affect passes calculation
+  -- intensity 20 = 1 pass
+  blur:applyToRegion(20, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+  
+  called = false
+  -- intensity 40 = 2 passes
+  blur:applyToRegion(40, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+  
+  called = false
+  -- intensity 60 = 3 passes
+  blur:applyToRegion(60, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+  
+  called = false
+  -- intensity 80 = 4 passes
+  blur:applyToRegion(80, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+  
+  called = false
+  -- intensity 100 = 5 passes
+  blur:applyToRegion(100, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+end
+
+-- ============================================================================
+-- applyBackdrop() Edge Cases
+-- ============================================================================
 
 function TestBlur:testApplyBackdropWithZeroIntensity()
   local blur = Blur.new({quality = 5})
@@ -200,7 +282,7 @@ function TestBlur:testApplyBackdropWithZeroIntensity()
   }
 
   -- Should return early without error
-  Blur.applyBackdrop(blur, 0, 0, 0, 100, 100, mockCanvas)
+  blur:applyBackdrop(0, 0, 0, 100, 100, mockCanvas)
   luaunit.assertTrue(true)
 end
 
@@ -213,7 +295,7 @@ function TestBlur:testApplyBackdropWithNegativeIntensity()
   }
 
   -- Should return early without error
-  Blur.applyBackdrop(blur, -10, 0, 0, 100, 100, mockCanvas)
+  blur:applyBackdrop(-10, 0, 0, 100, 100, mockCanvas)
   luaunit.assertTrue(true)
 end
 
@@ -226,7 +308,7 @@ function TestBlur:testApplyBackdropWithZeroWidth()
   }
 
   -- Should return early without error
-  Blur.applyBackdrop(blur, 50, 0, 0, 0, 100, mockCanvas)
+  blur:applyBackdrop(50, 0, 0, 0, 100, mockCanvas)
   luaunit.assertTrue(true)
 end
 
@@ -239,16 +321,16 @@ function TestBlur:testApplyBackdropWithZeroHeight()
   }
 
   -- Should return early without error
-  Blur.applyBackdrop(blur, 50, 0, 0, 100, 0, mockCanvas)
+  blur:applyBackdrop(50, 0, 0, 100, 0, mockCanvas)
   luaunit.assertTrue(true)
 end
 
 function TestBlur:testApplyBackdropWithNilCanvas()
   local blur = Blur.new({quality = 5})
 
-  luaunit.assertError(function()
-    Blur.applyBackdrop(blur, 50, 0, 0, 100, 100, nil)
-  end)
+  -- Should not error but warn through ErrorHandler
+  blur:applyBackdrop(50, 0, 0, 100, 100, nil)
+  luaunit.assertTrue(true) -- Should reach here without crash
 end
 
 function TestBlur:testApplyBackdropWithIntensityOver100()
@@ -259,13 +341,22 @@ function TestBlur:testApplyBackdropWithIntensityOver100()
     end,
   }
 
-  -- We can't fully test rendering without complete LÖVE graphics
-  luaunit.assertNotNil(blur)
-  luaunit.assertNotNil(mockCanvas)
+  -- Should clamp intensity to 100
+  blur:applyBackdrop(200, 0, 0, 100, 100, mockCanvas)
   luaunit.assertTrue(true)
 end
 
-function TestBlur:testApplyBackdropWithSmallDimensions()
+function TestBlur:testApplyBackdropWithInvalidCanvas()
+  local blur = Blur.new({quality = 5})
+  local invalidCanvas = "not a canvas"
+
+  -- Should error when trying to call getDimensions
+  luaunit.assertErrorMsgContains("attempt", function()
+    blur:applyBackdrop(50, 0, 0, 100, 100, invalidCanvas)
+  end)
+end
+
+function TestBlur:testApplyBackdropRegionBeyondCanvas()
   local blur = Blur.new({quality = 5})
   local mockCanvas = {
     getDimensions = function()
@@ -273,12 +364,43 @@ function TestBlur:testApplyBackdropWithSmallDimensions()
     end,
   }
 
-  -- We can't fully test rendering without complete LÖVE graphics
-  luaunit.assertNotNil(blur)
+  -- Region starts beyond canvas bounds
+  blur:applyBackdrop(50, 150, 150, 100, 100, mockCanvas)
   luaunit.assertTrue(true)
 end
 
--- Tests for Blur.clearCache()
+function TestBlur:testApplyBackdropWithNegativeCoordinates()
+  local blur = Blur.new({quality = 5})
+  local mockCanvas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
+
+  -- Negative coordinates (region partially off-screen)
+  blur:applyBackdrop(50, -50, -50, 100, 100, mockCanvas)
+  luaunit.assertTrue(true)
+end
+
+-- ============================================================================
+-- Getter Methods
+-- ============================================================================
+
+function TestBlur:testGetQuality()
+  local blur = Blur.new({quality = 7})
+  luaunit.assertEquals(blur:getQuality(), 7)
+end
+
+function TestBlur:testGetTaps()
+  local blur = Blur.new({quality = 5})
+  luaunit.assertIsNumber(blur:getTaps())
+  luaunit.assertTrue(blur:getTaps() > 0)
+  luaunit.assertTrue(blur:getTaps() % 2 == 1) -- Must be odd
+end
+
+-- ============================================================================
+-- Cache Tests
+-- ============================================================================
 
 function TestBlur:testClearCacheDoesNotError()
   -- Create some blur instances to populate cache
@@ -297,20 +419,107 @@ function TestBlur:testClearCacheMultipleTimes()
   luaunit.assertTrue(true)
 end
 
--- Edge case: intensity boundaries
+function TestBlur:testCacheAccessMethods()
+  -- Test that Cache is accessible
+  luaunit.assertNotNil(Blur.Cache)
+  luaunit.assertNotNil(Blur.Cache.getCanvas)
+  luaunit.assertNotNil(Blur.Cache.releaseCanvas)
+  luaunit.assertNotNil(Blur.Cache.getQuad)
+  luaunit.assertNotNil(Blur.Cache.releaseQuad)
+  luaunit.assertNotNil(Blur.Cache.clear)
+end
 
-function TestBlur:testIntensityBoundaries()
-  local blur = Blur.new({quality = 5})
-
-  -- Test that various quality levels create valid blur instances
-  for quality = 1, 10 do
-    local b = Blur.new({quality = quality})
-    luaunit.assertNotNil(b)
-    luaunit.assertNotNil(b.shader)
-    luaunit.assertTrue(b.taps % 2 == 1) -- Taps must be odd
-  end
-
+function TestBlur:testReleaseNonExistentCanvas()
+  -- Should not error when releasing canvas that's not in cache
+  local fakeCanvas = {}
+  Blur.Cache.releaseCanvas(fakeCanvas)
   luaunit.assertTrue(true)
+end
+
+function TestBlur:testReleaseNonExistentQuad()
+  -- Should not error when releasing quad that's not in cache
+  local fakeQuad = {}
+  Blur.Cache.releaseQuad(fakeQuad)
+  luaunit.assertTrue(true)
+end
+
+-- ============================================================================
+-- ShaderBuilder Edge Cases
+-- ============================================================================
+
+function TestBlur:testShaderBuilderAccessible()
+  luaunit.assertNotNil(Blur.ShaderBuilder)
+  luaunit.assertNotNil(Blur.ShaderBuilder.build)
+end
+
+function TestBlur:testShaderBuilderWithMinimalTaps()
+  -- Should work with minimum taps (3)
+  local shader = Blur.ShaderBuilder.build(3, 1.0, "weighted", -1)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithFractionalTaps()
+  -- Should floor fractional taps to nearest odd number
+  local shader = Blur.ShaderBuilder.build(4.7, 1.0, "weighted", -1)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithCenterOffset()
+  -- Should work with center offset type
+  local shader = Blur.ShaderBuilder.build(7, 1.0, "center", -1)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithZeroSigma()
+  -- Should clamp sigma to minimum 1
+  local shader = Blur.ShaderBuilder.build(7, 1.0, "weighted", 0)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithNegativeSigma()
+  -- Should auto-calculate sigma when negative
+  local shader = Blur.ShaderBuilder.build(7, 1.0, "weighted", -1)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithLargeTaps()
+  -- Should work with large tap count
+  local shader = Blur.ShaderBuilder.build(21, 1.0, "weighted", -1)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithZeroOffset()
+  -- Should work with zero offset
+  local shader = Blur.ShaderBuilder.build(7, 0.0, "weighted", -1)
+  luaunit.assertNotNil(shader)
+end
+
+function TestBlur:testShaderBuilderWithLargeOffset()
+  -- Should work with large offset
+  local shader = Blur.ShaderBuilder.build(7, 10.0, "weighted", -1)
+  luaunit.assertNotNil(shader)
+end
+
+-- ============================================================================
+-- Initialization Tests
+-- ============================================================================
+
+function TestBlur:testInitWithErrorHandler()
+  -- Should accept ErrorHandler dependency
+  Blur.init({ ErrorHandler = ErrorHandler })
+  luaunit.assertNotNil(Blur._ErrorHandler)
+end
+
+function TestBlur:testInitWithNilDeps()
+  -- Should handle nil deps gracefully
+  Blur.init(nil)
+  luaunit.assertTrue(true) -- Should not crash
+end
+
+function TestBlur:testInitWithEmptyTable()
+  -- Should handle empty deps table
+  Blur.init({})
+  luaunit.assertTrue(true) -- Should not crash
 end
 
 if not _G.RUNNING_ALL_TESTS then

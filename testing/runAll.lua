@@ -37,11 +37,13 @@ local luaunit = require("testing.luaunit")
 
 -- Run all tests in the __tests__ directory
 local testFiles = {
+  "testing/__tests__/animation_coverage_test.lua",
   "testing/__tests__/animation_test.lua",
   "testing/__tests__/animation_properties_test.lua",
   "testing/__tests__/blur_test.lua",
   "testing/__tests__/critical_failures_test.lua",
   "testing/__tests__/easing_test.lua",
+  "testing/__tests__/element_coverage_test.lua",
   "testing/__tests__/element_test.lua",
   "testing/__tests__/event_handler_test.lua",
   "testing/__tests__/flexlove_test.lua",
@@ -62,8 +64,10 @@ local testFiles = {
   "testing/__tests__/performance_instrumentation_test.lua",
   "testing/__tests__/performance_warnings_test.lua",
   "testing/__tests__/renderer_test.lua",
+  "testing/__tests__/renderer_texteditor_bugs_test.lua",
   "testing/__tests__/roundedrect_test.lua",
   "testing/__tests__/sanitization_test.lua",
+  "testing/__tests__/text_editor_coverage_test.lua",
   "testing/__tests__/text_editor_test.lua",
   "testing/__tests__/theme_test.lua",
   "testing/__tests__/touch_events_test.lua",

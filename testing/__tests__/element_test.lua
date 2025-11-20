@@ -1512,7 +1512,6 @@ function TestElementUnhappyPaths:test_clear_children_twice()
   luaunit.assertEquals(#parent.children, 0)
 end
 
-
 -- Test: Element contains with NaN coordinates
 function TestElementUnhappyPaths:test_contains_nan_coordinates()
   local element = FlexLove.new({
@@ -1541,7 +1540,6 @@ function TestElementUnhappyPaths:test_scroll_without_manager()
   element:setScrollPosition(50, 50) -- Should not crash
   luaunit.assertTrue(true)
 end
-
 
 -- Test: Element scrollBy with nil values
 function TestElementUnhappyPaths:test_scroll_by_nil()
@@ -1747,11 +1745,6 @@ function TestElementUnhappyPaths:test_invalid_gap()
     gap = -10,
   })
   luaunit.assertNotNil(element)
-end
-    gridRows = 0,
-    gridColumns = 0,
-  })
-  luaunit.assertNotNil(element)
 
   -- Negative rows/columns
   element = FlexLove.new({
@@ -1789,7 +1782,6 @@ function TestElementUnhappyPaths:test_set_text_nil()
   element:setText(nil)
   luaunit.assertNil(element.text)
 end
-
 
 -- Test: Element with conflicting size constraints
 function TestElementUnhappyPaths:test_conflicting_size_constraints()

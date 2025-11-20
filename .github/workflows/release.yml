@@ -199,9 +199,9 @@ jobs:
           ## What's Included
 
           - `FlexLove.lua` - Main library file
-          - `modules/` - All required module files (27 files)
+          - `modules/` - All required module files
           - `LICENSE` - MIT License
-          - `README.txt` - Installation instructions
+          - `README.md`
 
           ## Requirements
 

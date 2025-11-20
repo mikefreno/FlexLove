@@ -8,6 +8,10 @@ require("testing.loveStub")
 
 local luaunit = require("testing.luaunit")
 local Units = require("modules.Units")
+local Context = require("modules.Context")
+
+-- Initialize Units module with Context
+Units.init({ Context = Context })
 
 -- Mock viewport dimensions for consistent tests
 local MOCK_VIEWPORT_WIDTH = 1920

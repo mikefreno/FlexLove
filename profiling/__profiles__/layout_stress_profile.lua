@@ -26,10 +26,11 @@ function profile.buildLayout()
   profile.root = FlexLove.new({
     width = "100%",
     height = "100%",
-    backgroundColor = {0.05, 0.05, 0.1, 1},
-    flexDirection = "column",
-    overflow = "scroll",
-    padding = 20,
+    backgroundColor = FlexLove.Color.new(0.05, 0.05, 0.1, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    padding = { horizontal = 20, vertical = 20 },
     gap = 10,
   })
 
@@ -38,7 +39,8 @@ function profile.buildLayout()
 
   for r = 1, rows do
     local row = FlexLove.new({
-      flexDirection = "row",
+      positioning = "flex",
+    flexDirection = "horizontal",
       gap = 10,
       flexWrap = "wrap",
     })
@@ -46,19 +48,20 @@ function profile.buildLayout()
     local itemsInRow = math.min(elementsPerRow, profile.elementCount - (r - 1) * elementsPerRow)
     for c = 1, itemsInRow do
       local hue = ((r - 1) * elementsPerRow + c) / profile.elementCount
-      local color = {
+      local color = FlexLove.Color.new(
         0.3 + 0.5 * math.sin(hue * math.pi * 2),
         0.3 + 0.5 * math.sin((hue + 0.33) * math.pi * 2),
         0.3 + 0.5 * math.sin((hue + 0.66) * math.pi * 2),
         1
-      }
+      )
 
       local box = FlexLove.new({
         width = 80,
         height = 80,
         backgroundColor = color,
         borderRadius = 8,
-        justifyContent = "center",
+        positioning = "flex",
+      justifyContent = "center",
         alignItems = "center",
       })
 
@@ -67,9 +70,10 @@ function profile.buildLayout()
         local innerBox = FlexLove.new({
           width = "80%",
           height = "80%",
-          backgroundColor = {color[1] * 0.8, color[2] * 0.8, color[3] * 0.8, color[4]},
+          backgroundColor = FlexLove.Color.new(color.r * 0.8, color.g * 0.8, color.b * 0.8, color.a),
           borderRadius = 6,
-          justifyContent = "center",
+          positioning = "flex",
+      justifyContent = "center",
           alignItems = "center",
         })
         nested:addChild(innerBox)
@@ -84,24 +88,25 @@ function profile.buildLayout()
 
   local infoPanel = FlexLove.new({
     width = "100%",
-    padding = 15,
-    backgroundColor = {0.1, 0.1, 0.2, 0.9},
+    padding = { horizontal = 15, vertical = 15 },
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.2, 0.9),
     borderRadius = 8,
     marginTop = 20,
-    flexDirection = "column",
+    positioning = "flex",
+    flexDirection = "vertical",
     gap = 5,
   })
 
   infoPanel:addChild(FlexLove.new({
-    textContent = string.format("Elements: %d (Press +/- to adjust)", profile.elementCount),
+    text = string.format("Elements: %d (Press +/- to adjust)", profile.elementCount),
     fontSize = 18,
-    color = {1, 1, 1, 1},
+    textColor = FlexLove.Color.new(1, 1, 1, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
-    textContent = string.format("Nesting Depth: %d", profile.nestingDepth),
+    text = string.format("Nesting Depth: %d", profile.nestingDepth),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   profile.root:addChild(infoPanel)

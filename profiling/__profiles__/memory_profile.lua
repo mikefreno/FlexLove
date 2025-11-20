@@ -45,17 +45,19 @@ function profile.buildLayout()
   profile.root = FlexLove.new({
     width = "100%",
     height = "100%",
-    backgroundColor = {0.05, 0.05, 0.1, 1},
-    flexDirection = "column",
-    overflow = "scroll",
-    padding = 20,
+    backgroundColor = FlexLove.Color.new(0.05, 0.05, 0.1, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    padding = { horizontal = 20, vertical = 20 },
     gap = 10,
   })
 
   -- Create elements container
   local elementsContainer = FlexLove.new({
     width = "100%",
-    flexDirection = "row",
+    positioning = "flex",
+    flexDirection = "horizontal",
     flexWrap = "wrap",
     gap = 5,
     marginBottom = 20,
@@ -63,19 +65,19 @@ function profile.buildLayout()
 
   for i = 1, profile.elementCount do
     local hue = (i / profile.elementCount) * 360
-    local color = {
+    local color = FlexLove.Color.new(
       0.3 + 0.5 * math.sin(hue * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 120) * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 240) * math.pi / 180),
       1
-    }
+    )
 
     local box = FlexLove.new({
       width = 50,
       height = 50,
       backgroundColor = color,
       borderRadius = 8,
-      margin = 2,
+      margin = { horizontal = 2, vertical = 2 },
     })
 
     elementsContainer:addChild(box)
@@ -86,10 +88,11 @@ function profile.buildLayout()
   -- Memory stats panel
   local statsPanel = FlexLove.new({
     width = "100%",
-    padding = 15,
-    backgroundColor = {0.1, 0.1, 0.2, 0.9},
+    padding = { horizontal = 15, vertical = 15 },
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.2, 0.9),
     borderRadius = 8,
-    flexDirection = "column",
+    positioning = "flex",
+    flexDirection = "vertical",
     gap = 5,
   })
 
@@ -97,27 +100,27 @@ function profile.buildLayout()
   local memGrowth = currentMem - profile.memoryStats.startMemory
 
   statsPanel:addChild(FlexLove.new({
-    textContent = string.format("Memory Profile | Elements: %d", profile.elementCount),
+    text = string.format("Memory Profile | Elements: %d", profile.elementCount),
     fontSize = 18,
-    color = {1, 1, 1, 1},
+    textColor = FlexLove.Color.new(1, 1, 1, 1),
   }))
 
   statsPanel:addChild(FlexLove.new({
-    textContent = string.format("Current: %.2f MB | Peak: %.2f MB", currentMem, profile.memoryStats.peakMemory),
+    text = string.format("Current: %.2f MB | Peak: %.2f MB", currentMem, profile.memoryStats.peakMemory),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   statsPanel:addChild(FlexLove.new({
-    textContent = string.format("Growth: %.2f MB | GC Count: %d", memGrowth, profile.memoryStats.gcCount),
+    text = string.format("Growth: %.2f MB | GC Count: %d", memGrowth, profile.memoryStats.gcCount),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   statsPanel:addChild(FlexLove.new({
-    textContent = "Press G to force GC | Press +/- to adjust elements",
+    text = "Press G to force GC | Press +/- to adjust elements",
     fontSize = 12,
-    color = {0.7, 0.7, 0.7, 1},
+    textColor = FlexLove.Color.new(0.7, 0.7, 0.7, 1),
   }))
 
   profile.root:addChild(statsPanel)

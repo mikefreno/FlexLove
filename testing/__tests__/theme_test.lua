@@ -9,6 +9,12 @@ require("testing.loveStub")
 local luaunit = require("testing.luaunit")
 local Theme = require("modules.Theme")
 local Color = require("modules.Color")
+local ErrorHandler = require("modules.ErrorHandler")
+local utils = require("modules.utils")
+
+-- Initialize ErrorHandler and Theme module
+ErrorHandler.init({})
+Theme.init({ ErrorHandler = ErrorHandler, Color = Color, utils = utils })
 
 -- Test suite for Theme.new()
 TestThemeNew = {}
@@ -86,21 +92,24 @@ end
 
 function TestThemeNew:test_new_theme_without_name_fails()
   local def = {}
-  luaunit.assertErrorMsgContains("name", function()
-    Theme.new(def)
-  end)
+  local theme = Theme.new(def)
+  -- Should return a fallback theme instead of throwing
+  luaunit.assertNotNil(theme)
+  luaunit.assertEquals(theme.name, "fallback")
 end
 
 function TestThemeNew:test_new_theme_with_nil_fails()
-  luaunit.assertErrorMsgContains("nil", function()
-    Theme.new(nil)
-  end)
+  local theme = Theme.new(nil)
+  -- Should return a fallback theme instead of throwing
+  luaunit.assertNotNil(theme)
+  luaunit.assertEquals(theme.name, "fallback")
 end
 
 function TestThemeNew:test_new_theme_with_non_table_fails()
-  luaunit.assertErrorMsgContains("table", function()
-    Theme.new("not a table")
-  end)
+  local theme = Theme.new("not a table")
+  -- Should return a fallback theme instead of throwing
+  luaunit.assertNotNil(theme)
+  luaunit.assertEquals(theme.name, "fallback")
 end
 
 -- Test suite for Theme registration and retrieval

@@ -4,10 +4,11 @@ require("testing.loveStub")
 local Animation = require("modules.Animation")
 local Easing = Animation.Easing
 local ErrorHandler = require("modules.ErrorHandler")
+local Color = require("modules.Color")
 
 -- Initialize modules
 ErrorHandler.init({})
-Animation.init({ ErrorHandler = ErrorHandler })
+Animation.init({ ErrorHandler = ErrorHandler, Color = Color })
 
 TestKeyframeAnimation = {}
 

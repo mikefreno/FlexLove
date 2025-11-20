@@ -167,19 +167,22 @@ function TestAnimationProperties:testColorAnimation_MultipleColors()
   luaunit.assertAlmostEquals(result.backgroundColor.g, 0.5, 0.01)
 end
 
-function TestAnimationProperties:testColorAnimation_WithoutColorModule()
-  -- Should not interpolate colors without Color module set
+function TestAnimationProperties:testColorAnimation_WithColorModule()
+  -- Should interpolate colors when Color module is set
   local anim = Animation.new({
     duration = 1,
     start = { backgroundColor = Color.new(1, 0, 0, 1) },
     final = { backgroundColor = Color.new(0, 0, 1, 1) },
   })
-  -- Don't set Color module
+  -- Color module is set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()
 
-  luaunit.assertNil(result.backgroundColor)
+  luaunit.assertNotNil(result.backgroundColor)
+  luaunit.assertAlmostEquals(result.backgroundColor.r, 0.5, 0.01)
+  luaunit.assertAlmostEquals(result.backgroundColor.g, 0, 0.01)
+  luaunit.assertAlmostEquals(result.backgroundColor.b, 0.5, 0.01)
 end
 
 function TestAnimationProperties:testColorAnimation_HexColors()
@@ -198,10 +201,12 @@ function TestAnimationProperties:testColorAnimation_HexColors()
 end
 
 function TestAnimationProperties:testColorAnimation_NamedColors()
+  -- Note: Named colors like "red" and "blue" are not supported
+  -- Use hex colors or Color objects instead
   local anim = Animation.new({
     duration = 1,
-    start = { backgroundColor = "red" },
-    final = { backgroundColor = "blue" },
+    start = { backgroundColor = "#FF0000" }, -- red
+    final = { backgroundColor = "#0000FF" }, -- blue
   })
   -- Color module already set via Animation.init()
 

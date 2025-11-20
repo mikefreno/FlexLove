@@ -24,10 +24,11 @@ function profile.buildUI()
     id = "root", -- ID required for state persistence
     width = "100%",
     height = "100%",
-    backgroundColor = {0.05, 0.05, 0.1, 1},
-    flexDirection = "column",
-    overflow = "scroll",
-    padding = 20,
+    backgroundColor = FlexLove.Color.new(0.05, 0.05, 0.1, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    padding = { horizontal = 20, vertical = 20 },
     gap = 10,
   })
 
@@ -35,7 +36,8 @@ function profile.buildUI()
   local content = FlexLove.new({
     id = "content",
     width = "100%",
-    flexDirection = "row",
+    positioning = "flex",
+    flexDirection = "horizontal",
     flexWrap = "wrap",
     gap = 5,
     marginBottom = 20,
@@ -43,12 +45,12 @@ function profile.buildUI()
 
   for i = 1, profile.elementCount do
     local hue = (i / profile.elementCount) * 360
-    local baseColor = {
+    local baseColor = FlexLove.Color.new(
       0.3 + 0.5 * math.sin(hue * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 120) * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 240) * math.pi / 180),
       1
-    }
+    )
 
     -- Each element needs a unique ID for state persistence
     local box = FlexLove.new({
@@ -57,15 +59,15 @@ function profile.buildUI()
       height = 60,
       backgroundColor = baseColor,
       borderRadius = 8,
-      margin = 2,
+      margin = { horizontal = 2, vertical = 2 },
       onEvent = function(element, event)
         if event.type == "hover" then
-          element.backgroundColor = {
-            math.min(1, baseColor[1] * 1.3),
-            math.min(1, baseColor[2] * 1.3),
-            math.min(1, baseColor[3] * 1.3),
+          element.backgroundColor = FlexLove.Color.new(
+            math.min(1, baseColor.r * 1.3),
+            math.min(1, baseColor.g * 1.3),
+            math.min(1, baseColor.b * 1.3),
             1
-          }
+          )
         elseif event.type == "unhover" then
           element.backgroundColor = baseColor
         elseif event.type == "press" then
@@ -85,39 +87,40 @@ function profile.buildUI()
   local infoPanel = FlexLove.new({
     id = "infoPanel",
     width = "100%",
-    padding = 15,
-    backgroundColor = {0.1, 0.1, 0.2, 0.9},
+    padding = { horizontal = 15, vertical = 15 },
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.2, 0.9),
     borderRadius = 8,
-    flexDirection = "column",
+    positioning = "flex",
+    flexDirection = "vertical",
     gap = 5,
   })
 
   infoPanel:addChild(FlexLove.new({
     id = "info_title",
-    textContent = string.format("Immediate Mode: %d Elements", profile.elementCount),
+    text = string.format("Immediate Mode: %d Elements", profile.elementCount),
     fontSize = 18,
-    color = {1, 1, 1, 1},
+    textColor = FlexLove.Color.new(1, 1, 1, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
     id = "info_frame",
-    textContent = string.format("Frame: %d", profile.frameCount),
+    text = string.format("Frame: %d", profile.frameCount),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
     id = "info_states",
-    textContent = string.format("Active States: %d", FlexLove.getStateCount()),
+    text = string.format("Active States: %d", FlexLove.getStateCount()),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
     id = "info_help",
-    textContent = "Press +/- to adjust element count",
+    text = "Press +/- to adjust element count",
     fontSize = 12,
-    color = {0.7, 0.7, 0.7, 1},
+    textColor = FlexLove.Color.new(0.7, 0.7, 0.7, 1),
   }))
 
   root:addChild(infoPanel)

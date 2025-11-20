@@ -1,0 +1,4 @@
+# Profiling reports - ignore all report files but keep README
+/*
+!README.md
+!.gitignore

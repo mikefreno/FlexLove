@@ -27,11 +27,11 @@ end
 ---@return love.ImageData -- Scaled image data
 function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
   if not sourceImageData then
-    ErrorHandler.error("ImageScaler", "VAL_001", "Source ImageData cannot be nil")
+    ErrorHandler:error("ImageScaler", "VAL_001", "Source ImageData cannot be nil")
   end
 
   if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
-    ErrorHandler.warn("ImageScaler", "VAL_002", "Dimensions must be positive", {
+    ErrorHandler:warn("ImageScaler", "VAL_002", "Dimensions must be positive", {
       srcW = srcW,
       srcH = srcH,
       destW = destW,
@@ -95,11 +95,11 @@ end
 ---@return love.ImageData -- Scaled image data
 function ImageScaler.scaleBilinear(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
   if not sourceImageData then
-    ErrorHandler.error("ImageScaler", "VAL_001", "Source ImageData cannot be nil")
+    ErrorHandler:error("ImageScaler", "VAL_001", "Source ImageData cannot be nil")
   end
 
   if srcW <= 0 or srcH <= 0 or destW <= 0 or destH <= 0 then
-    ErrorHandler.warn("ImageScaler", "VAL_002", "Dimensions must be positive", {
+    ErrorHandler:warn("ImageScaler", "VAL_002", "Dimensions must be positive", {
       srcW = srcW,
       srcH = srcH,
       destW = destW,

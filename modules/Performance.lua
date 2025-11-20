@@ -102,9 +102,9 @@ function Performance:stopTimer(name)
 
   local startTime = self._timers[name]
   if not startTime then
-    if self.logWarnings then
-      print(string.format("[Performance] Warning: Timer '%s' was not started", name))
-    end
+    -- Silently return nil if timer wasn't started
+    -- This can happen legitimately when Performance is toggled mid-frame
+    -- or when layout functions have early returns
     return nil
   end
 

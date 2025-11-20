@@ -324,7 +324,7 @@ function Element.new(props)
 
   -- Validate property combinations: passwordMode disables multiline
   if self.passwordMode and props.multiline then
-    Element._ErrorHandler.warn("Element", "passwordMode is enabled, multiline will be disabled")
+    Element._ErrorHandler:warn("Element", "passwordMode is enabled, multiline will be disabled")
     self.multiline = false
   elseif self.passwordMode then
     self.multiline = false
@@ -710,7 +710,7 @@ function Element.new(props)
         -- Pixel units
         self.textSize = value
       else
-        Element._ErrorHandler.error(
+        Element._ErrorHandler:error(
           "Element",
           string.format("Unknown textSize unit '%s'. Valid units: px, %%, vw, vh, ew, eh. Or use presets: xs, sm, md, lg, xl, xxl, 2xl, 3xl, 4xl", unit)
         )
@@ -718,7 +718,7 @@ function Element.new(props)
     else
       -- Validate pixel textSize value
       if props.textSize <= 0 then
-        Element._ErrorHandler.error("Element", "textSize must be greater than 0, got: " .. tostring(props.textSize))
+        Element._ErrorHandler:error("Element", "textSize must be greater than 0, got: " .. tostring(props.textSize))
       end
 
       -- Pixel textSize value
@@ -2883,7 +2883,7 @@ function Element:_checkPerformanceWarnings()
   -- Check hierarchy depth
   local depth = self:getHierarchyDepth()
   if depth >= 15 then
-    Performance:logWarning(
+    Element._Performance:logWarning(
       string.format("hierarchy_depth_%s", self.id),
       "Element",
       string.format("Element hierarchy depth is %d levels for element '%s'", depth, self.id or "unnamed"),
@@ -2896,7 +2896,7 @@ function Element:_checkPerformanceWarnings()
   if not self.parent then
     local totalElements = self:countElements()
     if totalElements >= 1000 then
-      Performance:logWarning(
+      Element._Performance:logWarning(
         "element_count_high",
         "Element",
         string.format("UI contains %d+ elements", totalElements),
@@ -2926,7 +2926,7 @@ function Element:_trackActiveAnimations()
 
   local animCount = self:_countActiveAnimations()
   if animCount >= 50 then
-    Performance:logWarning(
+    Element._Performance:logWarning(
       "animation_count_high",
       "Element",
       string.format("%d+ animations running simultaneously", animCount),
@@ -3032,13 +3032,13 @@ function Element:setTransition(property, config)
   end
 
   if type(config) ~= "table" then
-    Element._ErrorHandler.warn("Element", "setTransition() requires a config table. Using default config.")
+    Element._ErrorHandler:warn("Element", "setTransition() requires a config table. Using default config.")
     config = {}
   end
 
   -- Validate config
   if config.duration and (type(config.duration) ~= "number" or config.duration < 0) then
-    Element._ErrorHandler.warn("Element", "transition duration must be a non-negative number. Using 0.3 seconds.")
+    Element._ErrorHandler:warn("Element", "transition duration must be a non-negative number. Using 0.3 seconds.")
     config.duration = 0.3
   end
 
@@ -3056,7 +3056,7 @@ end
 ---@param properties table Array of property names
 function Element:setTransitionGroup(groupName, config, properties)
   if type(properties) ~= "table" then
-    Element._ErrorHandler.warn("Element", "setTransitionGroup() requires a properties array. No transitions set.")
+    Element._ErrorHandler:warn("Element", "setTransitionGroup() requires a properties array. No transitions set.")
     return
   end
 

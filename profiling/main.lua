@@ -8,6 +8,7 @@ local PerformanceProfiler = require("profiling.utils.PerformanceProfiler")
 local state = {
   mode = "menu", -- "menu" or "profile"
   currentProfile = nil,
+  currentProfileInfo = nil,
   profiler = nil,
   profiles = {},
   selectedIndex = 1,
@@ -25,13 +26,17 @@ local function discoverProfiles()
       local name = file:gsub("%.lua$", "")
       table.insert(profiles, {
         name = name,
-        displayName = name:gsub("_", " "):gsub("(%a)(%w*)", function(a, b) return a:upper() .. b end),
+        displayName = name:gsub("_", " "):gsub("(%a)(%w*)", function(a, b)
+          return a:upper() .. b
+        end),
         path = "__profiles__/" .. file,
       })
     end
   end
 
-  table.sort(profiles, function(a, b) return a.name < b.name end)
+  table.sort(profiles, function(a, b)
+    return a.name < b.name
+  end)
   return profiles
 end
 
@@ -53,6 +58,7 @@ local function loadProfile(profileInfo)
   end
 
   state.currentProfile = profile
+  state.currentProfileInfo = profileInfo
   state.profiler = PerformanceProfiler.new()
   state.mode = "profile"
 
@@ -71,11 +77,27 @@ local function loadProfile(profileInfo)
 end
 
 local function returnToMenu()
+  -- Save profiling report before exiting
+  if state.profiler and state.currentProfileInfo then
+    local success, filepath = state.profiler:saveReport(state.currentProfileInfo.name)
+    if success then
+      print("\n========================================")
+      print("✓ Profiling report saved successfully!")
+      print("  Location: " .. filepath)
+      print("========================================\n")
+    else
+      print("\n✗ Failed to save report: " .. tostring(filepath) .. "\n")
+    end
+  end
+  
   if state.currentProfile and type(state.currentProfile.cleanup) == "function" then
-    pcall(function() state.currentProfile.cleanup() end)
+    pcall(function()
+      state.currentProfile.cleanup()
+    end)
   end
 
   state.currentProfile = nil
+  state.currentProfileInfo = nil
   state.profiler = nil
   state.mode = "menu"
   collectgarbage("collect")
@@ -87,108 +109,113 @@ local function buildMenu()
   local root = FlexLove.new({
     width = "100%",
     height = "100%",
-    backgroundColor = {0.1, 0.1, 0.15, 1},
-    flexDirection = "column",
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.15, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
     justifyContent = "flex-start",
     alignItems = "center",
-    padding = 40,
+    padding = { horizontal = 40, vertical = 40 },
   })
 
-  root:addChild(FlexLove.new({
-    flexDirection = "column",
+  local container = FlexLove.new({
+    parent = root,
+    positioning = "flex",
+    flexDirection = "vertical",
     alignItems = "center",
     gap = 30,
-    children = {
-      FlexLove.new({
-        width = 600,
-        height = 80,
-        backgroundColor = {0.15, 0.15, 0.25, 1},
-        borderRadius = 10,
-        justifyContent = "center",
-        alignItems = "center",
-        children = {
-          FlexLove.new({
-            textContent = "FlexLöve Performance Profiler",
-            fontSize = 32,
-            color = {0.3, 0.8, 1, 1},
-          })
-        }
-      }),
+  })
 
-      FlexLove.new({
-        textContent = "Select a profile to run:",
-        fontSize = 20,
-        color = {0.8, 0.8, 0.8, 1},
-      }),
+  -- Title
+  FlexLove.new({
+    parent = container,
+    width = 600,
+    height = 80,
+    backgroundColor = FlexLove.Color.new(0.15, 0.15, 0.25, 1),
+    borderRadius = 10,
+    positioning = "flex",
+    justifyContent = "center",
+    alignItems = "center",
+    text = "FlexLöve Performance Profiler",
+    textSize = "3xl",
+    textColor = FlexLove.Color.new(0.3, 0.8, 1, 1),
+  })
 
-      FlexLove.new({
-        width = 600,
-        flexDirection = "column",
-        gap = 10,
-        children = (function()
-          local items = {}
-          for i, profile in ipairs(state.profiles) do
-            local isSelected = i == state.selectedIndex
-            table.insert(items, FlexLove.new({
-              width = "100%",
-              height = 50,
-              backgroundColor = isSelected and {0.2, 0.4, 0.8, 1} or {0.15, 0.15, 0.25, 1},
-              borderRadius = 8,
-              justifyContent = "flex-start",
-              alignItems = "center",
-              padding = 15,
-              cursor = "pointer",
-              onClick = function()
-                state.selectedIndex = i
-                loadProfile(profile)
-              end,
-              onHover = function(element)
-                if not isSelected then
-                  element.backgroundColor = {0.2, 0.2, 0.35, 1}
-                end
-              end,
-              onHoverEnd = function(element)
-                if not isSelected then
-                  element.backgroundColor = {0.15, 0.15, 0.25, 1}
-                end
-              end,
-              children = {
-                FlexLove.new({
-                  textContent = profile.displayName,
-                  fontSize = 18,
-                  color = isSelected and {1, 1, 1, 1} or {0.8, 0.8, 0.8, 1},
-                })
-              }
-            }))
-          end
-          return items
-        end)()
-      }),
+  -- Subtitle
+  FlexLove.new({
+    parent = container,
+    text = "Select a profile to run:",
+    textSize = "xl",
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
+  })
 
-      FlexLove.new({
-        textContent = "Use ↑/↓ to select, ENTER to run, ESC to quit",
-        fontSize = 14,
-        color = {0.5, 0.5, 0.5, 1},
-        marginTop = 20,
-      }),
-    }
-  }))
+  -- Profile list
+  local profileList = FlexLove.new({
+    parent = container,
+    width = 600,
+    positioning = "flex",
+    flexDirection = "vertical",
+    gap = 10,
+  })
 
-  if state.error then
-    root:addChild(FlexLove.new({
-      width = 600,
-      padding = 15,
-      backgroundColor = {0.8, 0.2, 0.2, 1},
+  for i, profile in ipairs(state.profiles) do
+    local isSelected = i == state.selectedIndex
+    local button = FlexLove.new({
+      parent = profileList,
+      width = "100%",
+      height = 50,
+      backgroundColor = isSelected and FlexLove.Color.new(0.2, 0.4, 0.8, 1)
+        or FlexLove.Color.new(0.15, 0.15, 0.25, 1),
       borderRadius = 8,
-      marginTop = 20,
-      children = {
-        FlexLove.new({
-          textContent = "Error: " .. state.error,
-          fontSize = 14,
-          color = {1, 1, 1, 1},
-        })
-      }
-    }))
+      positioning = "flex",
+      justifyContent = "flex-start",
+      alignItems = "center",
+      padding = { horizontal = 15, vertical = 15 },
+      onEvent = function(element, event)
+        if event.type == "release" then
+          state.selectedIndex = i
+          loadProfile(profile)
+        elseif event.type == "hover" and not isSelected then
+          element.backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.35, 1)
+        elseif event.type == "unhover" and not isSelected then
+          element.backgroundColor = FlexLove.Color.new(0.15, 0.15, 0.25, 1)
+        end
+      end,
+    })
+
+    FlexLove.new({
+      parent = button,
+      text = profile.displayName,
+      textSize = "lg",
+      textColor = isSelected and FlexLove.Color.new(1, 1, 1, 1) or FlexLove.Color.new(0.8, 0.8, 0.8, 1),
+    })
+  end
+
+  -- Instructions
+  FlexLove.new({
+    parent = container,
+    text = "Use ↑/↓ to select, ENTER to run, ESC to quit",
+    textSize = "md",
+    textColor = FlexLove.Color.new(0.5, 0.5, 0.5, 1),
+    margin = { top = 20 },
+  })
+
+  -- Error display
+  if state.error then
+    local errorBox = FlexLove.new({
+      parent = container,
+      width = 600,
+      padding = { horizontal = 15, vertical = 15 },
+      backgroundColor = FlexLove.Color.new(0.8, 0.2, 0.2, 1),
+      borderRadius = 8,
+      margin = { top = 20 },
+    })
+
+    FlexLove.new({
+      parent = errorBox,
+      text = "Error: " .. state.error,
+      textSize = "md",
+      textColor = FlexLove.Color.new(1, 1, 1, 1),
+    })
   end
 
   FlexLove.endFrame()
@@ -198,6 +225,7 @@ function love.load(args)
   FlexLove.init({
     width = love.graphics.getWidth(),
     height = love.graphics.getHeight(),
+    immediateMode = true,
   })
 
   state.profiles = discoverProfiles()
@@ -259,7 +287,7 @@ function love.draw()
     end
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("Press R to reset | ESC to menu | F11 fullscreen", 10, love.graphics.getHeight() - 25)
+    love.graphics.print("Press R to reset | S to save report | ESC to menu | F11 fullscreen", 10, love.graphics.getHeight() - 25)
   end
 end
 
@@ -284,14 +312,31 @@ function love.keypressed(key)
         state.profiler:reset()
       end
       if state.currentProfile and type(state.currentProfile.reset) == "function" then
-        pcall(function() state.currentProfile.reset() end)
+        pcall(function()
+          state.currentProfile.reset()
+        end)
+      end
+    elseif key == "s" then
+      -- Save report manually
+      if state.profiler and state.currentProfileInfo then
+        local success, filepath = state.profiler:saveReport(state.currentProfileInfo.name)
+        if success then
+          print("\n========================================")
+          print("✓ Profiling report saved successfully!")
+          print("  Location: " .. filepath)
+          print("========================================\n")
+        else
+          print("\n✗ Failed to save report: " .. tostring(filepath) .. "\n")
+        end
       end
     elseif key == "f11" then
       love.window.setFullscreen(not love.window.getFullscreen())
     end
 
     if state.currentProfile and type(state.currentProfile.keypressed) == "function" then
-      pcall(function() state.currentProfile.keypressed(key) end)
+      pcall(function()
+        state.currentProfile.keypressed(key)
+      end)
     end
   end
 end
@@ -299,7 +344,9 @@ end
 function love.mousepressed(x, y, button)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.mousepressed) == "function" then
-      pcall(function() state.currentProfile.mousepressed(x, y, button) end)
+      pcall(function()
+        state.currentProfile.mousepressed(x, y, button)
+      end)
     end
   end
 end
@@ -307,7 +354,9 @@ end
 function love.mousereleased(x, y, button)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.mousereleased) == "function" then
-      pcall(function() state.currentProfile.mousereleased(x, y, button) end)
+      pcall(function()
+        state.currentProfile.mousereleased(x, y, button)
+      end)
     end
   end
 end
@@ -315,7 +364,9 @@ end
 function love.mousemoved(x, y, dx, dy)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.mousemoved) == "function" then
-      pcall(function() state.currentProfile.mousemoved(x, y, dx, dy) end)
+      pcall(function()
+        state.currentProfile.mousemoved(x, y, dx, dy)
+      end)
     end
   end
 end
@@ -324,13 +375,17 @@ function love.resize(w, h)
   FlexLove.resize(w, h)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.resize) == "function" then
-      pcall(function() state.currentProfile.resize(w, h) end)
+      pcall(function()
+        state.currentProfile.resize(w, h)
+      end)
     end
   end
 end
 
 function love.quit()
   if state.currentProfile and type(state.currentProfile.cleanup) == "function" then
-    pcall(function() state.currentProfile.cleanup() end)
+    pcall(function()
+      state.currentProfile.cleanup()
+    end)
   end
 end

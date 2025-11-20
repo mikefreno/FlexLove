@@ -157,14 +157,16 @@ end
 
 --- Layout children within this element according to positioning mode
 function LayoutEngine:layoutChildren()
+  -- Start performance timing first (before any early returns)
+  local timerName = nil
+  if LayoutEngine._Performance and LayoutEngine._Performance.enabled and self.element then
+    -- Use memory address to make timer name unique per element instance
+    timerName = "layout_" .. (self.element.id or tostring(self.element):match("0x%x+") or "unknown")
+    LayoutEngine._Performance:startTimer(timerName)
+  end
+  
   if self.element == nil then
     return
-  end
-
-  -- Start performance timing
-  if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
-    local elementId = self.element.id or "unnamed"
-    LayoutEngine._Performance:startTimer("layout_" .. elementId)
   end
 
   -- Track layout recalculations for performance warnings
@@ -185,8 +187,8 @@ function LayoutEngine:layoutChildren()
     end
 
     -- Stop performance timing
-    if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
-      LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
+    if timerName and LayoutEngine._Performance then
+      LayoutEngine._Performance:stopTimer(timerName)
     end
     return
   end
@@ -196,8 +198,8 @@ function LayoutEngine:layoutChildren()
     self._Grid.layoutGridItems(self.element)
 
     -- Stop performance timing
-    if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
-      LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
+    if timerName and LayoutEngine._Performance then
+      LayoutEngine._Performance:stopTimer(timerName)
     end
     return
   end
@@ -206,8 +208,8 @@ function LayoutEngine:layoutChildren()
 
   if childCount == 0 then
     -- Stop performance timing
-    if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
-      LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
+    if timerName and LayoutEngine._Performance then
+      LayoutEngine._Performance:stopTimer(timerName)
     end
     return
   end
@@ -611,8 +613,8 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Stop performance timing
-  if LayoutEngine._Performance and LayoutEngine._Performance.enabled then
-    LayoutEngine._Performance:stopTimer("layout_" .. (self.element.id or "unnamed"))
+  if timerName and LayoutEngine._Performance then
+    LayoutEngine._Performance:stopTimer(timerName)
   end
 end
 

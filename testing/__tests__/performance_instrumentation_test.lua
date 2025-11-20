@@ -14,8 +14,9 @@ TestPerformanceInstrumentation = {}
 local perf
 
 function TestPerformanceInstrumentation:setUp()
-  -- Recreate Performance instance for each test
+  -- Get Performance instance and ensure it's enabled
   perf = Performance.init({ enabled = true }, {})
+  perf.enabled = true -- Explicitly set enabled in case singleton was already created
 end
 
 function TestPerformanceInstrumentation:tearDown()
@@ -75,12 +76,12 @@ function TestPerformanceInstrumentation:testDrawCallCounting()
   perf:incrementCounter("draw_calls", 1)
   perf:incrementCounter("draw_calls", 1)
 
-  luaunit.assertNotNil(perf._metrics.counters)
-  luaunit.assertTrue(perf._metrics.counters.draw_calls >= 3)
+  luaunit.assertNotNil(perf._metrics.draw_calls)
+  luaunit.assertTrue(perf._metrics.draw_calls.frameValue >= 3)
 
   -- Reset and check
   perf:resetFrameCounters()
-  luaunit.assertEquals(perf._metrics.counters.draw_calls or 0, 0)
+  luaunit.assertEquals(perf._metrics.draw_calls.frameValue, 0)
 end
 
 function TestPerformanceInstrumentation:testHUDToggle()

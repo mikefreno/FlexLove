@@ -29,17 +29,19 @@ function profile.buildLayout()
   profile.root = FlexLove.new({
     width = "100%",
     height = "100%",
-    backgroundColor = {0.05, 0.05, 0.1, 1},
-    flexDirection = "column",
-    overflow = "scroll",
-    padding = 20,
+    backgroundColor = FlexLove.Color.new(0.05, 0.05, 0.1, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    padding = { horizontal = 20, vertical = 20 },
     gap = 10,
   })
 
   -- Interactive elements container
   local interactiveContainer = FlexLove.new({
     width = "100%",
-    flexDirection = "row",
+    positioning = "flex",
+    flexDirection = "horizontal",
     flexWrap = "wrap",
     gap = 5,
     marginBottom = 20,
@@ -47,12 +49,12 @@ function profile.buildLayout()
 
   for i = 1, profile.elementCount do
     local hue = (i / profile.elementCount) * 360
-    local baseColor = {
+    local baseColor = FlexLove.Color.new(
       0.3 + 0.5 * math.sin(hue * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 120) * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 240) * math.pi / 180),
       1
-    }
+    )
 
     -- Create nested interactive hierarchy
     local outerBox = FlexLove.new({
@@ -60,19 +62,20 @@ function profile.buildLayout()
       height = 60,
       backgroundColor = baseColor,
       borderRadius = 8,
-      margin = 2,
+      margin = { horizontal = 2, vertical = 2 },
+      positioning = "flex",
       justifyContent = "center",
       alignItems = "center",
       onEvent = function(element, event)
         if event.type == "hover" then
           profile.eventMetrics.hoverCount = profile.eventMetrics.hoverCount + 1
           profile.eventMetrics.eventsThisFrame = profile.eventMetrics.eventsThisFrame + 1
-          element.backgroundColor = {
-            math.min(1, baseColor[1] * 1.3),
-            math.min(1, baseColor[2] * 1.3),
-            math.min(1, baseColor[3] * 1.3),
+          element.backgroundColor = FlexLove.Color.new(
+            math.min(1, baseColor.r * 1.3),
+            math.min(1, baseColor.g * 1.3),
+            math.min(1, baseColor.b * 1.3),
             1
-          }
+          )
         elseif event.type == "unhover" then
           element.backgroundColor = baseColor
         elseif event.type == "press" then
@@ -89,19 +92,19 @@ function profile.buildLayout()
     local innerBox = FlexLove.new({
       width = "60%",
       height = "60%",
-      backgroundColor = {baseColor[1] * 0.6, baseColor[2] * 0.6, baseColor[3] * 0.6, 1},
+      backgroundColor = FlexLove.Color.new(baseColor.r * 0.6, baseColor.g * 0.6, baseColor.b * 0.6, 1),
       borderRadius = 5,
       onEvent = function(element, event)
         if event.type == "hover" then
           profile.eventMetrics.eventsThisFrame = profile.eventMetrics.eventsThisFrame + 1
-          element.backgroundColor = {
-            math.min(1, baseColor[1] * 1.5),
-            math.min(1, baseColor[2] * 1.5),
-            math.min(1, baseColor[3] * 1.5),
+          element.backgroundColor = FlexLove.Color.new(
+            math.min(1, baseColor.r * 1.5),
+            math.min(1, baseColor.g * 1.5),
+            math.min(1, baseColor.b * 1.5),
             1
-          }
+          )
         elseif event.type == "unhover" then
-          element.backgroundColor = {baseColor[1] * 0.6, baseColor[2] * 0.6, baseColor[3] * 0.6, 1}
+          element.backgroundColor = FlexLove.Color.new(baseColor.r * 0.6, baseColor.g * 0.6, baseColor.b * 0.6, 1)
         elseif event.type == "release" then
           profile.eventMetrics.eventsThisFrame = profile.eventMetrics.eventsThisFrame + 1
         end
@@ -117,35 +120,36 @@ function profile.buildLayout()
   -- Metrics panel
   local metricsPanel = FlexLove.new({
     width = "100%",
-    padding = 15,
-    backgroundColor = {0.1, 0.1, 0.2, 0.9},
+    padding = { horizontal = 15, vertical = 15 },
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.2, 0.9),
     borderRadius = 8,
-    flexDirection = "column",
+    positioning = "flex",
+    flexDirection = "vertical",
     gap = 5,
   })
 
   metricsPanel:addChild(FlexLove.new({
-    textContent = string.format("Interactive Elements: %d (Press +/- to adjust)", profile.elementCount),
+    text = string.format("Interactive Elements: %d (Press +/- to adjust)", profile.elementCount),
     fontSize = 18,
-    color = {1, 1, 1, 1},
+    textColor = FlexLove.Color.new(1, 1, 1, 1),
   }))
 
   metricsPanel:addChild(FlexLove.new({
-    textContent = string.format("Total Hovers: %d", profile.eventMetrics.hoverCount),
+    text = string.format("Total Hovers: %d", profile.eventMetrics.hoverCount),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   metricsPanel:addChild(FlexLove.new({
-    textContent = string.format("Total Clicks: %d", profile.eventMetrics.clickCount),
+    text = string.format("Total Clicks: %d", profile.eventMetrics.clickCount),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   metricsPanel:addChild(FlexLove.new({
-    textContent = string.format("Events/Frame: %d", profile.eventMetrics.eventsThisFrame),
+    text = string.format("Events/Frame: %d", profile.eventMetrics.eventsThisFrame),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   profile.root:addChild(metricsPanel)

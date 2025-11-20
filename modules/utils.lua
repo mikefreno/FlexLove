@@ -333,7 +333,7 @@ local function validateEnum(value, enumTable, propName, moduleName)
   table.sort(validOptions)
 
   if ErrorHandler then
-    ErrorHandler.error(moduleName or "Element", string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
+    ErrorHandler:error(moduleName or "Element", string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
   else
     error(string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
   end
@@ -352,14 +352,14 @@ local function validateRange(value, min, max, propName, moduleName)
   end
   if type(value) ~= "number" then
     if ErrorHandler then
-      ErrorHandler.error(moduleName or "Element", string.format("%s must be a number, got %s", propName, type(value)))
+      ErrorHandler:error(moduleName or "Element", string.format("%s must be a number, got %s", propName, type(value)))
     else
       error(string.format("%s must be a number, got %s", propName, type(value)))
     end
   end
   if value < min or value > max then
     if ErrorHandler then
-      ErrorHandler.error(
+      ErrorHandler:error(
         moduleName or "Element",
         string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value))
       )
@@ -383,7 +383,7 @@ local function validateType(value, expectedType, propName, moduleName)
   local actualType = type(value)
   if actualType ~= expectedType then
     if ErrorHandler then
-      ErrorHandler.error(moduleName or "Element", string.format("%s must be %s, got %s", propName, expectedType, actualType))
+      ErrorHandler:error(moduleName or "Element", string.format("%s must be %s, got %s", propName, expectedType, actualType))
     else
       error(string.format("%s must be %s, got %s", propName, expectedType, actualType))
     end
@@ -546,7 +546,7 @@ local function sanitizeText(text, options)
   if #text > maxLength then
     text = text:sub(1, maxLength)
     if ErrorHandler then
-      ErrorHandler.warn("utils", string.format("Text truncated from %d to %d characters", #text, maxLength))
+      ErrorHandler:warn("utils", string.format("Text truncated from %d to %d characters", #text, maxLength))
     end
   end
 

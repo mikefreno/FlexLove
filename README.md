@@ -273,23 +273,6 @@ local grid = FlexLove.new({
 })
 ```
 
-### Corner Radius
-
-Supports uniform or individual corner radii:
-
-```lua
--- Uniform radius
-cornerRadius = 15
-
--- Individual corners
-cornerRadius = {
-  topLeft = 20,
-  topRight = 10,
-  bottomLeft = 10,
-  bottomRight = 20
-}
-```
-
 ### Theme System
  
 To create a theme explore themes/space.lua as a reference
@@ -656,43 +639,6 @@ local semiTransparent = Color.fromHex("#FF000080")
 - `Animation.new(props)` - Create custom animation
 - `Animation.fade(duration, from, to)` - Fade animation
 - `Animation.scale(duration, from, to)` - Scale animation
-
-## Enums
-
-### TextAlign
-- `START` - Align to start
-- `CENTER` - Center align
-- `END` - Align to end
-- `JUSTIFY` - Justify text
-
-### Positioning
-- `ABSOLUTE` - Absolute positioning
-- `RELATIVE` - Relative positioning
-- `FLEX` - Flexbox layout
-- `GRID` - Grid layout
-
-### FlexDirection
-- `HORIZONTAL` - Horizontal flex
-- `VERTICAL` - Vertical flex
-
-### JustifyContent
-- `FLEX_START` - Align to start
-- `CENTER` - Center align
-- `FLEX_END` - Align to end
-- `SPACE_AROUND` - Space around items
-- `SPACE_BETWEEN` - Space between items
-- `SPACE_EVENLY` - Even spacing
-
-### AlignItems / AlignSelf
-- `STRETCH` - Stretch to fill
-- `FLEX_START` - Align to start
-- `FLEX_END` - Align to end
-- `CENTER` - Center align
-- `BASELINE` - Baseline align
-
-### FlexWrap
-- `NOWRAP` - No wrapping
-- `WRAP` - Wrap items
 
 ## Examples
 

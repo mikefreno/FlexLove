@@ -7,9 +7,10 @@ require("testing.loveStub")
 local ImageRenderer = require("modules.ImageRenderer")
 local ErrorHandler = require("modules.ErrorHandler")
 local Color = require("modules.Color")
+local utils = require("modules.utils")
 
--- Initialize ImageRenderer with ErrorHandler
-ImageRenderer.init({ ErrorHandler = ErrorHandler })
+-- Initialize ImageRenderer with ErrorHandler and utils
+ImageRenderer.init({ ErrorHandler = ErrorHandler, utils = utils })
 
 TestImageTiling = {}
 

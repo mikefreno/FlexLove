@@ -26,17 +26,19 @@ function profile.buildLayout()
   profile.root = FlexLove.new({
     width = "100%",
     height = "100%",
-    backgroundColor = {0.05, 0.05, 0.1, 1},
-    flexDirection = "column",
-    overflow = "scroll",
-    padding = 20,
+    backgroundColor = FlexLove.Color.new(0.05, 0.05, 0.1, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    padding = { horizontal = 20, vertical = 20 },
     gap = 10,
   })
 
   -- Render container
   local renderContainer = FlexLove.new({
     width = "100%",
-    flexDirection = "row",
+    positioning = "flex",
+    flexDirection = "horizontal",
     flexWrap = "wrap",
     gap = 5,
     marginBottom = 20,
@@ -44,27 +46,27 @@ function profile.buildLayout()
 
   for i = 1, profile.elementCount do
     local hue = (i / profile.elementCount) * 360
-    local color = {
+    local color = FlexLove.Color.new(
       0.3 + 0.5 * math.sin(hue * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 120) * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 240) * math.pi / 180),
       1
-    }
+    )
 
     local box = FlexLove.new({
       width = 50,
       height = 50,
       backgroundColor = color,
       borderRadius = profile.showRounded and (5 + math.random(20)) or 0,
-      margin = 2,
+      margin = { horizontal = 2, vertical = 2 },
     })
 
     -- Add text rendering if enabled
     if profile.showText then
       box:addChild(FlexLove.new({
-        textContent = tostring(i),
+        text = tostring(i),
         fontSize = 12,
-        color = {1, 1, 1, 0.8},
+        textColor = FlexLove.Color.new(1, 1, 1, 0.8),
       }))
     end
 
@@ -73,9 +75,10 @@ function profile.buildLayout()
       local innerBox = FlexLove.new({
         width = "80%",
         height = "80%",
-        backgroundColor = {color[1] * 0.5, color[2] * 0.5, color[3] * 0.5, 0.7},
+        backgroundColor = FlexLove.Color.new(color.r * 0.5, color.g * 0.5, color.b * 0.5, 0.7),
         borderRadius = profile.showRounded and 8 or 0,
-        justifyContent = "center",
+        positioning = "flex",
+      justifyContent = "center",
         alignItems = "center",
       })
       box:addChild(innerBox)
@@ -89,35 +92,36 @@ function profile.buildLayout()
   -- Controls panel
   local controlsPanel = FlexLove.new({
     width = "100%",
-    padding = 15,
-    backgroundColor = {0.1, 0.1, 0.2, 0.9},
+    padding = { horizontal = 15, vertical = 15 },
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.2, 0.9),
     borderRadius = 8,
-    flexDirection = "column",
+    positioning = "flex",
+    flexDirection = "vertical",
     gap = 8,
   })
 
   controlsPanel:addChild(FlexLove.new({
-    textContent = string.format("Render Elements: %d (Press +/- to adjust)", profile.elementCount),
+    text = string.format("Render Elements: %d (Press +/- to adjust)", profile.elementCount),
     fontSize = 18,
-    color = {1, 1, 1, 1},
+    textColor = FlexLove.Color.new(1, 1, 1, 1),
   }))
 
   controlsPanel:addChild(FlexLove.new({
-    textContent = string.format("[R] Rounded Rectangles: %s", profile.showRounded and "ON" or "OFF"),
+    text = string.format("[R] Rounded Rectangles: %s", profile.showRounded and "ON" or "OFF"),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   controlsPanel:addChild(FlexLove.new({
-    textContent = string.format("[T] Text Rendering: %s", profile.showText and "ON" or "OFF"),
+    text = string.format("[T] Text Rendering: %s", profile.showText and "ON" or "OFF"),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   controlsPanel:addChild(FlexLove.new({
-    textContent = string.format("[L] Layering/Overdraw: %s", profile.showLayering and "ON" or "OFF"),
+    text = string.format("[L] Layering/Overdraw: %s", profile.showLayering and "ON" or "OFF"),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   profile.root:addChild(controlsPanel)

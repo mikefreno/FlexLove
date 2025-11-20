@@ -34,17 +34,19 @@ function profile.buildLayout()
   profile.root = FlexLove.new({
     width = "100%",
     height = "100%",
-    backgroundColor = {0.05, 0.05, 0.1, 1},
-    flexDirection = "column",
-    overflow = "scroll",
-    padding = 20,
+    backgroundColor = FlexLove.Color.new(0.05, 0.05, 0.1, 1),
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    padding = { horizontal = 20, vertical = 20 },
     gap = 10,
   })
 
   -- Create animated elements container
   local animationContainer = FlexLove.new({
     width = "100%",
-    flexDirection = "row",
+    positioning = "flex",
+    flexDirection = "horizontal",
     flexWrap = "wrap",
     gap = 10,
     marginBottom = 20,
@@ -55,12 +57,12 @@ function profile.buildLayout()
 
   for i = 1, profile.animationCount do
     local hue = (i / profile.animationCount) * 360
-    local baseColor = {
+    local baseColor = FlexLove.Color.new(
       0.3 + 0.5 * math.sin(hue * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 120) * math.pi / 180),
       0.3 + 0.5 * math.sin((hue + 240) * math.pi / 180),
       1
-    }
+    )
 
     -- Choose random easing function
     local easingFunc = profile.easingFunctions[math.random(#profile.easingFunctions)]
@@ -70,7 +72,7 @@ function profile.buildLayout()
       height = 60,
       backgroundColor = baseColor,
       borderRadius = 8,
-      margin = 5,
+      margin = { horizontal = 5, vertical = 5 },
     })
 
     -- Store base values for animation
@@ -120,35 +122,36 @@ function profile.buildLayout()
   -- Info panel
   local infoPanel = FlexLove.new({
     width = "100%",
-    padding = 15,
-    backgroundColor = {0.1, 0.1, 0.2, 0.9},
+    padding = { horizontal = 15, vertical = 15 },
+    backgroundColor = FlexLove.Color.new(0.1, 0.1, 0.2, 0.9),
     borderRadius = 8,
-    flexDirection = "column",
+    positioning = "flex",
+    flexDirection = "vertical",
     gap = 5,
   })
 
   infoPanel:addChild(FlexLove.new({
-    textContent = string.format("Animated Elements: %d (Press +/- to adjust)", profile.animationCount),
+    text = string.format("Animated Elements: %d (Press +/- to adjust)", profile.animationCount),
     fontSize = 18,
-    color = {1, 1, 1, 1},
+    textColor = FlexLove.Color.new(1, 1, 1, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
-    textContent = string.format("Active Animations: %d", #profile.animations),
+    text = string.format("Active Animations: %d", #profile.animations),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
-    textContent = "Animating: position, opacity, borderRadius",
+    text = "Animating: position, opacity, borderRadius",
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   infoPanel:addChild(FlexLove.new({
-    textContent = string.format("Easing Functions: %d variations", #profile.easingFunctions),
+    text = string.format("Easing Functions: %d variations", #profile.easingFunctions),
     fontSize = 14,
-    color = {0.8, 0.8, 0.8, 1},
+    textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   }))
 
   profile.root:addChild(infoPanel)

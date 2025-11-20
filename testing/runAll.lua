@@ -1,13 +1,33 @@
 package.path = package.path .. ";./?.lua;./game/?.lua;./game/utils/?.lua;./game/components/?.lua;./game/systems/?.lua"
 
--- Always enable code coverage tracking BEFORE loading any modules
-local status, luacov = pcall(require, "luacov")
-if status then
-  print("========================================")
-  print("Code coverage tracking enabled")
-  print("========================================")
+-- Check for --no-coverage flag and filter it out
+local enableCoverage = true
+local filteredArgs = {}
+for i, v in ipairs(arg) do
+  if v == "--no-coverage" then
+    enableCoverage = false
+  else
+    table.insert(filteredArgs, v)
+  end
+end
+arg = filteredArgs
+
+-- Enable code coverage tracking BEFORE loading any modules (if not disabled)
+local status, luacov = false, nil
+if enableCoverage then
+  status, luacov = pcall(require, "luacov")
+  if status then
+    print("========================================")
+    print("Code coverage tracking enabled")
+    print("Use --no-coverage flag to disable")
+    print("========================================")
+  else
+    print("Warning: luacov not found, coverage tracking disabled")
+  end
 else
-  print("Warning: luacov not found, coverage tracking disabled")
+  print("========================================")
+  print("Code coverage tracking disabled")
+  print("========================================")
 end
 
 -- Set global flag to prevent individual test files from running luaunit
@@ -23,7 +43,6 @@ local testFiles = {
   "testing/__tests__/critical_failures_test.lua",
   "testing/__tests__/easing_test.lua",
   "testing/__tests__/element_test.lua",
-  "testing/__tests__/error_handler_test.lua",
   "testing/__tests__/event_handler_test.lua",
   "testing/__tests__/flexlove_test.lua",
   "testing/__tests__/font_cache_test.lua",

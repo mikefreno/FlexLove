@@ -2,10 +2,10 @@
 return {
   -- Stats file location
   statsfile = "luacov.stats.out",
-  
+
   -- Report file location
   reportfile = "luacov.report.out",
-  
+
   -- Exclude patterns (files to ignore) - use exclude instead of include for better results
   exclude = {
     "testing",
@@ -13,22 +13,11 @@ return {
     "tasks",
     "themes",
     "luarocks",
-    "loveStub",  -- Exclude LÖVE stub from coverage
   },
-  
-  -- Include patterns - focus coverage on core modules
-  include = {
-    "modules/",
-    "FlexLove%.lua",
-  },
-  
+
   -- Run reporter by default
   runreport = false,
-  
+
   -- Delete stats file after reporting
   deletestats = false,
-  
-  -- Tick options - enable for better line-by-line tracking
-  -- Note: With cluacov this is faster than pure Lua luacov
-  tick = true,
 }

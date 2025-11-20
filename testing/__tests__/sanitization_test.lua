@@ -7,7 +7,15 @@ package.path = package.path .. ";./?.lua;./modules/?.lua"
 require("testing.loveStub")
 
 local luaunit = require("testing.luaunit")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 local utils = require("modules.utils")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 
 -- Test suite for sanitizeText
 TestSanitizeText = {}

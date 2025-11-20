@@ -1,9 +1,25 @@
 local luaunit = require("testing.luaunit")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 require("testing.loveStub")
 
 local FlexLove = require("FlexLove")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 local Color = require("modules.Color")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 local Theme = require("modules.Theme")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 
 TestFlexLove = {}
 

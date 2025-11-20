@@ -121,7 +121,7 @@ function flexlove.init(config)
     flexlove._Performance:registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
   end
 
-  ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler })
+  ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler, utils = flexlove._utils })
 
   ImageScaler.init({ ErrorHandler = flexlove._ErrorHandler })
 

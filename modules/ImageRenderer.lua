@@ -1,14 +1,18 @@
 ---@class ImageRenderer
 local ImageRenderer = {}
 
--- ErrorHandler will be injected via init
+-- ErrorHandler and utils will be injected via init
 local ErrorHandler = nil
+local utils = nil
 
 --- Initialize ImageRenderer with dependencies
----@param deps table Dependencies table with ErrorHandler
+---@param deps table Dependencies table with ErrorHandler and utils
 function ImageRenderer.init(deps)
   if deps and deps.ErrorHandler then
     ErrorHandler = deps.ErrorHandler
+  end
+  if deps and deps.utils then
+    utils = deps.utils
   end
 end
 
@@ -344,8 +348,8 @@ function ImageRenderer.drawTiled(image, x, y, width, height, repeatMode, opacity
     end
   elseif repeatMode == "round" then
     -- Scale tiles to fit bounds exactly
-    local tilesX = math.max(1, math.round(width / imgWidth))
-    local tilesY = math.max(1, math.round(height / imgHeight))
+    local tilesX = math.max(1, utils.round(width / imgWidth))
+    local tilesY = math.max(1, utils.round(height / imgHeight))
 
     local scaleX = width / (tilesX * imgWidth)
     local scaleY = height / (tilesY * imgHeight)

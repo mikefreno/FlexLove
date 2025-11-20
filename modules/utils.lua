@@ -359,7 +359,10 @@ local function validateRange(value, min, max, propName, moduleName)
   end
   if value < min or value > max then
     if ErrorHandler then
-      ErrorHandler.error(moduleName or "Element", string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value)))
+      ErrorHandler.error(
+        moduleName or "Element",
+        string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value))
+      )
     else
       error(string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value)))
     end
@@ -476,22 +479,22 @@ end
 ---@return table Normalized table with vertical and horizontal fields
 local function normalizeBooleanTable(value, defaultValue)
   defaultValue = defaultValue or false
-  
+
   if value == nil then
     return { vertical = defaultValue, horizontal = defaultValue }
   end
-  
+
   if type(value) == "boolean" then
     return { vertical = value, horizontal = value }
   end
-  
+
   if type(value) == "table" then
     return {
       vertical = value.vertical ~= nil and value.vertical or defaultValue,
       horizontal = value.horizontal ~= nil and value.horizontal or defaultValue,
     }
   end
-  
+
   return { vertical = defaultValue, horizontal = defaultValue }
 end
 
@@ -643,21 +646,21 @@ local function sanitizePath(path)
     return ""
   end
   path = tostring(path)
-  
+
   -- Trim whitespace
   path = path:match("^%s*(.-)%s*$") or ""
-  
+
   -- Normalize separators to forward slash
   path = path:gsub("\\", "/")
-  
+
   -- Remove duplicate slashes
   path = path:gsub("/+", "/")
-  
+
   -- Remove trailing slash (except for root)
   if #path > 1 and path:sub(-1) == "/" then
     path = path:sub(1, -2)
   end
-  
+
   return path
 end
 
@@ -669,44 +672,50 @@ local function isPathSafe(path, baseDir)
   if path == nil or path == "" then
     return false, "Path is empty"
   end
-  
+
   -- Sanitize the path
   path = sanitizePath(path)
-  
+
   -- Check for suspicious patterns
   if path:match("%.%.") then
     return false, "Path contains '..' (parent directory reference)"
   end
-  
+
   -- Check for null bytes
   if path:match("%z") then
     return false, "Path contains null bytes"
   end
-  
+
   -- Check for encoded traversal attempts (including double-encoding)
   local lowerPath = path:lower()
-  if lowerPath:match("%%2e") or lowerPath:match("%%2f") or lowerPath:match("%%5c") or
-     lowerPath:match("%%252e") or lowerPath:match("%%252f") or lowerPath:match("%%255c") then
+  if
+    lowerPath:match("%%2e")
+    or lowerPath:match("%%2f")
+    or lowerPath:match("%%5c")
+    or lowerPath:match("%%252e")
+    or lowerPath:match("%%252f")
+    or lowerPath:match("%%255c")
+  then
     return false, "Path contains URL-encoded directory separators"
   end
-  
+
   -- If baseDir is provided, ensure path is within it
   if baseDir then
     baseDir = sanitizePath(baseDir)
-    
+
     -- For relative paths, prepend baseDir
     local fullPath = path
     if not path:match("^/") and not path:match("^%a:") then
       fullPath = baseDir .. "/" .. path
     end
     fullPath = sanitizePath(fullPath)
-    
+
     -- Check if fullPath starts with baseDir
     if not fullPath:match("^" .. baseDir:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")) then
       return false, "Path is outside allowed directory"
     end
   end
-  
+
   return true, nil
 end
 
@@ -716,36 +725,36 @@ end
 --- @return boolean, string? Returns true if valid, or false with error message
 local function validatePath(path, options)
   options = options or {}
-  
+
   -- Check path is not nil/empty
   if path == nil or path == "" then
     return false, "Path is empty"
   end
-  
+
   path = tostring(path)
-  
+
   -- Check maximum length
   local maxLength = options.maxLength or 4096
   if #path > maxLength then
     return false, string.format("Path exceeds maximum length of %d characters", maxLength)
   end
-  
+
   -- Sanitize path
   path = sanitizePath(path)
-  
+
   -- Check for safety (traversal attacks)
   local safe, reason = isPathSafe(path, options.baseDir)
   if not safe then
     return false, reason
   end
-  
+
   -- Check allowed extensions
   if options.allowedExtensions then
     local ext = path:match("%.([^%.]+)$")
     if not ext then
       return false, "Path has no file extension"
     end
-    
+
     ext = ext:lower()
     local allowed = false
     for _, allowedExt in ipairs(options.allowedExtensions) do
@@ -754,12 +763,12 @@ local function validatePath(path, options)
         break
       end
     end
-    
+
     if not allowed then
       return false, string.format("File extension '%s' is not allowed", ext)
     end
   end
-  
+
   -- Check if file must exist
   if options.mustExist and love and love.filesystem then
     local info = love.filesystem.getInfo(path)
@@ -767,7 +776,7 @@ local function validatePath(path, options)
       return false, "File does not exist"
     end
   end
-  
+
   return true, nil
 end
 
@@ -791,13 +800,13 @@ local function hasAllowedExtension(path, allowedExtensions)
   if not ext then
     return false
   end
-  
+
   for _, allowedExt in ipairs(allowedExtensions) do
     if ext == allowedExt:lower() then
       return true
     end
   end
-  
+
   return false
 end
 
@@ -1034,7 +1043,7 @@ end
 ---@param maxSize number Maximum number of fonts to cache
 local function setFontCacheSize(maxSize)
   FONT_CACHE_MAX_SIZE = math.max(1, maxSize)
-  
+
   -- Evict entries if cache is now over limit
   while FONT_CACHE_STATS.size > FONT_CACHE_MAX_SIZE do
     evictLRU()
@@ -1058,11 +1067,11 @@ end
 ---@param sizes table Array of font sizes to preload
 local function preloadFont(fontPath, sizes)
   for _, size in ipairs(sizes) do
-    -- Round size to reduce cache entries  
+    -- Round size to reduce cache entries
     size = math.floor(size + 0.5)
-    
+
     local cacheKey = fontPath and (fontPath .. ":" .. tostring(size)) or ("default:" .. tostring(size))
-    
+
     if not FONT_CACHE[cacheKey] then
       local font
       if fontPath then
@@ -1076,7 +1085,7 @@ local function preloadFont(fontPath, sizes)
       else
         font = love.graphics.newFont(size)
       end
-      
+
       FONT_CACHE[cacheKey] = {
         font = font,
         lastUsed = love.timer.getTime(),
@@ -1084,7 +1093,7 @@ local function preloadFont(fontPath, sizes)
       }
       FONT_CACHE_STATS.size = FONT_CACHE_STATS.size + 1
       FONT_CACHE_STATS.misses = FONT_CACHE_STATS.misses + 1
-      
+
       -- Evict if cache is full
       if FONT_CACHE_STATS.size > FONT_CACHE_MAX_SIZE then
         evictLRU()

@@ -162,6 +162,8 @@ end
 
 -- Test: Auto-sizing with circular dependency
 function TestCriticalFailures:test_autosizing_circular_dependency()
+  FlexLove.init()
+  FlexLove.init()
   -- Parent auto-sizes to child, child uses percentage of parent
   local parent = FlexLove.new({ height = 100 }) -- No width = auto
 

@@ -1,7 +1,8 @@
 local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 
-local Transform = require("modules.Transform")
+local Animation = require("modules.Animation")
+local Transform = Animation.Transform
 
 TestTransform = {}
 
@@ -270,16 +271,12 @@ end
 -- Integration Tests
 
 function TestTransform:testTransformAnimation()
-  local Animation = require("modules.Animation")
-  local Transform = require("modules.Transform")
-
   local anim = Animation.new({
     duration = 1,
     start = { transform = Transform.new({ rotate = 0, scaleX = 1 }) },
     final = { transform = Transform.new({ rotate = math.pi, scaleX = 2 }) },
   })
 
-  anim:setTransformModule(Transform)
   anim:update(0.5)
 
   local result = anim:interpolate()

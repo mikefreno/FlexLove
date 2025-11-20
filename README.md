@@ -76,35 +76,18 @@ Complete API reference with all classes, methods, and properties is available on
 - Version selector (access docs for previous versions)
 - Detailed parameter and return value descriptions
 
-### Feature Guides
-
-- **[Multi-Touch & Gesture Recognition](docs/MULTI_TOUCH.md)** - Comprehensive guide to touch events, gestures, and touch scrolling
-
 ### Documentation Versions
 
 Access documentation for specific versions:
 - **Latest:** [https://mikefreno.github.io/FlexLove/api.html](https://mikefreno.github.io/FlexLove/api.html)
 - **Specific version:** `https://mikefreno.github.io/FlexLove/versions/v0.2.0/api.html`
 
-Use the version dropdown in the documentation header to switch between versions.
-
-## API Conventions
-
-### Method Patterns
-- **Constructors**: `ClassName.new(props)` → instance
-- **Static Methods**: `ClassName.methodName(args)` → result
-- **Instance Methods**: `instance:methodName(args)` → result
-- **Getters**: `instance:getPropertyName()` → value
-- **Internal Fields**: `_fieldName` (private, do not access directly)
-- **Error Handling**: Constructors throw errors, utility functions return nil + error string
-
-### Return Value Patterns
-- **Single Success**: return value
-- **Success/Failure**: return result, errorMessage (nil on success for error)
-- **Multiple Values**: return value1, value2 (documented in @return)
-- **Constructors**: Always return instance (never nil)
-
 ## Core Concepts
+
+### The Most Basic
+
+There are no "prebuilt" components - there is just an `Element`. Think of it as everything
+being a `<div>` in html. The `Element` can be anything you need - a container window, a button, an input field. It can also be combined to make more complex fields, like a sliders. The way to make these are just by setting the properties needed. `onEvent` can be used to make buttons, `editable` can be used to create input fields. You can check out the `examples/` to see complex utilization.
 
 ### Immediate Mode vs Retained Mode
 

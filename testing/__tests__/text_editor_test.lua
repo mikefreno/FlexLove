@@ -3,9 +3,25 @@ package.path = package.path .. ";./?.lua;./modules/?.lua"
 
 require("testing.loveStub")
 local luaunit = require("testing.luaunit")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 local TextEditor = require("modules.TextEditor")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 local Color = require("modules.Color")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 local utils = require("modules.utils")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 
 TestTextEditor = {}
 

@@ -7,9 +7,17 @@ package.path = package.path .. ";./?.lua;./modules/?.lua"
 require("testing.loveStub")
 
 local luaunit = require("testing.luaunit")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 
 -- Load FlexLove which properly initializes all dependencies
 local FlexLove = require("FlexLove")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 
 -- Test suite for Element creation
 TestElementCreation = {}

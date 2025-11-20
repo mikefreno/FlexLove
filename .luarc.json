@@ -16,10 +16,14 @@
     "ignoreSubmodules": true
   },
   "diagnostics": {
-    "globals": ["love"]
+    "globals": [
+      "love"
+    ]
   },
   "doc": {
-    "privateName": ["_.*"],
+    "privateName": [
+      "_.*"
+    ],
     "protectedName": []
   }
 }

@@ -3,19 +3,19 @@ require("testing.loveStub")
 
 local FlexLove = require("FlexLove")
 local Performance = require("modules.Performance")
-local Element = FlexLove.Element
+local Element = require('modules.Element')
 
 TestPerformanceWarnings = {}
 
+local perf
+
 function TestPerformanceWarnings:setUp()
-  -- Enable performance warnings
-  Performance.setConfig("warningsEnabled", true)
-  Performance.resetShownWarnings()
+  -- Recreate Performance instance with warnings enabled
+  perf = Performance.init({ enabled = true, warningsEnabled = true }, {})
 end
 
 function TestPerformanceWarnings:tearDown()
-  -- Reset warnings
-  Performance.resetShownWarnings()
+  -- No cleanup needed - instance will be recreated in setUp
 end
 
 -- Test hierarchy depth warning
@@ -107,7 +107,7 @@ end
 
 -- Test warnings can be disabled
 function TestPerformanceWarnings:testWarningsCanBeDisabled()
-  Performance.setConfig("warningsEnabled", false)
+  perf.warningsEnabled = false
 
   -- Create deep hierarchy
   local root = Element.new({
@@ -133,7 +133,7 @@ function TestPerformanceWarnings:testWarningsCanBeDisabled()
   luaunit.assertEquals(current:getHierarchyDepth(), 20)
 
   -- Re-enable for other tests
-  Performance.setConfig("warningsEnabled", true)
+  perf.warningsEnabled = true
 end
 
 -- Test layout recalculation tracking

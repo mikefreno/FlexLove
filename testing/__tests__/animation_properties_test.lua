@@ -2,16 +2,15 @@ local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 
 local Animation = require("modules.Animation")
-local Easing = require("modules.Easing")
+local Easing = Animation.Easing
+local Transform = Animation.Transform
 local Color = require("modules.Color")
-local Transform = require("modules.Transform")
 local ErrorHandler = require("modules.ErrorHandler")
-local ErrorCodes = require("modules.ErrorCodes")
 
 -- Initialize modules
-ErrorHandler.init({ ErrorCodes = ErrorCodes })
+ErrorHandler.init({})
 Color.init({ ErrorHandler = ErrorHandler })
-Animation.init({ ErrorHandler = ErrorHandler, Easing = Easing, Color = Color })
+Animation.init({ ErrorHandler = ErrorHandler, Color = Color })
 
 TestAnimationProperties = {}
 
@@ -130,7 +129,7 @@ function TestAnimationProperties:testColorAnimation_BackgroundColor()
     start = { backgroundColor = Color.new(1, 0, 0, 1) }, -- Red
     final = { backgroundColor = Color.new(0, 0, 1, 1) }, -- Blue
   })
-  anim:setColorModule(Color)
+  -- Color module already set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()
@@ -154,7 +153,7 @@ function TestAnimationProperties:testColorAnimation_MultipleColors()
       textColor = Color.new(1, 0, 0, 1),
     },
   })
-  anim:setColorModule(Color)
+  -- Color module already set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()
@@ -189,7 +188,7 @@ function TestAnimationProperties:testColorAnimation_HexColors()
     start = { backgroundColor = "#FF0000" }, -- Red
     final = { backgroundColor = "#0000FF" }, -- Blue
   })
-  anim:setColorModule(Color)
+  -- Color module already set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()
@@ -204,7 +203,7 @@ function TestAnimationProperties:testColorAnimation_NamedColors()
     start = { backgroundColor = "red" },
     final = { backgroundColor = "blue" },
   })
-  anim:setColorModule(Color)
+  -- Color module already set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()
@@ -389,7 +388,7 @@ function TestAnimationProperties:testCombinedAnimation_AllTypes()
       padding = { top = 10, left = 10 },
     },
   })
-  anim:setColorModule(Color)
+  -- Color module already set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()
@@ -412,7 +411,7 @@ function TestAnimationProperties:testCombinedAnimation_WithEasing()
     final = { x = 100, backgroundColor = Color.new(1, 1, 1, 1) },
     easing = "easeInQuad",
   })
-  anim:setColorModule(Color)
+  -- Color module already set via Animation.init()
 
   anim:update(0.5)
   local result = anim:interpolate()

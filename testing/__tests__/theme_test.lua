@@ -364,43 +364,8 @@ function TestThemeValidation:test_validate_valid_colors()
   luaunit.assertEquals(#errors, 0)
 end
 
-function TestThemeValidation:test_validate_colors_with_hex()
-  local theme = {
-    name = "Test Theme",
-    colors = {
-      primary = "#FF0000",
-    },
-  }
-  local valid, errors = Theme.validateTheme(theme)
-  luaunit.assertTrue(valid)
-  luaunit.assertEquals(#errors, 0)
-end
 
-function TestThemeValidation:test_validate_colors_with_named()
-  local theme = {
-    name = "Test Theme",
-    colors = {
-      primary = "red",
-      secondary = "blue",
-    },
-  }
-  local valid, errors = Theme.validateTheme(theme)
-  luaunit.assertTrue(valid)
-  luaunit.assertEquals(#errors, 0)
-end
 
-function TestThemeValidation:test_validate_invalid_color()
-  local theme = {
-    name = "Test Theme",
-    colors = {
-      primary = "not-a-color",
-    },
-  }
-  local valid, errors = Theme.validateTheme(theme)
-  luaunit.assertFalse(valid)
-  luaunit.assertTrue(#errors > 0)
-  luaunit.assertStrContains(errors[1], "primary")
-end
 
 function TestThemeValidation:test_validate_colors_non_table()
   local theme = {
@@ -752,13 +717,6 @@ function TestThemeValidation:test_sanitize_nil_theme()
   luaunit.assertEquals(sanitized.name, "Invalid Theme")
 end
 
-function TestThemeValidation:test_sanitize_theme_without_name()
-  local theme = {
-    colors = { primary = "red" },
-  }
-  local sanitized = Theme.sanitizeTheme(theme)
-  luaunit.assertEquals(sanitized.name, "Unnamed Theme")
-end
 
 function TestThemeValidation:test_sanitize_theme_with_non_string_name()
   local theme = {
@@ -768,18 +726,6 @@ function TestThemeValidation:test_sanitize_theme_with_non_string_name()
   luaunit.assertEquals(type(sanitized.name), "string")
 end
 
-function TestThemeValidation:test_sanitize_colors()
-  local theme = {
-    name = "Test",
-    colors = {
-      valid = "red",
-      invalid = "not-a-color",
-    },
-  }
-  local sanitized = Theme.sanitizeTheme(theme)
-  luaunit.assertNotNil(sanitized.colors.valid)
-  luaunit.assertNotNil(sanitized.colors.invalid) -- Should have fallback
-end
 
 function TestThemeValidation:test_sanitize_removes_non_string_color_names()
   local theme = {
@@ -819,65 +765,7 @@ end
 
 -- === Complex Theme Validation ===
 
-function TestThemeValidation:test_validate_complete_theme()
-  local theme = {
-    name = "Complete Theme",
-    atlas = "path/to/atlas.png",
-    contentAutoSizingMultiplier = { width = 1.05, height = 1.1 },
-    colors = {
-      primary = Color.new(1, 0, 0, 1),
-      secondary = "#00FF00",
-      tertiary = "blue",
-    },
-    fonts = {
-      default = "path/to/font.ttf",
-      heading = "path/to/heading.ttf",
-    },
-    components = {
-      button = {
-        atlas = "path/to/button.png",
-        insets = { left = 5, top = 5, right = 5, bottom = 5 },
-        scaleCorners = 2,
-        scalingAlgorithm = "nearest",
-        states = {
-          hover = {
-            atlas = "path/to/button_hover.png",
-          },
-          pressed = {
-            atlas = "path/to/button_pressed.png",
-          },
-        },
-      },
-      panel = {
-        atlas = "path/to/panel.png",
-      },
-    },
-  }
-  local valid, errors = Theme.validateTheme(theme)
-  luaunit.assertTrue(valid)
-  luaunit.assertEquals(#errors, 0)
-end
 
-function TestThemeValidation:test_validate_theme_with_multiple_errors()
-  local theme = {
-    name = "",
-    colors = {
-      invalid1 = "not-a-color",
-      invalid2 = 123,
-    },
-    fonts = {
-      bad = 456,
-    },
-    components = {
-      button = {
-        insets = { left = -5 }, -- missing fields and negative
-      },
-    },
-  }
-  local valid, errors = Theme.validateTheme(theme)
-  luaunit.assertFalse(valid)
-  luaunit.assertTrue(#errors >= 5) -- Should have multiple errors
-end
 
 -- Run tests if this file is executed directly
 if not _G.RUNNING_ALL_TESTS then

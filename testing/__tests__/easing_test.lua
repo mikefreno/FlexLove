@@ -1,12 +1,8 @@
 local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 
-local Easing = require("modules.Easing")
-local ErrorHandler = require("modules.ErrorHandler")
-local ErrorCodes = require("modules.ErrorCodes")
-
--- Initialize ErrorHandler
-ErrorHandler.init({ ErrorCodes = ErrorCodes })
+local Animation = require("modules.Animation")
+local Easing = Animation.Easing
 
 TestEasing = {}
 

@@ -1,7 +1,15 @@
 local luaunit = require("testing.luaunit")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 require("testing.loveStub")
 
 local ImageRenderer = require("modules.ImageRenderer")
+local ErrorHandler = require("modules.ErrorHandler")
+
+-- Initialize ErrorHandler
+ErrorHandler.init({})
 
 TestImageRenderer = {}
 

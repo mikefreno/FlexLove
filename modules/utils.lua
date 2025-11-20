@@ -4,7 +4,7 @@ local enums = {
   ---@enum Positioning
   Positioning = { ABSOLUTE = "absolute", RELATIVE = "relative", FLEX = "flex", GRID = "grid" },
   ---@enum FlexDirection
-  FlexDirection = { HORIZONTAL = "horizontal", VERTICAL = "vertical" },
+  FlexDirection = { HORIZONTAL = "horizontal", VERTICAL = "vertical", ROW = "row", COLUMN = "column" },
   ---@enum JustifyContent
   JustifyContent = {
     FLEX_START = "flex-start",

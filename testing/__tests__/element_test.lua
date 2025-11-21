@@ -1,5 +1,5 @@
--- Test suite for Element.lua
--- Tests element creation, size calculations, and basic functionality
+-- Comprehensive test suite for Element.lua
+-- Tests element creation, size calculations, positioning, layout, scroll, styling, and edge cases
 
 package.path = package.path .. ";./?.lua;./modules/?.lua"
 
@@ -14,16 +14,30 @@ ErrorHandler.init({})
 
 -- Load FlexLove which properly initializes all dependencies
 local FlexLove = require("FlexLove")
-local ErrorHandler = require("modules.ErrorHandler")
+local Element = require("modules.Element")
+local Color = require("modules.Color")
 
--- Initialize ErrorHandler
-ErrorHandler.init({})
+-- Initialize FlexLove
+FlexLove.init()
 
--- Test suite for Element creation
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+local function createBasicElement(props)
+  props = props or {}
+  props.width = props.width or 100
+  props.height = props.height or 100
+  return Element.new(props)
+end
+
+-- ============================================================================
+-- Element Creation Tests
+-- ============================================================================
+
 TestElementCreation = {}
 
 function TestElementCreation:setUp()
-  -- Initialize FlexLove for each test
   FlexLove.beginFrame(1920, 1080)
 end
 
@@ -135,7 +149,40 @@ function TestElementCreation:test_element_with_margin()
   luaunit.assertEquals(element.margin.bottom, 5)
 end
 
--- Test suite for Element sizing
+function TestElementCreation:test_element_with_z_index()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    z = 10,
+  })
+
+  luaunit.assertEquals(element.z, 10)
+end
+
+function TestElementCreation:test_element_with_userdata()
+  local customData = { foo = "bar", count = 42 }
+
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    userdata = customData,
+  })
+
+  luaunit.assertEquals(element.userdata, customData)
+  luaunit.assertEquals(element.userdata.foo, "bar")
+  luaunit.assertEquals(element.userdata.count, 42)
+end
+
+-- ============================================================================
+-- Element Sizing Tests
+-- ============================================================================
+
 TestElementSizing = {}
 
 function TestElementSizing:setUp()
@@ -172,6 +219,21 @@ function TestElementSizing:test_getBorderBoxHeight()
   luaunit.assertEquals(borderBoxHeight, 50)
 end
 
+function TestElementSizing:test_getBorderBoxWidth_with_border()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 50,
+    border = { left = 2, right = 2, top = 0, bottom = 0 },
+  })
+
+  local borderBoxWidth = element:getBorderBoxWidth()
+  -- Width includes left + right borders
+  luaunit.assertTrue(borderBoxWidth >= 100)
+end
+
 function TestElementSizing:test_getBounds()
   local element = FlexLove.new({
     id = "bounds1",
@@ -186,6 +248,38 @@ function TestElementSizing:test_getBounds()
   luaunit.assertEquals(bounds.y, 20)
   luaunit.assertEquals(bounds.width, 100)
   luaunit.assertEquals(bounds.height, 50)
+end
+
+function TestElementSizing:test_getAvailableContentWidth()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    padding = { top = 10, right = 10, bottom = 10, left = 10 },
+  })
+
+  local availWidth = element:getAvailableContentWidth()
+  luaunit.assertNotNil(availWidth)
+  -- Should be less than total width due to padding
+  luaunit.assertTrue(availWidth <= 200)
+end
+
+function TestElementSizing:test_getAvailableContentHeight()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    padding = { top = 10, right = 10, bottom = 10, left = 10 },
+  })
+
+  local availHeight = element:getAvailableContentHeight()
+  luaunit.assertNotNil(availHeight)
+  -- Should be less than total height due to padding
+  luaunit.assertTrue(availHeight <= 100)
 end
 
 function TestElementSizing:test_contains_point_inside()
@@ -232,7 +326,10 @@ function TestElementSizing:test_contains_point_on_edge()
   luaunit.assertTrue(contains)
 end
 
--- Test suite for Element with units (units are resolved immediately after creation)
+-- ============================================================================
+-- Element Units Tests
+-- ============================================================================
+
 TestElementUnits = {}
 
 function TestElementUnits:setUp()
@@ -284,7 +381,75 @@ function TestElementUnits:test_element_with_viewport_units()
   luaunit.assertTrue(element.height > 0)
 end
 
--- Test suite for Element positioning
+function TestElementUnits:test_resize_with_percentage_units()
+  -- Test that percentage units calculate correctly initially
+  local parent = FlexLove.new({
+    id = "resize_parent",
+    x = 0,
+    y = 0,
+    width = 1000,
+    height = 500,
+  })
+
+  local child = FlexLove.new({
+    id = "resize_child",
+    width = "50%",
+    height = "50%",
+    parent = parent,
+  })
+
+  -- Initial calculation should be 50% of parent
+  luaunit.assertEquals(child.width, 500)
+  luaunit.assertEquals(child.height, 250)
+
+  -- Verify units are stored correctly
+  luaunit.assertEquals(child.units.width.unit, "%")
+  luaunit.assertEquals(child.units.height.unit, "%")
+end
+
+function TestElementUnits:test_resize_with_viewport_units()
+  -- Test that viewport units calculate correctly
+  local element = FlexLove.new({
+    id = "vp_resize",
+    x = 0,
+    y = 0,
+    width = "50vw",
+    height = "50vh",
+  })
+
+  -- Should be 50% of viewport (1920x1080)
+  luaunit.assertEquals(element.width, 960)
+  luaunit.assertEquals(element.height, 540)
+
+  -- Verify units are stored correctly
+  luaunit.assertEquals(element.units.width.unit, "vw")
+  luaunit.assertEquals(element.units.height.unit, "vh")
+end
+
+function TestElementUnits:test_resize_with_textSize_scaling()
+  -- Test that textSize with viewport units calculates correctly
+  local element = FlexLove.new({
+    id = "text_resize",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    text = "Test",
+    textSize = "2vh",
+    autoScaleText = true,
+  })
+
+  -- 2vh of 1080 = 21.6
+  luaunit.assertAlmostEquals(element.textSize, 21.6, 0.1)
+
+  -- Verify unit is stored
+  luaunit.assertEquals(element.units.textSize.unit, "vh")
+end
+
+-- ============================================================================
+-- Element Positioning Tests
+-- ============================================================================
+
 TestElementPositioning = {}
 
 function TestElementPositioning:setUp()
@@ -335,7 +500,99 @@ function TestElementPositioning:test_nested_element_positions()
   luaunit.assertEquals(child.y, 130)
 end
 
--- Test suite for Element flex layout
+function TestElementPositioning:test_absolute_positioning_with_top_left()
+  local element = createBasicElement({
+    positioning = "absolute",
+    top = 10,
+    left = 20,
+  })
+
+  luaunit.assertEquals(element.positioning, "absolute")
+  luaunit.assertEquals(element.top, 10)
+  luaunit.assertEquals(element.left, 20)
+end
+
+function TestElementPositioning:test_absolute_positioning_with_bottom_right()
+  local element = createBasicElement({
+    positioning = "absolute",
+    bottom = 10,
+    right = 20,
+  })
+
+  luaunit.assertEquals(element.positioning, "absolute")
+  luaunit.assertEquals(element.bottom, 10)
+  luaunit.assertEquals(element.right, 20)
+end
+
+function TestElementPositioning:test_relative_positioning()
+  local element = createBasicElement({
+    positioning = "relative",
+    top = 10,
+    left = 10,
+  })
+
+  luaunit.assertEquals(element.positioning, "relative")
+end
+
+function TestElementPositioning:test_applyPositioningOffsets_with_absolute()
+  local parent = FlexLove.new({
+    id = "offset_parent",
+    x = 0,
+    y = 0,
+    width = 500,
+    height = 500,
+    positioning = "absolute",
+  })
+
+  local child = FlexLove.new({
+    id = "offset_child",
+    width = 100,
+    height = 100,
+    positioning = "absolute",
+    top = 50,
+    left = 50,
+    parent = parent,
+  })
+
+  -- Apply positioning offsets
+  parent:applyPositioningOffsets(child)
+
+  -- Child should be offset from parent
+  luaunit.assertTrue(child.y >= parent.y + 50)
+  luaunit.assertTrue(child.x >= parent.x + 50)
+end
+
+function TestElementPositioning:test_applyPositioningOffsets_with_right_bottom()
+  local parent = FlexLove.new({
+    id = "rb_parent",
+    x = 0,
+    y = 0,
+    width = 500,
+    height = 500,
+    positioning = "relative",
+  })
+
+  local child = FlexLove.new({
+    id = "rb_child",
+    width = 100,
+    height = 100,
+    positioning = "absolute",
+    right = 50,
+    bottom = 50,
+    parent = parent,
+  })
+
+  parent:applyPositioningOffsets(child)
+
+  -- Child should be positioned from right/bottom
+  luaunit.assertNotNil(child.x)
+  luaunit.assertNotNil(child.y)
+end
+
+-- ============================================================================
+-- Element Flex Layout Tests
+-- ============================================================================
+
 TestElementFlex = {}
 
 function TestElementFlex:setUp()
@@ -404,7 +661,89 @@ function TestElementFlex:test_element_with_gap()
   luaunit.assertEquals(element.gap, 10)
 end
 
--- Test suite for Element styling properties
+-- ============================================================================
+-- Element Grid Layout Tests
+-- ============================================================================
+
+TestElementGrid = {}
+
+function TestElementGrid:setUp()
+  FlexLove.beginFrame(1920, 1080)
+end
+
+function TestElementGrid:tearDown()
+  FlexLove.endFrame()
+end
+
+function TestElementGrid:test_grid_layout()
+  local element = createBasicElement({
+    display = "grid",
+    gridTemplateColumns = "1fr 1fr",
+    gridTemplateRows = "auto auto",
+  })
+
+  luaunit.assertEquals(element.display, "grid")
+  luaunit.assertNotNil(element.gridTemplateColumns)
+end
+
+function TestElementGrid:test_grid_gap()
+  local element = createBasicElement({
+    display = "grid",
+    gridGap = 10,
+  })
+
+  luaunit.assertEquals(element.gridGap, 10)
+end
+
+function TestElementGrid:test_grid_with_uneven_children()
+  local grid = FlexLove.new({
+    id = "uneven_grid",
+    x = 0,
+    y = 0,
+    width = 300,
+    height = 300,
+    positioning = "grid",
+    gridRows = 2,
+    gridColumns = 2,
+  })
+
+  -- Add only 3 children to a 2x2 grid
+  for i = 1, 3 do
+    FlexLove.new({
+      id = "grid_item_" .. i,
+      width = 50,
+      height = 50,
+      parent = grid,
+    })
+  end
+
+  luaunit.assertEquals(#grid.children, 3)
+end
+
+function TestElementGrid:test_grid_with_percentage_gaps()
+  local grid = FlexLove.new({
+    id = "pct_gap_grid",
+    x = 0,
+    y = 0,
+    width = 400,
+    height = 400,
+    positioning = "grid",
+    gridRows = 2,
+    gridColumns = 2,
+    columnGap = "5%",
+    rowGap = "5%",
+  })
+
+  luaunit.assertNotNil(grid.columnGap)
+  luaunit.assertNotNil(grid.rowGap)
+  luaunit.assertTrue(grid.columnGap > 0)
+  luaunit.assertTrue(grid.rowGap > 0)
+end
+
+-- ============================================================================
+-- Element Styling Tests
+-- ============================================================================
+
 TestElementStyling = {}
 
 function TestElementStyling:setUp()
@@ -488,7 +827,75 @@ function TestElementStyling:test_element_with_border_color()
   luaunit.assertNotNil(element.borderColor)
 end
 
--- Test suite for Element methods
+function TestElementStyling:test_element_with_text_color()
+  local textColor = Color.new(255, 0, 0, 1)
+
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    text = "Red text",
+    textColor = textColor,
+  })
+
+  luaunit.assertEquals(element.textColor, textColor)
+end
+
+function TestElementStyling:test_element_with_background_color()
+  local bgColor = Color.new(0, 0, 255, 1)
+
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    backgroundColor = bgColor,
+  })
+
+  luaunit.assertEquals(element.backgroundColor, bgColor)
+end
+
+function TestElementStyling:test_element_with_corner_radius_table()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    cornerRadius = 10,
+  })
+
+  luaunit.assertNotNil(element.cornerRadius)
+  luaunit.assertEquals(element.cornerRadius.topLeft, 10)
+  luaunit.assertEquals(element.cornerRadius.topRight, 10)
+  luaunit.assertEquals(element.cornerRadius.bottomLeft, 10)
+  luaunit.assertEquals(element.cornerRadius.bottomRight, 10)
+end
+
+function TestElementStyling:test_element_with_margin_table()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    margin = { top = 5, right = 10, bottom = 5, left = 10 },
+  })
+
+  luaunit.assertNotNil(element.margin)
+  luaunit.assertEquals(element.margin.top, 5)
+  luaunit.assertEquals(element.margin.right, 10)
+  luaunit.assertEquals(element.margin.bottom, 5)
+  luaunit.assertEquals(element.margin.left, 10)
+end
+
+-- ============================================================================
+-- Element Methods Tests
+-- ============================================================================
+
 TestElementMethods = {}
 
 function TestElementMethods:setUp()
@@ -535,7 +942,43 @@ function TestElementMethods:test_element_addChild()
   luaunit.assertEquals(parent.children[1], child)
   luaunit.assertEquals(child.parent, parent)
 end
--- Test suite for scroll-related functions
+
+function TestElementMethods:test_getScaledContentPadding()
+  local element = FlexLove.new({
+    id = "test",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    padding = { top = 10, right = 10, bottom = 10, left = 10 },
+  })
+
+  local padding = element:getScaledContentPadding()
+  -- May be nil if no theme component with contentPadding
+  if padding then
+    luaunit.assertNotNil(padding.top)
+    luaunit.assertNotNil(padding.right)
+    luaunit.assertNotNil(padding.bottom)
+    luaunit.assertNotNil(padding.left)
+  end
+end
+
+function TestElementMethods:test_resize_updates_dimensions()
+  local element = createBasicElement({
+    width = 100,
+    height = 100,
+  })
+
+  element:resize(200, 200)
+
+  luaunit.assertEquals(element.width, 200)
+  luaunit.assertEquals(element.height, 200)
+end
+
+-- ============================================================================
+-- Element Scroll Tests
+-- ============================================================================
+
 TestElementScroll = {}
 
 function TestElementScroll:setUp()
@@ -598,34 +1041,66 @@ function TestElementScroll:test_scrollBy()
 end
 
 function TestElementScroll:test_scrollToTop()
-  local element = FlexLove.new({
-    id = "scrollable",
+  local container = FlexLove.new({
+    id = "scroll_container",
     x = 0,
     y = 0,
-    width = 200,
+    width = 300,
     height = 200,
     overflow = "scroll",
+    positioning = "flex",
+    flexDirection = "vertical",
   })
 
-  element:scrollToTop()
-  local _, scrollY = element:getScrollPosition()
+  -- Add content that overflows
+  for i = 1, 10 do
+    FlexLove.new({
+      id = "item_" .. i,
+      width = 280,
+      height = 50,
+      parent = container,
+    })
+  end
+
+  -- Scroll down first
+  container:setScrollPosition(nil, 100)
+  local _, scrollY = container:getScrollPosition()
+  luaunit.assertEquals(scrollY, 100)
+
+  -- Scroll to top
+  container:scrollToTop()
+  _, scrollY = container:getScrollPosition()
   luaunit.assertEquals(scrollY, 0)
 end
 
 function TestElementScroll:test_scrollToBottom()
-  local element = FlexLove.new({
-    id = "scrollable",
+  local container = FlexLove.new({
+    id = "scroll_bottom",
     x = 0,
     y = 0,
-    width = 200,
+    width = 300,
     height = 200,
     overflow = "scroll",
+    positioning = "flex",
+    flexDirection = "vertical",
   })
 
-  element:scrollToBottom()
-  -- Bottom position depends on content, just verify it doesn't error
-  local _, scrollY = element:getScrollPosition()
-  luaunit.assertNotNil(scrollY)
+  -- Add overflowing content
+  for i = 1, 10 do
+    FlexLove.new({
+      id = "item_" .. i,
+      width = 280,
+      height = 50,
+      parent = container,
+    })
+  end
+
+  container:scrollToBottom()
+
+  local _, scrollY = container:getScrollPosition()
+  local _, maxScrollY = container:getMaxScroll()
+
+  luaunit.assertEquals(scrollY, maxScrollY)
 end
 
 function TestElementScroll:test_scrollToLeft()
@@ -674,20 +1149,35 @@ function TestElementScroll:test_getMaxScroll()
 end
 
 function TestElementScroll:test_getScrollPercentage()
-  local element = FlexLove.new({
-    id = "scrollable",
+  local container = FlexLove.new({
+    id = "scroll_pct",
     x = 0,
     y = 0,
-    width = 200,
+    width = 300,
     height = 200,
     overflow = "scroll",
+    positioning = "flex",
+    flexDirection = "vertical",
   })
 
-  local percentX, percentY = element:getScrollPercentage()
-  luaunit.assertNotNil(percentX)
-  luaunit.assertNotNil(percentY)
-  luaunit.assertTrue(percentX >= 0 and percentX <= 1)
-  luaunit.assertTrue(percentY >= 0 and percentY <= 1)
+  for i = 1, 10 do
+    FlexLove.new({
+      id = "item_" .. i,
+      width = 280,
+      height = 50,
+      parent = container,
+    })
+  end
+
+  -- At top
+  local _, percentY = container:getScrollPercentage()
+  luaunit.assertEquals(percentY, 0)
+
+  -- Scroll halfway
+  local _, maxScrollY = container:getMaxScroll()
+  container:setScrollPosition(nil, maxScrollY / 2)
+  _, percentY = container:getScrollPercentage()
+  luaunit.assertAlmostEquals(percentY, 0.5, 0.01)
 end
 
 function TestElementScroll:test_hasOverflow()
@@ -720,151 +1210,10 @@ function TestElementScroll:test_getContentSize()
   luaunit.assertNotNil(contentHeight)
 end
 
--- Test suite for element geometry and bounds
-TestElementGeometry = {}
+-- ============================================================================
+-- Element Child Management Tests
+-- ============================================================================
 
-function TestElementGeometry:setUp()
-  FlexLove.beginFrame(1920, 1080)
-end
-
-function TestElementGeometry:tearDown()
-  FlexLove.endFrame()
-end
-
-function TestElementGeometry:test_getBounds()
-  local element = FlexLove.new({
-    id = "test",
-    x = 10,
-    y = 20,
-    width = 100,
-    height = 50,
-  })
-
-  local bounds = element:getBounds()
-  luaunit.assertEquals(bounds.x, 10)
-  luaunit.assertEquals(bounds.y, 20)
-  luaunit.assertEquals(bounds.width, 100)
-  luaunit.assertEquals(bounds.height, 50)
-end
-
-function TestElementGeometry:test_contains_point_inside()
-  local element = FlexLove.new({
-    id = "test",
-    x = 10,
-    y = 20,
-    width = 100,
-    height = 50,
-  })
-
-  luaunit.assertTrue(element:contains(50, 40))
-end
-
-function TestElementGeometry:test_contains_point_outside()
-  local element = FlexLove.new({
-    id = "test",
-    x = 10,
-    y = 20,
-    width = 100,
-    height = 50,
-  })
-
-  luaunit.assertFalse(element:contains(200, 200))
-end
-
-function TestElementGeometry:test_getBorderBoxWidth_no_border()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 50,
-  })
-
-  local borderBoxWidth = element:getBorderBoxWidth()
-  luaunit.assertEquals(borderBoxWidth, 100)
-end
-
-function TestElementGeometry:test_getBorderBoxHeight_no_border()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 50,
-  })
-
-  local borderBoxHeight = element:getBorderBoxHeight()
-  luaunit.assertEquals(borderBoxHeight, 50)
-end
-
-function TestElementGeometry:test_getBorderBoxWidth_with_border()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 50,
-    border = { left = 2, right = 2, top = 0, bottom = 0 },
-  })
-
-  local borderBoxWidth = element:getBorderBoxWidth()
-  -- Width includes left + right borders
-  luaunit.assertTrue(borderBoxWidth >= 100)
-end
-
-function TestElementGeometry:test_getAvailableContentWidth()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 200,
-    height = 100,
-    padding = { top = 10, right = 10, bottom = 10, left = 10 },
-  })
-
-  local availWidth = element:getAvailableContentWidth()
-  luaunit.assertNotNil(availWidth)
-  -- Should be less than total width due to padding
-  luaunit.assertTrue(availWidth <= 200)
-end
-
-function TestElementGeometry:test_getAvailableContentHeight()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 200,
-    height = 100,
-    padding = { top = 10, right = 10, bottom = 10, left = 10 },
-  })
-
-  local availHeight = element:getAvailableContentHeight()
-  luaunit.assertNotNil(availHeight)
-  -- Should be less than total height due to padding
-  luaunit.assertTrue(availHeight <= 100)
-end
-
-function TestElementGeometry:test_getScaledContentPadding()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 200,
-    height = 100,
-    padding = { top = 10, right = 10, bottom = 10, left = 10 },
-  })
-
-  local padding = element:getScaledContentPadding()
-  -- May be nil if no theme component with contentPadding
-  if padding then
-    luaunit.assertNotNil(padding.top)
-    luaunit.assertNotNil(padding.right)
-    luaunit.assertNotNil(padding.bottom)
-    luaunit.assertNotNil(padding.left)
-  end
-end
-
--- Test suite for child management
 TestElementChildren = {}
 
 function TestElementChildren:setUp()
@@ -959,7 +1308,91 @@ function TestElementChildren:test_getChildCount()
   luaunit.assertEquals(parent:getChildCount(), 2)
 end
 
--- Test suite for element visibility and opacity
+function TestElementChildren:test_addChild_triggers_autosize_recalc()
+  local parent = FlexLove.new({
+    id = "dynamic_parent",
+    x = 0,
+    y = 0,
+    positioning = "flex",
+  })
+
+  local initialWidth = parent.width
+  local initialHeight = parent.height
+
+  -- Add child dynamically
+  local child = FlexLove.new({
+    id = "dynamic_child",
+    width = 150,
+    height = 150,
+  })
+
+  parent:addChild(child)
+
+  -- Parent should have resized
+  luaunit.assertTrue(parent.width >= initialWidth)
+  luaunit.assertTrue(parent.height >= initialHeight)
+end
+
+function TestElementChildren:test_removeChild_triggers_autosize_recalc()
+  local parent = FlexLove.new({
+    id = "shrink_parent",
+    x = 0,
+    y = 0,
+    positioning = "flex",
+  })
+
+  local child1 = FlexLove.new({
+    id = "child1",
+    width = 100,
+    height = 100,
+    parent = parent,
+  })
+
+  local child2 = FlexLove.new({
+    id = "child2",
+    width = 100,
+    height = 100,
+    parent = parent,
+  })
+
+  local widthWithTwo = parent.width
+
+  parent:removeChild(child2)
+
+  -- Parent should shrink
+  luaunit.assertTrue(parent.width < widthWithTwo)
+end
+
+function TestElementChildren:test_clearChildren_resets_autosize()
+  local parent = FlexLove.new({
+    id = "clear_parent",
+    x = 0,
+    y = 0,
+    positioning = "flex",
+  })
+
+  for i = 1, 5 do
+    FlexLove.new({
+      id = "child_" .. i,
+      width = 50,
+      height = 50,
+      parent = parent,
+    })
+  end
+
+  local widthWithChildren = parent.width
+
+  parent:clearChildren()
+
+  -- Parent should shrink to minimal size
+  luaunit.assertTrue(parent.width < widthWithChildren)
+  luaunit.assertEquals(#parent.children, 0)
+end
+
+-- ============================================================================
+-- Element Visibility Tests
+-- ============================================================================
+
 TestElementVisibility = {}
 
 function TestElementVisibility:setUp()
@@ -1021,7 +1454,10 @@ function TestElementVisibility:test_opacity_custom()
   luaunit.assertEquals(element.opacity, 0.5)
 end
 
--- Test suite for text editing
+-- ============================================================================
+-- Element Text Editing Tests
+-- ============================================================================
+
 TestElementTextEditing = {}
 
 function TestElementTextEditing:setUp()
@@ -1061,134 +1497,62 @@ function TestElementTextEditing:test_placeholder_text()
   luaunit.assertEquals(element.placeholder, "Enter text...")
 end
 
--- Test suite for additional element features
-TestElementAdditional = {}
-
-function TestElementAdditional:setUp()
-  FlexLove.beginFrame(1920, 1080)
-end
-
-function TestElementAdditional:tearDown()
-  FlexLove.endFrame()
-end
-
-function TestElementAdditional:test_element_with_z_index()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
-    z = 10,
+function TestElementTextEditing:test_insertText()
+  local element = createBasicElement({
+    editable = true,
+    text = "Hello",
   })
 
-  luaunit.assertEquals(element.z, 10)
+  element:insertText(" World", 5)
+
+  luaunit.assertEquals(element:getText(), "Hello World")
 end
 
-function TestElementAdditional:test_element_with_text()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
+function TestElementTextEditing:test_deleteText()
+  local element = createBasicElement({
+    editable = true,
     text = "Hello World",
   })
 
-  luaunit.assertEquals(element.text, "Hello World")
+  element:deleteText(5, 11)
+
+  luaunit.assertEquals(element:getText(), "Hello")
 end
 
-function TestElementAdditional:test_element_with_text_color()
-  local Color = require("modules.Color")
-  local textColor = Color.new(255, 0, 0, 1)
-
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
-    text = "Red text",
-    textColor = textColor,
+function TestElementTextEditing:test_replaceText()
+  local element = createBasicElement({
+    editable = true,
+    text = "Hello World",
   })
 
-  luaunit.assertEquals(element.textColor, textColor)
+  element:replaceText(6, 11, "Lua")
+
+  luaunit.assertEquals(element:getText(), "Hello Lua")
 end
 
-function TestElementAdditional:test_element_with_background_color()
-  local Color = require("modules.Color")
-  local bgColor = Color.new(0, 0, 255, 1)
-
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
-    backgroundColor = bgColor,
+function TestElementTextEditing:test_getText_non_editable()
+  local element = createBasicElement({
+    text = "Test",
   })
 
-  luaunit.assertEquals(element.backgroundColor, bgColor)
+  luaunit.assertEquals(element:getText(), "Test")
 end
 
-function TestElementAdditional:test_element_with_corner_radius()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
-    cornerRadius = 10,
-  })
+-- ============================================================================
+-- Element State Tests
+-- ============================================================================
 
-  luaunit.assertNotNil(element.cornerRadius)
-  luaunit.assertEquals(element.cornerRadius.topLeft, 10)
-  luaunit.assertEquals(element.cornerRadius.topRight, 10)
-  luaunit.assertEquals(element.cornerRadius.bottomLeft, 10)
-  luaunit.assertEquals(element.cornerRadius.bottomRight, 10)
+TestElementState = {}
+
+function TestElementState:setUp()
+  FlexLove.beginFrame(1920, 1080)
 end
 
-function TestElementAdditional:test_element_with_margin()
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
-    margin = { top = 5, right = 10, bottom = 5, left = 10 },
-  })
-
-  luaunit.assertNotNil(element.margin)
-  luaunit.assertEquals(element.margin.top, 5)
-  luaunit.assertEquals(element.margin.right, 10)
-  luaunit.assertEquals(element.margin.bottom, 5)
-  luaunit.assertEquals(element.margin.left, 10)
+function TestElementState:tearDown()
+  FlexLove.endFrame()
 end
 
-function TestElementAdditional:test_element_destroy()
-  local parent = FlexLove.new({
-    id = "parent",
-    x = 0,
-    y = 0,
-    width = 200,
-    height = 200,
-  })
-
-  local child = FlexLove.new({
-    id = "child",
-    parent = parent,
-    x = 0,
-    y = 0,
-    width = 50,
-    height = 50,
-  })
-
-  luaunit.assertEquals(#parent.children, 1)
-  child:destroy()
-  luaunit.assertNil(child.parent)
-end
-
-function TestElementAdditional:test_element_with_disabled()
+function TestElementState:test_element_with_disabled()
   local element = FlexLove.new({
     id = "test",
     x = 0,
@@ -1201,7 +1565,7 @@ function TestElementAdditional:test_element_with_disabled()
   luaunit.assertTrue(element.disabled)
 end
 
-function TestElementAdditional:test_element_with_active()
+function TestElementState:test_element_with_active()
   local element = FlexLove.new({
     id = "test",
     x = 0,
@@ -1214,39 +1578,750 @@ function TestElementAdditional:test_element_with_active()
   luaunit.assertTrue(element.active)
 end
 
-function TestElementAdditional:test_element_with_userdata()
-  local customData = { foo = "bar", count = 42 }
-
-  local element = FlexLove.new({
-    id = "test",
-    x = 0,
-    y = 0,
-    width = 100,
-    height = 100,
-    userdata = customData,
+function TestElementState:test_element_with_hover_state()
+  local element = createBasicElement({
+    backgroundColor = Color.new(1, 0, 0, 1),
+    hover = {
+      backgroundColor = Color.new(0, 1, 0, 1),
+    },
   })
 
-  luaunit.assertEquals(element.userdata, customData)
-  luaunit.assertEquals(element.userdata.foo, "bar")
-  luaunit.assertEquals(element.userdata.count, 42)
+  luaunit.assertNotNil(element.hover)
+  luaunit.assertNotNil(element.hover.backgroundColor)
 end
 
--- ==========================================
--- UNHAPPY PATH TESTS
--- ==========================================
+function TestElementState:test_element_with_active_state()
+  local element = createBasicElement({
+    backgroundColor = Color.new(1, 0, 0, 1),
+    active = {
+      backgroundColor = Color.new(0, 0, 1, 1),
+    },
+  })
 
-TestElementUnhappyPaths = {}
+  luaunit.assertNotNil(element.active)
+end
 
-function TestElementUnhappyPaths:setUp()
+function TestElementState:test_element_with_disabled_state()
+  local element = createBasicElement({
+    disabled = true,
+  })
+
+  luaunit.assertTrue(element.disabled)
+end
+
+-- ============================================================================
+-- Element Auto-Sizing Tests
+-- ============================================================================
+
+TestElementAutoSizing = {}
+
+function TestElementAutoSizing:setUp()
   FlexLove.beginFrame(1920, 1080)
 end
 
-function TestElementUnhappyPaths:tearDown()
+function TestElementAutoSizing:tearDown()
   FlexLove.endFrame()
 end
 
--- Test: Element with missing deps parameter
-function TestElementUnhappyPaths:test_element_with_init()
+function TestElementAutoSizing:test_autosize_with_nested_flex()
+  local root = FlexLove.new({
+    id = "root",
+    x = 0,
+    y = 0,
+    positioning = "flex",
+    flexDirection = "vertical",
+  })
+
+  local row1 = FlexLove.new({
+    id = "row1",
+    positioning = "flex",
+    flexDirection = "horizontal",
+    parent = root,
+  })
+
+  FlexLove.new({
+    id = "item1",
+    width = 100,
+    height = 50,
+    parent = row1,
+  })
+
+  FlexLove.new({
+    id = "item2",
+    width = 100,
+    height = 50,
+    parent = row1,
+  })
+
+  -- Root should auto-size to contain row
+  luaunit.assertTrue(root.width >= 200)
+  luaunit.assertTrue(root.height >= 50)
+end
+
+function TestElementAutoSizing:test_autosize_with_absolutely_positioned_child()
+  local parent = FlexLove.new({
+    id = "abs_parent",
+    x = 0,
+    y = 0,
+    positioning = "flex",
+  })
+
+  -- Regular child affects size
+  FlexLove.new({
+    id = "regular",
+    width = 100,
+    height = 100,
+    parent = parent,
+  })
+
+  -- Absolutely positioned child should NOT affect parent size
+  FlexLove.new({
+    id = "absolute",
+    width = 200,
+    height = 200,
+    positioning = "absolute",
+    parent = parent,
+  })
+
+  -- Parent should only size to regular child
+  luaunit.assertTrue(parent.width < 150)
+  luaunit.assertTrue(parent.height < 150)
+end
+
+function TestElementAutoSizing:test_autosize_with_margin()
+  local parent = FlexLove.new({
+    id = "margin_parent",
+    x = 0,
+    y = 0,
+    positioning = "flex",
+    flexDirection = "horizontal",
+  })
+
+  -- Add two children with margins to test margin collapsing
+  FlexLove.new({
+    id = "margin_child1",
+    width = 100,
+    height = 100,
+    margin = { right = 20 },
+    parent = parent,
+  })
+
+  FlexLove.new({
+    id = "margin_child2",
+    width = 100,
+    height = 100,
+    margin = { left = 20 },
+    parent = parent,
+  })
+
+  -- Parent should size to children (margins don't add to content size in flex layout)
+  luaunit.assertEquals(parent.width, 200)
+  luaunit.assertEquals(parent.height, 100)
+end
+
+-- ============================================================================
+-- Element Transform Tests
+-- ============================================================================
+
+TestElementTransform = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementTransform:test_rotate_transform()
+  local element = createBasicElement({})
+
+  element:rotate(90)
+
+  luaunit.assertNotNil(element._transform)
+  luaunit.assertEquals(element._transform.rotation, 90)
+end
+
+function TestElementTransform:test_scale_transform()
+  local element = createBasicElement({})
+
+  element:scale(2, 2)
+
+  luaunit.assertNotNil(element._transform)
+  luaunit.assertEquals(element._transform.scaleX, 2)
+  luaunit.assertEquals(element._transform.scaleY, 2)
+end
+
+function TestElementTransform:test_translate_transform()
+  local element = createBasicElement({})
+
+  element:translate(10, 20)
+
+  luaunit.assertNotNil(element._transform)
+  luaunit.assertEquals(element._transform.translateX, 10)
+  luaunit.assertEquals(element._transform.translateY, 20)
+end
+
+function TestElementTransform:test_setTransformOrigin()
+  local element = createBasicElement({})
+
+  element:setTransformOrigin(0.5, 0.5)
+
+  luaunit.assertNotNil(element._transform)
+  luaunit.assertEquals(element._transform.originX, 0.5)
+  luaunit.assertEquals(element._transform.originY, 0.5)
+end
+
+function TestElementTransform:test_combined_transforms()
+  local element = createBasicElement({})
+
+  element:rotate(45)
+  element:scale(1.5, 1.5)
+  element:translate(10, 10)
+
+  luaunit.assertEquals(element._transform.rotation, 45)
+  luaunit.assertEquals(element._transform.scaleX, 1.5)
+  luaunit.assertEquals(element._transform.translateX, 10)
+end
+
+-- ============================================================================
+-- Element Image Tests
+-- ============================================================================
+
+TestElementImage = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementImage:test_image_loading_deferred_callback()
+  local callbackCalled = false
+  local element = createBasicElement({
+    image = "test.png",
+    onImageLoad = function(img)
+      callbackCalled = true
+    end,
+  })
+
+  -- Callback should be stored
+  luaunit.assertNotNil(element._imageLoadCallback)
+
+  -- Simulate image loaded
+  if element._imageLoadCallback then
+    element._imageLoadCallback({})
+  end
+
+  luaunit.assertTrue(callbackCalled)
+end
+
+function TestElementImage:test_image_with_tint()
+  local element = createBasicElement({
+    image = "test.png",
+  })
+
+  local tintColor = Color.new(1, 0, 0, 1)
+  element:setImageTint(tintColor)
+
+  luaunit.assertEquals(element.imageTint, tintColor)
+end
+
+function TestElementImage:test_image_with_opacity()
+  local element = createBasicElement({
+    image = "test.png",
+  })
+
+  element:setImageOpacity(0.5)
+
+  luaunit.assertEquals(element.imageOpacity, 0.5)
+end
+
+function TestElementImage:test_image_with_repeat()
+  local element = createBasicElement({
+    image = "test.png",
+  })
+
+  element:setImageRepeat("repeat")
+
+  luaunit.assertEquals(element.imageRepeat, "repeat")
+end
+
+-- ============================================================================
+-- Element Blur Tests
+-- ============================================================================
+
+TestElementBlur = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementBlur:test_getBlurInstance_no_blur()
+  local element = createBasicElement({})
+
+  local blur = element:getBlurInstance()
+
+  luaunit.assertNil(blur)
+end
+
+function TestElementBlur:test_getBlurInstance_with_blur()
+  local element = createBasicElement({
+    backdropBlur = 5,
+  })
+
+  -- Blur instance should be created when backdropBlur is set
+  local blur = element:getBlurInstance()
+
+  -- May be nil if Blur module isn't initialized, but shouldn't error
+  luaunit.assertTrue(blur == nil or type(blur) == "table")
+end
+
+-- ============================================================================
+-- Element Update and Animation Tests
+-- ============================================================================
+
+TestElementUpdate = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementUpdate:test_update_without_animations()
+  local element = createBasicElement({})
+
+  -- Should not error
+  element:update(0.016)
+
+  luaunit.assertTrue(true)
+end
+
+function TestElementUpdate:test_update_with_transition()
+  local element = createBasicElement({
+    opacity = 1,
+  })
+
+  element:setTransition("opacity", {
+    duration = 1.0,
+    easing = "linear",
+  })
+
+  -- Change opacity to trigger transition
+  element:setProperty("opacity", 0)
+
+  -- Update should process transition
+  element:update(0.5)
+
+  -- Opacity should be between 0 and 1
+  luaunit.assertTrue(element.opacity >= 0 and element.opacity <= 1)
+end
+
+function TestElementUpdate:test_countActiveAnimations()
+  local element = createBasicElement({})
+
+  local count = element:_countActiveAnimations()
+
+  luaunit.assertEquals(count, 0)
+end
+
+-- ============================================================================
+-- Element Draw Tests
+-- ============================================================================
+
+TestElementDraw = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementDraw:test_draw_basic_element()
+  local element = createBasicElement({
+    backgroundColor = Color.new(1, 0, 0, 1),
+  })
+
+  -- Should not error
+  element:draw()
+
+  luaunit.assertTrue(true)
+end
+
+function TestElementDraw:test_draw_with_opacity_zero()
+  local element = createBasicElement({
+    backgroundColor = Color.new(1, 0, 0, 1),
+    opacity = 0,
+  })
+
+  -- Should not draw but not error
+  element:draw()
+
+  luaunit.assertTrue(true)
+end
+
+function TestElementDraw:test_draw_with_transform()
+  local element = createBasicElement({})
+
+  element:rotate(45)
+  element:scale(1.5, 1.5)
+
+  -- Should apply transforms
+  element:draw()
+
+  luaunit.assertTrue(true)
+end
+
+function TestElementDraw:test_draw_with_blur()
+  local element = createBasicElement({
+    backdropBlur = 5,
+    backgroundColor = Color.new(1, 1, 1, 0.5),
+  })
+
+  -- Should handle blur
+  element:draw()
+
+  luaunit.assertTrue(true)
+end
+
+-- ============================================================================
+-- Element Layout Tests
+-- ============================================================================
+
+TestElementLayout = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementLayout:test_layoutChildren_empty()
+  local element = createBasicElement({})
+
+  -- Should not error with no children
+  element:layoutChildren()
+
+  luaunit.assertTrue(true)
+end
+
+function TestElementLayout:test_layoutChildren_with_children()
+  local parent = createBasicElement({
+    width = 200,
+    height = 200,
+  })
+
+  local child1 = createBasicElement({ width = 50, height = 50 })
+  local child2 = createBasicElement({ width = 50, height = 50 })
+
+  parent:addChild(child1)
+  parent:addChild(child2)
+
+  parent:layoutChildren()
+
+  -- Children should have positions
+  luaunit.assertNotNil(child1.x)
+  luaunit.assertNotNil(child2.x)
+end
+
+function TestElementLayout:test_checkPerformanceWarnings()
+  local parent = createBasicElement({})
+
+  -- Add many children to trigger warnings (reduced from 150 for performance)
+  for i = 1, 30 do
+    parent:addChild(createBasicElement({ width = 10, height = 10 }))
+  end
+
+  -- Should check performance
+  parent:_checkPerformanceWarnings()
+
+  luaunit.assertTrue(true)
+end
+
+-- ============================================================================
+-- Element Focus Tests
+-- ============================================================================
+
+TestElementFocus = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementFocus:test_focus_non_editable()
+  local element = createBasicElement({})
+
+  element:focus()
+
+  -- Should not create editor for non-editable element
+  luaunit.assertNil(element._textEditor)
+end
+
+function TestElementFocus:test_focus_editable()
+  local element = createBasicElement({
+    editable = true,
+    text = "Test",
+  })
+
+  element:focus()
+
+  -- Should create editor
+  luaunit.assertNotNil(element._textEditor)
+  luaunit.assertTrue(element:isFocused())
+end
+
+function TestElementFocus:test_blur()
+  local element = createBasicElement({
+    editable = true,
+    text = "Test",
+  })
+
+  element:focus()
+  element:blur()
+
+  luaunit.assertFalse(element:isFocused())
+end
+
+-- ============================================================================
+-- Element Hierarchy Tests
+-- ============================================================================
+
+TestElementHierarchy = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementHierarchy:test_getHierarchyDepth_root()
+  local element = createBasicElement({})
+
+  local depth = element:getHierarchyDepth()
+
+  luaunit.assertEquals(depth, 0)
+end
+
+function TestElementHierarchy:test_getHierarchyDepth_nested()
+  local root = createBasicElement({})
+  local child = createBasicElement({})
+  local grandchild = createBasicElement({})
+
+  root:addChild(child)
+  child:addChild(grandchild)
+
+  luaunit.assertEquals(grandchild:getHierarchyDepth(), 2)
+end
+
+function TestElementHierarchy:test_countElements()
+  local root = createBasicElement({})
+
+  local child1 = createBasicElement({})
+  local child2 = createBasicElement({})
+
+  root:addChild(child1)
+  root:addChild(child2)
+
+  local count = root:countElements()
+
+  luaunit.assertEquals(count, 3) -- root + 2 children
+end
+
+-- ============================================================================
+-- Element Property Setting Tests
+-- ============================================================================
+
+TestElementProperty = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementProperty:tearDown()
+  FlexLove.endFrame()
+end
+
+function TestElementProperty:test_setProperty_valid()
+  local element = createBasicElement({})
+
+  element:setProperty("opacity", 0.5)
+
+  luaunit.assertEquals(element.opacity, 0.5)
+end
+
+function TestElementProperty:test_setProperty_with_transition()
+  local element = createBasicElement({
+    opacity = 1,
+  })
+
+  element:setTransition("opacity", { duration = 1.0 })
+  element:setProperty("opacity", 0)
+
+  -- Transition should be created
+  luaunit.assertNotNil(element._transitions)
+end
+
+-- ============================================================================
+-- Element Transitions Tests
+-- ============================================================================
+
+TestElementTransitions = {}
+
+-- Note: No setUp/tearDown needed - tests use Element.new() directly (retained mode)
+
+function TestElementTransitions:tearDown()
+  FlexLove.endFrame()
+end
+
+function TestElementTransitions:test_removeTransition()
+  local element = createBasicElement({
+    opacity = 1,
+  })
+
+  element:setTransition("opacity", { duration = 1.0 })
+  element:removeTransition("opacity")
+
+  -- Transition should be removed
+  luaunit.assertTrue(true)
+end
+
+function TestElementTransitions:test_setTransitionGroup()
+  local element = createBasicElement({})
+
+  element:setTransitionGroup("fade", { duration = 1.0 }, { "opacity", "scale" })
+
+  luaunit.assertTrue(true)
+end
+
+-- ============================================================================
+-- Element Theme Tests
+-- ============================================================================
+
+TestElementTheme = {}
+
+function TestElementTheme:setUp()
+  FlexLove.beginFrame(1920, 1080)
+end
+
+function TestElementTheme:tearDown()
+  FlexLove.endFrame()
+end
+
+function TestElementTheme:test_getScaledContentPadding_no_theme()
+  local element = createBasicElement({})
+
+  local padding = element:getScaledContentPadding()
+  -- Should return nil if no theme component
+  luaunit.assertNil(padding)
+end
+
+function TestElementTheme:test_getAvailableContentWidth_with_padding()
+  local element = FlexLove.new({
+    id = "content_width",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    padding = 10,
+  })
+
+  local availableWidth = element:getAvailableContentWidth()
+  -- Should be width minus padding
+  luaunit.assertEquals(availableWidth, 180) -- 200 - 10*2
+end
+
+function TestElementTheme:test_getAvailableContentHeight_with_padding()
+  local element = FlexLove.new({
+    id = "content_height",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    padding = 10,
+  })
+
+  local availableHeight = element:getAvailableContentHeight()
+  luaunit.assertEquals(availableHeight, 80) -- 100 - 10*2
+end
+
+-- ============================================================================
+-- Element Convenience API Tests
+-- ============================================================================
+
+TestConvenienceAPI = {}
+
+function TestConvenienceAPI:setUp()
+  FlexLove.beginFrame(1920, 1080)
+end
+
+function TestConvenienceAPI:tearDown()
+  FlexLove.endFrame()
+end
+
+function TestConvenienceAPI:test_flexDirection_row_converts()
+  local element = FlexLove.new({
+    id = "test_row",
+    width = 200,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "row",
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.flexDirection, "horizontal")
+end
+
+function TestConvenienceAPI:test_flexDirection_column_converts()
+  local element = FlexLove.new({
+    id = "test_column",
+    width = 200,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "column",
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.flexDirection, "vertical")
+end
+
+function TestConvenienceAPI:test_padding_single_number()
+  local element = FlexLove.new({
+    id = "test_padding_num",
+    width = 200,
+    height = 100,
+    padding = 10,
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.padding.top, 10)
+  luaunit.assertEquals(element.padding.right, 10)
+  luaunit.assertEquals(element.padding.bottom, 10)
+  luaunit.assertEquals(element.padding.left, 10)
+end
+
+function TestConvenienceAPI:test_padding_single_string()
+  local element = FlexLove.new({
+    id = "test_padding_str",
+    width = 200,
+    height = 100,
+    padding = "5%",
+  })
+
+  luaunit.assertNotNil(element)
+  -- All sides should be 5% of the element's dimensions
+  -- For width: 5% of 200 = 10, for height: 5% of 100 = 5
+  luaunit.assertEquals(element.padding.left, 10)
+  luaunit.assertEquals(element.padding.right, 10)
+  luaunit.assertEquals(element.padding.top, 5)
+  luaunit.assertEquals(element.padding.bottom, 5)
+end
+
+function TestConvenienceAPI:test_margin_single_number()
+  local parent = FlexLove.new({
+    id = "parent",
+    width = 400,
+    height = 300,
+  })
+
+  local element = FlexLove.new({
+    id = "test_margin_num",
+    parent = parent,
+    width = 100,
+    height = 100,
+    margin = 15,
+  })
+
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.margin.top, 15)
+  luaunit.assertEquals(element.margin.right, 15)
+  luaunit.assertEquals(element.margin.bottom, 15)
+  luaunit.assertEquals(element.margin.left, 15)
+end
+
+-- ============================================================================
+-- Element Edge Cases and Error Handling Tests
+-- ============================================================================
+
+TestElementEdgeCases = {}
+
+function TestElementEdgeCases:setUp()
+  FlexLove.beginFrame(1920, 1080)
+end
+
+function TestElementEdgeCases:tearDown()
+  FlexLove.endFrame()
+end
+
+function TestElementEdgeCases:test_element_with_init()
   -- Test that Element.new() works after FlexLove.init() is called
   -- Element now uses module-level dependencies initialized via Element.init()
   FlexLove.init() -- Ensure FlexLove is initialized
@@ -1257,8 +2332,7 @@ function TestElementUnhappyPaths:test_element_with_init()
   luaunit.assertTrue(success) -- Should work after Element.init() is called by FlexLove
 end
 
--- Test: Element with negative dimensions
-function TestElementUnhappyPaths:test_element_negative_dimensions()
+function TestElementEdgeCases:test_element_negative_dimensions()
   local element = FlexLove.new({
     id = "negative",
     x = 0,
@@ -1270,8 +2344,7 @@ function TestElementUnhappyPaths:test_element_negative_dimensions()
   -- Element should still be created (negative values handled)
 end
 
--- Test: Element with zero dimensions
-function TestElementUnhappyPaths:test_element_zero_dimensions()
+function TestElementEdgeCases:test_element_zero_dimensions()
   local element = FlexLove.new({
     id = "zero",
     x = 0,
@@ -1282,8 +2355,7 @@ function TestElementUnhappyPaths:test_element_zero_dimensions()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with invalid opacity values
-function TestElementUnhappyPaths:test_element_invalid_opacity()
+function TestElementEdgeCases:test_element_invalid_opacity()
   -- Opacity > 1
   local success = pcall(function()
     FlexLove.new({
@@ -1307,8 +2379,7 @@ function TestElementUnhappyPaths:test_element_invalid_opacity()
   luaunit.assertFalse(success) -- Should error (validateRange)
 end
 
--- Test: Element with invalid imageOpacity values
-function TestElementUnhappyPaths:test_element_invalid_image_opacity()
+function TestElementEdgeCases:test_element_invalid_image_opacity()
   -- imageOpacity > 1
   local success = pcall(function()
     FlexLove.new({
@@ -1332,8 +2403,7 @@ function TestElementUnhappyPaths:test_element_invalid_image_opacity()
   luaunit.assertFalse(success)
 end
 
--- Test: Element with invalid textSize
-function TestElementUnhappyPaths:test_element_invalid_text_size()
+function TestElementEdgeCases:test_element_invalid_text_size()
   -- Zero textSize
   local success = pcall(function()
     FlexLove.new({
@@ -1357,8 +2427,7 @@ function TestElementUnhappyPaths:test_element_invalid_text_size()
   luaunit.assertFalse(success)
 end
 
--- Test: Element with invalid textAlign enum
-function TestElementUnhappyPaths:test_element_invalid_text_align()
+function TestElementEdgeCases:test_element_invalid_text_align()
   local success = pcall(function()
     FlexLove.new({
       id = "invalid_align",
@@ -1370,8 +2439,7 @@ function TestElementUnhappyPaths:test_element_invalid_text_align()
   luaunit.assertFalse(success) -- Should error (validateEnum)
 end
 
--- Test: Element with invalid positioning enum
-function TestElementUnhappyPaths:test_element_invalid_positioning()
+function TestElementEdgeCases:test_element_invalid_positioning()
   local success = pcall(function()
     FlexLove.new({
       id = "invalid_pos",
@@ -1383,8 +2451,7 @@ function TestElementUnhappyPaths:test_element_invalid_positioning()
   luaunit.assertFalse(success) -- Should error (validateEnum)
 end
 
--- Test: Element with invalid flexDirection enum
-function TestElementUnhappyPaths:test_element_invalid_flex_direction()
+function TestElementEdgeCases:test_element_invalid_flex_direction()
   local success = pcall(function()
     FlexLove.new({
       id = "invalid_flex",
@@ -1397,8 +2464,7 @@ function TestElementUnhappyPaths:test_element_invalid_flex_direction()
   luaunit.assertFalse(success) -- Should error (validateEnum)
 end
 
--- Test: Element with invalid objectFit enum
-function TestElementUnhappyPaths:test_element_invalid_object_fit()
+function TestElementEdgeCases:test_element_invalid_object_fit()
   local success = pcall(function()
     FlexLove.new({
       id = "invalid_fit",
@@ -1410,8 +2476,7 @@ function TestElementUnhappyPaths:test_element_invalid_object_fit()
   luaunit.assertFalse(success) -- Should error (validateEnum)
 end
 
--- Test: Element with nonexistent image path
-function TestElementUnhappyPaths:test_element_nonexistent_image()
+function TestElementEdgeCases:test_element_nonexistent_image()
   local element = FlexLove.new({
     id = "no_image",
     width = 100,
@@ -1422,8 +2487,7 @@ function TestElementUnhappyPaths:test_element_nonexistent_image()
   luaunit.assertNil(element._loadedImage) -- Image should fail to load silently
 end
 
--- Test: Element with passwordMode and multiline (conflicting)
-function TestElementUnhappyPaths:test_element_password_multiline_conflict()
+function TestElementEdgeCases:test_element_password_multiline_conflict()
   local element = FlexLove.new({
     id = "conflict",
     width = 200,
@@ -1436,8 +2500,7 @@ function TestElementUnhappyPaths:test_element_password_multiline_conflict()
   luaunit.assertFalse(element.multiline) -- multiline should be forced to false
 end
 
--- Test: Element addChild with nil child
-function TestElementUnhappyPaths:test_add_nil_child()
+function TestElementEdgeCases:test_add_nil_child()
   local parent = FlexLove.new({
     id = "parent",
     width = 200,
@@ -1450,8 +2513,7 @@ function TestElementUnhappyPaths:test_add_nil_child()
   luaunit.assertFalse(success) -- Should error
 end
 
--- Test: Element removeChild that doesn't exist
-function TestElementUnhappyPaths:test_remove_nonexistent_child()
+function TestElementEdgeCases:test_remove_nonexistent_child()
   local parent = FlexLove.new({
     id = "parent",
     width = 200,
@@ -1468,8 +2530,7 @@ function TestElementUnhappyPaths:test_remove_nonexistent_child()
   luaunit.assertEquals(#parent.children, 0)
 end
 
--- Test: Element removeChild with nil
-function TestElementUnhappyPaths:test_remove_nil_child()
+function TestElementEdgeCases:test_remove_nil_child()
   local parent = FlexLove.new({
     id = "parent",
     width = 200,
@@ -1480,8 +2541,7 @@ function TestElementUnhappyPaths:test_remove_nil_child()
   luaunit.assertTrue(true)
 end
 
--- Test: Element clearChildren on empty parent
-function TestElementUnhappyPaths:test_clear_children_empty()
+function TestElementEdgeCases:test_clear_children_empty()
   local parent = FlexLove.new({
     id = "parent",
     width = 200,
@@ -1492,8 +2552,7 @@ function TestElementUnhappyPaths:test_clear_children_empty()
   luaunit.assertEquals(#parent.children, 0)
 end
 
--- Test: Element clearChildren called twice
-function TestElementUnhappyPaths:test_clear_children_twice()
+function TestElementEdgeCases:test_clear_children_twice()
   local parent = FlexLove.new({
     id = "parent",
     width = 200,
@@ -1508,28 +2567,11 @@ function TestElementUnhappyPaths:test_clear_children_twice()
   })
 
   parent:clearChildren()
-  parent:clearChildren() -- Call again
+  parent:clearChildren()
   luaunit.assertEquals(#parent.children, 0)
 end
 
--- Test: Element contains with NaN coordinates
-function TestElementUnhappyPaths:test_contains_nan_coordinates()
-  local element = FlexLove.new({
-    id = "test",
-    x = 10,
-    y = 20,
-    width = 100,
-    height = 50,
-  })
-
-  local nan = 0 / 0
-  local result = element:contains(nan, nan)
-  -- NaN comparisons return false, so this should be false
-  luaunit.assertFalse(result)
-end
-
--- Test: Element setScrollPosition without ScrollManager
-function TestElementUnhappyPaths:test_scroll_without_manager()
+function TestElementEdgeCases:test_scroll_without_manager()
   local element = FlexLove.new({
     id = "no_scroll",
     width = 100,
@@ -1541,8 +2583,7 @@ function TestElementUnhappyPaths:test_scroll_without_manager()
   luaunit.assertTrue(true)
 end
 
--- Test: Element scrollBy with nil values
-function TestElementUnhappyPaths:test_scroll_by_nil()
+function TestElementEdgeCases:test_scroll_by_nil()
   local element = FlexLove.new({
     id = "scrollable",
     width = 200,
@@ -1554,8 +2595,7 @@ function TestElementUnhappyPaths:test_scroll_by_nil()
   luaunit.assertTrue(true)
 end
 
--- Test: Element destroy on already destroyed element
-function TestElementUnhappyPaths:test_destroy_twice()
+function TestElementEdgeCases:test_destroy_twice()
   local element = FlexLove.new({
     id = "destroyable",
     width = 100,
@@ -1567,8 +2607,7 @@ function TestElementUnhappyPaths:test_destroy_twice()
   luaunit.assertTrue(true)
 end
 
--- Test: Element destroy with circular reference (parent-child)
-function TestElementUnhappyPaths:test_destroy_with_children()
+function TestElementEdgeCases:test_destroy_with_children()
   local parent = FlexLove.new({
     id = "parent",
     width = 200,
@@ -1586,8 +2625,30 @@ function TestElementUnhappyPaths:test_destroy_with_children()
   luaunit.assertEquals(#parent.children, 0)
 end
 
--- Test: Element update with nil dt
-function TestElementUnhappyPaths:test_update_nil_dt()
+function TestElementEdgeCases:test_element_destroy()
+  local parent = FlexLove.new({
+    id = "parent",
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 200,
+  })
+
+  local child = FlexLove.new({
+    id = "child",
+    parent = parent,
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+  })
+
+  luaunit.assertEquals(#parent.children, 1)
+  child:destroy()
+  luaunit.assertNil(child.parent)
+end
+
+function TestElementEdgeCases:test_update_nil_dt()
   local element = FlexLove.new({
     id = "test",
     width = 100,
@@ -1600,8 +2661,7 @@ function TestElementUnhappyPaths:test_update_nil_dt()
   -- May or may not error depending on implementation
 end
 
--- Test: Element update with negative dt
-function TestElementUnhappyPaths:test_update_negative_dt()
+function TestElementEdgeCases:test_update_negative_dt()
   local element = FlexLove.new({
     id = "test",
     width = 100,
@@ -1612,8 +2672,7 @@ function TestElementUnhappyPaths:test_update_negative_dt()
   luaunit.assertTrue(true)
 end
 
--- Test: Element draw with nil backdropCanvas
-function TestElementUnhappyPaths:test_draw_nil_backdrop()
+function TestElementEdgeCases:test_draw_nil_backdrop()
   local element = FlexLove.new({
     id = "test",
     width = 100,
@@ -1624,8 +2683,7 @@ function TestElementUnhappyPaths:test_draw_nil_backdrop()
   luaunit.assertTrue(true)
 end
 
--- Test: Element with invalid cornerRadius types
-function TestElementUnhappyPaths:test_invalid_corner_radius()
+function TestElementEdgeCases:test_invalid_corner_radius()
   -- String cornerRadius
   local element = FlexLove.new({
     id = "test",
@@ -1645,8 +2703,7 @@ function TestElementUnhappyPaths:test_invalid_corner_radius()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with partial cornerRadius table
-function TestElementUnhappyPaths:test_partial_corner_radius()
+function TestElementEdgeCases:test_partial_corner_radius()
   local element = FlexLove.new({
     id = "test",
     width = 100,
@@ -1661,8 +2718,7 @@ function TestElementUnhappyPaths:test_partial_corner_radius()
   luaunit.assertEquals(element.cornerRadius.topRight, 0)
 end
 
--- Test: Element with invalid border types
-function TestElementUnhappyPaths:test_invalid_border()
+function TestElementEdgeCases:test_invalid_border()
   -- String border
   local element = FlexLove.new({
     id = "test",
@@ -1682,8 +2738,7 @@ function TestElementUnhappyPaths:test_invalid_border()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with partial border table
-function TestElementUnhappyPaths:test_partial_border()
+function TestElementEdgeCases:test_partial_border()
   local element = FlexLove.new({
     id = "test",
     width = 100,
@@ -1701,8 +2756,7 @@ function TestElementUnhappyPaths:test_partial_border()
   luaunit.assertFalse(element.border.bottom)
 end
 
--- Test: Element with invalid padding types
-function TestElementUnhappyPaths:test_invalid_padding()
+function TestElementEdgeCases:test_invalid_padding()
   -- String padding
   local element = FlexLove.new({
     id = "test",
@@ -1722,8 +2776,7 @@ function TestElementUnhappyPaths:test_invalid_padding()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with invalid margin types
-function TestElementUnhappyPaths:test_invalid_margin()
+function TestElementEdgeCases:test_invalid_margin()
   -- String margin
   local element = FlexLove.new({
     id = "test",
@@ -1734,8 +2787,7 @@ function TestElementUnhappyPaths:test_invalid_margin()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with invalid gap value
-function TestElementUnhappyPaths:test_invalid_gap()
+function TestElementEdgeCases:test_invalid_gap()
   -- Negative gap
   local element = FlexLove.new({
     id = "test",
@@ -1758,8 +2810,7 @@ function TestElementUnhappyPaths:test_invalid_gap()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element setText on non-text element
-function TestElementUnhappyPaths:test_set_text_on_non_text()
+function TestElementEdgeCases:test_set_text_on_non_text()
   local element = FlexLove.new({
     id = "no_text",
     width = 100,
@@ -1770,8 +2821,7 @@ function TestElementUnhappyPaths:test_set_text_on_non_text()
   luaunit.assertEquals(element.text, "New text")
 end
 
--- Test: Element setText with nil
-function TestElementUnhappyPaths:test_set_text_nil()
+function TestElementEdgeCases:test_set_text_nil()
   local element = FlexLove.new({
     id = "text",
     width = 100,
@@ -1783,8 +2833,7 @@ function TestElementUnhappyPaths:test_set_text_nil()
   luaunit.assertNil(element.text)
 end
 
--- Test: Element with conflicting size constraints
-function TestElementUnhappyPaths:test_conflicting_size_constraints()
+function TestElementEdgeCases:test_conflicting_size_constraints()
   -- Width less than padding
   local element = FlexLove.new({
     id = "conflict",
@@ -1796,8 +2845,7 @@ function TestElementUnhappyPaths:test_conflicting_size_constraints()
   -- Content width should be clamped to 0 or handled gracefully
 end
 
--- Test: Element textinput on non-editable element
-function TestElementUnhappyPaths:test_textinput_non_editable()
+function TestElementEdgeCases:test_textinput_non_editable()
   local element = FlexLove.new({
     id = "not_editable",
     width = 100,
@@ -1811,8 +2859,7 @@ function TestElementUnhappyPaths:test_textinput_non_editable()
   -- Should either do nothing or handle gracefully
 end
 
--- Test: Element keypressed on non-editable element
-function TestElementUnhappyPaths:test_keypressed_non_editable()
+function TestElementEdgeCases:test_keypressed_non_editable()
   local element = FlexLove.new({
     id = "not_editable",
     width = 100,
@@ -1826,8 +2873,7 @@ function TestElementUnhappyPaths:test_keypressed_non_editable()
   -- Should either do nothing or handle gracefully
 end
 
--- Test: Element with invalid blur configuration
-function TestElementUnhappyPaths:test_invalid_blur_config()
+function TestElementEdgeCases:test_invalid_blur_config()
   -- Negative intensity
   local element = FlexLove.new({
     id = "blur",
@@ -1856,8 +2902,7 @@ function TestElementUnhappyPaths:test_invalid_blur_config()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element getAvailableContentWidth/Height on element with no padding
-function TestElementUnhappyPaths:test_available_content_no_padding()
+function TestElementEdgeCases:test_available_content_no_padding()
   local element = FlexLove.new({
     id = "test",
     width = 100,
@@ -1871,8 +2916,7 @@ function TestElementUnhappyPaths:test_available_content_no_padding()
   luaunit.assertEquals(availHeight, 100)
 end
 
--- Test: Element with maxLines but no multiline
-function TestElementUnhappyPaths:test_max_lines_without_multiline()
+function TestElementEdgeCases:test_max_lines_without_multiline()
   local element = FlexLove.new({
     id = "text",
     width = 200,
@@ -1884,8 +2928,7 @@ function TestElementUnhappyPaths:test_max_lines_without_multiline()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with maxLength 0
-function TestElementUnhappyPaths:test_max_length_zero()
+function TestElementEdgeCases:test_max_length_zero()
   local element = FlexLove.new({
     id = "text",
     width = 200,
@@ -1896,8 +2939,7 @@ function TestElementUnhappyPaths:test_max_length_zero()
   luaunit.assertNotNil(element)
 end
 
--- Test: Element with negative maxLength
-function TestElementUnhappyPaths:test_max_length_negative()
+function TestElementEdgeCases:test_max_length_negative()
   local element = FlexLove.new({
     id = "text",
     width = 200,
@@ -1908,166 +2950,7 @@ function TestElementUnhappyPaths:test_max_length_negative()
   luaunit.assertNotNil(element)
 end
 
--- Test suite for convenience API features
-TestConvenienceAPI = {}
-
-function TestConvenienceAPI:setUp()
-  FlexLove.beginFrame(1920, 1080)
-end
-
-function TestConvenienceAPI:tearDown()
-  FlexLove.endFrame()
-end
-
--- Test: flexDirection "row" converts to "horizontal"
-function TestConvenienceAPI:test_flexDirection_row_converts()
-  local element = FlexLove.new({
-    id = "test_row",
-    width = 200,
-    height = 100,
-    positioning = "flex",
-    flexDirection = "row",
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.flexDirection, "horizontal")
-end
-
--- Test: flexDirection "column" converts to "vertical"
-function TestConvenienceAPI:test_flexDirection_column_converts()
-  local element = FlexLove.new({
-    id = "test_column",
-    width = 200,
-    height = 100,
-    positioning = "flex",
-    flexDirection = "column",
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.flexDirection, "vertical")
-end
-
--- Test: Single number padding expands to all sides
-function TestConvenienceAPI:test_padding_single_number()
-  local element = FlexLove.new({
-    id = "test_padding_num",
-    width = 200,
-    height = 100,
-    padding = 10,
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.padding.top, 10)
-  luaunit.assertEquals(element.padding.right, 10)
-  luaunit.assertEquals(element.padding.bottom, 10)
-  luaunit.assertEquals(element.padding.left, 10)
-end
-
--- Test: Single string padding expands to all sides
-function TestConvenienceAPI:test_padding_single_string()
-  local element = FlexLove.new({
-    id = "test_padding_str",
-    width = 200,
-    height = 100,
-    padding = "5%",
-  })
-
-  luaunit.assertNotNil(element)
-  -- All sides should be 5% of the element's dimensions
-  -- For width: 5% of 200 = 10, for height: 5% of 100 = 5
-  luaunit.assertEquals(element.padding.left, 10)
-  luaunit.assertEquals(element.padding.right, 10)
-  luaunit.assertEquals(element.padding.top, 5)
-  luaunit.assertEquals(element.padding.bottom, 5)
-end
-
--- Test: Single number margin expands to all sides
-function TestConvenienceAPI:test_margin_single_number()
-  local parent = FlexLove.new({
-    id = "parent",
-    width = 400,
-    height = 300,
-  })
-
-  local element = FlexLove.new({
-    id = "test_margin_num",
-    parent = parent,
-    width = 100,
-    height = 100,
-    margin = 15,
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.margin.top, 15)
-  luaunit.assertEquals(element.margin.right, 15)
-  luaunit.assertEquals(element.margin.bottom, 15)
-  luaunit.assertEquals(element.margin.left, 15)
-end
-
--- Test: Single string margin expands to all sides
-function TestConvenienceAPI:test_margin_single_string()
-  local parent = FlexLove.new({
-    id = "parent",
-    width = 400,
-    height = 300,
-  })
-
-  local element = FlexLove.new({
-    id = "test_margin_str",
-    parent = parent,
-    width = 100,
-    height = 100,
-    margin = "10%",
-  })
-
-  luaunit.assertNotNil(element)
-  -- Margin percentages are relative to parent dimensions
-  -- 10% of parent width 400 = 40, 10% of parent height 300 = 30
-  luaunit.assertEquals(element.margin.left, 40)
-  luaunit.assertEquals(element.margin.right, 40)
-  luaunit.assertEquals(element.margin.top, 30)
-  luaunit.assertEquals(element.margin.bottom, 30)
-end
-
--- Test: Table padding still works (backward compatibility)
-function TestConvenienceAPI:test_padding_table_still_works()
-  local element = FlexLove.new({
-    id = "test_padding_table",
-    width = 200,
-    height = 100,
-    padding = { top = 5, right = 10, bottom = 15, left = 20 },
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.padding.top, 5)
-  luaunit.assertEquals(element.padding.right, 10)
-  luaunit.assertEquals(element.padding.bottom, 15)
-  luaunit.assertEquals(element.padding.left, 20)
-end
-
--- Test: Table margin still works (backward compatibility)
-function TestConvenienceAPI:test_margin_table_still_works()
-  local parent = FlexLove.new({
-    id = "parent",
-    width = 400,
-    height = 300,
-  })
-
-  local element = FlexLove.new({
-    id = "test_margin_table",
-    parent = parent,
-    width = 100,
-    height = 100,
-    margin = { top = 5, right = 10, bottom = 15, left = 20 },
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.margin.top, 5)
-  luaunit.assertEquals(element.margin.right, 10)
-  luaunit.assertEquals(element.margin.bottom, 15)
-  luaunit.assertEquals(element.margin.left, 20)
-end
-
+-- Run tests
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())
 end

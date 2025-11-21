@@ -3,9 +3,13 @@ require("testing.loveStub")
 
 local NinePatch = require("modules.NinePatch")
 
-TestNinePatch = {}
+-- =============================================================================
+-- Test Suite 1: Basic Initialization and Setup
+-- =============================================================================
 
-function TestNinePatch:setUp()
+TestNinePatchBasics = {}
+
+function TestNinePatchBasics:setUp()
   -- Create a minimal mock component with regions
   self.mockComponent = {
     regions = {
@@ -28,115 +32,285 @@ function TestNinePatch:setUp()
   }
 end
 
--- Unhappy path tests for NinePatch.draw()
+-- =============================================================================
+-- Test Suite 2: Nil and Invalid Input Handling
+-- =============================================================================
 
-function TestNinePatch:testDrawWithNilComponent()
+TestNinePatchNilInputs = {}
+
+function TestNinePatchNilInputs:setUp()
+  self.mockComponent = {
+    regions = {
+      topLeft = { x = 0, y = 0, w = 10, h = 10 },
+      topCenter = { x = 10, y = 0, w = 20, h = 10 },
+      topRight = { x = 30, y = 0, w = 10, h = 10 },
+      middleLeft = { x = 0, y = 10, w = 10, h = 20 },
+      middleCenter = { x = 10, y = 10, w = 20, h = 20 },
+      middleRight = { x = 30, y = 10, w = 10, h = 20 },
+      bottomLeft = { x = 0, y = 30, w = 10, h = 10 },
+      bottomCenter = { x = 10, y = 30, w = 20, h = 10 },
+      bottomRight = { x = 30, y = 30, w = 10, h = 10 },
+    },
+  }
+
+  self.mockAtlas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
+end
+
+function TestNinePatchNilInputs:testDrawWithNilComponent()
   -- Should return early without error
   NinePatch.draw(nil, self.mockAtlas, 0, 0, 100, 100)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNilAtlas()
+function TestNinePatchNilInputs:testDrawWithNilAtlas()
   -- Should return early without error
   NinePatch.draw(self.mockComponent, nil, 0, 0, 100, 100)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithBothNil()
+function TestNinePatchNilInputs:testDrawWithBothNil()
   -- Should return early without error
   NinePatch.draw(nil, nil, 0, 0, 100, 100)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithZeroWidth()
+-- =============================================================================
+-- Test Suite 3: Zero and Negative Dimensions
+-- =============================================================================
+
+TestNinePatchDimensions = {}
+
+function TestNinePatchDimensions:setUp()
+  self.mockComponent = {
+    regions = {
+      topLeft = { x = 0, y = 0, w = 10, h = 10 },
+      topCenter = { x = 10, y = 0, w = 20, h = 10 },
+      topRight = { x = 30, y = 0, w = 10, h = 10 },
+      middleLeft = { x = 0, y = 10, w = 10, h = 20 },
+      middleCenter = { x = 10, y = 10, w = 20, h = 20 },
+      middleRight = { x = 30, y = 10, w = 10, h = 20 },
+      bottomLeft = { x = 0, y = 30, w = 10, h = 10 },
+      bottomCenter = { x = 10, y = 30, w = 20, h = 10 },
+      bottomRight = { x = 30, y = 30, w = 10, h = 10 },
+    },
+  }
+
+  self.mockAtlas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
+end
+
+function TestNinePatchDimensions:testDrawWithZeroWidth()
   -- Should handle zero width gracefully
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 0, 100)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithZeroHeight()
+function TestNinePatchDimensions:testDrawWithZeroHeight()
   -- Should handle zero height gracefully
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 0)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNegativeWidth()
+function TestNinePatchDimensions:testDrawWithNegativeWidth()
   -- Should handle negative width
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, -100, 100)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNegativeHeight()
+function TestNinePatchDimensions:testDrawWithNegativeHeight()
   -- Should handle negative height
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, -100)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithSmallDimensions()
+function TestNinePatchDimensions:testDrawWithSmallDimensions()
   -- Dimensions smaller than borders - should clamp
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 5, 5)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithVeryLargeDimensions()
+function TestNinePatchDimensions:testDrawWithVeryLargeDimensions()
   -- Very large dimensions
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 10000, 10000)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNegativePosition()
+function TestNinePatchDimensions:testDrawWithWidthEqualToBorders()
+  -- Width exactly equals left + right borders
+  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 20, 100)
+  luaunit.assertTrue(true)
+end
+
+function TestNinePatchDimensions:testDrawWithHeightEqualToBorders()
+  -- Height exactly equals top + bottom borders
+  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 20)
+  luaunit.assertTrue(true)
+end
+
+function TestNinePatchDimensions:testDrawWithExactBorderDimensions()
+  -- Both width and height equal borders
+  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 20, 20)
+  luaunit.assertTrue(true)
+end
+
+function TestNinePatchDimensions:testDrawWithOneLessThanBorders()
+  -- Dimensions one pixel less than borders
+  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 19, 19)
+  luaunit.assertTrue(true)
+end
+
+function TestNinePatchDimensions:testDrawWithFractionalDimensions()
+  -- Non-integer dimensions
+  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100.5, 100.7)
+  luaunit.assertTrue(true)
+end
+
+-- =============================================================================
+-- Test Suite 4: Position and Coordinate Edge Cases
+-- =============================================================================
+
+TestNinePatchPositioning = {}
+
+function TestNinePatchPositioning:setUp()
+  self.mockComponent = {
+    regions = {
+      topLeft = { x = 0, y = 0, w = 10, h = 10 },
+      topCenter = { x = 10, y = 0, w = 20, h = 10 },
+      topRight = { x = 30, y = 0, w = 10, h = 10 },
+      middleLeft = { x = 0, y = 10, w = 10, h = 20 },
+      middleCenter = { x = 10, y = 10, w = 20, h = 20 },
+      middleRight = { x = 30, y = 10, w = 10, h = 20 },
+      bottomLeft = { x = 0, y = 30, w = 10, h = 10 },
+      bottomCenter = { x = 10, y = 30, w = 20, h = 10 },
+      bottomRight = { x = 30, y = 30, w = 10, h = 10 },
+    },
+  }
+
+  self.mockAtlas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
+end
+
+function TestNinePatchPositioning:testDrawWithNegativePosition()
   -- Negative x, y positions
   NinePatch.draw(self.mockComponent, self.mockAtlas, -100, -100, 200, 200)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithDefaultOpacity()
+function TestNinePatchPositioning:testDrawWithFractionalPosition()
+  -- Non-integer position
+  NinePatch.draw(self.mockComponent, self.mockAtlas, 10.3, 20.7, 100, 100)
+  luaunit.assertTrue(true)
+end
+
+-- =============================================================================
+-- Test Suite 5: Opacity Parameter Handling
+-- =============================================================================
+
+TestNinePatchOpacity = {}
+
+function TestNinePatchOpacity:setUp()
+  self.mockComponent = {
+    regions = {
+      topLeft = { x = 0, y = 0, w = 10, h = 10 },
+      topCenter = { x = 10, y = 0, w = 20, h = 10 },
+      topRight = { x = 30, y = 0, w = 10, h = 10 },
+      middleLeft = { x = 0, y = 10, w = 10, h = 20 },
+      middleCenter = { x = 10, y = 10, w = 20, h = 20 },
+      middleRight = { x = 30, y = 10, w = 10, h = 20 },
+      bottomLeft = { x = 0, y = 30, w = 10, h = 10 },
+      bottomCenter = { x = 10, y = 30, w = 20, h = 10 },
+      bottomRight = { x = 30, y = 30, w = 10, h = 10 },
+    },
+  }
+
+  self.mockAtlas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
+end
+
+function TestNinePatchOpacity:testDrawWithDefaultOpacity()
   -- Opacity defaults to 1
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, nil)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithZeroOpacity()
+function TestNinePatchOpacity:testDrawWithZeroOpacity()
   -- Zero opacity
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, 0)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNegativeOpacity()
+function TestNinePatchOpacity:testDrawWithNegativeOpacity()
   -- Negative opacity
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, -0.5)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithOpacityGreaterThanOne()
+function TestNinePatchOpacity:testDrawWithOpacityGreaterThanOne()
   -- Opacity > 1
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, 2.0)
   luaunit.assertTrue(true)
 end
 
--- Test with missing regions
+-- =============================================================================
+-- Test Suite 6: ScaleCorners Parameter Handling
+-- =============================================================================
 
--- Test with scaleCorners = 0 (no scaling, just stretching)
+TestNinePatchScaling = {}
 
-function TestNinePatch:testDrawWithZeroScaleCorners()
+function TestNinePatchScaling:setUp()
+  self.mockComponent = {
+    regions = {
+      topLeft = { x = 0, y = 0, w = 10, h = 10 },
+      topCenter = { x = 10, y = 0, w = 20, h = 10 },
+      topRight = { x = 30, y = 0, w = 10, h = 10 },
+      middleLeft = { x = 0, y = 10, w = 10, h = 20 },
+      middleCenter = { x = 10, y = 10, w = 20, h = 20 },
+      middleRight = { x = 30, y = 10, w = 10, h = 20 },
+      bottomLeft = { x = 0, y = 30, w = 10, h = 10 },
+      bottomCenter = { x = 10, y = 30, w = 20, h = 10 },
+      bottomRight = { x = 30, y = 30, w = 10, h = 10 },
+    },
+  }
+
+  self.mockAtlas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
+end
+
+function TestNinePatchScaling:testDrawWithZeroScaleCorners()
   -- Zero should not trigger scaling path
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, 1, 0)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNegativeScaleCorners()
+function TestNinePatchScaling:testDrawWithNegativeScaleCorners()
   -- Negative should not trigger scaling path
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, 1, -1)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithNilScaleCorners()
+function TestNinePatchScaling:testDrawWithNilScaleCorners()
   -- Nil should use component setting or default (no scaling)
   NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 100, 1, nil)
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithComponentScalingAlgorithm()
+function TestNinePatchScaling:testDrawWithComponentScalingAlgorithm()
   -- Test that scalingAlgorithm property exists but don't trigger scaling path
   local componentWithAlgorithm = {
     regions = self.mockComponent.regions,
@@ -147,47 +321,21 @@ function TestNinePatch:testDrawWithComponentScalingAlgorithm()
   luaunit.assertTrue(true)
 end
 
--- Edge cases with specific dimensions
+-- =============================================================================
+-- Test Suite 7: Unusual Region Configurations
+-- =============================================================================
 
-function TestNinePatch:testDrawWithWidthEqualToBorders()
-  -- Width exactly equals left + right borders
-  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 20, 100)
-  luaunit.assertTrue(true)
+TestNinePatchRegions = {}
+
+function TestNinePatchRegions:setUp()
+  self.mockAtlas = {
+    getDimensions = function()
+      return 100, 100
+    end,
+  }
 end
 
-function TestNinePatch:testDrawWithHeightEqualToBorders()
-  -- Height exactly equals top + bottom borders
-  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100, 20)
-  luaunit.assertTrue(true)
-end
-
-function TestNinePatch:testDrawWithExactBorderDimensions()
-  -- Both width and height equal borders
-  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 20, 20)
-  luaunit.assertTrue(true)
-end
-
-function TestNinePatch:testDrawWithOneLessThanBorders()
-  -- Dimensions one pixel less than borders
-  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 19, 19)
-  luaunit.assertTrue(true)
-end
-
-function TestNinePatch:testDrawWithFractionalDimensions()
-  -- Non-integer dimensions
-  NinePatch.draw(self.mockComponent, self.mockAtlas, 0, 0, 100.5, 100.7)
-  luaunit.assertTrue(true)
-end
-
-function TestNinePatch:testDrawWithFractionalPosition()
-  -- Non-integer position
-  NinePatch.draw(self.mockComponent, self.mockAtlas, 10.3, 20.7, 100, 100)
-  luaunit.assertTrue(true)
-end
-
--- Test with unusual region sizes
-
-function TestNinePatch:testDrawWithAsymmetricBorders()
+function TestNinePatchRegions:testDrawWithAsymmetricBorders()
   local asymmetric = {
     regions = {
       topLeft = { x = 0, y = 0, w = 5, h = 5 },
@@ -205,7 +353,7 @@ function TestNinePatch:testDrawWithAsymmetricBorders()
   luaunit.assertTrue(true)
 end
 
-function TestNinePatch:testDrawWithVerySmallRegions()
+function TestNinePatchRegions:testDrawWithVerySmallRegions()
   local tiny = {
     regions = {
       topLeft = { x = 0, y = 0, w = 1, h = 1 },

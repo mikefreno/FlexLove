@@ -10,8 +10,18 @@ local ImageCache = require("modules.ImageCache")
 local Theme = require("modules.Theme")
 local Blur = require("modules.Blur")
 local utils = require("modules.utils")
+local ErrorHandler = require("modules.ErrorHandler")
+local FlexLove = require("FlexLove")
 
-TestRenderer = {}
+-- Initialize ErrorHandler
+ErrorHandler.init({})
+
+-- Initialize FlexLove
+FlexLove.init()
+
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
 
 -- Helper to create dependencies
 local function createDeps()
@@ -61,8 +71,13 @@ local function createMockElement()
   return element
 end
 
--- Test: new() creates instance with defaults
-function TestRenderer:testNewWithDefaults()
+-- ============================================================================
+-- Test Suite: Renderer Construction
+-- ============================================================================
+
+TestRendererConstruction = {}
+
+function TestRendererConstruction:testNewWithDefaults()
   local renderer = Renderer.new({}, createDeps())
 
   luaunit.assertNotNil(renderer)
@@ -72,8 +87,37 @@ function TestRenderer:testNewWithDefaults()
   luaunit.assertEquals(renderer.imageOpacity, 1)
 end
 
--- Test: new() with custom backgroundColor
-function TestRenderer:testNewWithBackgroundColor()
+function TestRendererConstruction:testNewWithEmptyConfig()
+  local renderer = Renderer.new({}, createDeps())
+
+  luaunit.assertNotNil(renderer)
+  luaunit.assertNotNil(renderer.backgroundColor)
+  luaunit.assertNotNil(renderer.borderColor)
+  luaunit.assertNotNil(renderer.border)
+  luaunit.assertNotNil(renderer.cornerRadius)
+end
+
+function TestRendererConstruction:testNewStoresDependencies()
+  local deps = createDeps()
+  local renderer = Renderer.new({}, deps)
+
+  luaunit.assertEquals(renderer._Color, deps.Color)
+  luaunit.assertEquals(renderer._RoundedRect, deps.RoundedRect)
+  luaunit.assertEquals(renderer._NinePatch, deps.NinePatch)
+  luaunit.assertEquals(renderer._ImageRenderer, deps.ImageRenderer)
+  luaunit.assertEquals(renderer._ImageCache, deps.ImageCache)
+  luaunit.assertEquals(renderer._Theme, deps.Theme)
+  luaunit.assertEquals(renderer._Blur, deps.Blur)
+  luaunit.assertEquals(renderer._utils, deps.utils)
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Color Properties
+-- ============================================================================
+
+TestRendererColors = {}
+
+function TestRendererColors:testNewWithBackgroundColor()
   local bgColor = Color.new(1, 0, 0, 1)
   local renderer = Renderer.new({
     backgroundColor = bgColor,
@@ -82,8 +126,7 @@ function TestRenderer:testNewWithBackgroundColor()
   luaunit.assertEquals(renderer.backgroundColor, bgColor)
 end
 
--- Test: new() with custom borderColor
-function TestRenderer:testNewWithBorderColor()
+function TestRendererColors:testNewWithBorderColor()
   local borderColor = Color.new(0, 1, 0, 1)
   local renderer = Renderer.new({
     borderColor = borderColor,
@@ -92,8 +135,13 @@ function TestRenderer:testNewWithBorderColor()
   luaunit.assertEquals(renderer.borderColor, borderColor)
 end
 
--- Test: new() with custom opacity
-function TestRenderer:testNewWithOpacity()
+-- ============================================================================
+-- Test Suite: Renderer Opacity
+-- ============================================================================
+
+TestRendererOpacity = {}
+
+function TestRendererOpacity:testNewWithOpacity()
   local renderer = Renderer.new({
     opacity = 0.5,
   }, createDeps())
@@ -101,8 +149,61 @@ function TestRenderer:testNewWithOpacity()
   luaunit.assertEquals(renderer.opacity, 0.5)
 end
 
--- Test: new() with border configuration
-function TestRenderer:testNewWithBorder()
+function TestRendererOpacity:testNewWithFractionalOpacity()
+  local renderer = Renderer.new({
+    opacity = 0.333,
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.opacity, 0.333)
+end
+
+function TestRendererOpacity:testNewWithNegativeOpacity()
+  local renderer = Renderer.new({
+    opacity = -0.5,
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.opacity, -0.5)
+end
+
+function TestRendererOpacity:testNewWithOpacityGreaterThanOne()
+  local renderer = Renderer.new({
+    opacity = 1.5,
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.opacity, 1.5)
+end
+
+function TestRendererOpacity:testNewWithImageOpacity()
+  local renderer = Renderer.new({
+    imageOpacity = 0.7,
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.imageOpacity, 0.7)
+end
+
+function TestRendererOpacity:testNewWithFractionalImageOpacity()
+  local renderer = Renderer.new({
+    imageOpacity = 0.777,
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.imageOpacity, 0.777)
+end
+
+function TestRendererOpacity:testNewWithZeroImageOpacity()
+  local renderer = Renderer.new({
+    imageOpacity = 0,
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.imageOpacity, 0)
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Border Configuration
+-- ============================================================================
+
+TestRendererBorder = {}
+
+function TestRendererBorder:testNewWithBorder()
   local renderer = Renderer.new({
     border = {
       top = true,
@@ -118,8 +219,29 @@ function TestRenderer:testNewWithBorder()
   luaunit.assertFalse(renderer.border.left)
 end
 
--- Test: new() with cornerRadius
-function TestRenderer:testNewWithCornerRadius()
+function TestRendererBorder:testNewWithAllBordersEnabled()
+  local renderer = Renderer.new({
+    border = {
+      top = true,
+      right = true,
+      bottom = true,
+      left = true,
+    },
+  }, createDeps())
+
+  luaunit.assertTrue(renderer.border.top)
+  luaunit.assertTrue(renderer.border.right)
+  luaunit.assertTrue(renderer.border.bottom)
+  luaunit.assertTrue(renderer.border.left)
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Corner Radius
+-- ============================================================================
+
+TestRendererCornerRadius = {}
+
+function TestRendererCornerRadius:testNewWithCornerRadius()
   local renderer = Renderer.new({
     cornerRadius = {
       topLeft = 5,
@@ -135,8 +257,29 @@ function TestRenderer:testNewWithCornerRadius()
   luaunit.assertEquals(renderer.cornerRadius.bottomRight, 20)
 end
 
--- Test: new() with theme
-function TestRenderer:testNewWithTheme()
+function TestRendererCornerRadius:testNewWithZeroCornerRadius()
+  local renderer = Renderer.new({
+    cornerRadius = {
+      topLeft = 0,
+      topRight = 0,
+      bottomLeft = 0,
+      bottomRight = 0,
+    },
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.cornerRadius.topLeft, 0)
+  luaunit.assertEquals(renderer.cornerRadius.topRight, 0)
+  luaunit.assertEquals(renderer.cornerRadius.bottomLeft, 0)
+  luaunit.assertEquals(renderer.cornerRadius.bottomRight, 0)
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Theme
+-- ============================================================================
+
+TestRendererTheme = {}
+
+function TestRendererTheme:testNewWithTheme()
   local renderer = Renderer.new({
     theme = "dark",
     themeComponent = "button",
@@ -147,8 +290,44 @@ function TestRenderer:testNewWithTheme()
   luaunit.assertEquals(renderer._themeState, "normal")
 end
 
--- Test: new() with imagePath (failed load)
-function TestRenderer:testNewWithImagePath()
+function TestRendererTheme:testThemeStateDefault()
+  local renderer = Renderer.new({
+    theme = "dark",
+  }, createDeps())
+
+  luaunit.assertEquals(renderer._themeState, "normal")
+end
+
+function TestRendererTheme:testSetThemeState()
+  local renderer = Renderer.new({}, createDeps())
+
+  renderer:setThemeState("hover")
+  luaunit.assertEquals(renderer._themeState, "hover")
+
+  renderer:setThemeState("pressed")
+  luaunit.assertEquals(renderer._themeState, "pressed")
+
+  renderer:setThemeState("disabled")
+  luaunit.assertEquals(renderer._themeState, "disabled")
+end
+
+function TestRendererTheme:testSetThemeStateVariousStates()
+  local renderer = Renderer.new({}, createDeps())
+
+  renderer:setThemeState("active")
+  luaunit.assertEquals(renderer._themeState, "active")
+
+  renderer:setThemeState("normal")
+  luaunit.assertEquals(renderer._themeState, "normal")
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Image Handling
+-- ============================================================================
+
+TestRendererImages = {}
+
+function TestRendererImages:testNewWithImagePath()
   local renderer = Renderer.new({
     imagePath = "nonexistent/image.png",
   }, createDeps())
@@ -158,8 +337,7 @@ function TestRenderer:testNewWithImagePath()
   luaunit.assertNil(renderer._loadedImage)
 end
 
--- Test: new() with imagePath (successful load via cache)
-function TestRenderer:testNewWithImagePathSuccessfulLoad()
+function TestRendererImages:testNewWithImagePathSuccessfulLoad()
   local mockImage = {
     getDimensions = function()
       return 50, 50
@@ -183,8 +361,7 @@ function TestRenderer:testNewWithImagePathSuccessfulLoad()
   ImageCache._cache["test/image.png"] = nil
 end
 
--- Test: new() with image object
-function TestRenderer:testNewWithImageObject()
+function TestRendererImages:testNewWithImageObject()
   local mockImage = {
     getDimensions = function()
       return 50, 50
@@ -199,161 +376,7 @@ function TestRenderer:testNewWithImageObject()
   luaunit.assertEquals(renderer._loadedImage, mockImage)
 end
 
--- Test: new() with objectFit
-function TestRenderer:testNewWithObjectFit()
-  local renderer = Renderer.new({
-    objectFit = "contain",
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.objectFit, "contain")
-end
-
--- Test: new() with objectPosition
-function TestRenderer:testNewWithObjectPosition()
-  local renderer = Renderer.new({
-    objectPosition = "top left",
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.objectPosition, "top left")
-end
-
--- Test: new() with imageOpacity
-function TestRenderer:testNewWithImageOpacity()
-  local renderer = Renderer.new({
-    imageOpacity = 0.7,
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.imageOpacity, 0.7)
-end
-
--- Test: new() with contentBlur
-function TestRenderer:testNewWithContentBlur()
-  local renderer = Renderer.new({
-    contentBlur = {
-      intensity = 5,
-      quality = "high",
-    },
-  }, createDeps())
-
-  luaunit.assertNotNil(renderer.contentBlur)
-  luaunit.assertEquals(renderer.contentBlur.intensity, 5)
-  luaunit.assertEquals(renderer.contentBlur.quality, "high")
-end
-
--- Test: new() with backdropBlur
-function TestRenderer:testNewWithBackdropBlur()
-  local renderer = Renderer.new({
-    backdropBlur = {
-      intensity = 10,
-      quality = "medium",
-    },
-  }, createDeps())
-
-  luaunit.assertNotNil(renderer.backdropBlur)
-  luaunit.assertEquals(renderer.backdropBlur.intensity, 10)
-  luaunit.assertEquals(renderer.backdropBlur.quality, "medium")
-end
-
--- Test: initialize() sets element reference
-function TestRenderer:testInitialize()
-  local renderer = Renderer.new({}, createDeps())
-  local mockElement = createMockElement()
-
-  renderer:initialize(mockElement)
-
-  luaunit.assertEquals(renderer._element, mockElement)
-end
-
--- Test: setThemeState() changes state
-function TestRenderer:testSetThemeState()
-  local renderer = Renderer.new({}, createDeps())
-
-  renderer:setThemeState("hover")
-  luaunit.assertEquals(renderer._themeState, "hover")
-
-  renderer:setThemeState("pressed")
-  luaunit.assertEquals(renderer._themeState, "pressed")
-
-  renderer:setThemeState("disabled")
-  luaunit.assertEquals(renderer._themeState, "disabled")
-end
-
--- Note: getBlurInstance() tests are skipped because Renderer.lua has a bug
--- where it passes string quality names ("high", "medium", "low") to Blur.new()
--- but Blur.new() expects numeric quality values (1-10)
-
--- Test: destroy() method exists and can be called
-function TestRenderer:testDestroy()
-  local renderer = Renderer.new({}, createDeps())
-
-  -- Should not error
-  renderer:destroy()
-  luaunit.assertTrue(true)
-end
-
--- Test: new() with all border sides enabled
-function TestRenderer:testNewWithAllBordersEnabled()
-  local renderer = Renderer.new({
-    border = {
-      top = true,
-      right = true,
-      bottom = true,
-      left = true,
-    },
-  }, createDeps())
-
-  luaunit.assertTrue(renderer.border.top)
-  luaunit.assertTrue(renderer.border.right)
-  luaunit.assertTrue(renderer.border.bottom)
-  luaunit.assertTrue(renderer.border.left)
-end
-
--- Test: new() with zero cornerRadius
-function TestRenderer:testNewWithZeroCornerRadius()
-  local renderer = Renderer.new({
-    cornerRadius = {
-      topLeft = 0,
-      topRight = 0,
-      bottomLeft = 0,
-      bottomRight = 0,
-    },
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.cornerRadius.topLeft, 0)
-  luaunit.assertEquals(renderer.cornerRadius.topRight, 0)
-  luaunit.assertEquals(renderer.cornerRadius.bottomLeft, 0)
-  luaunit.assertEquals(renderer.cornerRadius.bottomRight, 0)
-end
-
--- Test: new() with negative opacity (edge case)
-function TestRenderer:testNewWithNegativeOpacity()
-  local renderer = Renderer.new({
-    opacity = -0.5,
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.opacity, -0.5)
-end
-
--- Test: new() with opacity > 1 (edge case)
-function TestRenderer:testNewWithOpacityGreaterThanOne()
-  local renderer = Renderer.new({
-    opacity = 1.5,
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.opacity, 1.5)
-end
-
--- Test: new() with zero imageOpacity
-function TestRenderer:testNewWithZeroImageOpacity()
-  local renderer = Renderer.new({
-    imageOpacity = 0,
-  }, createDeps())
-
-  luaunit.assertEquals(renderer.imageOpacity, 0)
-end
-
--- Test: new() with both imagePath and image (image takes precedence)
-function TestRenderer:testNewWithBothImagePathAndImage()
+function TestRendererImages:testNewWithBothImagePathAndImage()
   local mockImage = {
     getDimensions = function()
       return 50, 50
@@ -368,19 +391,120 @@ function TestRenderer:testNewWithBothImagePathAndImage()
   luaunit.assertEquals(renderer._loadedImage, mockImage)
 end
 
--- Test: new() with empty config
-function TestRenderer:testNewWithEmptyConfig()
-  local renderer = Renderer.new({}, createDeps())
+function TestRendererImages:testNewWithObjectFit()
+  local renderer = Renderer.new({
+    objectFit = "contain",
+  }, createDeps())
 
-  luaunit.assertNotNil(renderer)
-  luaunit.assertNotNil(renderer.backgroundColor)
-  luaunit.assertNotNil(renderer.borderColor)
-  luaunit.assertNotNil(renderer.border)
-  luaunit.assertNotNil(renderer.cornerRadius)
+  luaunit.assertEquals(renderer.objectFit, "contain")
 end
 
--- Test: draw() with basic config (should not error)
-function TestRenderer:testDrawBasic()
+function TestRendererImages:testNewWithVariousObjectFit()
+  local renderer1 = Renderer.new({ objectFit = "cover" }, createDeps())
+  luaunit.assertEquals(renderer1.objectFit, "cover")
+
+  local renderer2 = Renderer.new({ objectFit = "contain" }, createDeps())
+  luaunit.assertEquals(renderer2.objectFit, "contain")
+
+  local renderer3 = Renderer.new({ objectFit = "none" }, createDeps())
+  luaunit.assertEquals(renderer3.objectFit, "none")
+end
+
+function TestRendererImages:testNewWithObjectPosition()
+  local renderer = Renderer.new({
+    objectPosition = "top left",
+  }, createDeps())
+
+  luaunit.assertEquals(renderer.objectPosition, "top left")
+end
+
+function TestRendererImages:testNewWithVariousObjectPosition()
+  local renderer1 = Renderer.new({ objectPosition = "top" }, createDeps())
+  luaunit.assertEquals(renderer1.objectPosition, "top")
+
+  local renderer2 = Renderer.new({ objectPosition = "bottom right" }, createDeps())
+  luaunit.assertEquals(renderer2.objectPosition, "bottom right")
+
+  local renderer3 = Renderer.new({ objectPosition = "50% 50%" }, createDeps())
+  luaunit.assertEquals(renderer3.objectPosition, "50% 50%")
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Blur Effects
+-- ============================================================================
+
+TestRendererBlur = {}
+
+function TestRendererBlur:testNewWithContentBlur()
+  local renderer = Renderer.new({
+    contentBlur = {
+      intensity = 5,
+      quality = "high",
+    },
+  }, createDeps())
+
+  luaunit.assertNotNil(renderer.contentBlur)
+  luaunit.assertEquals(renderer.contentBlur.intensity, 5)
+  luaunit.assertEquals(renderer.contentBlur.quality, "high")
+end
+
+function TestRendererBlur:testNewWithBackdropBlur()
+  local renderer = Renderer.new({
+    backdropBlur = {
+      intensity = 10,
+      quality = "medium",
+    },
+  }, createDeps())
+
+  luaunit.assertNotNil(renderer.backdropBlur)
+  luaunit.assertEquals(renderer.backdropBlur.intensity, 10)
+  luaunit.assertEquals(renderer.backdropBlur.quality, "medium")
+end
+
+-- Note: getBlurInstance() tests are skipped because Renderer.lua has a bug
+-- where it passes string quality names ("high", "medium", "low") to Blur.new()
+-- but Blur.new() expects numeric quality values (1-10)
+
+-- ============================================================================
+-- Test Suite: Renderer Instance Methods
+-- ============================================================================
+
+TestRendererMethods = {}
+
+function TestRendererMethods:testInitialize()
+  local renderer = Renderer.new({}, createDeps())
+  local mockElement = createMockElement()
+
+  renderer:initialize(mockElement)
+
+  luaunit.assertEquals(renderer._element, mockElement)
+end
+
+function TestRendererMethods:testDestroy()
+  local renderer = Renderer.new({}, createDeps())
+
+  -- Should not error
+  renderer:destroy()
+  luaunit.assertTrue(true)
+end
+
+function TestRendererMethods:testGetFont()
+  local renderer = Renderer.new({}, createDeps())
+  local mockElement = createMockElement()
+  mockElement.fontSize = 16
+  renderer:initialize(mockElement)
+
+  local font = renderer:getFont(mockElement)
+  luaunit.assertNotNil(font)
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Drawing
+-- ============================================================================
+
+TestRendererDrawing = {}
+
+function TestRendererDrawing:testDrawBasic()
   local renderer = Renderer.new({
     backgroundColor = Color.new(1, 0, 0, 1),
   }, createDeps())
@@ -393,8 +517,7 @@ function TestRenderer:testDrawBasic()
   luaunit.assertTrue(true)
 end
 
--- Test: draw() with nil backdrop canvas
-function TestRenderer:testDrawWithNilBackdrop()
+function TestRendererDrawing:testDrawWithNilBackdrop()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   renderer:initialize(mockElement)
@@ -403,8 +526,7 @@ function TestRenderer:testDrawWithNilBackdrop()
   luaunit.assertTrue(true)
 end
 
--- Test: drawPressedState() method exists
-function TestRenderer:testDrawPressedState()
+function TestRendererDrawing:testDrawPressedState()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   renderer:initialize(mockElement)
@@ -414,19 +536,7 @@ function TestRenderer:testDrawPressedState()
   luaunit.assertTrue(true)
 end
 
--- Test: getFont() with element
-function TestRenderer:testGetFont()
-  local renderer = Renderer.new({}, createDeps())
-  local mockElement = createMockElement()
-  mockElement.fontSize = 16
-  renderer:initialize(mockElement)
-
-  local font = renderer:getFont(mockElement)
-  luaunit.assertNotNil(font)
-end
-
--- Test: drawScrollbars() with proper dims structure
-function TestRenderer:testDrawScrollbars()
+function TestRendererDrawing:testDrawScrollbars()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.hideScrollbars = { vertical = false, horizontal = false }
@@ -457,8 +567,53 @@ function TestRenderer:testDrawScrollbars()
   luaunit.assertTrue(true)
 end
 
--- Test: new() with all visual properties set
-function TestRenderer:testNewWithAllVisualProperties()
+-- ============================================================================
+-- Test Suite: Renderer Text Rendering
+-- ============================================================================
+
+TestRendererText = {}
+
+function TestRendererText:testDrawText()
+  local renderer = Renderer.new({}, createDeps())
+  local mockElement = createMockElement()
+  mockElement.text = "Hello World"
+  mockElement.fontSize = 14
+  mockElement.textAlign = "left"
+  renderer:initialize(mockElement)
+
+  -- Should not error
+  renderer:drawText(mockElement)
+  luaunit.assertTrue(true)
+end
+
+function TestRendererText:testDrawTextWithNilText()
+  local renderer = Renderer.new({}, createDeps())
+  local mockElement = createMockElement()
+  mockElement.text = nil
+  renderer:initialize(mockElement)
+
+  -- Should handle nil text gracefully
+  renderer:drawText(mockElement)
+  luaunit.assertTrue(true)
+end
+
+function TestRendererText:testDrawTextWithEmptyString()
+  local renderer = Renderer.new({}, createDeps())
+  local mockElement = createMockElement()
+  mockElement.text = ""
+  renderer:initialize(mockElement)
+
+  renderer:drawText(mockElement)
+  luaunit.assertTrue(true)
+end
+
+-- ============================================================================
+-- Test Suite: Renderer Combined Properties
+-- ============================================================================
+
+TestRendererCombinedProperties = {}
+
+function TestRendererCombinedProperties:testNewWithAllVisualProperties()
   local renderer = Renderer.new({
     backgroundColor = Color.new(0.5, 0.5, 0.5, 1),
     borderColor = Color.new(1, 1, 1, 1),
@@ -492,118 +647,320 @@ function TestRenderer:testNewWithAllVisualProperties()
   luaunit.assertEquals(renderer.cornerRadius.topLeft, 10)
 end
 
--- Test: new() with theme state
-function TestRenderer:testThemeStateDefault()
-  local renderer = Renderer.new({
-    theme = "dark",
-  }, createDeps())
+-- ============================================================================
+-- Test Suite: Renderer Edge Cases and Bugs (FlexLove Integration)
+-- ============================================================================
 
-  luaunit.assertEquals(renderer._themeState, "normal")
+TestRendererEdgeCases = {}
+
+function TestRendererEdgeCases:setUp()
+  love.window.setMode(1920, 1080)
+  FlexLove.beginFrame()
 end
 
--- Test: setThemeState() with various states
-function TestRenderer:testSetThemeStateVariousStates()
-  local renderer = Renderer.new({}, createDeps())
-
-  renderer:setThemeState("active")
-  luaunit.assertEquals(renderer._themeState, "active")
-
-  renderer:setThemeState("normal")
-  luaunit.assertEquals(renderer._themeState, "normal")
+function TestRendererEdgeCases:tearDown()
+  FlexLove.endFrame()
 end
 
--- Test: new() with fractional opacity
-function TestRenderer:testNewWithFractionalOpacity()
-  local renderer = Renderer.new({
-    opacity = 0.333,
-  }, createDeps())
+function TestRendererEdgeCases:test_nil_background_color()
+  -- Should handle nil backgroundColor gracefully
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    backgroundColor = nil,
+  })
 
-  luaunit.assertEquals(renderer.opacity, 0.333)
+  luaunit.assertNotNil(element)
+  luaunit.assertNotNil(element.backgroundColor)
 end
 
--- Test: new() with fractional imageOpacity
-function TestRenderer:testNewWithFractionalImageOpacity()
-  local renderer = Renderer.new({
-    imageOpacity = 0.777,
-  }, createDeps())
+function TestRendererEdgeCases:test_invalid_opacity()
+  -- Opacity > 1
+  local element = FlexLove.new({
+    id = "test1",
+    width = 100,
+    height = 100,
+    opacity = 5,
+  })
+  luaunit.assertNotNil(element)
 
-  luaunit.assertEquals(renderer.imageOpacity, 0.777)
+  -- Negative opacity
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 100,
+    opacity = -1,
+  })
+  luaunit.assertNotNil(element2)
+
+  -- NaN opacity
+  local element3 = FlexLove.new({
+    id = "test3",
+    width = 100,
+    height = 100,
+    opacity = 0 / 0,
+  })
+  luaunit.assertNotNil(element3)
 end
 
--- Test: new() stores dependencies correctly
-function TestRenderer:testNewStoresDependencies()
-  local deps = createDeps()
-  local renderer = Renderer.new({}, deps)
+function TestRendererEdgeCases:test_invalid_corner_radius()
+  -- Negative corner radius
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    cornerRadius = -10,
+  })
+  luaunit.assertNotNil(element)
 
-  luaunit.assertEquals(renderer._Color, deps.Color)
-  luaunit.assertEquals(renderer._RoundedRect, deps.RoundedRect)
-  luaunit.assertEquals(renderer._NinePatch, deps.NinePatch)
-  luaunit.assertEquals(renderer._ImageRenderer, deps.ImageRenderer)
-  luaunit.assertEquals(renderer._ImageCache, deps.ImageCache)
-  luaunit.assertEquals(renderer._Theme, deps.Theme)
-  luaunit.assertEquals(renderer._Blur, deps.Blur)
-  luaunit.assertEquals(renderer._utils, deps.utils)
+  -- Huge corner radius (larger than element)
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 100,
+    cornerRadius = 1000,
+  })
+  luaunit.assertNotNil(element2)
 end
 
--- Test: new() with objectFit variations
-function TestRenderer:testNewWithVariousObjectFit()
-  local renderer1 = Renderer.new({ objectFit = "cover" }, createDeps())
-  luaunit.assertEquals(renderer1.objectFit, "cover")
-
-  local renderer2 = Renderer.new({ objectFit = "contain" }, createDeps())
-  luaunit.assertEquals(renderer2.objectFit, "contain")
-
-  local renderer3 = Renderer.new({ objectFit = "none" }, createDeps())
-  luaunit.assertEquals(renderer3.objectFit, "none")
+function TestRendererEdgeCases:test_invalid_border_config()
+  -- Non-boolean border values
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    border = {
+      top = "yes",
+      right = 1,
+      bottom = nil,
+      left = {},
+    },
+  })
+  luaunit.assertNotNil(element)
 end
 
--- Test: new() with objectPosition variations
-function TestRenderer:testNewWithVariousObjectPosition()
-  local renderer1 = Renderer.new({ objectPosition = "top" }, createDeps())
-  luaunit.assertEquals(renderer1.objectPosition, "top")
-
-  local renderer2 = Renderer.new({ objectPosition = "bottom right" }, createDeps())
-  luaunit.assertEquals(renderer2.objectPosition, "bottom right")
-
-  local renderer3 = Renderer.new({ objectPosition = "50% 50%" }, createDeps())
-  luaunit.assertEquals(renderer3.objectPosition, "50% 50%")
+function TestRendererEdgeCases:test_missing_image_path()
+  -- Non-existent image path
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    imagePath = "/nonexistent/path/to/image.png",
+  })
+  luaunit.assertNotNil(element)
 end
 
--- Test: drawText() with mock element
-function TestRenderer:testDrawText()
-  local renderer = Renderer.new({}, createDeps())
-  local mockElement = createMockElement()
-  mockElement.text = "Hello World"
-  mockElement.fontSize = 14
-  mockElement.textAlign = "left"
-  renderer:initialize(mockElement)
-
-  -- Should not error
-  renderer:drawText(mockElement)
-  luaunit.assertTrue(true)
+function TestRendererEdgeCases:test_invalid_object_fit()
+  -- Invalid objectFit value
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    imagePath = "test.png",
+    objectFit = "invalid-value",
+  })
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.objectFit, "invalid-value")
 end
 
--- Test: drawText() with nil text
-function TestRenderer:testDrawTextWithNilText()
-  local renderer = Renderer.new({}, createDeps())
-  local mockElement = createMockElement()
-  mockElement.text = nil
-  renderer:initialize(mockElement)
+function TestRendererEdgeCases:test_zero_dimensions()
+  -- Zero width
+  local element = FlexLove.new({
+    id = "test1",
+    width = 0,
+    height = 100,
+  })
+  luaunit.assertNotNil(element)
 
-  -- Should handle nil text gracefully
-  renderer:drawText(mockElement)
-  luaunit.assertTrue(true)
+  -- Zero height
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 0,
+  })
+  luaunit.assertNotNil(element2)
+
+  -- Both zero
+  local element3 = FlexLove.new({
+    id = "test3",
+    width = 0,
+    height = 0,
+  })
+  luaunit.assertNotNil(element3)
 end
 
--- Test: drawText() with empty string
-function TestRenderer:testDrawTextWithEmptyString()
-  local renderer = Renderer.new({}, createDeps())
-  local mockElement = createMockElement()
-  mockElement.text = ""
-  renderer:initialize(mockElement)
+function TestRendererEdgeCases:test_negative_dimensions()
+  -- Negative width
+  local element = FlexLove.new({
+    id = "test1",
+    width = -100,
+    height = 100,
+  })
+  luaunit.assertNotNil(element)
 
-  renderer:drawText(mockElement)
-  luaunit.assertTrue(true)
+  -- Negative height
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = -100,
+  })
+  luaunit.assertNotNil(element2)
+end
+
+function TestRendererEdgeCases:test_text_rendering_with_nil_text()
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    text = nil,
+  })
+  luaunit.assertNotNil(element)
+end
+
+function TestRendererEdgeCases:test_text_rendering_with_empty_string()
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    text = "",
+  })
+  luaunit.assertNotNil(element)
+  luaunit.assertEquals(element.text, "")
+end
+
+function TestRendererEdgeCases:test_text_rendering_with_very_long_text()
+  local longText = string.rep("A", 10000)
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    text = longText,
+  })
+  luaunit.assertNotNil(element)
+end
+
+function TestRendererEdgeCases:test_text_rendering_with_special_characters()
+  -- Newlines
+  local element1 = FlexLove.new({
+    id = "test1",
+    width = 100,
+    height = 100,
+    text = "Line1\nLine2\nLine3",
+  })
+  luaunit.assertNotNil(element1)
+
+  -- Tabs
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 100,
+    text = "Col1\tCol2\tCol3",
+  })
+  luaunit.assertNotNil(element2)
+
+  -- Unicode
+  local element3 = FlexLove.new({
+    id = "test3",
+    width = 100,
+    height = 100,
+    text = "Hello 世界 🌍",
+  })
+  luaunit.assertNotNil(element3)
+end
+
+function TestRendererEdgeCases:test_invalid_text_align()
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    text = "Test",
+    textAlign = "invalid-alignment",
+  })
+  luaunit.assertNotNil(element)
+end
+
+function TestRendererEdgeCases:test_invalid_text_size()
+  -- Zero text size
+  local element1 = FlexLove.new({
+    id = "test1",
+    width = 100,
+    height = 100,
+    text = "Test",
+    textSize = 0,
+  })
+  luaunit.assertNotNil(element1)
+
+  -- Negative text size
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 100,
+    text = "Test",
+    textSize = -10,
+  })
+  luaunit.assertNotNil(element2)
+
+  -- Huge text size
+  local element3 = FlexLove.new({
+    id = "test3",
+    width = 100,
+    height = 100,
+    text = "Test",
+    textSize = 10000,
+  })
+  luaunit.assertNotNil(element3)
+end
+
+function TestRendererEdgeCases:test_blur_with_invalid_intensity()
+  -- Negative intensity
+  local element1 = FlexLove.new({
+    id = "test1",
+    width = 100,
+    height = 100,
+    contentBlur = { intensity = -10, quality = 5 },
+  })
+  luaunit.assertNotNil(element1)
+
+  -- Intensity > 100
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 100,
+    backdropBlur = { intensity = 200, quality = 5 },
+  })
+  luaunit.assertNotNil(element2)
+end
+
+function TestRendererEdgeCases:test_blur_with_invalid_quality()
+  -- Quality < 1
+  local element1 = FlexLove.new({
+    id = "test1",
+    width = 100,
+    height = 100,
+    contentBlur = { intensity = 10, quality = 0 },
+  })
+  luaunit.assertNotNil(element1)
+
+  -- Quality > 10
+  local element2 = FlexLove.new({
+    id = "test2",
+    width = 100,
+    height = 100,
+    contentBlur = { intensity = 10, quality = 100 },
+  })
+  luaunit.assertNotNil(element2)
+end
+
+function TestRendererEdgeCases:test_theme_with_invalid_component()
+  local element = FlexLove.new({
+    id = "test",
+    width = 100,
+    height = 100,
+    theme = "nonexistent-theme",
+    themeComponent = "nonexistent-component",
+  })
+  luaunit.assertNotNil(element)
 end
 
 if not _G.RUNNING_ALL_TESTS then

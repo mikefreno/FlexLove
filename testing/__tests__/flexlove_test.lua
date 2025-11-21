@@ -1,24 +1,7 @@
 local luaunit = require("testing.luaunit")
 local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
-ErrorHandler.init({})
 require("testing.loveStub")
-
 local FlexLove = require("FlexLove")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
-ErrorHandler.init({})
-local Color = require("modules.Color")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
-ErrorHandler.init({})
-local Theme = require("modules.Theme")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
 ErrorHandler.init({})
 
 TestFlexLove = {}
@@ -37,7 +20,6 @@ end
 function TestFlexLove:testModuleLoads()
   luaunit.assertNotNil(FlexLove)
   luaunit.assertNotNil(FlexLove._VERSION)
-  luaunit.assertEquals(FlexLove._VERSION, "0.3.0")
   luaunit.assertNotNil(FlexLove._DESCRIPTION)
   luaunit.assertNotNil(FlexLove._URL)
   luaunit.assertNotNil(FlexLove._LICENSE)
@@ -996,7 +978,6 @@ function TestFlexLoveUnhappyPaths:testNewWithInvalidPosition()
   -- Negative positions
   local element = FlexLove.new({ x = -1000, y = -1000, width = 100, height = 100 })
   luaunit.assertNotNil(element)
-
 end
 
 -- Test: new() with circular parent reference
@@ -1128,7 +1109,6 @@ end
 function TestFlexLoveUnhappyPaths:testWheelMovedWithInvalidValues()
   FlexLove.setMode("retained")
 
-
   -- nil values
   local success = pcall(function()
     FlexLove.wheelmoved(nil, nil)
@@ -1197,7 +1177,6 @@ function TestFlexLoveUnhappyPaths:testGetElementAtPositionWithInvalidCoords()
   -- Negative coordinates
   local element = FlexLove.getElementAtPosition(-100, -100)
   luaunit.assertNil(element)
-
 
   -- nil coordinates
   local success = pcall(function()

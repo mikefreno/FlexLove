@@ -1571,6 +1571,9 @@ function TextEditor:update(dt)
       self._cursorVisible = not self._cursorVisible
     end
   end
+
+  -- Save state for immediate mode (cursor blink timer changes need to persist)
+  self:_saveState()
 end
 
 ---Update element height based on text content (for autoGrow)

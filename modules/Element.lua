@@ -1724,7 +1724,7 @@ function Element:getBlurInstance()
 
   -- Create blur instance if needed
   if not self._blurInstance or self._blurInstance.quality ~= quality then
-    self._blurInstance = Element._Blur.new(quality)
+    self._blurInstance = Element._Blur.new({quality = quality})
   end
 
   return self._blurInstance
@@ -2178,13 +2178,13 @@ function Element:update(dt)
   -- Update animation if exists
   if self.animation then
     -- Ensure animation has Color module reference for color interpolation
-    if not self.animation.Element._Color and Element._Color then
-      self.animation:setColorModule(Element._Color)
+    if Element._Animation and not Element._Animation._ColorModule and Element._Color then
+      Element._Animation._ColorModule = Element._Color
     end
 
     -- Ensure animation has Transform module reference for transform interpolation
-    if not self.animation.Element._Transform and Element._Transform then
-      self.animation:setTransformModule(Element._Transform)
+    if Element._Animation and not Element._Animation._TransformModule and Element._Transform then
+      Element._Animation._TransformModule = Element._Transform
     end
 
     local finished = self.animation:update(dt, self)

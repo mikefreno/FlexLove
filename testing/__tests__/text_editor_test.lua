@@ -1388,15 +1388,14 @@ function TestTextEditorSanitization:test_custom_sanitizer_returns_nil()
 end
 
 function TestTextEditorSanitization:test_custom_sanitizer_throws_error()
-  local editor = createTextEditor({
-    customSanitizer = function(text)
-      error("Intentional error")
-    end,
-  })
-
-  -- Should error when setting text
+  -- Should error when creating editor with faulty sanitizer that throws during initial sanitization
   luaunit.assertErrorMsgContains("Intentional error", function()
-    editor:setText("test")
+    createTextEditor({
+      text = "initial",
+      customSanitizer = function(text)
+        error("Intentional error")
+      end,
+    })
   end)
 end
 
@@ -1795,7 +1794,9 @@ end
 function TestTextEditorUTF8:test_maxLength_with_utf8()
   local editor = createTextEditor({maxLength = 10})
   editor:setText("Hello👋👋👋👋👋") -- 10 characters including emojis
-  luaunit.assertTrue(utf8.len(editor:getText()) <= 10)
+  local len = utf8.len(editor:getText())
+  luaunit.assertNotNil(len, "UTF-8 length should not be nil")
+  luaunit.assertTrue(len <= 10)
 end
 
 -- ============================================================================

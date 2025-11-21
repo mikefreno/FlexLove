@@ -2,8 +2,9 @@
 -- Load FlexLöve from parent directory
 package.path = package.path .. ";../?.lua;../?/init.lua"
 
-local FlexLove = require("FlexLove")
+local FlexLove = require("libs.FlexLove")
 local PerformanceProfiler = require("profiling.utils.PerformanceProfiler")
+local lv = love
 
 local state = {
   mode = "menu", -- "menu" or "profile"
@@ -19,7 +20,7 @@ local state = {
 ---@return table
 local function discoverProfiles()
   local profiles = {}
-  local files = love.filesystem.getDirectoryItems("__profiles__")
+  local files = lv.filesystem.getDirectoryItems("__profiles__")
 
   for _, file in ipairs(files) do
     if file:match("%.lua$") then
@@ -89,7 +90,7 @@ local function returnToMenu()
       print("\n✗ Failed to save report: " .. tostring(filepath) .. "\n")
     end
   end
-  
+
   if state.currentProfile and type(state.currentProfile.cleanup) == "function" then
     pcall(function()
       state.currentProfile.cleanup()
@@ -163,8 +164,7 @@ local function buildMenu()
       parent = profileList,
       width = "100%",
       height = 50,
-      backgroundColor = isSelected and FlexLove.Color.new(0.2, 0.4, 0.8, 1)
-        or FlexLove.Color.new(0.15, 0.15, 0.25, 1),
+      backgroundColor = isSelected and FlexLove.Color.new(0.2, 0.4, 0.8, 1) or FlexLove.Color.new(0.15, 0.15, 0.25, 1),
       borderRadius = 8,
       positioning = "flex",
       justifyContent = "flex-start",
@@ -221,10 +221,10 @@ local function buildMenu()
   FlexLove.endFrame()
 end
 
-function love.load(args)
+function lv.load(args)
   FlexLove.init({
-    width = love.graphics.getWidth(),
-    height = love.graphics.getHeight(),
+    width = lv.graphics.getWidth(),
+    height = lv.graphics.getHeight(),
     immediateMode = true,
   })
 
@@ -242,7 +242,7 @@ function love.load(args)
   end
 end
 
-function love.update(dt)
+function lv.update(dt)
   if state.mode == "menu" then
     FlexLove.update(dt)
   elseif state.mode == "profile" and state.currentProfile then
@@ -266,7 +266,7 @@ function love.update(dt)
   end
 end
 
-function love.draw()
+function lv.draw()
   if state.mode == "menu" then
     buildMenu()
     FlexLove.draw()
@@ -286,15 +286,15 @@ function love.draw()
       state.profiler:draw(10, 10)
     end
 
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("Press R to reset | S to save report | ESC to menu | F11 fullscreen", 10, love.graphics.getHeight() - 25)
+    lv.graphics.setColor(1, 1, 1, 1)
+    lv.graphics.print("Press R to reset | S to save report | ESC to menu | F11 fullscreen", 10, love.graphics.getHeight() - 25)
   end
 end
 
-function love.keypressed(key)
+function lv.keypressed(key)
   if state.mode == "menu" then
     if key == "escape" then
-      love.event.quit()
+      lv.event.quit()
     elseif key == "up" then
       state.selectedIndex = math.max(1, state.selectedIndex - 1)
     elseif key == "down" then
@@ -330,7 +330,7 @@ function love.keypressed(key)
         end
       end
     elseif key == "f11" then
-      love.window.setFullscreen(not love.window.getFullscreen())
+      lv.window.setFullscreen(not love.window.getFullscreen())
     end
 
     if state.currentProfile and type(state.currentProfile.keypressed) == "function" then
@@ -341,7 +341,7 @@ function love.keypressed(key)
   end
 end
 
-function love.mousepressed(x, y, button)
+function lv.mousepressed(x, y, button)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.mousepressed) == "function" then
       pcall(function()
@@ -351,7 +351,7 @@ function love.mousepressed(x, y, button)
   end
 end
 
-function love.mousereleased(x, y, button)
+function lv.mousereleased(x, y, button)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.mousereleased) == "function" then
       pcall(function()
@@ -361,7 +361,7 @@ function love.mousereleased(x, y, button)
   end
 end
 
-function love.mousemoved(x, y, dx, dy)
+function lv.mousemoved(x, y, dx, dy)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.mousemoved) == "function" then
       pcall(function()
@@ -371,7 +371,7 @@ function love.mousemoved(x, y, dx, dy)
   end
 end
 
-function love.resize(w, h)
+function lv.resize(w, h)
   FlexLove.resize(w, h)
   if state.mode == "profile" and state.currentProfile then
     if type(state.currentProfile.resize) == "function" then
@@ -382,7 +382,7 @@ function love.resize(w, h)
   end
 end
 
-function love.quit()
+function lv.quit()
   if state.currentProfile and type(state.currentProfile.cleanup) == "function" then
     pcall(function()
       state.currentProfile.cleanup()

@@ -2,12 +2,13 @@ local luaunit = require("testing.luaunit")
 local ErrorHandler = require("modules.ErrorHandler")
 require("testing.loveStub")
 local FlexLove = require("FlexLove")
+local Color = require("modules.Color")
+local Theme = require("modules.Theme")
 ErrorHandler.init({})
 
 TestFlexLove = {}
 
 function TestFlexLove:setUp()
-  -- Reset FlexLove state before each test
   FlexLove.destroy()
   FlexLove.setMode("retained")
 end

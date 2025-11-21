@@ -167,6 +167,18 @@ function love_helper.graphics.translate(x, y)
   -- Mock translate
 end
 
+function love_helper.graphics.rotate(angle)
+  -- Mock rotate
+end
+
+function love_helper.graphics.scale(sx, sy)
+  -- Mock scale
+end
+
+function love_helper.graphics.shear(kx, ky)
+  -- Mock shear
+end
+
 function love_helper.graphics.newQuad(x, y, width, height, sw, sh)
   -- Mock quad creation
   return {

@@ -23,8 +23,8 @@ This interactive script will:
 After pushing the tag, GitHub Actions automatically:
 - Archives previous documentation
 - Generates new documentation  
-- Creates release package with SHA256 checksums
-- Publishes GitHub release with download assets
+- Creates 4 build profile packages (minimal, slim, default, full) with SHA256 checksums
+- Publishes GitHub release with all profile packages
 
 ### Example Usage
 
@@ -99,24 +99,26 @@ git push && git push origin v0.3.0
 
 Once you push the tag, the automated workflow handles everything else.
 
-## Local Release Package (Optional)
+## Local Release Packages (Optional)
 
-To create a local release package without GitHub Actions:
+To create local release packages without GitHub Actions:
 
 ```bash
-./scripts/create-release.sh
+./scripts/create-profile-packages.sh
 ```
 
-Output files:
-- `releases/flexlove-v{version}.zip`
-- `releases/flexlove-v{version}.zip.sha256`
+Output files (for version 0.3.0):
+- `releases/flexlove-minimal-v0.3.0.zip` + `.sha256`
+- `releases/flexlove-slim-v0.3.0.zip` + `.sha256`
+- `releases/flexlove-default-v0.3.0.zip` + `.sha256`
+- `releases/flexlove-full-v0.3.0.zip` + `.sha256`
 
-### Verify Local Package
+### Verify Local Packages
 
 ```bash
 cd releases
-shasum -a 256 -c flexlove-v0.3.0.zip.sha256
-# Expected: flexlove-v0.3.0.zip: OK
+shasum -a 256 -c flexlove-*-v0.3.0.zip.sha256
+# Expected: All packages report OK
 ```
 
 ## Release Checklist
@@ -124,11 +126,11 @@ shasum -a 256 -c flexlove-v0.3.0.zip.sha256
 - [ ] Version updated in `FlexLove.lua`
 - [ ] Documentation regenerated (`./scripts/generate_docs.sh`)
 - [ ] Changes committed and pushed
-- [ ] Release package created (`./scripts/create-release.sh`)
-- [ ] Checksum verified (`shasum -a 256 -c *.sha256`)
-- [ ] Release package tested
+- [ ] Profile packages created (`./scripts/create-profile-packages.sh`)
+- [ ] All checksums verified (`cd releases && shasum -a 256 -c *.sha256`)
+- [ ] All profile packages tested
 - [ ] Git tag created and pushed
-- [ ] GitHub release published with zip and checksum files
+- [ ] GitHub release published with all 4 profile packages and checksums
 
 ## Versioning
 
@@ -142,61 +144,72 @@ Example: `0.2.0` → `0.2.1` (bug fix) or `0.3.0` (new feature)
 
 ## What Gets Released
 
-The release package includes **only** the files needed to use FlexLöve:
+FlexLöve is released as **4 separate profile packages**, each optimized for different use cases:
+
+### Profile Packages
+
+Each profile package includes:
 
 ✅ **Included:**
 - `FlexLove.lua` - Main library
-- `modules/` - All module files
+- `modules/` - Profile-specific module files only
 - `LICENSE` - License terms
-- `README.md` - Installation instructions
+- `README.md` - Profile-specific installation instructions
+- `themes/` - (default and full profiles only)
 
 ❌ **Not included:**
 - `docs/` - Documentation (hosted on GitHub Pages)
 - `examples/` - Example code (available in repository)
 - `testing/` - Test suite
-- `themes/` - Theme examples
 - Development tools
+
+### Package Sizes
+
+| Profile | Modules | Approximate Size |
+|---------|---------|------------------|
+| **Minimal** | 16 core modules | ~60% of full |
+| **Slim** | 21 modules | ~80% of full |
+| **Default** | 23 modules + themes | ~95% of full |
+| **Full** | 24 modules + themes | 100% |
 
 Users who want examples, documentation source, or development tools should clone the full repository.
 
 ## Checksum Verification
 
-Every release includes a SHA256 checksum file for security verification.
+Every profile package includes a SHA256 checksum file for security verification.
 
 ### For Developers (Creating Release)
 
-The checksum is automatically generated when running `./scripts/create-release.sh`:
+The checksums are automatically generated when running `./scripts/create-profile-packages.sh`:
 
 ```bash
-./scripts/create-release.sh
-# Creates:
-# - releases/flexlove-v0.3.0.zip
-# - releases/flexlove-v0.3.0.zip.sha256
+./scripts/create-profile-packages.sh
+# Creates 4 profile packages with checksums:
+# - releases/flexlove-minimal-v0.3.0.zip + .sha256
+# - releases/flexlove-slim-v0.3.0.zip + .sha256
+# - releases/flexlove-default-v0.3.0.zip + .sha256
+# - releases/flexlove-full-v0.3.0.zip + .sha256
 
-# Verify before publishing
+# Verify all packages before publishing
 cd releases
-shasum -a 256 -c flexlove-v0.3.0.zip.sha256
-# Output: flexlove-v0.3.0.zip: OK
+shasum -a 256 -c flexlove-*-v0.3.0.zip.sha256
+# Output: All packages report OK
 ```
 
 ### For End Users (Downloading Release)
 
-After downloading a release from GitHub:
+After downloading your chosen profile from GitHub:
 
 ```bash
-# Download both files:
-# - flexlove-v0.3.0.zip
-# - flexlove-v0.3.0.zip.sha256
-
-# Verify integrity
-shasum -a 256 -c flexlove-v0.3.0.zip.sha256
+# Example: Verify the default profile
+shasum -a 256 -c flexlove-default-v0.3.0.zip.sha256
 
 # If OK, safe to use
-unzip flexlove-v0.3.0.zip
+unzip flexlove-default-v0.3.0.zip
 ```
 
 **macOS/Linux:** Use `shasum -a 256 -c`  
-**Windows:** Use `certutil -hashfile flexlove-v0.3.0.zip SHA256` and compare manually
+**Windows:** Use `certutil -hashfile flexlove-<profile>-v0.3.0.zip SHA256` and compare manually
 
 ## Automated Releases (Future)
 

@@ -89,8 +89,9 @@ local function createNullObject(moduleName)
         return function() return {} end
       end
 
-      -- Return nil for unknown properties (allows safe property access)
-      return nil
+      -- For any unknown method, return a no-op function that accepts any arguments
+      -- This allows safe method calls on stub objects (e.g., Performance:startFrame())
+      return function() return stub end
     end,
 
     -- Make function calls safe (in case the stub itself is called)

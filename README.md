@@ -65,6 +65,36 @@ function love.draw()
 end
 ```
 
+## Build Profiles
+
+FlexLöve supports optional modules to reduce bundle size for different use cases. Simply exclude module files you don't need - the library handles missing modules gracefully with null-object stubs.
+
+### Available Profiles
+
+- **Minimal (~60%)** - Core functionality only (layouts, basic elements, text)
+- **Slim (~80%)** - Adds animations and image support
+- **Default (~95%)** - Adds themes, blur effects, and gestures
+- **Full (100%)** - Everything including performance monitoring
+
+### Example: Minimal Build
+
+For a lightweight build, exclude these optional module files:
+```
+modules/Animation.lua
+modules/Theme.lua
+modules/Blur.lua
+modules/ImageRenderer.lua
+modules/ImageScaler.lua
+modules/ImageCache.lua
+modules/NinePatch.lua
+modules/GestureRecognizer.lua
+modules/Performance.lua
+```
+
+The library automatically detects missing modules and provides safe no-op stubs. No code changes needed!
+
+📖 **See [BUILD_PROFILES.md](./docs/BUILD_PROFILES.md) and [MODULE_DEPENDENCIES.md](./docs/MODULE_DEPENDENCIES.md) for detailed information.**
+
 ## Documentation
 
 📚 **[View Full API Documentation](https://mikefreno.github.io/FlexLove/api.html)**

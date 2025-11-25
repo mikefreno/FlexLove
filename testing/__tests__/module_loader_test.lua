@@ -110,11 +110,16 @@ function TestModuleLoader:test_stub_has_safe_clearCache_method()
   lu.assertIsTable(result)
 end
 
-function TestModuleLoader:test_stub_returns_nil_for_unknown_properties()
+function TestModuleLoader:test_stub_returns_function_for_unknown_properties()
   local stub = ModuleLoader.safeRequire(modulePath .. "modules.FakeModule", true)
 
-  lu.assertIsNil(stub.unknownProperty)
-  lu.assertIsNil(stub.anotherUnknownProperty)
+  -- Unknown properties should return no-op functions for safe method calls
+  lu.assertIsFunction(stub.unknownProperty)
+  lu.assertIsFunction(stub.anotherUnknownProperty)
+  
+  -- Calling unknown methods should not error
+  stub:unknownMethod()
+  stub:anotherUnknownMethod("arg1", "arg2")
 end
 
 function TestModuleLoader:test_stub_callable_returns_itself()

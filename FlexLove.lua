@@ -3,15 +3,11 @@ local function req(name)
   return require(modulePath .. "modules." .. name)
 end
 
--- Load ErrorHandler first (required for ModuleLoader)
 ---@type ErrorHandler
 local ErrorHandler = req("ErrorHandler")
-
--- Load ModuleLoader
 local ModuleLoader = req("ModuleLoader")
 ModuleLoader.init({ ErrorHandler = ErrorHandler })
 
--- Helper function for safe module loading
 local function safeReq(name, isOptional)
   return ModuleLoader.safeRequire(modulePath .. "modules." .. name, isOptional)
 end
@@ -373,7 +369,7 @@ function flexlove.beginFrame()
       end
       elem:_cleanup()
     end
-    
+
     for _, element in ipairs(flexlove._currentFrameElements) do
       if not element.parent then
         cleanupChildren(element)
@@ -428,7 +424,7 @@ function flexlove.endFrame()
           stateUpdate[k] = v
         end
       end
-      
+
       stateUpdate._focused = element._focused
       stateUpdate._cursorPosition = element._cursorPosition
       stateUpdate._selectionStart = element._selectionStart

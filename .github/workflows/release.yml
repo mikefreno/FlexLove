@@ -74,6 +74,7 @@ jobs:
         run: |
           chmod +x scripts/generate_docs.sh
           chmod +x scripts/create-release.sh
+          chmod +x scripts/create-profile-packages.sh
           chmod +x scripts/archive-docs.sh
 
       - name: Archive previous documentation version
@@ -111,29 +112,32 @@ jobs:
           git commit -m "Archive previous documentation and generate v${{ steps.version.outputs.version }} docs [skip ci]" || echo "No changes to commit"
           git push origin HEAD:main || echo "Nothing to push"
 
-      - name: Create release package
+      - name: Create release packages
         run: |
-          # Run release script non-interactively (auto-confirm overwrite)
-          echo "y" | ./scripts/create-release.sh || ./scripts/create-release.sh
-          # Verify files were created
+          # Create all 4 profile packages
+          ./scripts/create-profile-packages.sh
+          
+          # Verify all packages were created
           VERSION="${{ steps.version.outputs.version }}"
-          if [ ! -f "releases/flexlove-v${VERSION}.zip" ]; then
-            echo "Error: Release zip was not created"
-            exit 1
-          fi
-          if [ ! -f "releases/flexlove-v${VERSION}.zip.sha256" ]; then
-            echo "Error: Checksum file was not created"
-            exit 1
-          fi
-          echo "✓ Release package created successfully"
+          for profile in minimal slim default full; do
+            if [ ! -f "releases/flexlove-${profile}-v${VERSION}.zip" ]; then
+              echo "Error: ${profile} profile package was not created"
+              exit 1
+            fi
+            if [ ! -f "releases/flexlove-${profile}-v${VERSION}.zip.sha256" ]; then
+              echo "Error: ${profile} checksum file was not created"
+              exit 1
+            fi
+          done
+          echo "✓ All profile packages created successfully"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-assets
           path: |
-            releases/flexlove-v${{ steps.version.outputs.version }}.zip
-            releases/flexlove-v${{ steps.version.outputs.version }}.zip.sha256
+            releases/flexlove-*-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-*-v${{ steps.version.outputs.version }}.zip.sha256
             docs/api.html
           retention-days: 90
 
@@ -143,13 +147,19 @@ jobs:
           name: release-assets
           path: ./
 
-      - name: Extract checksum for release notes
-        id: checksum
+      - name: Extract checksums for release notes
+        id: checksums
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          CHECKSUM=$(cat "releases/flexlove-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
-          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
-          echo "Checksum: $CHECKSUM"
+          MINIMAL_CHECKSUM=$(cat "releases/flexlove-minimal-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
+          SLIM_CHECKSUM=$(cat "releases/flexlove-slim-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
+          DEFAULT_CHECKSUM=$(cat "releases/flexlove-default-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
+          FULL_CHECKSUM=$(cat "releases/flexlove-full-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
+          
+          echo "minimal=$MINIMAL_CHECKSUM" >> $GITHUB_OUTPUT
+          echo "slim=$SLIM_CHECKSUM" >> $GITHUB_OUTPUT
+          echo "default=$DEFAULT_CHECKSUM" >> $GITHUB_OUTPUT
+          echo "full=$FULL_CHECKSUM" >> $GITHUB_OUTPUT
 
       - name: Check if pre-release
         id: prerelease
@@ -167,41 +177,58 @@ jobs:
         id: release_notes
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          CHECKSUM="${{ steps.checksum.outputs.checksum }}"
           cat > release_notes.md << 'EOF'
+          ## Build Profiles
+
+          FlexLöve is now available in 4 different build profiles to optimize bundle size for your needs:
+
+          | Profile | Size | Description | Package |
+          |---------|------|-------------|---------|
+          | **Minimal** | ~60% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
+          | **Slim** | ~80% | + Animation and Image support | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
+          | **Default** | ~95% | + Theme and Blur effects | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
+          | **Full** | 100% | All modules including debugging tools | `flexlove-full-v${{ steps.version.outputs.version }}.zip` |
+
+          **Choose the profile that matches your needs!** See the [Build Profiles Documentation](https://github.com/${{ github.repository }}/blob/main/docs/BUILD_PROFILES.md) for detailed module listings.
+
           ## Installation
 
-          Download `flexlove-v${{ steps.version.outputs.version }}.zip` and extract to your LÖVE2D project:
+          Download your preferred profile package and extract to your LÖVE2D project:
 
           ```bash
-          unzip flexlove-v${{ steps.version.outputs.version }}.zip
+          # Example: Install the default profile
+          unzip flexlove-default-v${{ steps.version.outputs.version }}.zip
           cp -r flexlove/modules ./
           cp flexlove/FlexLove.lua ./
           ```
 
           ## Verification
 
-          Verify the download integrity using SHA256:
+          Verify download integrity using SHA256:
 
           ```bash
-          shasum -a 256 -c flexlove-v${{ steps.version.outputs.version }}.zip.sha256
+          shasum -a 256 -c flexlove-<profile>-v${{ steps.version.outputs.version }}.zip.sha256
           ```
 
-          **SHA256 Checksum:**
+          **SHA256 Checksums:**
           ```
-          ${{ steps.checksum.outputs.checksum }}
+          Minimal:  ${{ steps.checksums.outputs.minimal }}
+          Slim:     ${{ steps.checksums.outputs.slim }}
+          Default:  ${{ steps.checksums.outputs.default }}
+          Full:     ${{ steps.checksums.outputs.full }}
           ```
 
           ## Documentation
 
-          📚 [View Documentation](https://mikefreno.github.io/FlexLove/)
+          📚 [View Full Documentation](https://mikefreno.github.io/FlexLove/)
 
           ## What's Included
 
+          Each package contains:
           - `FlexLove.lua` - Main library file
-          - `modules/` - All required module files
+          - `modules/` - Profile-specific module files
           - `LICENSE` - MIT License
-          - `README.md`
+          - `README.md` - Profile-specific readme
 
           ## Requirements
 
@@ -220,8 +247,14 @@ jobs:
           name: FlexLöve v${{ steps.version.outputs.version }}
           body_path: release_notes.md
           files: |
-            releases/flexlove-v${{ steps.version.outputs.version }}.zip
-            releases/flexlove-v${{ steps.version.outputs.version }}.zip.sha256
+            releases/flexlove-minimal-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-minimal-v${{ steps.version.outputs.version }}.zip.sha256
+            releases/flexlove-slim-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-slim-v${{ steps.version.outputs.version }}.zip.sha256
+            releases/flexlove-default-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-default-v${{ steps.version.outputs.version }}.zip.sha256
+            releases/flexlove-full-v${{ steps.version.outputs.version }}.zip
+            releases/flexlove-full-v${{ steps.version.outputs.version }}.zip.sha256
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
           draft: false
         env:

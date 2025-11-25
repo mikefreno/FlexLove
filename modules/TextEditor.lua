@@ -42,7 +42,6 @@ local utf8 = utf8 or require("utf8")
 ---@field onTextChange fun(element:Element, text:string)?
 ---@field onEnter fun(element:Element)?
 ---@field onSanitize fun(element:Element, original:string, sanitized:string)?
----@field _element Element?
 ---@field _Context table
 ---@field _StateManager table
 ---@field _Color table
@@ -105,7 +104,7 @@ function TextEditor.new(config, deps)
   self.cursorColor = config.cursorColor
   self.selectionColor = config.selectionColor
   self.cursorBlinkRate = config.cursorBlinkRate or 0.5
-  
+
   -- Sanitization configuration
   self.sanitize = config.sanitize ~= false -- Default to true
   -- If allowNewlines is explicitly set, use that value; otherwise follow multiline setting
@@ -152,9 +151,6 @@ function TextEditor.new(config, deps)
   self.onEnter = config.onEnter
   self.onSanitize = config.onSanitize
 
-  -- Element reference (set via initialize)
-  self._element = nil
-
   return self
 end
 
@@ -165,34 +161,27 @@ function TextEditor:_sanitizeText(text)
   if not self.sanitize then
     return text
   end
-  
+
   -- Use custom sanitizer if provided
   if self.customSanitizer then
     return self.customSanitizer(text) or text
   end
-  
+
   local options = {
     maxLength = self.maxLength,
     allowNewlines = self.allowNewlines,
     allowTabs = self.allowTabs,
-    trimWhitespace = false -- Preserve whitespace in text editors
+    trimWhitespace = false, -- Preserve whitespace in text editors
   }
-  
+
   local sanitized = self._utils.sanitizeText(text, options)
-  
-  -- Trigger callback if text was sanitized
-  if sanitized ~= text and self.onSanitize and self._element then
-    self.onSanitize(self._element, text, sanitized)
-  end
-  
+
   return sanitized
 end
 
----Initialize TextEditor with parent element reference
+---Restore state from StateManager (for immediate mode)
 ---@param element table The parent Element instance
-function TextEditor:initialize(element)
-  self._element = element
-
+function TextEditor:restoreState(element)
   -- Restore state from StateManager if in immediate mode
   if element._stateId and self._Context._immediateMode then
     local state = self._StateManager.getState(element._stateId)
@@ -240,36 +229,44 @@ function TextEditor:getText()
 end
 
 ---Set text buffer and mark dirty
+---@param element Element? The parent element (for state saving)
 ---@param text string
 ---@param skipSanitization boolean? -- Skip sanitization (for trusted input)
-function TextEditor:setText(text, skipSanitization)
+function TextEditor:setText(element, text, skipSanitization)
   text = text or ""
-  
+
   -- Sanitize text unless explicitly skipped
   if not skipSanitization then
+    local originalText = text
     text = self:_sanitizeText(text)
+
+    -- Trigger onSanitize callback if text was sanitized
+    if text ~= originalText and self.onSanitize and element then
+      self.onSanitize(element, originalText, text)
+    end
   end
-  
+
   self._textBuffer = text
   self:_markTextDirty()
-  self:_updateTextIfDirty()
+  self:_updateTextIfDirty(element)
   self:_validateCursorPosition()
-  self:_saveState()
+  self:_saveState(element)
 end
 
 ---Insert text at position
+---@param element Element The parent element (for state saving)
 ---@param text string -- Text to insert
 ---@param position number? -- Position to insert at (default: cursor position)
 ---@param skipSanitization boolean? -- Skip sanitization (for internal use)
-function TextEditor:insertText(text, position, skipSanitization)
+function TextEditor:insertText(element, text, position, skipSanitization)
   position = position or self._cursorPosition
   local buffer = self._textBuffer or ""
-  
+
   -- Sanitize text unless explicitly skipped
   if not skipSanitization then
     text = self:_sanitizeText(text)
   end
-  
+
   -- Check if text is empty after sanitization
   if not text or text == "" then
     return
@@ -312,16 +309,17 @@ function TextEditor:insertText(text, position, skipSanitization)
   self._cursorPosition = position + utf8.len(text)
 
   self:_markTextDirty()
-  self:_updateTextIfDirty()
+  self:_updateTextIfDirty(element)
   self:_validateCursorPosition()
-  self:_resetCursorBlink(true)
-  self:_saveState()
+  self:_resetCursorBlink(element, true)
+  self:_saveState(element)
 end
 
 ---Delete text in range
+---@param element Element The parent element (for state saving)
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
-function TextEditor:deleteText(startPos, endPos)
+function TextEditor:deleteText(element, startPos, endPos)
   local buffer = self._textBuffer or ""
 
   -- Ensure valid range
@@ -343,18 +341,19 @@ function TextEditor:deleteText(startPos, endPos)
   self._textBuffer = before .. after
 
   self:_markTextDirty()
-  self:_updateTextIfDirty()
-  self:_resetCursorBlink(true)
-  self:_saveState()
+  self:_updateTextIfDirty(element)
+  self:_resetCursorBlink(element, true)
+  self:_saveState(element)
 end
 
 ---Replace text in range
+---@param element Element The parent element (for state saving)
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 ---@param newText string -- Replacement text
-function TextEditor:replaceText(startPos, endPos, newText)
-  self:deleteText(startPos, endPos)
-  self:insertText(newText, startPos)
+function TextEditor:replaceText(element, startPos, endPos, newText)
+  self:deleteText(element, startPos, endPos)
+  self:insertText(element, newText, startPos)
 end
 
 ---Mark text as dirty (needs recalculation)
@@ -363,13 +362,14 @@ function TextEditor:_markTextDirty()
 end
 
 ---Update text if dirty (recalculate lines and wrapping)
-function TextEditor:_updateTextIfDirty()
+---@param element Element? The parent element (for wrapping calculations)
+function TextEditor:_updateTextIfDirty(element)
   if not self._textDirty then
     return
   end
 
   self:_splitLines()
-  self:_calculateWrapping()
+  self:_calculateWrapping(element)
   self:_validateCursorPosition()
   self._textDirty = false
 end
@@ -400,14 +400,15 @@ function TextEditor:_splitLines()
 end
 
 ---Calculate text wrapping
-function TextEditor:_calculateWrapping()
-  if not self.textWrap or not self._element then
+---@param element Element? The parent element
+function TextEditor:_calculateWrapping(element)
+  if not self.textWrap or not element then
     self._wrappedLines = nil
     return
   end
 
   self._wrappedLines = {}
-  local availableWidth = self._element.width - self._element.padding.left - self._element.padding.right
+  local availableWidth = element.width - element.padding.left - element.padding.right
 
   for lineNum, line in ipairs(self._lines or {}) do
     if line == "" then
@@ -418,7 +419,7 @@ function TextEditor:_calculateWrapping()
         lineNum = lineNum,
       })
     else
-      local wrappedParts = self:_wrapLine(line, availableWidth)
+      local wrappedParts = self:_wrapLine(element, line, availableWidth)
       for _, part in ipairs(wrappedParts) do
         part.lineNum = lineNum
         table.insert(self._wrappedLines, part)
@@ -428,16 +429,17 @@ function TextEditor:_calculateWrapping()
 end
 
 ---Wrap a single line of text
+---@param element Element The parent element
 ---@param line string -- Line to wrap
 ---@param maxWidth number -- Maximum width in pixels
 ---@return table -- Array of wrapped line parts
-function TextEditor:_wrapLine(line, maxWidth)
-  if not self._element then
+function TextEditor:_wrapLine(element, line, maxWidth)
+  if not element then
     return { { text = line, startIdx = 0, endIdx = utf8.len(line) } }
   end
 
   -- Delegate to Renderer
-  return self._element._renderer:wrapLine(self._element, line, maxWidth)
+  return element._renderer:wrapLine(element, line, maxWidth)
 end
 
 -- ====================
@@ -445,11 +447,12 @@ end
 -- ====================
 
 ---Set cursor position
+---@param element Element? The parent element (for scroll updates)
 ---@param position number -- Character index (0-based)
-function TextEditor:setCursorPosition(position)
+function TextEditor:setCursorPosition(element, position)
   self._cursorPosition = position
   self:_validateCursorPosition()
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Get cursor position
@@ -459,36 +462,41 @@ function TextEditor:getCursorPosition()
 end
 
 ---Move cursor by delta characters
+---@param element Element? The parent element (for scroll updates)
 ---@param delta number -- Number of characters to move (positive or negative)
-function TextEditor:moveCursorBy(delta)
+function TextEditor:moveCursorBy(element, delta)
   self._cursorPosition = self._cursorPosition + delta
   self:_validateCursorPosition()
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Move cursor to start of text
-function TextEditor:moveCursorToStart()
+---@param element Element? The parent element (for scroll updates)
+function TextEditor:moveCursorToStart(element)
   self._cursorPosition = 0
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Move cursor to end of text
-function TextEditor:moveCursorToEnd()
+---@param element Element? The parent element (for scroll updates)
+function TextEditor:moveCursorToEnd(element)
   local textLength = utf8.len(self._textBuffer or "")
   self._cursorPosition = textLength
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Move cursor to start of current line
-function TextEditor:moveCursorToLineStart()
+---@param element Element? The parent element (for scroll updates)
+function TextEditor:moveCursorToLineStart(element)
   -- For now, just move to start (will be enhanced for multi-line)
-  self:moveCursorToStart()
+  self:moveCursorToStart(element)
 end
 
 ---Move cursor to end of current line
-function TextEditor:moveCursorToLineEnd()
+---@param element Element? The parent element (for scroll updates)
+function TextEditor:moveCursorToLineEnd(element)
   -- For now, just move to end (will be enhanced for multi-line)
-  self:moveCursorToEnd()
+  self:moveCursorToEnd(element)
 end
 
 ---Move cursor to start of previous word
@@ -602,8 +610,9 @@ function TextEditor:_validateCursorPosition()
 end
 
 ---Reset cursor blink (show cursor immediately)
+---@param element Element? The parent element (for scroll updates)
 ---@param pauseBlink boolean|nil -- Whether to pause blinking (for typing)
-function TextEditor:_resetCursorBlink(pauseBlink)
+function TextEditor:_resetCursorBlink(element, pauseBlink)
   self._cursorBlinkTimer = 0
   self._cursorVisible = true
 
@@ -612,16 +621,17 @@ function TextEditor:_resetCursorBlink(pauseBlink)
     self._cursorBlinkPauseTimer = 0
   end
 
-  self:_updateTextScroll()
+  self:_updateTextScroll(element)
 end
 
 ---Update text scroll offset to keep cursor visible
-function TextEditor:_updateTextScroll()
-  if not self._element or self.multiline then
+---@param element Element? The parent element
+function TextEditor:_updateTextScroll(element)
+  if not element or self.multiline then
     return
   end
 
-  local font = self:_getFont()
+  local font = self:_getFont(element)
   if not font then
     return
   end
@@ -637,10 +647,10 @@ function TextEditor:_updateTextScroll()
   local cursorX = font:getWidth(cursorText)
 
   -- Get available text area width
-  local textAreaWidth = self._element.width
-  local scaledContentPadding = self._element:getScaledContentPadding()
+  local textAreaWidth = element.width
+  local scaledContentPadding = element:getScaledContentPadding()
   if scaledContentPadding then
-    local borderBoxWidth = self._element._borderBoxWidth or (self._element.width + self._element.padding.left + self._element.padding.right)
+    local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
   end
 
@@ -660,9 +670,10 @@ function TextEditor:_updateTextScroll()
 end
 
 ---Get cursor screen position for rendering (handles multiline text)
+---@param element Element? The parent element
 ---@return number, number -- Cursor X and Y position relative to content area
-function TextEditor:_getCursorScreenPosition()
-  local font = self:_getFont()
+function TextEditor:_getCursorScreenPosition(element)
+  local font = self:_getFont(element)
   if not font then
     return 0, 0
   end
@@ -689,17 +700,17 @@ function TextEditor:_getCursorScreenPosition()
   end
 
   -- For multiline text, we need to find which wrapped line the cursor is on
-  self:_updateTextIfDirty()
+  self:_updateTextIfDirty(element)
 
-  if not self._element then
+  if not element then
     return 0, 0
   end
 
   -- Get text area width for wrapping
-  local textAreaWidth = self._element.width
-  local scaledContentPadding = self._element:getScaledContentPadding()
+  local textAreaWidth = element.width
+  local scaledContentPadding = element:getScaledContentPadding()
   if scaledContentPadding then
-    local borderBoxWidth = self._element._borderBoxWidth or (self._element.width + self._element.padding.left + self._element.padding.right)
+    local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
   end
 
@@ -727,7 +738,7 @@ function TextEditor:_getCursorScreenPosition()
 
       -- If text wrapping is enabled, find which wrapped segment
       if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        local wrappedSegments = self:_wrapLine(element, line, textAreaWidth)
 
         for segmentIdx, segment in ipairs(wrappedSegments) do
           if posInLine >= segment.startIdx and posInLine <= segment.endIdx then
@@ -776,9 +787,10 @@ end
 -- ====================
 
 ---Set selection range
+---@param element Element? The parent element (for scroll updates)
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
-function TextEditor:setSelection(startPos, endPos)
+function TextEditor:setSelection(element, startPos, endPos)
   local textLength = utf8.len(self._textBuffer or "")
   self._selectionStart = math.max(0, math.min(startPos, textLength))
   self._selectionEnd = math.max(0, math.min(endPos, textLength))
@@ -788,7 +800,7 @@ function TextEditor:setSelection(startPos, endPos)
     self._selectionStart, self._selectionEnd = self._selectionEnd, self._selectionStart
   end
 
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Get selection range
@@ -814,11 +826,12 @@ function TextEditor:clearSelection()
 end
 
 ---Select all text
-function TextEditor:selectAll()
+---@param element Element? The parent element (for scroll updates)
+function TextEditor:selectAll(element)
   local textLength = utf8.len(self._textBuffer or "")
   self._selectionStart = 0
   self._selectionEnd = textLength
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Get selected text
@@ -850,8 +863,9 @@ function TextEditor:getSelectedText()
 end
 
 ---Delete selected text
+---@param element Element The parent element (for state saving)
 ---@return boolean -- True if text was deleted
-function TextEditor:deleteSelection()
+function TextEditor:deleteSelection(element)
   if not self:hasSelection() then
     return false
   end
@@ -861,22 +875,23 @@ function TextEditor:deleteSelection()
     return false
   end
 
-  self:deleteText(startPos, endPos)
+  self:deleteText(element, startPos, endPos)
   self:clearSelection()
   self._cursorPosition = startPos
   self:_validateCursorPosition()
-  self:_saveState()
+  self:_saveState(element)
 
   return true
 end
 
 ---Get selection rectangles for rendering
+---@param element Element The parent element
 ---@param selStart number -- Selection start position
 ---@param selEnd number -- Selection end position
 ---@return table -- Array of rectangles {x, y, width, height}
-function TextEditor:_getSelectionRects(selStart, selEnd)
-  local font = self:_getFont()
-  if not font or not self._element then
+function TextEditor:_getSelectionRects(element, selStart, selEnd)
+  local font = self:_getFont(element)
+  if not font or not element then
     return {}
   end
 
@@ -909,13 +924,13 @@ function TextEditor:_getSelectionRects(selStart, selEnd)
   end
 
   -- For multiline text, handle line wrapping
-  self:_updateTextIfDirty()
+  self:_updateTextIfDirty(element)
 
   -- Get text area width for wrapping
-  local textAreaWidth = self._element.width
-  local scaledContentPadding = self._element:getScaledContentPadding()
+  local textAreaWidth = element.width
+  local scaledContentPadding = element:getScaledContentPadding()
   if scaledContentPadding then
-    local borderBoxWidth = self._element._borderBoxWidth or (self._element.width + self._element.padding.left + self._element.padding.right)
+    local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
   end
 
@@ -942,7 +957,7 @@ function TextEditor:_getSelectionRects(selStart, selEnd)
       local selEndInLine = math.min(lineLength, selEnd - charCount)
 
       if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        local wrappedSegments = self:_wrapLine(element, line, textAreaWidth)
 
         for segmentIdx, segment in ipairs(wrappedSegments) do
           if selEndInLine > segment.startIdx and selStartInLine <= segment.endIdx then
@@ -1004,7 +1019,7 @@ function TextEditor:_getSelectionRects(selStart, selEnd)
     else
       -- Selection doesn't intersect, but count visual lines
       if self.textWrap and textAreaWidth > 0 then
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        local wrappedSegments = self:_wrapLine(element, line, textAreaWidth)
         visualLineNum = visualLineNum + #wrappedSegments
       else
         visualLineNum = visualLineNum + 1
@@ -1022,47 +1037,55 @@ end
 -- ====================
 
 ---Focus this element for keyboard input
-function TextEditor:focus()
-  if self._Context._focusedElement and self._Context._focusedElement ~= self._element then
+---@param element Element The parent element
+function TextEditor:focus(element)
+  if not element then
+    return
+  end
+
+  if self._Context._focusedElement and self._Context._focusedElement ~= element then
     -- Blur the previously focused element's text editor if it has one
     if self._Context._focusedElement._textEditor then
-      self._Context._focusedElement._textEditor:blur()
+      self._Context._focusedElement._textEditor:blur(self._Context._focusedElement)
     end
   end
 
   self._focused = true
-  if self._element then
-    self._Context._focusedElement = self._element
-  end
+  self._Context._focusedElement = element
 
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 
   if self.selectOnFocus then
-    self:selectAll()
+    self:selectAll(element)
   else
-    self:moveCursorToEnd()
+    self:moveCursorToEnd(element)
   end
 
-  if self.onFocus and self._element then
-    self.onFocus(self._element)
+  if self.onFocus then
+    self.onFocus(element)
   end
 
-  self:_saveState()
+  self:_saveState(element)
 end
 
 ---Remove focus from this element
-function TextEditor:blur()
+---@param element Element The parent element
+function TextEditor:blur(element)
+  if not element then
+    return
+  end
+
   self._focused = false
 
-  if self._element and self._Context._focusedElement == self._element then
+  if self._Context._focusedElement == element then
     self._Context._focusedElement = nil
   end
 
-  if self.onBlur and self._element then
-    self.onBlur(self._element)
+  if self.onBlur then
+    self.onBlur(element)
   end
 
-  self:_saveState()
+  self:_saveState(element)
 end
 
 ---Check if this element is focused
@@ -1076,15 +1099,16 @@ end
 -- ====================
 
 ---Handle text input (character insertion)
+---@param element Element The parent element
 ---@param text string
-function TextEditor:handleTextInput(text)
+function TextEditor:handleTextInput(element, text)
   if not self._focused then
     return
   end
 
   -- Trigger onTextInput callback if defined
-  if self.onTextInput and self._element then
-    local result = self.onTextInput(self._element, text)
+  if self.onTextInput then
+    local result = self.onTextInput(element, text)
     if result == false then
       return
     end
@@ -1094,25 +1118,26 @@ function TextEditor:handleTextInput(text)
 
   -- Delete selection if exists
   if self:hasSelection() then
-    self:deleteSelection()
+    self:deleteSelection(element)
   end
 
   -- Insert text at cursor position
-  self:insertText(text)
+  self:insertText(element, text)
 
   -- Trigger onTextChange callback
-  if self.onTextChange and self._textBuffer ~= oldText and self._element then
-    self.onTextChange(self._element, self._textBuffer, oldText)
+  if self.onTextChange and self._textBuffer ~= oldText then
+    self.onTextChange(element, self._textBuffer, oldText)
   end
 
-  self:_saveState()
+  self:_saveState(element)
 end
 
 ---Handle key press (special keys)
+---@param element Element The parent element
 ---@param key string -- Key name
 ---@param scancode string -- Scancode
 ---@param isrepeat boolean -- Whether this is a key repeat
-function TextEditor:handleKeyPress(key, scancode, isrepeat)
+function TextEditor:handleKeyPress(element, key, scancode, isrepeat)
   if not self._focused then
     return
   end
@@ -1128,7 +1153,7 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
 
     if key == "left" then
       if modifiers.super then
-        self:moveCursorToStart()
+        self:moveCursorToStart(element)
         if not modifiers.shift then
           self:clearSelection()
         end
@@ -1139,11 +1164,11 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
         self._cursorPosition = startPos
         self:clearSelection()
       else
-        self:moveCursorBy(-1)
+        self:moveCursorBy(element, -1)
       end
     elseif key == "right" then
       if modifiers.super then
-        self:moveCursorToEnd()
+        self:moveCursorToEnd(element)
         if not modifiers.shift then
           self:clearSelection()
         end
@@ -1154,22 +1179,22 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
         self._cursorPosition = endPos
         self:clearSelection()
       else
-        self:moveCursorBy(1)
+        self:moveCursorBy(element, 1)
       end
     elseif key == "home" then
       if not self.multiline then
-        self:moveCursorToStart()
+        self:moveCursorToStart(element)
       else
-        self:moveCursorToLineStart()
+        self:moveCursorToLineStart(element)
       end
       if not modifiers.shift then
         self:clearSelection()
       end
     elseif key == "end" then
       if not self.multiline then
-        self:moveCursorToEnd()
+        self:moveCursorToEnd(element)
       else
-        self:moveCursorToLineEnd()
+        self:moveCursorToLineEnd(element)
       end
       if not modifiers.shift then
         self:clearSelection()
@@ -1182,21 +1207,21 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
 
     -- Update selection if Shift is pressed
     if modifiers.shift and self._selectionAnchor then
-      self:setSelection(self._selectionAnchor, self._cursorPosition)
+      self:setSelection(element, self._selectionAnchor, self._cursorPosition)
     elseif not modifiers.shift then
       self._selectionAnchor = nil
     end
 
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(element)
 
   -- Handle backspace and delete
   elseif key == "backspace" then
     local oldText = self._textBuffer
     if self:hasSelection() then
-      self:deleteSelection()
+      self:deleteSelection(element)
     elseif ctrl then
       if self._cursorPosition > 0 then
-        self:deleteText(0, self._cursorPosition)
+        self:deleteText(element, 0, self._cursorPosition)
         self._cursorPosition = 0
         self:_validateCursorPosition()
       end
@@ -1204,53 +1229,53 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
       local deleteStart = self._cursorPosition - 1
       local deleteEnd = self._cursorPosition
       self._cursorPosition = deleteStart
-      self:deleteText(deleteStart, deleteEnd)
+      self:deleteText(element, deleteStart, deleteEnd)
       self:_validateCursorPosition()
     end
 
-    if self.onTextChange and self._textBuffer ~= oldText and self._element then
-      self.onTextChange(self._element, self._textBuffer, oldText)
+    if self.onTextChange and self._textBuffer ~= oldText then
+      self.onTextChange(element, self._textBuffer, oldText)
     end
-    self:_resetCursorBlink(true)
+    self:_resetCursorBlink(element, true)
   elseif key == "delete" then
     local oldText = self._textBuffer
     if self:hasSelection() then
-      self:deleteSelection()
+      self:deleteSelection(element)
     else
       local textLength = utf8.len(self._textBuffer or "")
       if self._cursorPosition < textLength then
-        self:deleteText(self._cursorPosition, self._cursorPosition + 1)
+        self:deleteText(element, self._cursorPosition, self._cursorPosition + 1)
       end
     end
 
-    if self.onTextChange and self._textBuffer ~= oldText and self._element then
-      self.onTextChange(self._element, self._textBuffer, oldText)
+    if self.onTextChange and self._textBuffer ~= oldText then
+      self.onTextChange(element, self._textBuffer, oldText)
     end
-    self:_resetCursorBlink(true)
+    self:_resetCursorBlink(element, true)
 
   -- Handle return/enter
   elseif key == "return" or key == "kpenter" then
     if self.multiline then
       local oldText = self._textBuffer
       if self:hasSelection() then
-        self:deleteSelection()
+        self:deleteSelection(element)
       end
-      self:insertText("\n")
+      self:insertText(element, "\n")
 
-      if self.onTextChange and self._textBuffer ~= oldText and self._element then
-        self.onTextChange(self._element, self._textBuffer, oldText)
+      if self.onTextChange and self._textBuffer ~= oldText then
+        self.onTextChange(element, self._textBuffer, oldText)
       end
     else
-      if self.onEnter and self._element then
-        self.onEnter(self._element)
+      if self.onEnter then
+        self.onEnter(element)
       end
     end
-    self:_resetCursorBlink(true)
+    self:_resetCursorBlink(element, true)
 
   -- Handle Ctrl/Cmd+A (select all)
   elseif ctrl and key == "a" then
-    self:selectAll()
-    self:_resetCursorBlink()
+    self:selectAll(element)
+    self:_resetCursorBlink(element)
 
   -- Handle Ctrl/Cmd+C (copy)
   elseif ctrl and key == "c" then
@@ -1260,7 +1285,7 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
         love.system.setClipboardText(selectedText)
       end
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(element)
 
   -- Handle Ctrl/Cmd+X (cut)
   elseif ctrl and key == "x" then
@@ -1270,14 +1295,14 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
         love.system.setClipboardText(selectedText)
 
         local oldText = self._textBuffer
-        self:deleteSelection()
+        self:deleteSelection(element)
 
-        if self.onTextChange and self._textBuffer ~= oldText and self._element then
-          self.onTextChange(self._element, self._textBuffer, oldText)
+        if self.onTextChange and self._textBuffer ~= oldText then
+          self.onTextChange(element, self._textBuffer, oldText)
         end
       end
     end
-    self:_resetCursorBlink(true)
+    self:_resetCursorBlink(element, true)
 
   -- Handle Ctrl/Cmd+V (paste)
   elseif ctrl and key == "v" then
@@ -1286,28 +1311,28 @@ function TextEditor:handleKeyPress(key, scancode, isrepeat)
       local oldText = self._textBuffer
 
       if self:hasSelection() then
-        self:deleteSelection()
+        self:deleteSelection(element)
       end
 
-      self:insertText(clipboardText)
+      self:insertText(element, clipboardText)
 
-      if self.onTextChange and self._textBuffer ~= oldText and self._element then
-        self.onTextChange(self._element, self._textBuffer, oldText)
+      if self.onTextChange and self._textBuffer ~= oldText then
+        self.onTextChange(element, self._textBuffer, oldText)
       end
     end
-    self:_resetCursorBlink(true)
+    self:_resetCursorBlink(element, true)
 
   -- Handle Escape
   elseif key == "escape" then
     if self:hasSelection() then
       self:clearSelection()
     else
-      self:blur()
+      self:blur(element)
     end
-    self:_resetCursorBlink()
+    self:_resetCursorBlink(element)
   end
 
-  self:_saveState()
+  self:_saveState(element)
 end
 
 -- ====================
@@ -1315,22 +1340,23 @@ end
 -- ====================
 
 ---Convert mouse coordinates to cursor position in text
+---@param element Element The parent element
 ---@param mouseX number -- Mouse X coordinate (absolute)
 ---@param mouseY number -- Mouse Y coordinate (absolute)
 ---@return number -- Cursor position (character index)
-function TextEditor:mouseToTextPosition(mouseX, mouseY)
-  if not self._element or not self._textBuffer then
+function TextEditor:mouseToTextPosition(element, mouseX, mouseY)
+  if not element or not self._textBuffer then
     return 0
   end
 
-  local font = self:_getFont()
+  local font = self:_getFont(element)
   if not font then
     return 0
   end
 
   -- Get content area bounds
-  local contentX = (self._element._absoluteX or self._element.x) + self._element.padding.left
-  local contentY = (self._element._absoluteY or self._element.y) + self._element.padding.top
+  local contentX = (element._absoluteX or element.x) + element.padding.left
+  local contentY = (element._absoluteY or element.y) + element.padding.top
 
   -- Calculate relative position
   local relativeX = mouseX - contentX
@@ -1364,7 +1390,7 @@ function TextEditor:mouseToTextPosition(mouseX, mouseY)
   end
 
   -- Multiline handling
-  self:_updateTextIfDirty()
+  self:_updateTextIfDirty(element)
 
   -- Split text into lines
   local lines = {}
@@ -1378,10 +1404,10 @@ function TextEditor:mouseToTextPosition(mouseX, mouseY)
   local lineHeight = font:getHeight()
 
   -- Get text area width
-  local textAreaWidth = self._element.width
-  local scaledContentPadding = self._element:getScaledContentPadding()
+  local textAreaWidth = element.width
+  local scaledContentPadding = element:getScaledContentPadding()
   if scaledContentPadding then
-    local borderBoxWidth = self._element._borderBoxWidth or (self._element.width + self._element.padding.left + self._element.padding.right)
+    local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
   end
 
@@ -1401,7 +1427,7 @@ function TextEditor:mouseToTextPosition(mouseX, mouseY)
 
   -- Handle wrapped segments
   if self.textWrap and textAreaWidth > 0 then
-    local wrappedSegments = self:_wrapLine(clickedLine, textAreaWidth)
+    local wrappedSegments = self:_wrapLine(element, clickedLine, textAreaWidth)
     local lineYOffset = (clickedLineNum - 1) * lineHeight
     local segmentNum = math.floor((relativeY - lineYOffset) / lineHeight) + 1
     segmentNum = math.max(1, math.min(segmentNum, #wrappedSegments))
@@ -1447,52 +1473,55 @@ function TextEditor:mouseToTextPosition(mouseX, mouseY)
 end
 
 ---Handle mouse click on text
+---@param element Element The parent element
 ---@param mouseX number
 ---@param mouseY number
 ---@param clickCount number -- 1=single, 2=double, 3=triple
-function TextEditor:handleTextClick(mouseX, mouseY, clickCount)
+function TextEditor:handleTextClick(element, mouseX, mouseY, clickCount)
   if not self._focused then
     return
   end
 
   if clickCount == 1 then
-    local pos = self:mouseToTextPosition(mouseX, mouseY)
-    self:setCursorPosition(pos)
+    local pos = self:mouseToTextPosition(element, mouseX, mouseY)
+    self:setCursorPosition(element, pos)
     self:clearSelection()
     self._mouseDownPosition = pos
   elseif clickCount == 2 then
-    self:_selectWordAtPosition(self:mouseToTextPosition(mouseX, mouseY))
+    self:_selectWordAtPosition(element, self:mouseToTextPosition(element, mouseX, mouseY))
   elseif clickCount >= 3 then
-    self:selectAll()
+    self:selectAll(element)
   end
 
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Handle mouse drag for text selection
+---@param element Element The parent element
 ---@param mouseX number
 ---@param mouseY number
-function TextEditor:handleTextDrag(mouseX, mouseY)
+function TextEditor:handleTextDrag(element, mouseX, mouseY)
   if not self._focused or not self._mouseDownPosition then
     return
   end
 
-  local currentPos = self:mouseToTextPosition(mouseX, mouseY)
+  local currentPos = self:mouseToTextPosition(element, mouseX, mouseY)
 
   if currentPos ~= self._mouseDownPosition then
-    self:setSelection(self._mouseDownPosition, currentPos)
+    self:setSelection(element, self._mouseDownPosition, currentPos)
     self._cursorPosition = currentPos
     self._textDragOccurred = true
   else
     self:clearSelection()
   end
 
-  self:_resetCursorBlink()
+  self:_resetCursorBlink(element)
 end
 
 ---Select word at given position
+---@param element Element? The parent element (for scroll updates)
 ---@param position number
-function TextEditor:_selectWordAtPosition(position)
+function TextEditor:_selectWordAtPosition(element, position)
   if not self._textBuffer then
     return
   end
@@ -1542,7 +1571,7 @@ function TextEditor:_selectWordAtPosition(position)
     endPos = endPos + 1
   end
 
-  self:setSelection(startPos, endPos)
+  self:setSelection(element, startPos, endPos)
   self._cursorPosition = endPos
 end
 
@@ -1551,8 +1580,9 @@ end
 -- ====================
 
 ---Update cursor blink animation
+---@param element Element The parent element
 ---@param dt number -- Delta time
-function TextEditor:update(dt)
+function TextEditor:update(element, dt)
   if not self._focused then
     return
   end
@@ -1573,16 +1603,17 @@ function TextEditor:update(dt)
   end
 
   -- Save state for immediate mode (cursor blink timer changes need to persist)
-  self:_saveState()
+  self:_saveState(element)
 end
 
 ---Update element height based on text content (for autoGrow)
-function TextEditor:updateAutoGrowHeight()
-  if not self.multiline or not self.autoGrow or not self._element then
+---@param element Element The parent element
+function TextEditor:updateAutoGrowHeight(element)
+  if not self.multiline or not self.autoGrow or not element then
     return
   end
 
-  local font = self:_getFont()
+  local font = self:_getFont(element)
   if not font then
     return
   end
@@ -1591,10 +1622,10 @@ function TextEditor:updateAutoGrowHeight()
   local lineHeight = font:getHeight()
 
   -- Get text area width
-  local textAreaWidth = self._element.width
-  local scaledContentPadding = self._element:getScaledContentPadding()
+  local textAreaWidth = element.width
+  local scaledContentPadding = element:getScaledContentPadding()
   if scaledContentPadding then
-    local borderBoxWidth = self._element._borderBoxWidth or (self._element.width + self._element.padding.left + self._element.padding.right)
+    local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
     textAreaWidth = borderBoxWidth - scaledContentPadding.left - scaledContentPadding.right
   end
 
@@ -1614,7 +1645,7 @@ function TextEditor:updateAutoGrowHeight()
       if line == "" then
         totalWrappedLines = totalWrappedLines + 1
       else
-        local wrappedSegments = self:_wrapLine(line, textAreaWidth)
+        local wrappedSegments = self:_wrapLine(element, line, textAreaWidth)
         totalWrappedLines = totalWrappedLines + #wrappedSegments
       end
     end
@@ -1625,11 +1656,11 @@ function TextEditor:updateAutoGrowHeight()
   totalWrappedLines = math.max(1, totalWrappedLines)
   local newContentHeight = totalWrappedLines * lineHeight
 
-  if self._element.height ~= newContentHeight then
-    self._element.height = newContentHeight
-    self._element._borderBoxHeight = self._element.height + self._element.padding.top + self._element.padding.bottom
-    if self._element.parent and not self._element._explicitlyAbsolute then
-      self._element.parent:layoutChildren()
+  if element.height ~= newContentHeight then
+    element.height = newContentHeight
+    element._borderBoxHeight = element.height + element.padding.top + element.padding.bottom
+    if element.parent and not element._explicitlyAbsolute then
+      element.parent:layoutChildren()
     end
   end
 end
@@ -1639,23 +1670,25 @@ end
 -- ====================
 
 ---Get font for text rendering
+---@param element Element? The parent element
 ---@return love.Font?
-function TextEditor:_getFont()
-  if not self._element then
+function TextEditor:_getFont(element)
+  if not element then
     return nil
   end
 
   -- Delegate to Renderer
-  return self._element._renderer:getFont(self._element)
+  return element._renderer:getFont(element)
 end
 
 ---Save state to StateManager (for immediate mode)
-function TextEditor:_saveState()
-  if not self._element or not self._element._stateId or not self._Context._immediateMode then
+---@param element Element? The parent element
+function TextEditor:_saveState(element)
+  if not element or not element._stateId or not self._Context._immediateMode then
     return
   end
 
-  self._StateManager.updateState(self._element._stateId, {
+  self._StateManager.updateState(element._stateId, {
     _focused = self._focused,
     _textBuffer = self._textBuffer,
     _cursorPosition = self._cursorPosition,
@@ -1666,6 +1699,13 @@ function TextEditor:_saveState()
     _cursorBlinkPaused = self._cursorBlinkPaused,
     _cursorBlinkPauseTimer = self._cursorBlinkPauseTimer,
   })
+end
+
+
+--- Cleanup method to break circular references (for immediate mode)
+function TextEditor:_cleanup()
+  -- TextEditor → element is circular, but breaking it breaks functionality
+  -- Module refs are singletons, not circular
 end
 
 return TextEditor

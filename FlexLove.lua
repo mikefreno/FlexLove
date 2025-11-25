@@ -325,6 +325,24 @@ function flexlove.beginFrame()
   -- Start performance frame timing
   flexlove._Performance:startFrame()
 
+  -- Cleanup elements from PREVIOUS frame (after they've been drawn)
+  -- This breaks circular references and allows GC to collect memory
+  -- Note: Cleanup is minimal to preserve functionality
+  if flexlove._currentFrameElements then
+    local function cleanupChildren(elem)
+      for _, child in ipairs(elem.children) do
+        cleanupChildren(child)
+      end
+      elem:_cleanup()
+    end
+    
+    for _, element in ipairs(flexlove._currentFrameElements) do
+      if not element.parent then
+        cleanupChildren(element)
+      end
+    end
+  end
+
   flexlove._frameNumber = flexlove._frameNumber + 1
   StateManager.incrementFrame()
   flexlove._currentFrameElements = {}

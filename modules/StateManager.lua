@@ -18,9 +18,91 @@ local callSiteCounters = {}
 
 -- Configuration
 local config = {
-  stateRetentionFrames = 60, -- Keep unused state for 60 frames (~1 second at 60fps)
+  stateRetentionFrames = 2, -- Keep unused state for 2 frames
   maxStateEntries = 1000, -- Maximum state entries before forced GC
 }
+
+-- Default state values (sparse storage - don't store these)
+local stateDefaults = {
+  -- Interaction states
+  hover = false,
+  pressed = false,
+  focused = false,
+  disabled = false,
+  active = false,
+
+  -- Scrollbar states
+  scrollbarHoveredVertical = false,
+  scrollbarHoveredHorizontal = false,
+  scrollbarDragging = false,
+  hoveredScrollbar = nil,
+  scrollbarDragOffset = 0,
+
+  -- Scroll position
+  scrollX = 0,
+  scrollY = 0,
+  _scrollX = 0,
+  _scrollY = 0,
+
+  -- Click tracking
+  _clickCount = 0,
+  _lastClickTime = nil,
+  _lastClickButton = nil,
+
+  -- Internal states
+  _hovered = nil,
+  _focused = nil,
+  _cursorPosition = nil,
+  _selectionStart = nil,
+  _selectionEnd = nil,
+  _textBuffer = "",
+  _cursorBlinkTimer = 0,
+  _cursorVisible = true,
+  _cursorBlinkPaused = false,
+  _cursorBlinkPauseTimer = 0,
+}
+
+--- Check if a value equals the default for a key
+---@param key string State key
+---@param value any Value to check
+---@return boolean isDefault True if value equals default
+local function isDefaultValue(key, value)
+  local defaultVal = stateDefaults[key]
+
+  -- If no default defined, check for common defaults
+  if defaultVal == nil then
+    -- Empty tables are default
+    if type(value) == "table" and next(value) == nil then
+      return true
+    end
+    -- nil values are default
+    if value == nil then
+      return true
+    end
+    -- Otherwise, not a default value
+    return false
+  end
+
+  -- Compare values
+  if type(value) == "table" then
+    -- Empty tables are considered default
+    if next(value) == nil then
+      return true
+    end
+    -- For other tables, compare contents (shallow)
+    if type(defaultVal) ~= "table" then
+      return false
+    end
+    for k, v in pairs(value) do
+      if defaultVal[k] ~= v then
+        return false
+      end
+    end
+    return true
+  else
+    return value == defaultVal
+  end
+end
 
 -- ====================
 -- ID Generation
@@ -190,107 +272,14 @@ function StateManager.getState(id, defaultState)
     end
     ErrorHandler.error("StateManager", "SYS_001", "Invalid state ID", {
       parameter = "id",
-      value = "nil"
+      value = "nil",
     }, "Provide a valid non-nil ID string to getState()")
   end
 
   -- Create state if it doesn't exist
   if not stateStore[id] then
-    -- Merge default state with standard structure
+    -- Start with empty state (sparse storage)
     stateStore[id] = defaultState or {}
-
-    -- Ensure all standard properties exist with defaults
-    local state = stateStore[id]
-
-    -- Interaction states
-    if state.hover == nil then
-      state.hover = false
-    end
-    if state.pressed == nil then
-      state.pressed = false
-    end
-    if state.focused == nil then
-      state.focused = false
-    end
-    if state.disabled == nil then
-      state.disabled = false
-    end
-    if state.active == nil then
-      state.active = false
-    end
-
-    -- Scrollbar states
-    if state.scrollbarHoveredVertical == nil then
-      state.scrollbarHoveredVertical = false
-    end
-    if state.scrollbarHoveredHorizontal == nil then
-      state.scrollbarHoveredHorizontal = false
-    end
-    if state.scrollbarDragging == nil then
-      state.scrollbarDragging = false
-    end
-    if state.hoveredScrollbar == nil then
-      state.hoveredScrollbar = nil
-    end
-    if state.scrollbarDragOffset == nil then
-      state.scrollbarDragOffset = 0
-    end
-
-    -- Scroll position
-    if state.scrollX == nil then
-      state.scrollX = 0
-    end
-    if state.scrollY == nil then
-      state.scrollY = 0
-    end
-
-    -- Click tracking
-    if state._pressed == nil then
-      state._pressed = {}
-    end
-    if state._lastClickTime == nil then
-      state._lastClickTime = nil
-    end
-    if state._lastClickButton == nil then
-      state._lastClickButton = nil
-    end
-    if state._clickCount == nil then
-      state._clickCount = 0
-    end
-
-    -- Drag tracking
-    if state._dragStartX == nil then
-      state._dragStartX = {}
-    end
-    if state._dragStartY == nil then
-      state._dragStartY = {}
-    end
-    if state._lastMouseX == nil then
-      state._lastMouseX = {}
-    end
-    if state._lastMouseY == nil then
-      state._lastMouseY = {}
-    end
-
-    -- Input/focus state
-    if state._hovered == nil then
-      state._hovered = nil
-    end
-    if state._focused == nil then
-      state._focused = nil
-    end
-    if state._cursorPosition == nil then
-      state._cursorPosition = nil
-    end
-    if state._selectionStart == nil then
-      state._selectionStart = nil
-    end
-    if state._selectionEnd == nil then
-      state._selectionEnd = nil
-    end
-    if state._textBuffer == nil then
-      state._textBuffer = ""
-    end
 
     -- Create metadata
     stateMetadata[id] = {
@@ -298,12 +287,12 @@ function StateManager.getState(id, defaultState)
       createdFrame = frameNumber,
       accessCount = 0,
     }
+  else
+    -- Update metadata
+    local meta = stateMetadata[id]
+    meta.lastFrame = frameNumber
+    meta.accessCount = meta.accessCount + 1
   end
-
-  -- Update metadata
-  local meta = stateMetadata[id]
-  meta.lastFrame = frameNumber
-  meta.accessCount = meta.accessCount + 1
 
   return stateStore[id]
 end
@@ -319,11 +308,19 @@ function StateManager.setState(id, state)
     end
     ErrorHandler.error("StateManager", "SYS_001", "Invalid state ID", {
       parameter = "id",
-      value = "nil"
+      value = "nil",
     }, "Provide a valid non-nil ID string to setState()")
   end
 
-  stateStore[id] = state
+  -- Create sparse state (remove default values)
+  local sparseState = {}
+  for key, value in pairs(state) do
+    if not isDefaultValue(key, value) then
+      sparseState[key] = value
+    end
+  end
+
+  stateStore[id] = sparseState
 
   -- Update or create metadata
   if not stateMetadata[id] then
@@ -408,6 +405,15 @@ function StateManager.cleanup()
     local framesSinceAccess = frameNumber - meta.lastFrame
 
     if framesSinceAccess > retentionFrames then
+      stateStore[id] = nil
+      stateMetadata[id] = nil
+      cleanedCount = cleanedCount + 1
+    end
+  end
+
+  -- Clean up empty states (sparse storage optimization)
+  for id, state in pairs(stateStore) do
+    if next(state) == nil then
       stateStore[id] = nil
       stateMetadata[id] = nil
       cleanedCount = cleanedCount + 1

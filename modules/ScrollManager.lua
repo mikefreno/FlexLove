@@ -1,4 +1,3 @@
-
 ---@class ScrollManager
 ---@field overflow string -- "visible"|"hidden"|"auto"|"scroll"
 ---@field overflowX string? -- X-axis specific overflow (overrides overflow)
@@ -16,7 +15,6 @@
 ---@field scrollFriction number -- Friction coefficient for momentum (0.95-0.98)
 ---@field bounceStiffness number -- Bounce spring constant (0.1-0.3)
 ---@field maxOverscroll number -- Maximum overscroll distance (pixels)
----@field _element Element? -- Reference to parent Element (set via initialize)
 ---@field _overflowX boolean -- True if content overflows horizontally
 ---@field _overflowY boolean -- True if content overflows vertically
 ---@field _contentWidth number -- Total content width (including overflow)
@@ -117,29 +115,12 @@ function ScrollManager.new(config, deps)
   self._lastTouchX = 0
   self._lastTouchY = 0
 
-  -- Element reference (set via initialize)
-  self._element = nil
-
   return self
 end
 
---- Initialize with parent element reference
----@param element table The parent Element instance
-function ScrollManager:initialize(element)
-  self._element = element
-end
-
 --- Detect if content overflows container bounds
-function ScrollManager:detectOverflow()
-  if not self._element then
-    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
-      method = "detectOverflow"
-    }, "Call scrollManager:initialize(element) before using scroll methods")
-    return
-  end
-
-  local element = self._element
-
+---@param element Element The parent Element instance
+function ScrollManager:detectOverflow(element)
   -- Reset overflow state
   self._overflowX = false
   self._overflowY = false
@@ -259,19 +240,9 @@ function ScrollManager:getContentSize()
 end
 
 --- Calculate scrollbar dimensions and positions
+---@param element Element The parent Element instance
 ---@return table -- {vertical: {visible, trackHeight, thumbHeight, thumbY}, horizontal: {visible, trackWidth, thumbWidth, thumbX}}
-function ScrollManager:calculateScrollbarDimensions()
-  if not self._element then
-    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
-      method = "calculateScrollbarDimensions"
-    }, "Call scrollManager:initialize(element) before using scroll methods")
-    return {
-      vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
-      horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
-    }
-  end
-
-  local element = self._element
+function ScrollManager:calculateScrollbarDimensions(element)
   local result = {
     vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
     horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
@@ -356,18 +327,11 @@ function ScrollManager:calculateScrollbarDimensions()
 end
 
 --- Get scrollbar at mouse position
+---@param element Element The parent Element instance
 ---@param mouseX number
 ---@param mouseY number
 ---@return table|nil -- {component: "vertical"|"horizontal", region: "thumb"|"track"}
-function ScrollManager:getScrollbarAtPosition(mouseX, mouseY)
-  if not self._element then
-    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
-      method = "getScrollbarAtPosition"
-    }, "Call scrollManager:initialize(element) before using scroll methods")
-    return nil
-  end
-
-  local element = self._element
+function ScrollManager:getScrollbarAtPosition(element, mouseX, mouseY)
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
 
@@ -375,7 +339,7 @@ function ScrollManager:getScrollbarAtPosition(mouseX, mouseY)
     return nil
   end
 
-  local dims = self:calculateScrollbarDimensions()
+  local dims = self:calculateScrollbarDimensions(element)
   local x, y = element.x, element.y
   local w, h = element.width, element.height
 
@@ -427,23 +391,17 @@ function ScrollManager:getScrollbarAtPosition(mouseX, mouseY)
 end
 
 --- Handle scrollbar mouse press
+---@param element Element The parent Element instance
 ---@param mouseX number
 ---@param mouseY number
 ---@param button number
 ---@return boolean -- True if event was consumed
-function ScrollManager:handleMousePress(mouseX, mouseY, button)
-  if not self._element then
-    ScrollManager._ErrorHandler:warn("ScrollManager", "SYS_002", "Method called before initialization", {
-      method = "handleMousePress"
-    }, "Call scrollManager:initialize(element) before using scroll methods")
-    return false
-  end
-
+function ScrollManager:handleMousePress(element, mouseX, mouseY, button)
   if button ~= 1 then
     return false
   end -- Only left click
 
-  local scrollbar = self:getScrollbarAtPosition(mouseX, mouseY)
+  local scrollbar = self:getScrollbarAtPosition(element, mouseX, mouseY)
   if not scrollbar then
     return false
   end
@@ -452,8 +410,7 @@ function ScrollManager:handleMousePress(mouseX, mouseY, button)
     -- Start dragging thumb
     self._scrollbarDragging = true
     self._hoveredScrollbar = scrollbar.component
-    local dims = self:calculateScrollbarDimensions()
-    local element = self._element
+    local dims = self:calculateScrollbarDimensions(element)
 
     if scrollbar.component == "vertical" then
       local contentY = element.y + element.padding.top
@@ -470,7 +427,7 @@ function ScrollManager:handleMousePress(mouseX, mouseY, button)
     return true -- Event consumed
   elseif scrollbar.region == "track" then
     -- Click on track - jump to position
-    self:_scrollToTrackPosition(mouseX, mouseY, scrollbar.component)
+    self:_scrollToTrackPosition(element, mouseX, mouseY, scrollbar.component)
     return true
   end
 
@@ -478,20 +435,16 @@ function ScrollManager:handleMousePress(mouseX, mouseY, button)
 end
 
 --- Handle scrollbar drag
+---@param element Element The parent Element instance
 ---@param mouseX number
 ---@param mouseY number
 ---@return boolean -- True if event was consumed
-function ScrollManager:handleMouseMove(mouseX, mouseY)
-  if not self._element then
-    return false
-  end
-
+function ScrollManager:handleMouseMove(element, mouseX, mouseY)
   if not self._scrollbarDragging then
     return false
   end
 
-  local dims = self:calculateScrollbarDimensions()
-  local element = self._element
+  local dims = self:calculateScrollbarDimensions(element)
 
   if self._hoveredScrollbar == "vertical" then
     local contentY = element.y + element.padding.top
@@ -547,16 +500,12 @@ function ScrollManager:handleMouseRelease(button)
 end
 
 --- Scroll to track click position (internal helper)
+---@param element Element The parent Element instance
 ---@param mouseX number
 ---@param mouseY number
 ---@param component string -- "vertical" or "horizontal"
-function ScrollManager:_scrollToTrackPosition(mouseX, mouseY, component)
-  if not self._element then
-    return
-  end
-
-  local dims = self:calculateScrollbarDimensions()
-  local element = self._element
+function ScrollManager:_scrollToTrackPosition(element, mouseX, mouseY, component)
+  local dims = self:calculateScrollbarDimensions(element)
 
   if component == "vertical" then
     local contentY = element.y + element.padding.top
@@ -628,10 +577,11 @@ function ScrollManager:handleWheel(x, y)
 end
 
 --- Update scrollbar hover state based on mouse position
+---@param element Element The parent Element instance
 ---@param mouseX number
 ---@param mouseY number
-function ScrollManager:updateHoverState(mouseX, mouseY)
-  local scrollbar = self:getScrollbarAtPosition(mouseX, mouseY)
+function ScrollManager:updateHoverState(element, mouseX, mouseY)
+  local scrollbar = self:getScrollbarAtPosition(element, mouseX, mouseY)
 
   if scrollbar then
     if scrollbar.component == "vertical" then
@@ -801,7 +751,7 @@ function ScrollManager:handleTouchRelease()
   -- Start momentum scrolling if enabled and velocity is significant
   if self.momentumScrollEnabled then
     local velocityThreshold = 50 -- pixels per second
-    local totalVelocity = math.sqrt(self._scrollVelocityX^2 + self._scrollVelocityY^2)
+    local totalVelocity = math.sqrt(self._scrollVelocityX ^ 2 + self._scrollVelocityY ^ 2)
 
     if totalVelocity > velocityThreshold then
       self._momentumScrolling = true
@@ -845,7 +795,7 @@ function ScrollManager:update(dt)
   self._scrollVelocityY = self._scrollVelocityY * self.scrollFriction
 
   -- Stop momentum when velocity is very low
-  local totalVelocity = math.sqrt(self._scrollVelocityX^2 + self._scrollVelocityY^2)
+  local totalVelocity = math.sqrt(self._scrollVelocityX ^ 2 + self._scrollVelocityY ^ 2)
   if totalVelocity < 1 then
     self._momentumScrolling = false
     self._scrollVelocityX = 0
@@ -917,6 +867,16 @@ end
 ---@return boolean
 function ScrollManager:isMomentumScrolling()
   return self._momentumScrolling
+end
+
+
+--- Cleanup method to break circular references (for immediate mode)
+function ScrollManager:_cleanup()
+  -- Cleanup breaks circular references only
+  -- The main circular ref is: Element → ScrollManager → element → Element
+  -- Breaking element ref would break functionality, so we keep it
+  -- Module refs (_utils, _Color) are not circular, they're shared singletons
+  -- In immediate mode, the whole element will be GC'd anyway, so minimal cleanup needed
 end
 
 return ScrollManager

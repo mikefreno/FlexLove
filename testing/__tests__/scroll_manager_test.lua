@@ -168,14 +168,17 @@ end
 
 function TestScrollManagerEdgeCases:testDetectOverflowWithoutElement()
   local sm = createScrollManager({})
-  -- Should warn but not crash
-  sm:detectOverflow()
-  -- No assertion - just ensure no crash
+  -- Should crash when element is nil (no longer has error handling)
+  local success = pcall(function()
+    sm:detectOverflow(nil)
+  end)
+  luaunit.assertFalse(success)
 end
 
 function TestScrollManagerEdgeCases:testCalculateScrollbarDimensionsWithoutElement()
   local sm = createScrollManager({})
-  local dims = sm:calculateScrollbarDimensions()
+  -- Should return empty result when element is nil (overflow defaults to "hidden")
+  local dims = sm:calculateScrollbarDimensions(nil)
   luaunit.assertNotNil(dims)
   luaunit.assertFalse(dims.vertical.visible)
   luaunit.assertFalse(dims.horizontal.visible)
@@ -183,13 +186,13 @@ end
 
 function TestScrollManagerEdgeCases:testGetScrollbarAtPositionWithoutElement()
   local sm = createScrollManager({})
-  local result = sm:getScrollbarAtPosition(50, 50)
+  local result = sm:getScrollbarAtPosition(nil, 50, 50)
   luaunit.assertNil(result)
 end
 
 function TestScrollManagerEdgeCases:testHandleMousePressWithoutElement()
   local sm = createScrollManager({})
-  local consumed = sm:handleMousePress(50, 50, 1)
+  local consumed = sm:handleMousePress(nil, 50, 50, 1)
   luaunit.assertFalse(consumed)
 end
 
@@ -200,8 +203,7 @@ end
 function TestScrollManagerEdgeCases:testDetectOverflowWithNoChildren()
   local sm = createScrollManager({ overflow = "auto" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  sm:detectOverflow(element)
 
   local hasOverflowX, hasOverflowY = sm:hasOverflow()
   luaunit.assertFalse(hasOverflowX)
@@ -211,8 +213,7 @@ end
 function TestScrollManagerEdgeCases:testDetectOverflowWithZeroDimensions()
   local sm = createScrollManager({ overflow = "auto" })
   local element = createMockElement(0, 0, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  sm:detectOverflow(element)
 
   local contentW, contentH = sm:getContentSize()
   luaunit.assertEquals(contentW, 0)
@@ -223,8 +224,8 @@ function TestScrollManagerEdgeCases:testDetectOverflowWithVisibleOverflow()
   local sm = createScrollManager({ overflow = "visible" })
   local child = createMockChild(0, 0, 500, 500)
   local element = createMockElement(200, 300, { child })
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   -- Should skip detection for visible overflow
   local hasOverflowX, hasOverflowY = sm:hasOverflow()
@@ -237,8 +238,8 @@ function TestScrollManagerEdgeCases:testDetectOverflowWithAbsolutelyPositionedCh
   local child = createMockChild(0, 0, 500, 500)
   child._explicitlyAbsolute = true -- Should be ignored in overflow calc
   local element = createMockElement(200, 300, { child })
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   local hasOverflowX, hasOverflowY = sm:hasOverflow()
   luaunit.assertFalse(hasOverflowX) -- Absolute children don't contribute
@@ -250,8 +251,8 @@ function TestScrollManagerEdgeCases:testDetectOverflowWithNegativeChildMargins()
   local child = createMockChild(10, 10, 100, 100)
   child.margin = { top = -50, right = -50, bottom = -50, left = -50 }
   local element = createMockElement(200, 300, { child })
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   -- Negative margins shouldn't cause negative overflow detection
   local contentW, contentH = sm:getContentSize()
@@ -263,8 +264,8 @@ function TestScrollManagerEdgeCases:testDetectOverflowClampsExistingScroll()
   local sm = createScrollManager({ overflow = "auto", _scrollX = 1000, _scrollY = 1000 })
   local child = createMockChild(10, 10, 100, 100)
   local element = createMockElement(200, 300, { child })
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   -- Scroll should be clamped to max bounds
   local scrollX, scrollY = sm:getScroll()
@@ -395,10 +396,10 @@ end
 function TestScrollManagerEdgeCases:testCalculateScrollbarDimensionsWithZeroTrackSize()
   local sm = createScrollManager({ overflow = "scroll", scrollbarPadding = 150 }) -- Padding bigger than element
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local dims = sm:calculateScrollbarDimensions()
+  local dims = sm:calculateScrollbarDimensions(element)
   -- Should handle zero or negative track sizes
   luaunit.assertNotNil(dims.vertical)
   luaunit.assertNotNil(dims.horizontal)
@@ -407,10 +408,10 @@ end
 function TestScrollManagerEdgeCases:testCalculateScrollbarDimensionsWithScrollMode()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {}) -- No overflow
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local dims = sm:calculateScrollbarDimensions()
+  local dims = sm:calculateScrollbarDimensions(element)
   -- Scrollbars should be visible in "scroll" mode even without overflow
   luaunit.assertTrue(dims.vertical.visible)
   luaunit.assertTrue(dims.horizontal.visible)
@@ -419,10 +420,10 @@ end
 function TestScrollManagerEdgeCases:testCalculateScrollbarDimensionsWithAutoModeNoOverflow()
   local sm = createScrollManager({ overflow = "auto" })
   local element = createMockElement(200, 300, {}) -- No overflow
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local dims = sm:calculateScrollbarDimensions()
+  local dims = sm:calculateScrollbarDimensions(element)
   -- Scrollbars should NOT be visible in "auto" mode without overflow
   luaunit.assertFalse(dims.vertical.visible)
   luaunit.assertFalse(dims.horizontal.visible)
@@ -431,10 +432,10 @@ end
 function TestScrollManagerEdgeCases:testCalculateScrollbarDimensionsWithAxisSpecificOverflow()
   local sm = createScrollManager({ overflowX = "scroll", overflowY = "hidden" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local dims = sm:calculateScrollbarDimensions()
+  local dims = sm:calculateScrollbarDimensions(element)
   luaunit.assertTrue(dims.horizontal.visible) -- X is scroll
   luaunit.assertFalse(dims.vertical.visible) -- Y is hidden
 end
@@ -443,10 +444,10 @@ function TestScrollManagerEdgeCases:testCalculateScrollbarDimensionsWithMinThumb
   local sm = createScrollManager({ overflow = "scroll" })
   local child = createMockChild(10, 10, 100, 10000) -- Very tall child
   local element = createMockElement(200, 300, { child })
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local dims = sm:calculateScrollbarDimensions()
+  local dims = sm:calculateScrollbarDimensions(element)
   -- Thumb should have minimum size of 20px
   luaunit.assertTrue(dims.vertical.thumbHeight >= 20)
 end
@@ -458,60 +459,60 @@ end
 function TestScrollManagerEdgeCases:testGetScrollbarAtPositionOutsideBounds()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local result = sm:getScrollbarAtPosition(-100, -100)
+  local result = sm:getScrollbarAtPosition(element, -100, -100)
   luaunit.assertNil(result)
 end
 
 function TestScrollManagerEdgeCases:testGetScrollbarAtPositionWithHiddenScrollbars()
   local sm = createScrollManager({ overflow = "scroll", hideScrollbars = true })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   -- Even though scrollbar exists, it's hidden so shouldn't be detected
-  local dims = sm:calculateScrollbarDimensions()
-  local result = sm:getScrollbarAtPosition(190, 50)
+  local dims = sm:calculateScrollbarDimensions(element)
+  local result = sm:getScrollbarAtPosition(element, 190, 50)
   luaunit.assertNil(result)
 end
 
 function TestScrollManagerEdgeCases:testHandleMousePressWithRightButton()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local consumed = sm:handleMousePress(50, 50, 2) -- Right button
+  local consumed = sm:handleMousePress(element, 50, 50, 2) -- Right button
   luaunit.assertFalse(consumed)
 end
 
 function TestScrollManagerEdgeCases:testHandleMousePressWithMiddleButton()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local consumed = sm:handleMousePress(50, 50, 3) -- Middle button
+  local consumed = sm:handleMousePress(element, 50, 50, 3) -- Middle button
   luaunit.assertFalse(consumed)
 end
 
 function TestScrollManagerEdgeCases:testHandleMouseMoveWithoutDragging()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
-  local consumed = sm:handleMouseMove(50, 50)
+  local consumed = sm:handleMouseMove(element, 50, 50)
   luaunit.assertFalse(consumed)
 end
 
 function TestScrollManagerEdgeCases:testHandleMouseReleaseWithoutDragging()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   local consumed = sm:handleMouseRelease(1)
   luaunit.assertFalse(consumed)
@@ -520,8 +521,8 @@ end
 function TestScrollManagerEdgeCases:testHandleMouseReleaseWithWrongButton()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   sm._scrollbarDragging = true -- Simulate dragging
   local consumed = sm:handleMouseRelease(2) -- Wrong button
@@ -965,13 +966,13 @@ end
 function TestScrollManagerEdgeCases:testUpdateHoverStateOutsideScrollbar()
   local sm = createScrollManager({ overflow = "scroll" })
   local element = createMockElement(200, 300, {})
-  sm:initialize(element)
-  sm:detectOverflow()
+  -- sm:initialize(element) -- Removed: element now passed as parameter
+  sm:detectOverflow(element)
 
   sm._scrollbarHoveredVertical = true
   sm._scrollbarHoveredHorizontal = true
 
-  sm:updateHoverState(0, 0) -- Far from scrollbar
+  sm:updateHoverState(element, 0, 0) -- Far from scrollbar
 
   luaunit.assertFalse(sm._scrollbarHoveredVertical)
   luaunit.assertFalse(sm._scrollbarHoveredHorizontal)

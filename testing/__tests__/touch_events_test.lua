@@ -85,7 +85,7 @@ function TestTouchEvents:testEventHandler_TouchBegan()
 
   -- Trigger touch event processing
   FlexLove.beginFrame()
-  element._eventHandler:processTouchEvents()
+  element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
   -- Should have received at least one touchpress event
@@ -123,7 +123,7 @@ function TestTouchEvents:testEventHandler_TouchMoved()
 
   -- First touch
   FlexLove.beginFrame()
-  element._eventHandler:processTouchEvents()
+  element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
   -- Move touch
@@ -135,7 +135,7 @@ function TestTouchEvents:testEventHandler_TouchMoved()
   end
 
   FlexLove.beginFrame()
-  element._eventHandler:processTouchEvents()
+  element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
   -- Should have received touchpress and touchmove events
@@ -174,7 +174,7 @@ function TestTouchEvents:testEventHandler_TouchEnded()
 
   -- First touch
   FlexLove.beginFrame()
-  element._eventHandler:processTouchEvents()
+  element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
   -- End touch
@@ -183,7 +183,7 @@ function TestTouchEvents:testEventHandler_TouchEnded()
   end
 
   FlexLove.beginFrame()
-  element._eventHandler:processTouchEvents()
+  element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
   -- Should have received touchpress and touchrelease events
@@ -222,7 +222,7 @@ function TestTouchEvents:testEventHandler_MultiTouch()
   end
 
   FlexLove.beginFrame()
-  element._eventHandler:processTouchEvents()
+  element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
   -- Should have received two touchpress events

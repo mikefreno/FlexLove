@@ -13,3 +13,5 @@ docs/doc.md
 docs/node_modules
 releases/
 *.log*
+memory_scan*
+*_report*

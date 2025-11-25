@@ -475,9 +475,9 @@ function TestRendererMethods:testInitialize()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
 
-  renderer:initialize(mockElement)
-
-  luaunit.assertEquals(renderer._element, mockElement)
+  -- initialize() method has been removed - element is now passed to draw()
+  -- This test verifies that the renderer can be created without errors
+  luaunit.assertTrue(true)
 end
 
 function TestRendererMethods:testDestroy()
@@ -492,7 +492,7 @@ function TestRendererMethods:testGetFont()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.fontSize = 16
-  renderer:initialize(mockElement)
+  
 
   local font = renderer:getFont(mockElement)
   luaunit.assertNotNil(font)
@@ -510,26 +510,26 @@ function TestRendererDrawing:testDrawBasic()
   }, createDeps())
 
   local mockElement = createMockElement()
-  renderer:initialize(mockElement)
+  
 
   -- Should not error when drawing
-  renderer:draw()
+  renderer:draw(mockElement)
   luaunit.assertTrue(true)
 end
 
 function TestRendererDrawing:testDrawWithNilBackdrop()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
-  renderer:initialize(mockElement)
+  
 
-  renderer:draw(nil)
+  renderer:draw(mockElement, nil)
   luaunit.assertTrue(true)
 end
 
 function TestRendererDrawing:testDrawPressedState()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
-  renderer:initialize(mockElement)
+  
 
   -- Should not error
   renderer:drawPressedState(0, 0, 100, 100)
@@ -543,7 +543,7 @@ function TestRendererDrawing:testDrawScrollbars()
   mockElement.scrollbarWidth = 8
   mockElement.scrollbarPadding = 2
   mockElement.scrollbarColor = Color.new(0.5, 0.5, 0.5, 1)
-  renderer:initialize(mockElement)
+  
 
   local dims = {
     scrollX = 0,
@@ -579,7 +579,7 @@ function TestRendererText:testDrawText()
   mockElement.text = "Hello World"
   mockElement.fontSize = 14
   mockElement.textAlign = "left"
-  renderer:initialize(mockElement)
+  
 
   -- Should not error
   renderer:drawText(mockElement)
@@ -590,7 +590,7 @@ function TestRendererText:testDrawTextWithNilText()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.text = nil
-  renderer:initialize(mockElement)
+  
 
   -- Should handle nil text gracefully
   renderer:drawText(mockElement)
@@ -601,7 +601,7 @@ function TestRendererText:testDrawTextWithEmptyString()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.text = ""
-  renderer:initialize(mockElement)
+  
 
   renderer:drawText(mockElement)
   luaunit.assertTrue(true)

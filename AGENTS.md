@@ -1,7 +1,7 @@
 # FlexLöve Agent Guidelines
 
 ## Testing
-- **Run all tests**: `lua testing/runAll.lua` (coverage report in `luacov.report.out`)
+- **Run all tests**: `lua testing/runAll.lua --no-coverage`
 - **Run single test**: `lua testing/__tests__/<test_file>.lua`
 - **Test immediate mode**: Call `FlexLove.setMode("immediate")` in `setUp()`, then `FlexLove.beginFrame()`/`FlexLove.endFrame()` to trigger layout
 

@@ -1018,4 +1018,13 @@ function LayoutEngine:_trackLayoutRecalculation()
   end
 end
 
+
+--- Cleanup method to break circular references (for immediate mode)
+function LayoutEngine:_cleanup()
+  -- Circular refs: Element → LayoutEngine → element → Element
+  -- But breaking element ref breaks functionality
+  -- Module refs are singletons, not circular
+  -- In immediate mode, full GC happens anyway
+end
+
 return LayoutEngine

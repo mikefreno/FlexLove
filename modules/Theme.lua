@@ -763,15 +763,8 @@ function ThemeManager.new(config)
   self.scalingAlgorithm = config.scalingAlgorithm
 
   self._themeState = "normal"
-  self._element = nil
 
   return self
-end
-
----Initialize the ThemeManager with a parent element
----@param element Element The parent Element
-function ThemeManager:initialize(element)
-  self._element = element
 end
 
 ---Update the theme state based on element interaction state
@@ -966,6 +959,13 @@ end
 function ThemeManager:setTheme(themeName, componentName)
   self.theme = themeName
   self.themeComponent = componentName
+end
+
+
+--- Cleanup method to break circular references (for immediate mode)
+function ThemeManager:_cleanup()
+  -- ThemeManager doesn't create circular references
+  -- Theme refs are to shared theme objects
 end
 
 -- Export both Theme and ThemeManager

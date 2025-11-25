@@ -14,7 +14,6 @@
 ---@field _lastTouchPositions table<string, table> -- Last touch positions for delta
 ---@field _touchHistory table<string, table> -- Touch position history for gestures (last 5)
 ---@field _hovered boolean
----@field _element Element?
 ---@field _scrollbarPressHandled boolean
 ---@field _InputEvent table
 ---@field _utils table
@@ -60,17 +59,9 @@ function EventHandler.new(config)
 
   self._hovered = config._hovered or false
 
-  self._element = nil
-
   self._scrollbarPressHandled = false
 
   return self
-end
-
---- Initialize EventHandler with parent element reference
----@param element Element The parent element
-function EventHandler:initialize(element)
-  self._element = element
 end
 
 --- Get state for persistence (for immediate mode)
@@ -116,25 +107,17 @@ function EventHandler:setState(state)
 end
 
 --- Process mouse button events in the update cycle
+---@param element Element The parent element
 ---@param mx number Mouse X position
 ---@param my number Mouse Y position
 ---@param isHovering boolean Whether mouse is over element
 ---@param isActiveElement boolean Whether this is the top element at mouse position
-function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
+function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveElement)
   -- Start performance timing
   -- Performance accessed via EventHandler._Performance
   if EventHandler._Performance and EventHandler._Performance.enabled then
     EventHandler._Performance:startTimer("event_mouse")
   end
-
-  if not self._element then
-    if EventHandler._Performance and EventHandler._Performance.enabled then
-      EventHandler._Performance:stopTimer("event_mouse")
-    end
-    return
-  end
-
-  local element = self._element
 
   -- Check if currently dragging (allows drag continuation even if occluded)
   local isDragging = false
@@ -189,18 +172,18 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
         if not wasPressed then
           -- Just pressed - fire press event (only if hovering)
           if isHovering then
-            self:_handleMousePress(mx, my, button)
+            self:_handleMousePress(element, mx, my, button)
           end
         else
           -- Button is still pressed - check for drag
-          self:_handleMouseDrag(mx, my, button, isHovering)
+          self:_handleMouseDrag(element, mx, my, button, isHovering)
         end
       elseif wasPressed then
         -- Button was just released
         -- Only fire click and release events if mouse is still hovering AND element is active
         -- (not occluded by another element)
         if isHovering and isActiveElement then
-          self:_handleMouseRelease(mx, my, button)
+          self:_handleMouseRelease(element, mx, my, button)
         else
           -- Mouse left before release OR element is occluded - just clear the pressed state without firing events
           self._pressed[button] = false
@@ -230,15 +213,11 @@ function EventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
 end
 
 --- Handle mouse button press
+---@param element Element The parent element
 ---@param mx number Mouse X position
 ---@param my number Mouse Y position
 ---@param button number Mouse button (1=left, 2=right, 3=middle)
-function EventHandler:_handleMousePress(mx, my, button)
-  if not self._element then
-    return
-  end
-
-  local element = self._element
+function EventHandler:_handleMousePress(element, mx, my, button)
 
   -- Check if press is on scrollbar first (skip if already handled)
   if button == 1 and not self._scrollbarPressHandled and element._handleScrollbarPress then
@@ -266,7 +245,7 @@ function EventHandler:_handleMousePress(mx, my, button)
 
   -- Set mouse down position for text selection on left click
   if button == 1 and element._textEditor then
-    element._mouseDownPosition = element._textEditor:mouseToTextPosition(mx, my)
+    element._mouseDownPosition = element._textEditor:mouseToTextPosition(element, mx, my)
     element._textDragOccurred = false -- Reset drag flag on press
   end
 
@@ -278,16 +257,12 @@ function EventHandler:_handleMousePress(mx, my, button)
 end
 
 --- Handle mouse drag (while button is pressed and mouse moves)
+---@param element Element The parent element
 ---@param mx number Mouse X position
 ---@param my number Mouse Y position
 ---@param button number Mouse button
 ---@param isHovering boolean Whether mouse is over element
-function EventHandler:_handleMouseDrag(mx, my, button, isHovering)
-  if not self._element then
-    return
-  end
-
-  local element = self._element
+function EventHandler:_handleMouseDrag(element, mx, my, button, isHovering)
 
   local lastX = self._lastMouseX[button] or mx
   local lastY = self._lastMouseY[button] or my
@@ -327,12 +302,7 @@ end
 ---@param mx number Mouse X position
 ---@param my number Mouse Y position
 ---@param button number Mouse button
-function EventHandler:_handleMouseRelease(mx, my, button)
-  if not self._element then
-    return
-  end
-
-  local element = self._element
+function EventHandler:_handleMouseRelease(element, mx, my, button)
 
   local currentTime = love.timer.getTime()
   local modifiers = EventHandler._utils.getModifiers()
@@ -412,21 +382,16 @@ function EventHandler:_handleMouseRelease(mx, my, button)
 end
 
 --- Process touch events in the update cycle
-function EventHandler:processTouchEvents()
+---@param element Element The parent element
+function EventHandler:processTouchEvents(element)
   -- Start performance timing
-  -- Performance accessed via EventHandler._Performance
   if EventHandler._Performance and EventHandler._Performance.enabled then
     EventHandler._Performance:startTimer("event_touch")
   end
 
-  if not self._element then
-    if EventHandler._Performance and EventHandler._Performance.enabled then
-      EventHandler._Performance:stopTimer("event_touch")
-    end
-    return
-  end
-
-  local element = self._element
+  -- Get all active touches from LÖVE
+  local loveTouches = love.touch.getTouches()
+  local activeTouchIds = {}
 
   -- Check if element can process events
   local canProcessEvents = (self.onEvent or element.editable) and not element.disabled
@@ -462,19 +427,19 @@ function EventHandler:processTouchEvents()
     if isInside then
       if not self._touches[touchId] then
         -- New touch began
-        self:_handleTouchBegan(touchId, tx, ty, pressure)
+        self:_handleTouchBegan(element, touchId, tx, ty, pressure)
       else
         -- Touch moved
-        self:_handleTouchMoved(touchId, tx, ty, pressure)
+        self:_handleTouchMoved(element, touchId, tx, ty, pressure)
       end
     elseif self._touches[touchId] then
       -- Touch moved outside or ended
       if activeTouches[touchId] then
         -- Still active but outside - fire moved event
-        self:_handleTouchMoved(touchId, tx, ty, pressure)
+        self:_handleTouchMoved(element, touchId, tx, ty, pressure)
       else
         -- Touch ended
-        self:_handleTouchEnded(touchId, tx, ty, pressure)
+        self:_handleTouchEnded(element, touchId, tx, ty, pressure)
       end
     end
   end
@@ -485,7 +450,7 @@ function EventHandler:processTouchEvents()
       -- Touch ended or cancelled
       local lastPos = self._lastTouchPositions[touchId]
       if lastPos then
-        self:_handleTouchEnded(touchId, lastPos.x, lastPos.y, 1.0)
+        self:_handleTouchEnded(element, touchId, lastPos.x, lastPos.y, 1.0)
       else
         -- Cleanup orphaned touch
         self:_cleanupTouch(touchId)
@@ -500,16 +465,12 @@ function EventHandler:processTouchEvents()
 end
 
 --- Handle touch began event
----@param touchId string Touch ID
+---@param element Element The parent element
+---@param touchId string Touch identifier
 ---@param x number Touch X position
 ---@param y number Touch Y position
 ---@param pressure number Touch pressure (0-1)
-function EventHandler:_handleTouchBegan(touchId, x, y, pressure)
-  if not self._element then
-    return
-  end
-
-  local element = self._element
+function EventHandler:_handleTouchBegan(element, touchId, x, y, pressure)
 
   -- Create touch state
   self._touches[touchId] = {
@@ -536,16 +497,12 @@ function EventHandler:_handleTouchBegan(touchId, x, y, pressure)
 end
 
 --- Handle touch moved event
----@param touchId string Touch ID
+---@param element Element The parent element
+---@param touchId string Touch identifier
 ---@param x number Touch X position
 ---@param y number Touch Y position
 ---@param pressure number Touch pressure (0-1)
-function EventHandler:_handleTouchMoved(touchId, x, y, pressure)
-  if not self._element then
-    return
-  end
-
-  local element = self._element
+function EventHandler:_handleTouchMoved(element, touchId, x, y, pressure)
   local touchState = self._touches[touchId]
 
   if not touchState then
@@ -587,16 +544,12 @@ function EventHandler:_handleTouchMoved(touchId, x, y, pressure)
 end
 
 --- Handle touch ended event
----@param touchId string Touch ID
+---@param element Element The parent element
+---@param touchId string Touch identifier
 ---@param x number Touch X position
 ---@param y number Touch Y position
 ---@param pressure number Touch pressure (0-1)
-function EventHandler:_handleTouchEnded(touchId, x, y, pressure)
-  if not self._element then
-    return
-  end
-
-  local element = self._element
+function EventHandler:_handleTouchEnded(element, touchId, x, y, pressure)
   local touchState = self._touches[touchId]
 
   if not touchState then
@@ -687,6 +640,15 @@ function EventHandler:_invokeCallback(element, event)
   else
     self.onEvent(element, event)
   end
+end
+
+
+--- Cleanup method to break circular references (for immediate mode)
+--- Note: Only clears module references, preserves state for inspection/testing
+function EventHandler:_cleanup()
+  -- DO NOT clear state data (_pressed, _touches, etc.) - they're needed for state persistence
+  -- Only clear module references that could create circular dependencies
+  -- (In practice, EventHandler doesn't store refs to Context/utils, so nothing to do)
 end
 
 return EventHandler

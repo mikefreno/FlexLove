@@ -505,6 +505,7 @@ end
 --- @param options table? Sanitization options
 --- @return string Sanitized text
 local function sanitizeText(text, options)
+  local utf8 = require("utf8")
   -- Handle nil or non-string inputs
   if text == nil then
     return ""
@@ -542,11 +543,16 @@ local function sanitizeText(text, options)
     text = text:match("^%s*(.-)%s*$") or ""
   end
 
-  -- Limit string length
-  if #text > maxLength then
-    text = text:sub(1, maxLength)
+  -- Limit string length (use UTF-8 character count, not byte count)
+  local charCount = utf8.len(text)
+  if charCount and charCount > maxLength then
+    -- Truncate to maxLength UTF-8 characters
+    local bytePos = utf8.offset(text, maxLength + 1)
+    if bytePos then
+      text = text:sub(1, bytePos - 1)
+    end
     if ErrorHandler then
-      ErrorHandler:warn("utils", string.format("Text truncated from %d to %d characters", #text, maxLength))
+      ErrorHandler:warn("utils", string.format("Text truncated from %d to %d characters", charCount, maxLength))
     end
   end
 

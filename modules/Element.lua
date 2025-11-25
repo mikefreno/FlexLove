@@ -288,21 +288,20 @@ function Element.new(props)
   if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
     local state = Element._StateManager.getState(self._stateId)
     if state then
-      -- Restore EventHandler state from StateManager
-      eventHandlerConfig._pressed = state._pressed
+      -- Restore EventHandler state from StateManager (sparse storage - provide defaults)
+      eventHandlerConfig._pressed = state._pressed or {}
       eventHandlerConfig._lastClickTime = state._lastClickTime
       eventHandlerConfig._lastClickButton = state._lastClickButton
-      eventHandlerConfig._clickCount = state._clickCount
-      eventHandlerConfig._dragStartX = state._dragStartX
-      eventHandlerConfig._dragStartY = state._dragStartY
-      eventHandlerConfig._lastMouseX = state._lastMouseX
-      eventHandlerConfig._lastMouseY = state._lastMouseY
+      eventHandlerConfig._clickCount = state._clickCount or 0
+      eventHandlerConfig._dragStartX = state._dragStartX or {}
+      eventHandlerConfig._dragStartY = state._dragStartY or {}
+      eventHandlerConfig._lastMouseX = state._lastMouseX or {}
+      eventHandlerConfig._lastMouseY = state._lastMouseY or {}
       eventHandlerConfig._hovered = state._hovered
     end
   end
 
   self._eventHandler = Element._EventHandler.new(eventHandlerConfig, eventHandlerDeps)
-  self._eventHandler:initialize(self)
 
   self._themeManager = Element._Theme.Manager.new({
     theme = props.theme or Element._Context.defaultTheme,
@@ -313,7 +312,6 @@ function Element.new(props)
     scaleCorners = props.scaleCorners,
     scalingAlgorithm = props.scalingAlgorithm,
   })
-  self._themeManager:initialize(self)
 
   -- Expose theme properties for backward compatibility
   self.theme = self._themeManager.theme
@@ -418,24 +416,27 @@ function Element.new(props)
 
   ------ add non-hereditary ------
   --- self drawing---
-  -- Handle border (can be number or table)
+  -- OPTIMIZATION: Handle border - only create table if border exists
+  -- This saves ~80 bytes per element without borders
   if type(props.border) == "table" then
-    self.border = {
-      top = props.border.top or false,
-      right = props.border.right or false,
-      bottom = props.border.bottom or false,
-      left = props.border.left or false,
-    }
+    -- Check if any border side is truthy
+    local hasAnyBorder = props.border.top or props.border.right or props.border.bottom or props.border.left
+    if hasAnyBorder then
+      self.border = {
+        top = props.border.top or false,
+        right = props.border.right or false,
+        bottom = props.border.bottom or false,
+        left = props.border.left or false,
+      }
+    else
+      self.border = nil
+    end
   elseif props.border then
     -- If border is a number or truthy value, keep it as-is
     self.border = props.border
   else
-    self.border = {
-      top = false,
-      right = false,
-      bottom = false,
-      left = false,
-    }
+    -- No border specified - use nil instead of table with all false
+    self.border = nil
   end
   self.borderColor = props.borderColor or Element._Color.new(0, 0, 0, 1)
   self.backgroundColor = props.backgroundColor or Element._Color.new(0, 0, 0, 0)
@@ -452,30 +453,34 @@ function Element.new(props)
   -- Set transform property (optional)
   self.transform = props.transform or nil
 
-  -- Handle cornerRadius (can be number or table)
+  -- OPTIMIZATION: Handle cornerRadius - store as number or table, nil if all zeros
+  -- This saves ~80 bytes per element without rounded corners
   if props.cornerRadius then
     if type(props.cornerRadius) == "number" then
-      self.cornerRadius = {
-        topLeft = props.cornerRadius,
-        topRight = props.cornerRadius,
-        bottomLeft = props.cornerRadius,
-        bottomRight = props.cornerRadius,
-      }
+      -- Store as number for uniform radius (compact)
+      if props.cornerRadius ~= 0 then
+        self.cornerRadius = props.cornerRadius
+      else
+        self.cornerRadius = nil
+      end
     else
-      self.cornerRadius = {
-        topLeft = props.cornerRadius.topLeft or 0,
-        topRight = props.cornerRadius.topRight or 0,
-        bottomLeft = props.cornerRadius.bottomLeft or 0,
-        bottomRight = props.cornerRadius.bottomRight or 0,
-      }
+      -- Store as table only if non-zero values exist
+      local hasNonZero = props.cornerRadius.topLeft or props.cornerRadius.topRight or 
+                         props.cornerRadius.bottomLeft or props.cornerRadius.bottomRight
+      if hasNonZero then
+        self.cornerRadius = {
+          topLeft = props.cornerRadius.topLeft or 0,
+          topRight = props.cornerRadius.topRight or 0,
+          bottomLeft = props.cornerRadius.bottomLeft or 0,
+          bottomRight = props.cornerRadius.bottomRight or 0,
+        }
+      else
+        self.cornerRadius = nil
+      end
     end
   else
-    self.cornerRadius = {
-      topLeft = 0,
-      topRight = 0,
-      bottomLeft = 0,
-      bottomRight = 0,
-    }
+    -- No cornerRadius specified - use nil instead of table with all zeros
+    self.cornerRadius = nil
   end
 
   -- For editable elements, default text to empty string if not provided
@@ -622,7 +627,6 @@ function Element.new(props)
     contentBlur = self.contentBlur,
     backdropBlur = self.backdropBlur,
   }, rendererDeps)
-  self._renderer:initialize(self)
 
   --- self positioning ---
   local viewportWidth, viewportHeight = Element._Units.getViewport()
@@ -1417,7 +1421,6 @@ function Element.new(props)
       _scrollX = props._scrollX,
       _scrollY = props._scrollY,
     }, scrollManagerDeps)
-    self._scrollManager:initialize(self)
 
     -- Expose ScrollManager properties for backward compatibility (Renderer access)
     self.overflow = self._scrollManager.overflow
@@ -1456,7 +1459,7 @@ function Element.new(props)
 
   -- Initialize TextEditor after element is fully constructed
   if self._textEditor then
-    self._textEditor:initialize(self)
+    self._textEditor:restoreState(self)
   end
 
   return self
@@ -1519,7 +1522,7 @@ end
 --- Detect if content overflows container bounds (delegates to ScrollManager)
 function Element:_detectOverflow()
   if self._scrollManager then
-    self._scrollManager:detectOverflow()
+    self._scrollManager:detectOverflow(self)
     self:_syncScrollManagerState()
   end
 end
@@ -1539,7 +1542,7 @@ end
 ---@return table -- {vertical: {visible, trackHeight, thumbHeight, thumbY}, horizontal: {visible, trackWidth, thumbWidth, thumbX}}
 function Element:_calculateScrollbarDimensions()
   if self._scrollManager then
-    return self._scrollManager:calculateScrollbarDimensions()
+    return self._scrollManager:calculateScrollbarDimensions(self)
   end
   -- Return empty result if no ScrollManager
   return {
@@ -1556,7 +1559,7 @@ end
 ---@return table|nil -- {component: "vertical"|"horizontal", region: "thumb"|"track"}
 function Element:_getScrollbarAtPosition(mouseX, mouseY)
   if self._scrollManager then
-    return self._scrollManager:getScrollbarAtPosition(mouseX, mouseY)
+    return self._scrollManager:getScrollbarAtPosition(self, mouseX, mouseY)
   end
   return nil
 end
@@ -1568,7 +1571,7 @@ end
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarPress(mouseX, mouseY, button)
   if self._scrollManager then
-    local consumed = self._scrollManager:handleMousePress(mouseX, mouseY, button)
+    local consumed = self._scrollManager:handleMousePress(self, mouseX, mouseY, button)
     self:_syncScrollManagerState()
     return consumed
   end
@@ -1581,7 +1584,7 @@ end
 ---@return boolean -- True if event was consumed
 function Element:_handleScrollbarDrag(mouseX, mouseY)
   if self._scrollManager then
-    local consumed = self._scrollManager:handleMouseMove(mouseX, mouseY)
+    local consumed = self._scrollManager:handleMouseMove(self, mouseX, mouseY)
     self:_syncScrollManagerState()
     return consumed
   end
@@ -1724,7 +1727,7 @@ function Element:getBlurInstance()
 
   -- Create blur instance if needed
   if not self._blurInstance or self._blurInstance.quality ~= quality then
-    self._blurInstance = Element._Blur.new({quality = quality})
+    self._blurInstance = Element._Blur.new({ quality = quality })
   end
 
   return self._blurInstance
@@ -1999,7 +2002,7 @@ function Element:draw(backdropCanvas)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
   -- LAYERS 0.5-3: Delegate visual rendering (backdrop blur, background, image, theme, borders) to Renderer module
-  self._renderer:draw(backdropCanvas)
+  self._renderer:draw(self, backdropCanvas)
 
   -- LAYER 4: Delegate text rendering (text, cursor, selection, placeholder, password masking) to Renderer module
   self._renderer:drawText(self)
@@ -2033,10 +2036,17 @@ function Element:draw(backdropCanvas)
   end)
 
   -- Check if we need to clip children to rounded corners
-  local hasRoundedCorners = self.cornerRadius.topLeft > 0
-    or self.cornerRadius.topRight > 0
-    or self.cornerRadius.bottomLeft > 0
-    or self.cornerRadius.bottomRight > 0
+  local hasRoundedCorners = false
+  if self.cornerRadius then
+    if type(self.cornerRadius) == "number" then
+      hasRoundedCorners = self.cornerRadius > 0
+    else
+      hasRoundedCorners = self.cornerRadius.topLeft > 0
+        or self.cornerRadius.topRight > 0
+        or self.cornerRadius.bottomLeft > 0
+        or self.cornerRadius.bottomRight > 0
+    end
+  end
 
   -- Helper function to draw children (with or without clipping)
   local function drawChildren()
@@ -2172,7 +2182,7 @@ function Element:update(dt)
 
   -- Update text editor cursor blink
   if self._textEditor then
-    self._textEditor:update(dt)
+    self._textEditor:update(self, dt)
   end
 
   -- Update animation if exists
@@ -2266,7 +2276,7 @@ function Element:update(dt)
   local mx, my = love.mouse.getPosition()
 
   if self._scrollManager then
-    self._scrollManager:updateHoverState(mx, my)
+    self._scrollManager:updateHoverState(self, mx, my)
     self:_syncScrollManagerState()
   end
 
@@ -2366,7 +2376,7 @@ function Element:update(dt)
 
     -- Process mouse events through EventHandler FIRST
     -- This ensures pressed states are updated before theme state is calculated
-    self._eventHandler:processMouseEvents(mx, my, isHovering, isActiveElement)
+    self._eventHandler:processMouseEvents(self, mx, my, isHovering, isActiveElement)
 
     -- In immediate mode, save EventHandler state to StateManager after processing events
     if self._stateId and Element._Context._immediateMode and self._stateId ~= "" then
@@ -2417,7 +2427,7 @@ function Element:update(dt)
     end
 
     -- Process touch events through EventHandler
-    self._eventHandler:processTouchEvents()
+    self._eventHandler:processTouchEvents(self)
   end
 end
 
@@ -2589,7 +2599,7 @@ end
 ---@param position number -- Character index (0-based)
 function Element:setCursorPosition(position)
   if self._textEditor then
-    self._textEditor:setCursorPosition(position)
+    self._textEditor:setCursorPosition(self, position)
   end
 end
 
@@ -2606,49 +2616,49 @@ end
 ---@param delta number -- Number of characters to move (positive or negative)
 function Element:moveCursorBy(delta)
   if self._textEditor then
-    self._textEditor:moveCursorBy(delta)
+    self._textEditor:moveCursorBy(self, delta)
   end
 end
 
 --- Move cursor to start of text
 function Element:moveCursorToStart()
   if self._textEditor then
-    self._textEditor:moveCursorToStart()
+    self._textEditor:moveCursorToStart(self)
   end
 end
 
 --- Move cursor to end of text
 function Element:moveCursorToEnd()
   if self._textEditor then
-    self._textEditor:moveCursorToEnd()
+    self._textEditor:moveCursorToEnd(self)
   end
 end
 
 --- Move cursor to start of current line
 function Element:moveCursorToLineStart()
   if self._textEditor then
-    self._textEditor:moveCursorToLineStart()
+    self._textEditor:moveCursorToLineStart(self)
   end
 end
 
 --- Move cursor to end of current line
 function Element:moveCursorToLineEnd()
   if self._textEditor then
-    self._textEditor:moveCursorToLineEnd()
+    self._textEditor:moveCursorToLineEnd(self)
   end
 end
 
 --- Move cursor to start of previous word
 function Element:moveCursorToPreviousWord()
   if self._textEditor then
-    self._textEditor:moveCursorToPreviousWord()
+    self._textEditor:moveCursorToPreviousWord(self)
   end
 end
 
 --- Move cursor to start of next word
 function Element:moveCursorToNextWord()
   if self._textEditor then
-    self._textEditor:moveCursorToNextWord()
+    self._textEditor:moveCursorToNextWord(self)
   end
 end
 
@@ -2661,7 +2671,7 @@ end
 ---@param endPos number -- End position (inclusive)
 function Element:setSelection(startPos, endPos)
   if self._textEditor then
-    self._textEditor:setSelection(startPos, endPos)
+    self._textEditor:setSelection(self, startPos, endPos)
   end
 end
 
@@ -2686,14 +2696,14 @@ end
 --- Clear selection
 function Element:clearSelection()
   if self._textEditor then
-    self._textEditor:clearSelection()
+    self._textEditor:clearSelection(self)
   end
 end
 
 --- Select all text
 function Element:selectAll()
   if self._textEditor then
-    self._textEditor:selectAll()
+    self._textEditor:selectAll(self)
   end
 end
 
@@ -2710,10 +2720,10 @@ end
 ---@return boolean -- True if text was deleted
 function Element:deleteSelection()
   if self._textEditor then
-    local result = self._textEditor:deleteSelection()
+    local result = self._textEditor:deleteSelection(self)
     if result then
       self.text = self._textEditor:getText() -- Sync display text
-      self._textEditor:updateAutoGrowHeight()
+      self._textEditor:updateAutoGrowHeight(self)
     end
     return result
   end
@@ -2728,7 +2738,7 @@ end
 --- Use this to automatically focus text fields when showing forms or dialogs
 function Element:focus()
   if self._textEditor then
-    self._textEditor:focus()
+    self._textEditor:focus(self)
   end
 end
 
@@ -2736,7 +2746,7 @@ end
 --- Use this when closing popups or switching focus to other elements
 function Element:blur()
   if self._textEditor then
-    self._textEditor:blur()
+    self._textEditor:blur(self)
   end
 end
 
@@ -2769,9 +2779,9 @@ end
 ---@param text string
 function Element:setText(text)
   if self._textEditor then
-    self._textEditor:setText(text)
+    self._textEditor:setText(self, text)
     self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight()
+    self._textEditor:updateAutoGrowHeight(self)
     return
   end
   self.text = text
@@ -2783,9 +2793,9 @@ end
 ---@param position number? -- Position to insert at (default: cursor position)
 function Element:insertText(text, position)
   if self._textEditor then
-    self._textEditor:insertText(text, position)
+    self._textEditor:insertText(self, text, position)
     self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight()
+    self._textEditor:updateAutoGrowHeight(self)
   end
 end
 
@@ -2793,9 +2803,9 @@ end
 ---@param endPos number -- End position (inclusive)
 function Element:deleteText(startPos, endPos)
   if self._textEditor then
-    self._textEditor:deleteText(startPos, endPos)
+    self._textEditor:deleteText(self, startPos, endPos)
     self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight()
+    self._textEditor:updateAutoGrowHeight(self)
   end
 end
 
@@ -2805,9 +2815,9 @@ end
 ---@param newText string -- Replacement text
 function Element:replaceText(startPos, endPos, newText)
   if self._textEditor then
-    self._textEditor:replaceText(startPos, endPos, newText)
+    self._textEditor:replaceText(self, startPos, endPos, newText)
     self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight()
+    self._textEditor:updateAutoGrowHeight(self)
   end
 end
 
@@ -2834,10 +2844,10 @@ end
 ---@param clickCount number -- Number of clicks (1=single, 2=double, 3=triple)
 function Element:_handleTextClick(mouseX, mouseY, clickCount)
   if self._textEditor then
-    self._textEditor:handleTextClick(mouseX, mouseY, clickCount)
+    self._textEditor:handleTextClick(self, mouseX, mouseY, clickCount)
     -- Store mouse down position on element for drag tracking
     if clickCount == 1 then
-      self._mouseDownPosition = self._textEditor:mouseToTextPosition(mouseX, mouseY)
+      self._mouseDownPosition = self._textEditor:mouseToTextPosition(self, mouseX, mouseY)
     end
   end
 end
@@ -2847,7 +2857,7 @@ end
 ---@param mouseY number -- Mouse Y coordinate
 function Element:_handleTextDrag(mouseX, mouseY)
   if self._textEditor then
-    self._textEditor:handleTextDrag(mouseX, mouseY)
+    self._textEditor:handleTextDrag(self, mouseX, mouseY)
     self._textDragOccurred = self._textEditor._textDragOccurred
   end
 end
@@ -2860,9 +2870,9 @@ end
 ---@param text string -- Character(s) to insert
 function Element:textinput(text)
   if self._textEditor then
-    self._textEditor:handleTextInput(text)
+    self._textEditor:handleTextInput(self, text)
     self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight()
+    self._textEditor:updateAutoGrowHeight(self)
   end
 end
 
@@ -2872,9 +2882,9 @@ end
 ---@param isrepeat boolean -- Whether this is a key repeat
 function Element:keypressed(key, scancode, isrepeat)
   if self._textEditor then
-    self._textEditor:handleKeyPress(key, scancode, isrepeat)
+    self._textEditor:handleKeyPress(self, key, scancode, isrepeat)
     self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight()
+    self._textEditor:updateAutoGrowHeight(self)
   end
 end
 
@@ -3148,6 +3158,46 @@ function Element:setProperty(property, value)
   else
     self[property] = value
   end
+end
+
+
+--- Cleanup method to break circular references (for immediate mode)
+--- Note: Cleans internal module state but keeps structure for inspection
+function Element:_cleanup()
+  -- Clean up module internal state
+  if self._eventHandler then
+    self._eventHandler:_cleanup()
+  end
+  
+  if self._themeManager then
+    self._themeManager:_cleanup()
+  end
+  
+  if self._renderer then
+    self._renderer:_cleanup()
+  end
+  
+  if self._layoutEngine then
+    self._layoutEngine:_cleanup()
+  end
+  
+  if self._scrollManager then
+    self._scrollManager:_cleanup()
+  end
+  
+  if self._textEditor then
+    self._textEditor:_cleanup()
+  end
+  
+  -- Clear event callbacks (may hold closures)
+  self.onEvent = nil
+  self.onFocus = nil
+  self.onBlur = nil
+  self.onTextInput = nil
+  self.onTextChange = nil
+  self.onEnter = nil
+  self.onImageLoad = nil
+  self.onImageError = nil
 end
 
 return Element

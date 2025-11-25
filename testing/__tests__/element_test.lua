@@ -864,6 +864,7 @@ function TestElementStyling:test_element_with_background_color()
 end
 
 function TestElementStyling:test_element_with_corner_radius_table()
+  -- Test uniform radius (should be stored as number for optimization)
   local element = FlexLove.new({
     id = "test",
     x = 0,
@@ -874,10 +875,25 @@ function TestElementStyling:test_element_with_corner_radius_table()
   })
 
   luaunit.assertNotNil(element.cornerRadius)
-  luaunit.assertEquals(element.cornerRadius.topLeft, 10)
-  luaunit.assertEquals(element.cornerRadius.topRight, 10)
-  luaunit.assertEquals(element.cornerRadius.bottomLeft, 10)
-  luaunit.assertEquals(element.cornerRadius.bottomRight, 10)
+  luaunit.assertEquals(type(element.cornerRadius), "number")
+  luaunit.assertEquals(element.cornerRadius, 10)
+  
+  -- Test non-uniform radius (should be stored as table)
+  local element2 = FlexLove.new({
+    id = "test2",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    cornerRadius = { topLeft = 5, topRight = 10, bottomLeft = 15, bottomRight = 20 },
+  })
+  
+  luaunit.assertNotNil(element2.cornerRadius)
+  luaunit.assertEquals(type(element2.cornerRadius), "table")
+  luaunit.assertEquals(element2.cornerRadius.topLeft, 5)
+  luaunit.assertEquals(element2.cornerRadius.topRight, 10)
+  luaunit.assertEquals(element2.cornerRadius.bottomLeft, 15)
+  luaunit.assertEquals(element2.cornerRadius.bottomRight, 20)
 end
 
 function TestElementStyling:test_element_with_margin_table()

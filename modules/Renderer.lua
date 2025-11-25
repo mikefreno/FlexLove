@@ -62,9 +62,6 @@ function Renderer.new(config, deps)
   self._FONT_CACHE = deps.utils.FONT_CACHE
   self._TextAlign = deps.utils.enums.TextAlign
 
-  -- Store reference to parent element (will be set via initialize)
-  self._element = nil
-
   -- Visual properties
   self.backgroundColor = config.backgroundColor or Color.new(0, 0, 0, 0)
   self.borderColor = config.borderColor or Color.new(0, 0, 0, 1)
@@ -123,11 +120,7 @@ function Renderer.new(config, deps)
   return self
 end
 
---- Initialize renderer with parent element reference
----@param element table The parent Element instance
-function Renderer:initialize(element)
-  self._element = element
-end
+
 
 --- Get or create blur instance for this element
 ---@return table|nil Blur instance or nil
@@ -204,10 +197,17 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
   local finalOpacity = self.opacity * self.imageOpacity
 
   -- Apply cornerRadius clipping if set
-  local hasCornerRadius = self.cornerRadius.topLeft > 0
-    or self.cornerRadius.topRight > 0
-    or self.cornerRadius.bottomLeft > 0
-    or self.cornerRadius.bottomRight > 0
+  local hasCornerRadius = false
+  if self.cornerRadius then
+    if type(self.cornerRadius) == "number" then
+      hasCornerRadius = self.cornerRadius > 0
+    else
+      hasCornerRadius = self.cornerRadius.topLeft > 0
+        or self.cornerRadius.topRight > 0
+        or self.cornerRadius.bottomLeft > 0
+        or self.cornerRadius.bottomRight > 0
+    end
+  end
 
   if hasCornerRadius then
     -- Use stencil to clip image to rounded corners
@@ -221,15 +221,21 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
     if not success then
       -- Check if it's a stencil buffer error
       if err and err:match("stencil") then
-        Renderer._ErrorHandler:warn("Renderer", "IMG_001", "Cannot apply corner radius to image: stencil buffer not available", {
-          imagePath = self.imagePath or "unknown",
-          cornerRadius = string.format(
+        local cornerRadiusStr
+        if type(self.cornerRadius) == "number" then
+          cornerRadiusStr = tostring(self.cornerRadius)
+        else
+          cornerRadiusStr = string.format(
             "TL:%d TR:%d BL:%d BR:%d",
             self.cornerRadius.topLeft,
             self.cornerRadius.topRight,
             self.cornerRadius.bottomLeft,
             self.cornerRadius.bottomRight
-          ),
+          )
+        end
+        Renderer._ErrorHandler:warn("Renderer", "IMG_001", "Cannot apply corner radius to image: stencil buffer not available", {
+          imagePath = self.imagePath or "unknown",
+          cornerRadius = cornerRadiusStr,
           error = tostring(err),
         }, "Ensure the active canvas has stencil=true enabled, or remove cornerRadius from images")
         -- Continue without corner radius
@@ -330,6 +336,19 @@ end
 ---@param borderBoxWidth number Border box width
 ---@param borderBoxHeight number Border box height
 function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
+  -- OPTIMIZATION: Early exit if no border (nil or all false)
+  if not self.border then
+    return
+  end
+  
+  -- Handle border as number (uniform border width)
+  if type(self.border) == "number" then
+    local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+    love.graphics.setColor(borderColorWithOpacity:toRGBA())
+    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+    return
+  end
+  
   local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
 
@@ -357,12 +376,20 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
 end
 
 --- Main draw method - renders all visual layers
+---@param element Element The parent Element instance
 ---@param backdropCanvas table|nil Backdrop canvas for backdrop blur
-function Renderer:draw(backdropCanvas)
+function Renderer:draw(element, backdropCanvas)
+  if not element then
+    Renderer._ErrorHandler:warn("Renderer", "SYS_002", "Element parameter required", {
+      method = "draw",
+    }, "Pass element as first parameter to draw()")
+    return
+  end
+
   -- Start performance timing
   local elementId
-  if Renderer._Performance and Renderer._Performance.enabled and self._element then
-    elementId = self._element.id or "unnamed"
+  if Renderer._Performance and Renderer._Performance.enabled and element then
+    elementId = element.id or "unnamed"
     Renderer._Performance:startTimer("render_" .. elementId)
     Renderer._Performance:incrementCounter("draw_calls", 1)
   end
@@ -374,16 +401,6 @@ function Renderer:draw(backdropCanvas)
     end
     return
   end
-
-  -- Element must be initialized before drawing
-  if not self._element then
-    Renderer._ErrorHandler:warn("Renderer", "SYS_002", "Method called before initialization", {
-      method = "draw",
-    }, "Call renderer:initialize(element) before rendering")
-    return
-  end
-
-  local element = self._element
 
   -- Handle opacity during animation
   local drawBackgroundColor = self.backgroundColor
@@ -641,8 +658,8 @@ end
 function Renderer:drawText(element)
   -- Update text layout if dirty (for multiline auto-grow)
   if element._textEditor then
-    element._textEditor:_updateTextIfDirty()
-    element._textEditor:updateAutoGrowHeight()
+    element._textEditor:_updateTextIfDirty(element)
+    element._textEditor:updateAutoGrowHeight(element)
   end
 
   -- For editable elements, use TextEditor buffer; for non-editable, use text
@@ -762,7 +779,7 @@ function Renderer:drawText(element)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
 
       -- Calculate cursor position using TextEditor method
-      local cursorRelX, cursorRelY = element._textEditor:_getCursorScreenPosition()
+      local cursorRelX, cursorRelY = element._textEditor:_getCursorScreenPosition(element)
       local cursorX = contentX + cursorRelX
       local cursorY = contentY + cursorRelY
       local cursorHeight = textHeight
@@ -793,7 +810,7 @@ function Renderer:drawText(element)
       local selectionWithOpacity = self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
 
       -- Get selection rectangles from TextEditor
-      local selectionRects = element._textEditor:_getSelectionRects(selStart, selEnd)
+      local selectionRects = element._textEditor:_getSelectionRects(element, selStart, selEnd)
 
       -- Apply scissor for single-line editable inputs
       if not element.multiline then
@@ -940,9 +957,16 @@ end
 
 --- Cleanup renderer resources
 function Renderer:destroy()
-  self._element = nil
   self._loadedImage = nil
   self._blurInstance = nil
+end
+
+
+--- Cleanup method to break circular references (for immediate mode)
+function Renderer:_cleanup()
+  -- Renderer doesn't create circular references (no element back-reference)
+  -- Module refs are singletons
+  -- In immediate mode, full element cleanup happens via array clearing
 end
 
 return Renderer

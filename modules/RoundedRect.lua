@@ -5,7 +5,7 @@ local RoundedRect = {}
 ---@param y number
 ---@param width number
 ---@param height number
----@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}|number
 ---@param segments number? -- Number of segments per corner arc (default: 10)
 ---@return table -- Array of vertices for love.graphics.polygon
 function RoundedRect.getPoints(x, y, width, height, cornerRadius, segments)
@@ -25,6 +25,16 @@ function RoundedRect.getPoints(x, y, width, height, cornerRadius, segments)
       table.insert(points, cx + math.cos(angle) * radius)
       table.insert(points, cy + math.sin(angle) * radius)
     end
+  end
+
+  -- Handle uniform corner radius (number)
+  if type(cornerRadius) == "number" then
+    cornerRadius = {
+      topLeft = cornerRadius,
+      topRight = cornerRadius,
+      bottomLeft = cornerRadius,
+      bottomRight = cornerRadius
+    }
   end
 
   local r1 = math.min(cornerRadius.topLeft, width / 2, height / 2)
@@ -53,8 +63,29 @@ end
 ---@param y number
 ---@param width number
 ---@param height number
----@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}|number|nil
 function RoundedRect.draw(mode, x, y, width, height, cornerRadius)
+  -- OPTIMIZATION: Handle nil cornerRadius (no rounding)
+  if not cornerRadius then
+    love.graphics.rectangle(mode, x, y, width, height)
+    return
+  end
+  
+  -- Handle uniform corner radius (number)
+  if type(cornerRadius) == "number" then
+    if cornerRadius <= 0 then
+      love.graphics.rectangle(mode, x, y, width, height)
+      return
+    end
+    -- Convert to table format for processing
+    cornerRadius = {
+      topLeft = cornerRadius,
+      topRight = cornerRadius,
+      bottomLeft = cornerRadius,
+      bottomRight = cornerRadius
+    }
+  end
+  
   -- Check if any corners are rounded
   local hasRoundedCorners = cornerRadius.topLeft > 0 or cornerRadius.topRight > 0 or cornerRadius.bottomLeft > 0 or cornerRadius.bottomRight > 0
 
@@ -79,7 +110,7 @@ end
 ---@param y number
 ---@param width number
 ---@param height number
----@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}
+---@param cornerRadius {topLeft:number, topRight:number, bottomLeft:number, bottomRight:number}|number|nil
 ---@return function
 function RoundedRect.stencilFunction(x, y, width, height, cornerRadius)
   return function()

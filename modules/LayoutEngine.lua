@@ -99,6 +99,14 @@ function LayoutEngine.new(props, deps)
   self._layoutCount = 0
   self._lastFrameCount = 0
 
+  -- Layout memoization cache
+  self._layoutCache = {
+    childrenCount = 0,
+    containerWidth = 0,
+    containerHeight = 0,
+    childrenHash = "",
+  }
+
   return self
 end
 
@@ -166,6 +174,14 @@ function LayoutEngine:layoutChildren()
   end
   
   if self.element == nil then
+    return
+  end
+
+  -- Check if layout can be skipped (memoization optimization)
+  if self:_canSkipLayout() then
+    if timerName and LayoutEngine._Performance then
+      LayoutEngine._Performance:stopTimer(timerName)
+    end
     return
   end
 
@@ -985,6 +1001,44 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
   if self.element._detectOverflow then
     self.element:_detectOverflow()
   end
+end
+
+--- Check if layout can be skipped based on cached state (memoization)
+---@return boolean canSkip True if layout hasn't changed and can be skipped
+function LayoutEngine:_canSkipLayout()
+  if not self.element then
+    return false
+  end
+
+  local childrenCount = #self.element.children
+  local containerWidth = self.element.width
+  local containerHeight = self.element.height
+
+  -- Generate simple hash of children dimensions
+  local childrenHash = ""
+  for i, child in ipairs(self.element.children) do
+    if i <= 5 then -- Only hash first 5 children for performance
+      childrenHash = childrenHash .. child.width .. "x" .. child.height .. ","
+    end
+  end
+
+  local cache = self._layoutCache
+  
+  -- Check if layout inputs have changed
+  if cache.childrenCount == childrenCount and
+     cache.containerWidth == containerWidth and
+     cache.containerHeight == containerHeight and
+     cache.childrenHash == childrenHash then
+    return true -- Layout hasn't changed, can skip
+  end
+
+  -- Update cache with current values
+  cache.childrenCount = childrenCount
+  cache.containerWidth = containerWidth
+  cache.containerHeight = containerHeight
+  cache.childrenHash = childrenHash
+
+  return false -- Layout has changed, must recalculate
 end
 
 --- Track layout recalculations and warn about excessive layouts

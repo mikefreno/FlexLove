@@ -340,13 +340,42 @@ end
 function StateManager.updateState(id, newState)
   local state = StateManager.getState(id)
 
-  -- Merge new state into existing state
+  -- Merge new state into existing state (with diffing optimization)
+  local changed = false
   for key, value in pairs(newState) do
-    state[key] = value
+    if state[key] ~= value then
+      state[key] = value
+      changed = true
+    end
   end
 
-  -- Update metadata
-  stateMetadata[id].lastFrame = frameNumber
+  -- Only update metadata if something actually changed
+  if changed then
+    stateMetadata[id].lastFrame = frameNumber
+  end
+end
+
+--- Update state only if values have changed (optimized for immediate mode)
+---@param id string Element ID
+---@param newState table New state values to merge
+---@return boolean changed True if any values changed
+function StateManager.updateStateIfChanged(id, newState)
+  local state = StateManager.getState(id)
+  local changed = false
+
+  for key, value in pairs(newState) do
+    -- Skip if value hasn't changed (optimization)
+    if state[key] ~= value then
+      state[key] = value
+      changed = true
+    end
+  end
+
+  if changed then
+    stateMetadata[id].lastFrame = frameNumber
+  end
+
+  return changed
 end
 
 --- Clear state for a specific element ID

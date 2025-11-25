@@ -193,8 +193,17 @@ end
 ---@param fontPath string?
 ---@return love.Font
 function FONT_CACHE.get(size, fontPath)
-  -- Round size to reduce cache entries (e.g., 14.5 -> 15, 14.7 -> 15)
-  size = math.floor(size + 0.5)
+  -- Bucket font sizes for better cache reuse (reduces unique cache entries)
+  -- Small sizes (< 20): round to nearest 2
+  -- Medium sizes (20-40): round to nearest 4
+  -- Large sizes (> 40): round to nearest 8
+  if size < 20 then
+    size = math.floor((size + 1) / 2) * 2
+  elseif size < 40 then
+    size = math.floor((size + 2) / 4) * 4
+  else
+    size = math.floor((size + 4) / 8) * 8
+  end
 
   local cacheKey = fontPath and (fontPath .. ":" .. tostring(size)) or ("default:" .. tostring(size))
 

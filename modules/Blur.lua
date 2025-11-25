@@ -4,16 +4,36 @@ local unpack = table.unpack or unpack
 local Cache = {
   canvases = {},
   quads = {},
+  blurInstances = {}, -- Cache blur instances by quality
   MAX_CANVAS_SIZE = 20,
   MAX_QUAD_SIZE = 20,
+  INTENSITY_THRESHOLD = 5, -- Skip blur below this intensity
 }
+
+--- Round canvas size to nearest bucket for better reuse
+---@param size number Size to bucket
+---@return number bucketSize Bucketed size
+local function bucketSize(size)
+  if size <= 128 then
+    return math.ceil(size / 32) * 32
+  elseif size <= 512 then
+    return math.ceil(size / 64) * 64
+  elseif size <= 1024 then
+    return math.ceil(size / 128) * 128
+  else
+    return math.ceil(size / 256) * 256
+  end
+end
 
 --- Get or create a canvas from cache
 ---@param width number Canvas width
 ---@param height number Canvas height
 ---@return love.Canvas canvas The cached or new canvas
 function Cache.getCanvas(width, height)
-  local key = string.format("%dx%d", width, height)
+  -- Use bucketed sizes for better cache reuse
+  local bucketedWidth = bucketSize(width)
+  local bucketedHeight = bucketSize(height)
+  local key = string.format("%dx%d", bucketedWidth, bucketedHeight)
 
   if not Cache.canvases[key] then
     Cache.canvases[key] = {}
@@ -28,11 +48,14 @@ function Cache.getCanvas(width, height)
     end
   end
 
-  local canvas = love.graphics.newCanvas(width, height)
+  local canvas = love.graphics.newCanvas(bucketedWidth, bucketedHeight)
   table.insert(cache, { canvas = canvas, inUse = true })
 
   if #cache > Cache.MAX_CANVAS_SIZE then
-    table.remove(cache, 1)
+    local removed = table.remove(cache, 1)
+    if removed and removed.canvas then
+      removed.canvas:release()
+    end
   end
 
   return canvas
@@ -102,6 +125,7 @@ end
 function Cache.clear()
   Cache.canvases = {}
   Cache.quads = {}
+  Cache.blurInstances = {}
 end
 
 -- ============================================================================
@@ -169,6 +193,27 @@ function ShaderBuilder.build(taps, offset, offsetType, sigma)
   return love.graphics.newShader(shaderCode)
 end
 
+--- Get or create a blur instance from cache
+---@param quality number Quality level (1-10)
+---@return table blurData Cached blur data {shader, taps}
+function Cache.getBlurInstance(quality)
+  if not Cache.blurInstances[quality] then
+    local taps = 3 + (quality - 1) * 1.5
+    taps = math.floor(taps)
+    if taps % 2 == 0 then
+      taps = taps + 1
+    end
+    
+    local shader = ShaderBuilder.build(taps, 1.0, "weighted", -1)
+    Cache.blurInstances[quality] = {
+      shader = shader,
+      taps = taps,
+    }
+  end
+  
+  return Cache.blurInstances[quality]
+end
+
 ---@class BlurProps
 ---@field quality number? Quality level (1-10, default: 5)
 
@@ -189,26 +234,13 @@ function Blur.new(props)
   local quality = props.quality or 5
   quality = math.max(1, math.min(10, quality))
 
-  -- Map quality to shader parameters
-  -- Quality 1: 3 taps (fastest, lowest quality)
-  -- Quality 5: 7 taps (balanced)
-  -- Quality 10: 15 taps (slowest, highest quality)
-  local taps = 3 + (quality - 1) * 1.5
-  taps = math.floor(taps)
-  if taps % 2 == 0 then
-    taps = taps + 1
-  end
-
-  local offset = 1.0
-  local offsetType = "weighted"
-  local sigma = -1
-
-  local shader = ShaderBuilder.build(taps, offset, offsetType, sigma)
+  -- Get cached blur instance for this quality level
+  local blurData = Cache.getBlurInstance(quality)
 
   local self = setmetatable({}, Blur)
-  self.shader = shader
+  self.shader = blurData.shader
   self.quality = quality
-  self.taps = taps
+  self.taps = blurData.taps
 
   return self
 end
@@ -229,6 +261,12 @@ function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
   end
 
   if intensity <= 0 or width <= 0 or height <= 0 then
+    drawFunc()
+    return
+  end
+
+  -- Early exit for very low intensity (optimization)
+  if intensity < Cache.INTENSITY_THRESHOLD then
     drawFunc()
     return
   end
@@ -299,6 +337,11 @@ function Blur:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
   end
 
   if intensity <= 0 or width <= 0 or height <= 0 then
+    return
+  end
+
+  -- Early exit for very low intensity (optimization)
+  if intensity < Cache.INTENSITY_THRESHOLD then
     return
   end
 

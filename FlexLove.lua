@@ -377,36 +377,37 @@ function flexlove.endFrame()
     end
   end
 
-  -- Save state back for all elements created this frame
+  -- Save state back for all elements created this frame (with diffing optimization)
   for _, element in ipairs(flexlove._currentFrameElements) do
     if element.id and element.id ~= "" then
-      local state = StateManager.getState(element.id, {})
+      -- Build state update object
+      local stateUpdate = {}
 
-      -- Save stateful properties back to persistent state
       -- Get event handler state
       if element._eventHandler then
         local eventState = element._eventHandler:getState()
         for k, v in pairs(eventState) do
-          state[k] = v
+          stateUpdate[k] = v
         end
       end
-      state._focused = element._focused
-      state._focused = element._focused
-      state._cursorPosition = element._cursorPosition
-      state._selectionStart = element._selectionStart
-      state._selectionEnd = element._selectionEnd
-      state._textBuffer = element._textBuffer
-      state._scrollX = element._scrollX
-      state._scrollY = element._scrollY
-      state._scrollbarDragging = element._scrollbarDragging
-      state._hoveredScrollbar = element._hoveredScrollbar
-      state._scrollbarDragOffset = element._scrollbarDragOffset
-      state._cursorBlinkTimer = element._cursorBlinkTimer
-      state._cursorVisible = element._cursorVisible
-      state._cursorBlinkPaused = element._cursorBlinkPaused
-      state._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
+      
+      stateUpdate._focused = element._focused
+      stateUpdate._cursorPosition = element._cursorPosition
+      stateUpdate._selectionStart = element._selectionStart
+      stateUpdate._selectionEnd = element._selectionEnd
+      stateUpdate._textBuffer = element._textBuffer
+      stateUpdate._scrollX = element._scrollX
+      stateUpdate._scrollY = element._scrollY
+      stateUpdate._scrollbarDragging = element._scrollbarDragging
+      stateUpdate._hoveredScrollbar = element._hoveredScrollbar
+      stateUpdate._scrollbarDragOffset = element._scrollbarDragOffset
+      stateUpdate._cursorBlinkTimer = element._cursorBlinkTimer
+      stateUpdate._cursorVisible = element._cursorVisible
+      stateUpdate._cursorBlinkPaused = element._cursorBlinkPaused
+      stateUpdate._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
 
-      StateManager.setState(element.id, state)
+      -- Use optimized update that only changes modified values
+      StateManager.updateStateIfChanged(element.id, stateUpdate)
     end
   end
 

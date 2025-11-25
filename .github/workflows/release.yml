@@ -116,7 +116,7 @@ jobs:
         run: |
           # Create all 4 profile packages
           ./scripts/create-profile-packages.sh
-          
+
           # Verify all packages were created
           VERSION="${{ steps.version.outputs.version }}"
           for profile in minimal slim default full; do
@@ -155,7 +155,7 @@ jobs:
           SLIM_CHECKSUM=$(cat "releases/flexlove-slim-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
           DEFAULT_CHECKSUM=$(cat "releases/flexlove-default-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
           FULL_CHECKSUM=$(cat "releases/flexlove-full-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
-          
+
           echo "minimal=$MINIMAL_CHECKSUM" >> $GITHUB_OUTPUT
           echo "slim=$SLIM_CHECKSUM" >> $GITHUB_OUTPUT
           echo "default=$DEFAULT_CHECKSUM" >> $GITHUB_OUTPUT
@@ -184,7 +184,7 @@ jobs:
 
           | Profile | Size | Description | Package |
           |---------|------|-------------|---------|
-          | **Minimal** | ~60% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
+          | **Minimal** | ~70% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
           | **Slim** | ~80% | + Animation and Image support | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
           | **Default** | ~95% | + Theme and Blur effects | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
           | **Full** | 100% | All modules including debugging tools | `flexlove-full-v${{ steps.version.outputs.version }}.zip` |

@@ -425,7 +425,9 @@ function Renderer:draw(element, backdropCanvas)
   if self.backdropBlur and self.backdropBlur.intensity > 0 and backdropCanvas then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      self._Blur.applyBackdrop(blurInstance, self.backdropBlur.intensity, element.x, element.y, borderBoxWidth, borderBoxHeight, backdropCanvas)
+      -- Use cached blur in immediate mode if element has an ID
+      local elementId = element.id and element.id ~= "" and element.id or nil
+      blurInstance:applyBackdropCached(self.backdropBlur.intensity, element.x, element.y, borderBoxWidth, borderBoxHeight, backdropCanvas, elementId)
     end
   end
 

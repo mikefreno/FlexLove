@@ -185,4 +185,5 @@ local TransformProps
 ---@field gcMemoryThreshold number? -- Memory threshold in MB before forcing GC (default: 100)
 ---@field gcInterval number? -- Frames between GC steps in periodic mode (default: 60)
 ---@field gcStepSize number? -- Work units per GC step, higher = more aggressive (default: 200)
+---@field immediateModeBlurOptimizations boolean? -- Cache blur canvases in immediate mode to avoid re-rendering each frame (default: true)
 local FlexLoveConfig = {}

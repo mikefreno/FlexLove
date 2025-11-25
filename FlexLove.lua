@@ -149,6 +149,18 @@ function flexlove.init(config)
     NinePatch.init({ ErrorHandler = flexlove._ErrorHandler })
   end
 
+  -- Initialize Blur module with immediate mode optimization config
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Blur") then
+    local blurOptimizations = config.immediateModeBlurOptimizations
+    if blurOptimizations == nil then
+      blurOptimizations = true -- Default to enabled
+    end
+    Blur.init({ 
+      ErrorHandler = flexlove._ErrorHandler,
+      immediateModeOptimizations = blurOptimizations and config.immediateMode or false
+    })
+  end
+
   -- Initialize required modules
   Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler })
   Color.init({ ErrorHandler = flexlove._ErrorHandler })
@@ -439,9 +451,31 @@ function flexlove.endFrame()
       stateUpdate._cursorVisible = element._cursorVisible
       stateUpdate._cursorBlinkPaused = element._cursorBlinkPaused
       stateUpdate._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
+      
+      -- Track blur-related properties for cache invalidation
+      if element.backdropBlur or element.contentBlur then
+        stateUpdate._blurX = element.x
+        stateUpdate._blurY = element.y
+        stateUpdate._blurWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+        stateUpdate._blurHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+        if element.backdropBlur then
+          stateUpdate._backdropBlurIntensity = element.backdropBlur.intensity
+          stateUpdate._backdropBlurQuality = element.backdropBlur.quality
+        end
+        if element.contentBlur then
+          stateUpdate._contentBlurIntensity = element.contentBlur.intensity
+          stateUpdate._contentBlurQuality = element.contentBlur.quality
+        end
+      end
 
       -- Use optimized update that only changes modified values
-      StateManager.updateStateIfChanged(element.id, stateUpdate)
+      -- Returns true if state was changed (meaning blur cache needs invalidation)
+      local stateChanged = StateManager.updateStateIfChanged(element.id, stateUpdate)
+      
+      -- Invalidate blur cache if blur-related properties changed
+      if stateChanged and (element.backdropBlur or element.contentBlur) and Blur then
+        Blur.clearElementCache(element.id)
+      end
     end
   end
 

@@ -5,8 +5,10 @@ local Cache = {
   canvases = {},
   quads = {},
   blurInstances = {}, -- Cache blur instances by quality
+  blurredCanvases = {}, -- Cache pre-blurred canvases for immediate mode
   MAX_CANVAS_SIZE = 20,
   MAX_QUAD_SIZE = 20,
+  MAX_BLURRED_CANVAS_CACHE = 50, -- Maximum cached blurred canvases
   INTENSITY_THRESHOLD = 5, -- Skip blur below this intensity
 }
 
@@ -121,11 +123,93 @@ function Cache.releaseQuad(quad)
   end
 end
 
+--- Generate cache key for blurred canvas
+---@param elementId string Element ID
+---@param x number X position
+---@param y number Y position
+---@param width number Width
+---@param height number Height
+---@param intensity number Blur intensity
+---@param quality number Blur quality
+---@param isBackdrop boolean Whether this is backdrop blur
+---@return string key Cache key
+function Cache.generateBlurCacheKey(elementId, x, y, width, height, intensity, quality, isBackdrop)
+  return string.format("%s:%d:%d:%d:%d:%d:%d:%s", elementId, x, y, width, height, intensity, quality, tostring(isBackdrop))
+end
+
+--- Get cached blurred canvas
+---@param key string Cache key
+---@return love.Canvas|nil canvas Cached canvas or nil
+function Cache.getBlurredCanvas(key)
+  local entry = Cache.blurredCanvases[key]
+  if entry then
+    entry.lastUsed = os.time()
+    return entry.canvas
+  end
+  return nil
+end
+
+--- Store blurred canvas in cache
+---@param key string Cache key
+---@param canvas love.Canvas Canvas to cache
+function Cache.setBlurredCanvas(key, canvas)
+  -- Limit cache size
+  local count = 0
+  for _ in pairs(Cache.blurredCanvases) do
+    count = count + 1
+  end
+  
+  if count >= Cache.MAX_BLURRED_CANVAS_CACHE then
+    -- Remove oldest entry
+    local oldestKey = nil
+    local oldestTime = math.huge
+    for k, v in pairs(Cache.blurredCanvases) do
+      if v.lastUsed < oldestTime then
+        oldestTime = v.lastUsed
+        oldestKey = k
+      end
+    end
+    
+    if oldestKey then
+      if Cache.blurredCanvases[oldestKey].canvas then
+        Cache.blurredCanvases[oldestKey].canvas:release()
+      end
+      Cache.blurredCanvases[oldestKey] = nil
+    end
+  end
+  
+  Cache.blurredCanvases[key] = {
+    canvas = canvas,
+    lastUsed = os.time(),
+  }
+end
+
+--- Clear blurred canvas cache for specific element
+---@param elementId string Element ID to clear cache for
+function Cache.clearBlurredCanvasesForElement(elementId)
+  for key, entry in pairs(Cache.blurredCanvases) do
+    if key:match("^" .. elementId .. ":") then
+      if entry.canvas then
+        entry.canvas:release()
+      end
+      Cache.blurredCanvases[key] = nil
+    end
+  end
+end
+
 --- Clear all caches
 function Cache.clear()
+  -- Release all blurred canvases
+  for _, entry in pairs(Cache.blurredCanvases) do
+    if entry.canvas then
+      entry.canvas:release()
+    end
+  end
+  
   Cache.canvases = {}
   Cache.quads = {}
   Cache.blurInstances = {}
+  Cache.blurredCanvases = {}
 end
 
 -- ============================================================================
@@ -411,11 +495,129 @@ function Blur.clearCache()
   Cache.clear()
 end
 
+--- Apply backdrop blur with caching support
+---@param intensity number Blur intensity (0-100)
+---@param x number X position
+---@param y number Y position
+---@param width number Width of region
+---@param height number Height of region
+---@param backdropCanvas love.Canvas Canvas containing the backdrop content
+---@param elementId string|nil Element ID for caching (nil disables caching)
+function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas, elementId)
+  -- If caching is disabled or no element ID, fall back to regular apply
+  if not Blur._immediateModeOptimizations or not elementId then
+    return self:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
+  end
+  
+  -- Generate cache key
+  local cacheKey = Cache.generateBlurCacheKey(elementId, x, y, width, height, intensity, self.quality, true)
+  
+  -- Check cache
+  local cachedCanvas = Cache.getBlurredCanvas(cacheKey)
+  if cachedCanvas then
+    -- Draw cached blur
+    local prevCanvas = love.graphics.getCanvas()
+    local prevShader = love.graphics.getShader()
+    local prevColor = { love.graphics.getColor() }
+    local prevBlendMode = love.graphics.getBlendMode()
+    
+    love.graphics.setCanvas(prevCanvas)
+    love.graphics.setShader()
+    love.graphics.setBlendMode(prevBlendMode)
+    love.graphics.draw(cachedCanvas, x, y)
+    
+    love.graphics.setShader(prevShader)
+    love.graphics.setColor(unpack(prevColor))
+    return
+  end
+  
+  -- Not cached, render and cache
+  if not backdropCanvas then
+    if Blur._ErrorHandler then
+      Blur._ErrorHandler:warn("Blur", "applyBackdrop requires a backdrop canvas.")
+    end
+    return
+  end
+
+  if intensity <= 0 or width <= 0 or height <= 0 then
+    return
+  end
+
+  -- Early exit for very low intensity (optimization)
+  if intensity < Cache.INTENSITY_THRESHOLD then
+    return
+  end
+
+  intensity = math.max(0, math.min(100, intensity))
+
+  local passes = math.ceil(intensity / 20)
+  passes = math.max(1, math.min(5, passes))
+
+  local canvas1 = Cache.getCanvas(width, height)
+  local canvas2 = Cache.getCanvas(width, height)
+
+  local prevCanvas = love.graphics.getCanvas()
+  local prevShader = love.graphics.getShader()
+  local prevColor = { love.graphics.getColor() }
+  local prevBlendMode = love.graphics.getBlendMode()
+
+  love.graphics.setCanvas(canvas1)
+  love.graphics.clear()
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setBlendMode("alpha", "premultiplied")
+
+  local backdropWidth, backdropHeight = backdropCanvas:getDimensions()
+  local quad = Cache.getQuad(x, y, width, height, backdropWidth, backdropHeight)
+  love.graphics.draw(backdropCanvas, quad, 0, 0)
+
+  love.graphics.setShader(self.shader)
+
+  for i = 1, passes do
+    love.graphics.setCanvas(canvas2)
+    love.graphics.clear()
+    self.shader:send("direction", { 1 / width, 0 })
+    love.graphics.draw(canvas1, 0, 0)
+
+    love.graphics.setCanvas(canvas1)
+    love.graphics.clear()
+    self.shader:send("direction", { 0, 1 / height })
+    love.graphics.draw(canvas2, 0, 0)
+  end
+
+  -- Cache the result
+  local cachedResult = love.graphics.newCanvas(width, height)
+  love.graphics.setCanvas(cachedResult)
+  love.graphics.clear()
+  love.graphics.setShader()
+  love.graphics.setBlendMode("alpha", "premultiplied")
+  love.graphics.draw(canvas1, 0, 0)
+  Cache.setBlurredCanvas(cacheKey, cachedResult)
+
+  love.graphics.setCanvas(prevCanvas)
+  love.graphics.setShader()
+  love.graphics.setBlendMode(prevBlendMode)
+  love.graphics.draw(canvas1, x, y)
+
+  love.graphics.setShader(prevShader)
+  love.graphics.setColor(unpack(prevColor))
+
+  Cache.releaseCanvas(canvas1)
+  Cache.releaseCanvas(canvas2)
+  Cache.releaseQuad(quad)
+end
+
+--- Clear blur cache for specific element
+---@param elementId string Element ID
+function Blur.clearElementCache(elementId)
+  Cache.clearBlurredCanvasesForElement(elementId)
+end
+
 --- Initialize Blur module with dependencies
----@param deps table Dependencies: { ErrorHandler = ErrorHandler? }
+---@param deps table Dependencies: { ErrorHandler = ErrorHandler?, immediateModeOptimizations = boolean? }
 function Blur.init(deps)
   if type(deps) == "table" then
     Blur._ErrorHandler = deps.ErrorHandler
+    Blur._immediateModeOptimizations = deps.immediateModeOptimizations or false
   end
 end
 

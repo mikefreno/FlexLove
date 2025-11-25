@@ -86,14 +86,18 @@ function TestBlur:testNewWithNilProps()
 end
 
 function TestBlur:testNewCreatesUniqueShaders()
-  -- Each instance should have its own shader
+  -- Blur instances with same quality should share cached shaders (optimization)
   local blur1 = Blur.new({quality = 5})
   local blur2 = Blur.new({quality = 5})
   
   luaunit.assertNotNil(blur1.shader)
   luaunit.assertNotNil(blur2.shader)
-  -- Shaders should be different objects even if same quality
-  luaunit.assertNotEquals(blur1.shader, blur2.shader)
+  -- Shaders should be the same object when quality matches (cached)
+  luaunit.assertEquals(blur1.shader, blur2.shader)
+  
+  -- Different quality should result in different shaders
+  local blur3 = Blur.new({quality = 7})
+  luaunit.assertNotEquals(blur1.shader, blur3.shader)
 end
 
 -- ============================================================================

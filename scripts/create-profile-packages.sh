@@ -40,16 +40,16 @@ get_description() {
 get_modules() {
   case "$1" in
     minimal)
-      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua GestureRecognizer.lua ModuleLoader.lua"
+      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua"
       ;;
     slim)
-      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua GestureRecognizer.lua Animation.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua ModuleLoader.lua"
+      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua"
       ;;
     default)
-      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua GestureRecognizer.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua ModuleLoader.lua"
+      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua GestureRecognizer.lua"
       ;;
     full)
-      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua GestureRecognizer.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua Performance.lua ModuleLoader.lua"
+      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua GestureRecognizer.lua Performance.lua MemoryScanner.lua"
       ;;
   esac
 }

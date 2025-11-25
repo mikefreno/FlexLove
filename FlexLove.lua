@@ -3,23 +3,28 @@ local function req(name)
   return require(modulePath .. "modules." .. name)
 end
 
--- internals
-local Blur = req("Blur")
+-- Load ErrorHandler first (required for ModuleLoader)
+---@type ErrorHandler
+local ErrorHandler = req("ErrorHandler")
+
+-- Load ModuleLoader
+local ModuleLoader = req("ModuleLoader")
+ModuleLoader.init({ ErrorHandler = ErrorHandler })
+
+-- Helper function for safe module loading
+local function safeReq(name, isOptional)
+  return ModuleLoader.safeRequire(modulePath .. "modules." .. name, isOptional)
+end
+
+-- Required core modules
 local utils = req("utils")
 local Units = req("Units")
 local Context = req("Context")
 ---@type StateManager
 local StateManager = req("StateManager")
----@type Performance
-local Performance = req("Performance")
-local ImageRenderer = req("ImageRenderer")
-local ImageScaler = req("ImageScaler")
-local NinePatch = req("NinePatch")
 local RoundedRect = req("RoundedRect")
-local ImageCache = req("ImageCache")
 local Grid = req("Grid")
 local InputEvent = req("InputEvent")
-local GestureRecognizer = req("GestureRecognizer")
 local TextEditor = req("TextEditor")
 ---@type LayoutEngine
 local LayoutEngine = req("LayoutEngine")
@@ -27,19 +32,28 @@ local Renderer = req("Renderer")
 ---@type EventHandler
 local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
----@type ErrorHandler
-local ErrorHandler = req("ErrorHandler")
 ---@type Element
 local Element = req("Element")
-
--- externals
----@type Animation
-local Animation = req("Animation")
-local Transform = Animation.Transform
 ---@type Color
 local Color = req("Color")
+
+-- Optional modules (can be excluded in minimal builds)
+local Blur = safeReq("Blur", true)
+---@type Performance
+local Performance = safeReq("Performance", true)
+local ImageRenderer = safeReq("ImageRenderer", true)
+local ImageScaler = safeReq("ImageScaler", true)
+local NinePatch = safeReq("NinePatch", true)
+local ImageCache = safeReq("ImageCache", true)
+local GestureRecognizer = safeReq("GestureRecognizer", true)
+---@type Animation
+local Animation = safeReq("Animation", true)
 ---@type Theme
-local Theme = req("Theme")
+local Theme = safeReq("Theme", true)
+
+-- Handle Animation.Transform safely
+local Transform = Animation.Transform or nil
+
 local enums = utils.enums
 
 ---@class FlexLove
@@ -103,35 +117,57 @@ function flexlove.init(config)
     enableRotation = config.errorLogRotateEnabled,
   })
 
-  flexlove._Performance = Performance.init({
-    enabled = config.performanceMonitoring or true,
-    hudEnabled = false, -- Start with HUD disabled
-    hudToggleKey = config.performanceHudKey or "f3",
-    hudPosition = config.performanceHudPosition or { x = 10, y = 10 },
-    warningThresholdMs = config.performanceWarningThreshold or 13.0,
-    criticalThresholdMs = config.performanceCriticalThreshold or 16.67,
-    logToConsole = config.performanceLogToConsole or false,
-    logWarnings = config.performanceWarnings or false,
-    warningsEnabled = config.performanceWarnings or false,
-    memoryProfiling = config.memoryProfiling or config.immediateMode and true or false,
-  }, { ErrorHandler = flexlove._ErrorHandler })
+  -- Initialize Performance if available
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Performance") then
+    flexlove._Performance = Performance.init({
+      enabled = config.performanceMonitoring or true,
+      hudEnabled = false, -- Start with HUD disabled
+      hudToggleKey = config.performanceHudKey or "f3",
+      hudPosition = config.performanceHudPosition or { x = 10, y = 10 },
+      warningThresholdMs = config.performanceWarningThreshold or 13.0,
+      criticalThresholdMs = config.performanceCriticalThreshold or 16.67,
+      logToConsole = config.performanceLogToConsole or false,
+      logWarnings = config.performanceWarnings or false,
+      warningsEnabled = config.performanceWarnings or false,
+      memoryProfiling = config.memoryProfiling or config.immediateMode and true or false,
+    }, { ErrorHandler = flexlove._ErrorHandler })
 
-  if config.immediateMode then
-    flexlove._Performance:registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
-    flexlove._Performance:registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
+    if config.immediateMode then
+      flexlove._Performance:registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
+      flexlove._Performance:registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
+    end
+  else
+    flexlove._Performance = Performance
   end
 
-  ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler, utils = flexlove._utils })
+  -- Initialize optional modules if available
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.ImageRenderer") then
+    ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler, utils = utils })
+  end
 
-  ImageScaler.init({ ErrorHandler = flexlove._ErrorHandler })
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.ImageScaler") then
+    ImageScaler.init({ ErrorHandler = flexlove._ErrorHandler })
+  end
 
-  NinePatch.init({ ErrorHandler = flexlove._ErrorHandler })
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.NinePatch") then
+    NinePatch.init({ ErrorHandler = flexlove._ErrorHandler })
+  end
 
+  -- Initialize required modules
   Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler })
   Color.init({ ErrorHandler = flexlove._ErrorHandler })
   utils.init({ ErrorHandler = flexlove._ErrorHandler })
-  Animation.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color })
-  Theme.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils })
+
+  -- Initialize optional Animation module
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Animation") then
+    Animation.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color })
+  end
+
+  -- Initialize optional Theme module
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Theme") then
+    Theme.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils })
+  end
+
   LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance })
   EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils })
 
@@ -175,7 +211,7 @@ function flexlove.init(config)
     flexlove.scaleFactors.y = currentHeight / flexlove.baseScale.height
   end
 
-  if config.theme then
+  if config.theme and ModuleLoader.isModuleLoaded(modulePath .. "modules.Theme") then
     local success, err = pcall(function()
       if type(config.theme) == "string" then
         Theme.load(config.theme)
@@ -268,7 +304,9 @@ function flexlove.resize()
     flexlove.scaleFactors.y = newHeight / flexlove.baseScale.height
   end
 
-  Blur.clearCache()
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Blur") then
+    Blur.clearCache()
+  end
 
   -- Release old canvases explicitly
   if flexlove._gameCanvas then

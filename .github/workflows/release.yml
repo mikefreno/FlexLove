@@ -123,6 +123,12 @@ jobs:
 
       - name: Create release packages
         run: |
+          # Debug: Show environment
+          echo "Working directory: $(pwd)"
+          echo "Contents:"
+          ls -la
+          echo ""
+          
           # Create all 4 profile packages
           ./scripts/create-profile-packages.sh
 
@@ -131,6 +137,8 @@ jobs:
           for profile in minimal slim default full; do
             if [ ! -f "releases/flexlove-${profile}-v${VERSION}.zip" ]; then
               echo "Error: ${profile} profile package was not created"
+              echo "Contents of releases directory:"
+              ls -la releases/ || echo "releases directory does not exist"
               exit 1
             fi
             if [ ! -f "releases/flexlove-${profile}-v${VERSION}.zip.sha256" ]; then

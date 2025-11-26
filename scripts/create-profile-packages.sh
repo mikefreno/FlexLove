@@ -11,6 +11,21 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}FlexLöve Profile Package Builder${NC}"
 echo ""
 
+# Debug: Show current directory and verify files exist
+echo -e "${YELLOW}Working directory: $(pwd)${NC}"
+if [ ! -f "FlexLove.lua" ]; then
+  echo -e "${RED}Error: FlexLove.lua not found in current directory${NC}"
+  echo "Contents of current directory:"
+  ls -la
+  exit 1
+fi
+if [ ! -d "modules" ]; then
+  echo -e "${RED}Error: modules/ directory not found${NC}"
+  echo "Contents of current directory:"
+  ls -la
+  exit 1
+fi
+
 VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
 if [ -z "$VERSION" ]; then
   echo -e "${RED}Error: Could not extract version from FlexLove.lua${NC}"
@@ -74,8 +89,12 @@ for profile in minimal slim default full; do
   # Create temp directory
   TEMP_DIR=$(mktemp -d)
   BUILD_DIR="${TEMP_DIR}/flexlove"
-
-  mkdir -p "$BUILD_DIR/modules"
+  
+  echo "  → Creating build directory: $BUILD_DIR"
+  mkdir -p "$BUILD_DIR/modules" || {
+    echo -e "${RED}Error: Failed to create build directory${NC}"
+    exit 1
+  }
 
   echo "  → Copying FlexLove.lua"
   cp FlexLove.lua "$BUILD_DIR/"
@@ -137,10 +156,16 @@ EOF
   module_count=0
   for module in $module_list; do
     if [ -f "modules/$module" ]; then
-      cp "modules/$module" "$BUILD_DIR/modules/"
-      ((module_count++))
+      cp "modules/$module" "$BUILD_DIR/modules/" || {
+        echo -e "${RED}Error: Failed to copy modules/$module${NC}"
+        exit 1
+      }
+      module_count=$((module_count + 1))
     else
-      echo -e "${RED}Warning: Module not found: modules/$module${NC}"
+      echo -e "${RED}Error: Module not found: modules/$module${NC}"
+      echo "Available modules:"
+      ls -la modules/ || echo "modules/ directory not found"
+      exit 1
     fi
   done
   echo "     Copied ${module_count} modules"

@@ -26,14 +26,23 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/v}
             echo "Triggered by tag: $GITHUB_REF_NAME"
           else
-            VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+            VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
             echo "Triggered manually, using FlexLove.lua version"
           fi
-
+          
+          # Verify version was extracted
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Failed to extract version from FlexLove.lua"
+            echo "Looking for line matching: _VERSION"
+            grep "_VERSION" FlexLove.lua || echo "No _VERSION found"
+            exit 1
+          fi
+          
+          echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
 
-          FLEX_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+          FLEX_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
           echo "FlexLove.lua version: $FLEX_VERSION"
           echo "Release version: $VERSION"
 
@@ -130,22 +139,6 @@ jobs:
             fi
           done
           echo "✓ All profile packages created successfully"
-
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-assets
-          path: |
-            releases/flexlove-*-v${{ steps.version.outputs.version }}.zip
-            releases/flexlove-*-v${{ steps.version.outputs.version }}.zip.sha256
-            docs/api.html
-          retention-days: 90
-
-      - name: Download release artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-assets
-          path: ./
 
       - name: Extract checksums for release notes
         id: checksums

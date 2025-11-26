@@ -13,7 +13,7 @@ cd "$PROJECT_ROOT"
 if [ -f "docs/api.html" ]; then
     echo -e "${YELLOW}Checking for previous documentation version...${NC}"
     OLD_VERSION=$(grep -o 'FlexLöve v[0-9.]*' docs/api.html | head -1 | sed 's/FlexLöve v//')
-    CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+    CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
 
     if [ -n "$OLD_VERSION" ] && [ "$OLD_VERSION" != "$CURRENT_VERSION" ]; then
         echo -e "${YELLOW}Found previous version v${OLD_VERSION}, archiving before generating new docs...${NC}"

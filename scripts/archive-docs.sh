@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}FlexLöve Documentation Archival${NC}"
 echo ""
 
-VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
 if [ -z "$VERSION" ]; then
   echo -e "${RED}Error: Could not extract version from FlexLove.lua${NC}"
   exit 1

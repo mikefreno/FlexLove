@@ -18,7 +18,7 @@ echo ""
 
 # Step 1: Extract version
 echo -e "${YELLOW}Step 1: Extract version from FlexLove.lua${NC}"
-VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
 if [ -z "$VERSION" ]; then
   echo -e "${RED}Error: Could not extract version${NC}"
   exit 1

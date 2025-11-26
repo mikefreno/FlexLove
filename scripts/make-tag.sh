@@ -41,7 +41,7 @@ CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
 if [ -z "$CURRENT_VERSION" ]; then
   echo -e "${YELLOW}Warning: No existing git tags found${NC}"
   echo -e "${YELLOW}Attempting to read version from FlexLove.lua...${NC}"
-  CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | sed -E 's/.*"([^"]+)".*/\1/')
+  CURRENT_VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
   if [ -z "$CURRENT_VERSION" ]; then
     echo -e "${RED}Error: Could not extract version from git tags or FlexLove.lua${NC}"
     exit 1

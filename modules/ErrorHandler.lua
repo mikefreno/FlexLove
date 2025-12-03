@@ -291,6 +291,12 @@ local ErrorCodes = {
       description = "Critical performance threshold exceeded",
       suggestion = "Operation is causing frame drops. Consider optimizing or reducing frequency.",
     },
+    PERF_003 = {
+      code = "FLEXLOVE_PERF_003",
+      category = "PERF",
+      description = "Large blur area in immediate mode",
+      suggestion = "Consider using retained mode for this component to avoid recreating blur effects every frame.",
+    },
 
     -- Memory Warnings (MEM_001 - MEM_099)
     MEM_001 = {

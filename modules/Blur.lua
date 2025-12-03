@@ -1,6 +1,9 @@
 -- Lua 5.2+ compatibility for unpack
 local unpack = table.unpack or unpack
 
+-- Warning cache to prevent duplicate warnings for the same element
+local warningCache = {}
+
 local Cache = {
   canvases = {},
   quads = {},
@@ -10,6 +13,7 @@ local Cache = {
   MAX_QUAD_SIZE = 20,
   MAX_BLURRED_CANVAS_CACHE = 50, -- Maximum cached blurred canvases
   INTENSITY_THRESHOLD = 5, -- Skip blur below this intensity
+  LARGE_BLUR_THRESHOLD = 250 * 250, -- Warn if blur area exceeds this (250x250px)
 }
 
 --- Round canvas size to nearest bucket for better reuse
@@ -158,7 +162,7 @@ function Cache.setBlurredCanvas(key, canvas)
   for _ in pairs(Cache.blurredCanvases) do
     count = count + 1
   end
-  
+
   if count >= Cache.MAX_BLURRED_CANVAS_CACHE then
     -- Remove oldest entry
     local oldestKey = nil
@@ -169,7 +173,7 @@ function Cache.setBlurredCanvas(key, canvas)
         oldestKey = k
       end
     end
-    
+
     if oldestKey then
       if Cache.blurredCanvases[oldestKey].canvas then
         Cache.blurredCanvases[oldestKey].canvas:release()
@@ -177,7 +181,7 @@ function Cache.setBlurredCanvas(key, canvas)
       Cache.blurredCanvases[oldestKey] = nil
     end
   end
-  
+
   Cache.blurredCanvases[key] = {
     canvas = canvas,
     lastUsed = os.time(),
@@ -205,11 +209,12 @@ function Cache.clear()
       entry.canvas:release()
     end
   end
-  
+
   Cache.canvases = {}
   Cache.quads = {}
   Cache.blurInstances = {}
   Cache.blurredCanvases = {}
+  warningCache = {} -- Clear warning cache on cache clear
 end
 
 -- ============================================================================
@@ -287,14 +292,14 @@ function Cache.getBlurInstance(quality)
     if taps % 2 == 0 then
       taps = taps + 1
     end
-    
+
     local shader = ShaderBuilder.build(taps, 1.0, "weighted", -1)
     Cache.blurInstances[quality] = {
       shader = shader,
       taps = taps,
     }
   end
-  
+
   return Cache.blurInstances[quality]
 end
 
@@ -308,6 +313,50 @@ end
 ---@field _ErrorHandler table? Reference to ErrorHandler module
 local Blur = {}
 Blur.__index = Blur
+
+--- Check if we should warn about large blur area in immediate mode
+---@param elementId string|nil Element ID for caching warnings
+---@param width number Blur area width
+---@param height number Blur area height
+---@param blurType string "content" or "backdrop"
+local function checkLargeBlurWarning(elementId, width, height, blurType)
+  -- Skip if no ErrorHandler available
+  if not Blur._ErrorHandler then
+    return
+  end
+
+  -- Skip if not in immediate mode
+  if not Blur._immediateModeOptimizations then
+    return
+  end
+
+  -- Calculate blur area
+  local area = width * height
+
+  -- Skip if area is below threshold
+  if area <= Cache.LARGE_BLUR_THRESHOLD then
+    return
+  end
+
+  -- Generate warning key (use elementId if available, otherwise use dimensions)
+  local warningKey = elementId or string.format("%dx%d:%s", width, height, blurType)
+
+  -- Skip if already warned for this element/area
+  if warningCache[warningKey] then
+    return
+  end
+
+  -- Mark as warned
+  warningCache[warningKey] = true
+
+  -- Issue warning
+  local message = string.format("Large %s blur area detected (%dx%d = %d pixels) in immediate mode", blurType, width, height, area)
+
+  local suggestion =
+    "Consider using retained mode for this component to avoid recreating blur effects every frame. Large blur operations are expensive and can cause performance issues in immediate mode."
+
+  Blur._ErrorHandler:warn("Blur", "PERF_003", message, suggestion)
+end
 
 --- Create a new blur effect instance
 ---@param props BlurProps? Blur configuration
@@ -354,6 +403,9 @@ function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
     drawFunc()
     return
   end
+
+  -- Check for large blur area in immediate mode
+  checkLargeBlurWarning(nil, width, height, "content")
 
   intensity = math.max(0, math.min(100, intensity))
 
@@ -508,10 +560,10 @@ function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas
   if not Blur._immediateModeOptimizations or not elementId then
     return self:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
   end
-  
+
   -- Generate cache key
   local cacheKey = Cache.generateBlurCacheKey(elementId, x, y, width, height, intensity, self.quality, true)
-  
+
   -- Check cache
   local cachedCanvas = Cache.getBlurredCanvas(cacheKey)
   if cachedCanvas then
@@ -520,17 +572,17 @@ function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas
     local prevShader = love.graphics.getShader()
     local prevColor = { love.graphics.getColor() }
     local prevBlendMode = love.graphics.getBlendMode()
-    
+
     love.graphics.setCanvas(prevCanvas)
     love.graphics.setShader()
     love.graphics.setBlendMode(prevBlendMode)
     love.graphics.draw(cachedCanvas, x, y)
-    
+
     love.graphics.setShader(prevShader)
     love.graphics.setColor(unpack(prevColor))
     return
   end
-  
+
   -- Not cached, render and cache
   if not backdropCanvas then
     if Blur._ErrorHandler then
@@ -547,6 +599,9 @@ function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas
   if intensity < Cache.INTENSITY_THRESHOLD then
     return
   end
+
+  -- Check for large blur area in immediate mode
+  checkLargeBlurWarning(elementId, width, height, "backdrop")
 
   intensity = math.max(0, math.min(100, intensity))
 

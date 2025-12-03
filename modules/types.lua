@@ -187,3 +187,23 @@ local TransformProps
 ---@field gcStepSize number? -- Work units per GC step, higher = more aggressive (default: 200)
 ---@field immediateModeBlurOptimizations boolean? -- Cache blur canvases in immediate mode to avoid re-rendering each frame (default: true)
 local FlexLoveConfig = {}
+
+--=====================================--
+-- For State Persistence
+--=====================================--
+---@class ElementStateData
+---@field _focused boolean?
+---@field eventHandler table? -- EventHandler state
+---@field textEditor table? -- TextEditor state
+---@field scrollManager table? -- ScrollManager state
+---@field blur BlurCacheData? -- Blur cache invalidation data
+
+---@class BlurCacheData
+---@field _blurX number
+---@field _blurY number
+---@field _blurWidth number
+---@field _blurHeight number
+---@field _backdropBlurIntensity number?
+---@field _backdropBlurQuality string?
+---@field _contentBlurIntensity number?
+---@field _contentBlurQuality string?

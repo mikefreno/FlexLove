@@ -430,54 +430,14 @@ function flexlove.endFrame()
     end
   end
 
-  -- Save state back for all elements created this frame (with diffing optimization)
+  -- Save state for all elements created this frame
+  -- State is collected from element and all sub-modules via element:saveState()
+  -- This is the ONLY place state is saved in immediate mode
   for _, element in ipairs(flexlove._currentFrameElements) do
     if element.id and element.id ~= "" then
-      -- Build state update object
-      local stateUpdate = {}
-
-      -- Get event handler state
-      if element._eventHandler then
-        local eventState = element._eventHandler:getState()
-        for k, v in pairs(eventState) do
-          stateUpdate[k] = v
-        end
-      end
-
-      stateUpdate._focused = element._focused
-      stateUpdate._cursorPosition = element._cursorPosition
-      stateUpdate._selectionStart = element._selectionStart
-      stateUpdate._selectionEnd = element._selectionEnd
-      stateUpdate._textBuffer = element._textBuffer
-      stateUpdate._scrollX = element._scrollX
-      stateUpdate._scrollY = element._scrollY
-      stateUpdate._scrollbarDragging = element._scrollbarDragging
-      stateUpdate._hoveredScrollbar = element._hoveredScrollbar
-      stateUpdate._scrollbarDragOffset = element._scrollbarDragOffset
-      -- Cursor blink state is stored in TextEditor instance
-      if element._textEditor then
-        stateUpdate._cursorBlinkTimer = element._textEditor._cursorBlinkTimer
-        stateUpdate._cursorVisible = element._textEditor._cursorVisible
-        stateUpdate._cursorBlinkPaused = element._textEditor._cursorBlinkPaused
-        stateUpdate._cursorBlinkPauseTimer = element._textEditor._cursorBlinkPauseTimer
-      end
+      -- Collect state from element and all sub-modules
+      local stateUpdate = element:saveState()
       
-      -- Track blur-related properties for cache invalidation
-      if element.backdropBlur or element.contentBlur then
-        stateUpdate._blurX = element.x
-        stateUpdate._blurY = element.y
-        stateUpdate._blurWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
-        stateUpdate._blurHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-        if element.backdropBlur then
-          stateUpdate._backdropBlurIntensity = element.backdropBlur.intensity
-          stateUpdate._backdropBlurQuality = element.backdropBlur.quality
-        end
-        if element.contentBlur then
-          stateUpdate._contentBlurIntensity = element.contentBlur.intensity
-          stateUpdate._contentBlurQuality = element.contentBlur.quality
-        end
-      end
-
       -- Use optimized update that only changes modified values
       -- Returns true if state was changed (meaning blur cache needs invalidation)
       local stateChanged = StateManager.updateStateIfChanged(element.id, stateUpdate)
@@ -757,22 +717,8 @@ function flexlove.update(dt)
 
   flexlove._activeEventElement = nil
 
-  -- In immediate mode, save state after update so that cursor blink timer changes persist
-  if flexlove._immediateMode and flexlove._currentFrameElements then
-    for _, element in ipairs(flexlove._currentFrameElements) do
-      if element.id and element.id ~= "" and element.editable and element._focused and element._textEditor then
-        local state = StateManager.getState(element.id, {})
-
-        -- Save cursor blink state (updated during element:update())
-        state._cursorBlinkTimer = element._textEditor._cursorBlinkTimer
-        state._cursorVisible = element._textEditor._cursorVisible
-        state._cursorBlinkPaused = element._textEditor._cursorBlinkPaused
-        state._cursorBlinkPauseTimer = element._textEditor._cursorBlinkPauseTimer
-
-        StateManager.setState(element.id, state)
-      end
-    end
-  end
+  -- Note: State saving happens in endFrame() after element:update() is called
+  -- This ensures all state changes (including cursor blink) are captured once per frame
 end
 
 --- Internal GC management function (called from update)
@@ -1065,69 +1011,35 @@ function flexlove.new(props)
 
   -- Inject scroll state into props BEFORE creating element
   -- This ensures scroll position is set before layoutChildren/detectOverflow is called
-  props._scrollX = state._scrollX or 0
-  props._scrollY = state._scrollY or 0
+  -- ScrollManager state uses _scrollX/_scrollY with underscore prefix
+  if state.scrollManager then
+    props._scrollX = state.scrollManager._scrollX or 0
+    props._scrollY = state.scrollManager._scrollY or 0
+  else
+    -- Fallback to old state structure for backward compatibility
+    props._scrollX = state._scrollX or 0
+    props._scrollY = state._scrollY or 0
+  end
 
   local element = Element.new(props)
 
-  -- Bind persistent state to element (ImmediateModeState)
-  -- Restore event handler state
-  if element._eventHandler then
-    element._eventHandler:setState(state)
-  end
-  element._focused = state._focused
-  element._focused = state._focused
-  element._cursorPosition = state._cursorPosition
-  element._selectionStart = state._selectionStart
-  element._selectionEnd = state._selectionEnd
-  element._textBuffer = state._textBuffer or element.text or ""
-  -- Note: scroll position already set from props during Element.new()
-  -- element._scrollX and element._scrollY already restored
-  element._scrollbarDragging = state._scrollbarDragging ~= nil and state._scrollbarDragging or false
-  element._hoveredScrollbar = state._hoveredScrollbar
-  element._scrollbarDragOffset = state._scrollbarDragOffset ~= nil and state._scrollbarDragOffset or 0
-
-  -- Sync scrollbar drag state to ScrollManager if it exists
-  if element._scrollManager then
-    element._scrollManager._scrollbarDragging = element._scrollbarDragging
-    element._scrollManager._hoveredScrollbar = element._hoveredScrollbar
-    element._scrollManager._scrollbarDragOffset = element._scrollbarDragOffset
-  end
-
-  -- Restore cursor blink state (will be restored by TextEditor:restoreState() if element has _textEditor)
-  -- These are kept for backward compatibility but are no longer used directly on element
-  element._cursorBlinkTimer = state._cursorBlinkTimer or 0
-  element._cursorVisible = state._cursorVisible
-  element._cursorBlinkPaused = state._cursorBlinkPaused or false
-  element._cursorBlinkPauseTimer = state._cursorBlinkPauseTimer or 0
+  -- Restore all state from StateManager (delegates to sub-modules)
+  element:restoreState(state)
 
   -- Bind element to StateManager for interactive states
-  -- Use the same ID for StateManager so state persists across frames
   element._stateId = props.id
-
-  -- Load interactive state from StateManager (already loaded in 'state' variable above)
-  element._scrollbarHoveredVertical = state.scrollbarHoveredVertical
-  element._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal
-  element._scrollbarDragging = state.scrollbarDragging
-  element._hoveredScrollbar = state.hoveredScrollbar
-  element._scrollbarDragOffset = state.scrollbarDragOffset or 0
-
-  -- Sync interactive scroll state to ScrollManager if it exists
-  if element._scrollManager then
-    element._scrollManager._scrollbarHoveredVertical = element._scrollbarHoveredVertical or false
-    element._scrollManager._scrollbarHoveredHorizontal = element._scrollbarHoveredHorizontal or false
-  end
 
   -- Set initial theme state based on StateManager state
   -- This will be updated in Element:update() but we need an initial value
   if element.themeComponent then
-    if element.disabled or state.disabled then
+    local eventState = state.eventHandler or {}
+    if element.disabled or eventState.disabled then
       element._themeState = "disabled"
-    elseif element.active or state.active then
+    elseif element.active or eventState.active then
       element._themeState = "active"
-    elseif state.pressed then
+    elseif eventState._pressed and next(eventState._pressed) then
       element._themeState = "pressed"
-    elseif state.hover then
+    elseif eventState._hovered then
       element._themeState = "hover"
     else
       element._themeState = "normal"

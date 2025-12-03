@@ -617,11 +617,13 @@ end
 ---@return table State data
 function ScrollManager:getState()
   return {
-    scrollX = self._scrollX,
-    scrollY = self._scrollY,
-    scrollbarDragging = self._scrollbarDragging,
-    hoveredScrollbar = self._hoveredScrollbar,
-    scrollbarDragOffset = self._scrollbarDragOffset,
+    _scrollX = self._scrollX or 0,
+    _scrollY = self._scrollY or 0,
+    _scrollbarDragging = self._scrollbarDragging or false,
+    _hoveredScrollbar = self._hoveredScrollbar,
+    _scrollbarDragOffset = self._scrollbarDragOffset or 0,
+    _scrollbarHoveredVertical = self._scrollbarHoveredVertical or false,
+    _scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal or false,
   }
 end
 
@@ -632,20 +634,43 @@ function ScrollManager:setState(state)
     return
   end
 
-  if state.scrollX then
+  -- Support both old (scrollX) and new (_scrollX) field names for backward compatibility
+  if state._scrollX ~= nil then
+    self._scrollX = state._scrollX
+  elseif state.scrollX ~= nil then
     self._scrollX = state.scrollX
   end
-  if state.scrollY then
+  
+  if state._scrollY ~= nil then
+    self._scrollY = state._scrollY
+  elseif state.scrollY ~= nil then
     self._scrollY = state.scrollY
   end
-  if state.scrollbarDragging ~= nil then
+  
+  if state._scrollbarDragging ~= nil then
+    self._scrollbarDragging = state._scrollbarDragging
+  elseif state.scrollbarDragging ~= nil then
     self._scrollbarDragging = state.scrollbarDragging
   end
-  if state.hoveredScrollbar then
+  
+  if state._hoveredScrollbar ~= nil then
+    self._hoveredScrollbar = state._hoveredScrollbar
+  elseif state.hoveredScrollbar ~= nil then
     self._hoveredScrollbar = state.hoveredScrollbar
   end
-  if state.scrollbarDragOffset then
+  
+  if state._scrollbarDragOffset ~= nil then
+    self._scrollbarDragOffset = state._scrollbarDragOffset
+  elseif state.scrollbarDragOffset ~= nil then
     self._scrollbarDragOffset = state.scrollbarDragOffset
+  end
+  
+  if state._scrollbarHoveredVertical ~= nil then
+    self._scrollbarHoveredVertical = state._scrollbarHoveredVertical
+  end
+  
+  if state._scrollbarHoveredHorizontal ~= nil then
+    self._scrollbarHoveredHorizontal = state._scrollbarHoveredHorizontal
   end
 end
 

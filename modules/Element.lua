@@ -3160,6 +3160,110 @@ function Element:setProperty(property, value)
   end
 end
 
+-- ====================
+-- State Persistence
+-- ====================
+
+--- Save all element state for immediate mode persistence
+--- Collects state from all sub-modules and returns consolidated state
+---@return ElementStateData state Complete state snapshot
+function Element:saveState()
+  local state = {}
+  
+  -- Element-owned state
+  state._focused = self._focused
+  
+  -- EventHandler state (if exists)
+  if self._eventHandler then
+    state.eventHandler = self._eventHandler:getState()
+  end
+  
+  -- TextEditor state (if exists)
+  if self._textEditor then
+    state.textEditor = self._textEditor:getState()
+  end
+  
+  -- ScrollManager state (if exists)
+  if self._scrollManager then
+    state.scrollManager = self._scrollManager:getState()
+  end
+  
+  -- Blur cache data (for cache invalidation)
+  if self.backdropBlur or self.contentBlur then
+    state.blur = {
+      _blurX = self.x,
+      _blurY = self.y,
+      _blurWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right),
+      _blurHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom),
+    }
+    
+    if self.backdropBlur then
+      state.blur._backdropBlurIntensity = self.backdropBlur.intensity
+      state.blur._backdropBlurQuality = self.backdropBlur.quality
+    end
+    
+    if self.contentBlur then
+      state.blur._contentBlurIntensity = self.contentBlur.intensity
+      state.blur._contentBlurQuality = self.contentBlur.quality
+    end
+  end
+  
+  return state
+end
+
+--- Restore all element state from StateManager
+--- Distributes state to all sub-modules
+---@param state ElementStateData State to restore
+function Element:restoreState(state)
+  if not state then
+    return
+  end
+  
+  -- Restore element-owned state
+  if state._focused ~= nil then
+    self._focused = state._focused
+  end
+  
+  -- Restore EventHandler state (if exists)
+  if self._eventHandler and state.eventHandler then
+    self._eventHandler:setState(state.eventHandler)
+  end
+  
+  -- Restore TextEditor state (if exists)
+  if self._textEditor and state.textEditor then
+    self._textEditor:setState(state.textEditor)
+  end
+  
+  -- Restore ScrollManager state (if exists)
+  if self._scrollManager and state.scrollManager then
+    self._scrollManager:setState(state.scrollManager)
+  end
+  
+  -- Note: Blur cache data is used for invalidation, not restoration
+end
+
+--- Check if blur cache should be invalidated based on state changes
+---@param oldState ElementStateData? Previous state
+---@param newState ElementStateData Current state
+---@return boolean shouldInvalidate True if blur cache should be cleared
+function Element:shouldInvalidateBlurCache(oldState, newState)
+  if not oldState or not oldState.blur or not newState.blur then
+    return false
+  end
+  
+  local old = oldState.blur
+  local new = newState.blur
+  
+  -- Check if any blur-related property changed
+  return old._blurX ~= new._blurX
+    or old._blurY ~= new._blurY
+    or old._blurWidth ~= new._blurWidth
+    or old._blurHeight ~= new._blurHeight
+    or old._backdropBlurIntensity ~= new._backdropBlurIntensity
+    or old._backdropBlurQuality ~= new._backdropBlurQuality
+    or old._contentBlurIntensity ~= new._contentBlurIntensity
+    or old._contentBlurQuality ~= new._contentBlurQuality
+end
 
 --- Cleanup method to break circular references (for immediate mode)
 --- Note: Cleans internal module state but keeps structure for inspection

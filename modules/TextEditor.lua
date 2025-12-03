@@ -1681,6 +1681,66 @@ function TextEditor:_getFont(element)
   return element._renderer:getFont(element)
 end
 
+--- Get current state for persistence
+---@return table state TextEditor state snapshot
+function TextEditor:getState()
+  return {
+    _cursorPosition = self._cursorPosition,
+    _selectionStart = self._selectionStart,
+    _selectionEnd = self._selectionEnd,
+    _textBuffer = self._textBuffer,
+    _cursorBlinkTimer = self._cursorBlinkTimer,
+    _cursorVisible = self._cursorVisible,
+    _cursorBlinkPaused = self._cursorBlinkPaused,
+    _cursorBlinkPauseTimer = self._cursorBlinkPauseTimer,
+    _focused = self._focused,
+  }
+end
+
+--- Restore state from persistence
+---@param state table State to restore
+function TextEditor:setState(state)
+  if not state then
+    return
+  end
+  
+  if state._cursorPosition ~= nil then
+    self._cursorPosition = state._cursorPosition
+  end
+  
+  if state._selectionStart ~= nil then
+    self._selectionStart = state._selectionStart
+  end
+  
+  if state._selectionEnd ~= nil then
+    self._selectionEnd = state._selectionEnd
+  end
+  
+  if state._textBuffer ~= nil then
+    self._textBuffer = state._textBuffer
+  end
+  
+  if state._cursorBlinkTimer ~= nil then
+    self._cursorBlinkTimer = state._cursorBlinkTimer
+  end
+  
+  if state._cursorVisible ~= nil then
+    self._cursorVisible = state._cursorVisible
+  end
+  
+  if state._cursorBlinkPaused ~= nil then
+    self._cursorBlinkPaused = state._cursorBlinkPaused
+  end
+  
+  if state._cursorBlinkPauseTimer ~= nil then
+    self._cursorBlinkPauseTimer = state._cursorBlinkPauseTimer
+  end
+  
+  if state._focused ~= nil then
+    self._focused = state._focused
+  end
+end
+
 ---Save state to StateManager (for immediate mode)
 ---@param element Element? The parent element
 function TextEditor:_saveState(element)

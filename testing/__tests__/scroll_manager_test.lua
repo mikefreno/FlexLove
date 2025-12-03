@@ -915,11 +915,11 @@ function TestScrollManagerEdgeCases:testGetState()
   sm._scrollbarDragOffset = 10
 
   local state = sm:getState()
-  luaunit.assertEquals(state.scrollX, 50)
-  luaunit.assertEquals(state.scrollY, 75)
-  luaunit.assertTrue(state.scrollbarDragging)
-  luaunit.assertEquals(state.hoveredScrollbar, "vertical")
-  luaunit.assertEquals(state.scrollbarDragOffset, 10)
+  luaunit.assertEquals(state._scrollX, 50)
+  luaunit.assertEquals(state._scrollY, 75)
+  luaunit.assertTrue(state._scrollbarDragging)
+  luaunit.assertEquals(state._hoveredScrollbar, "vertical")
+  luaunit.assertEquals(state._scrollbarDragOffset, 10)
 end
 
 function TestScrollManagerEdgeCases:testSetStateWithNil()

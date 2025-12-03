@@ -97,6 +97,9 @@ flexlove._gcState = {
 -- Deferred callback queue for operations that cannot run while Canvas is active
 flexlove._deferredCallbacks = {}
 
+-- Track accumulated delta time for immediate mode updates
+flexlove._accumulatedDt = 0
+
 --- Set up FlexLove for your application's specific needs - configure responsive scaling, theming, rendering mode, and debugging tools
 --- Use this to establish a consistent UI foundation that adapts to different screen sizes and provides performance insights
 ---@param config FlexLoveConfig?
@@ -368,6 +371,9 @@ function flexlove.beginFrame()
     return
   end
 
+  -- Reset accumulated delta time for new frame
+  flexlove._accumulatedDt = 0
+
   -- Start performance frame timing
   flexlove._Performance:startFrame()
 
@@ -417,9 +423,10 @@ function flexlove.endFrame()
 
   -- Auto-update all top-level elements created this frame
   -- This happens AFTER layout so positions are correct
+  -- Use accumulated dt from FlexLove.update() calls to properly update animations and cursor blink
   for _, element in ipairs(flexlove._currentFrameElements) do
     if not element.parent then
-      element:update(0) -- dt=0 since we're not doing animation updates here
+      element:update(flexlove._accumulatedDt)
     end
   end
 
@@ -447,10 +454,13 @@ function flexlove.endFrame()
       stateUpdate._scrollbarDragging = element._scrollbarDragging
       stateUpdate._hoveredScrollbar = element._hoveredScrollbar
       stateUpdate._scrollbarDragOffset = element._scrollbarDragOffset
-      stateUpdate._cursorBlinkTimer = element._cursorBlinkTimer
-      stateUpdate._cursorVisible = element._cursorVisible
-      stateUpdate._cursorBlinkPaused = element._cursorBlinkPaused
-      stateUpdate._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
+      -- Cursor blink state is stored in TextEditor instance
+      if element._textEditor then
+        stateUpdate._cursorBlinkTimer = element._textEditor._cursorBlinkTimer
+        stateUpdate._cursorVisible = element._textEditor._cursorVisible
+        stateUpdate._cursorBlinkPaused = element._textEditor._cursorBlinkPaused
+        stateUpdate._cursorBlinkPauseTimer = element._textEditor._cursorBlinkPauseTimer
+      end
       
       -- Track blur-related properties for cache invalidation
       if element.backdropBlur or element.contentBlur then
@@ -736,8 +746,10 @@ function flexlove.update(dt)
 
   flexlove._activeEventElement = topElement
 
-  -- In immediate mode, skip updating here - elements will be updated in endFrame after layout
-  if not flexlove._immediateMode then
+  -- In immediate mode, accumulate dt and skip updating here - elements will be updated in endFrame after layout
+  if flexlove._immediateMode then
+    flexlove._accumulatedDt = flexlove._accumulatedDt + dt
+  else
     for _, win in ipairs(flexlove.topElements) do
       win:update(dt)
     end
@@ -748,14 +760,14 @@ function flexlove.update(dt)
   -- In immediate mode, save state after update so that cursor blink timer changes persist
   if flexlove._immediateMode and flexlove._currentFrameElements then
     for _, element in ipairs(flexlove._currentFrameElements) do
-      if element.id and element.id ~= "" and element.editable and element._focused then
+      if element.id and element.id ~= "" and element.editable and element._focused and element._textEditor then
         local state = StateManager.getState(element.id, {})
 
         -- Save cursor blink state (updated during element:update())
-        state._cursorBlinkTimer = element._cursorBlinkTimer
-        state._cursorVisible = element._cursorVisible
-        state._cursorBlinkPaused = element._cursorBlinkPaused
-        state._cursorBlinkPauseTimer = element._cursorBlinkPauseTimer
+        state._cursorBlinkTimer = element._textEditor._cursorBlinkTimer
+        state._cursorVisible = element._textEditor._cursorVisible
+        state._cursorBlinkPaused = element._textEditor._cursorBlinkPaused
+        state._cursorBlinkPauseTimer = element._textEditor._cursorBlinkPauseTimer
 
         StateManager.setState(element.id, state)
       end
@@ -1082,13 +1094,10 @@ function flexlove.new(props)
     element._scrollManager._scrollbarDragOffset = element._scrollbarDragOffset
   end
 
-  -- Restore cursor blink state
-  element._cursorBlinkTimer = state._cursorBlinkTimer or element._cursorBlinkTimer or 0
-  if state._cursorVisible ~= nil then
-    element._cursorVisible = state._cursorVisible
-  elseif element._cursorVisible == nil then
-    element._cursorVisible = true
-  end
+  -- Restore cursor blink state (will be restored by TextEditor:restoreState() if element has _textEditor)
+  -- These are kept for backward compatibility but are no longer used directly on element
+  element._cursorBlinkTimer = state._cursorBlinkTimer or 0
+  element._cursorVisible = state._cursorVisible
   element._cursorBlinkPaused = state._cursorBlinkPaused or false
   element._cursorBlinkPauseTimer = state._cursorBlinkPauseTimer or 0
 

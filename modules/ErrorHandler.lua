@@ -313,6 +313,170 @@ local ErrorCodes = {
       description = "CallSite counters accumulating",
       suggestion = "This indicates incrementFrame() may not be called properly. Check immediate mode frame management.",
     },
+
+    -- Animation Errors (ANIM_001 - ANIM_099)
+    ANIM_001 = {
+      code = "FLEXLOVE_ANIM_001",
+      category = "VAL",
+      description = "Invalid animation configuration",
+      suggestion = "Animation.new() requires a table argument with duration, start, and final properties",
+    },
+    ANIM_002 = {
+      code = "FLEXLOVE_ANIM_002",
+      category = "VAL",
+      description = "Invalid animation duration",
+      suggestion = "Animation duration must be a positive number in seconds",
+    },
+    ANIM_003 = {
+      code = "FLEXLOVE_ANIM_003",
+      category = "VAL",
+      description = "Invalid animation target",
+      suggestion = "Animation can only be applied to table elements",
+    },
+    ANIM_004 = {
+      code = "FLEXLOVE_ANIM_004",
+      category = "VAL",
+      description = "Invalid animation chain",
+      suggestion = "chain() requires an Animation object or function",
+    },
+    ANIM_005 = {
+      code = "FLEXLOVE_ANIM_005",
+      category = "VAL",
+      description = "Invalid animation delay",
+      suggestion = "delay() requires a non-negative number in seconds",
+    },
+    ANIM_006 = {
+      code = "FLEXLOVE_ANIM_006",
+      category = "VAL",
+      description = "Invalid repeat count",
+      suggestion = "repeatCount() requires a non-negative number",
+    },
+    ANIM_007 = {
+      code = "FLEXLOVE_ANIM_007",
+      category = "VAL",
+      description = "Invalid keyframes configuration",
+      suggestion = "Animation.keyframes() requires a table with duration and keyframes array",
+    },
+    ANIM_008 = {
+      code = "FLEXLOVE_ANIM_008",
+      category = "VAL",
+      description = "Insufficient keyframes",
+      suggestion = "Keyframe animations require at least 2 keyframes",
+    },
+    ANIM_009 = {
+      code = "FLEXLOVE_ANIM_009",
+      category = "VAL",
+      description = "Invalid animation group configuration",
+      suggestion = "AnimationGroup.new() requires a table with animations array",
+    },
+    ANIM_010 = {
+      code = "FLEXLOVE_ANIM_010",
+      category = "VAL",
+      description = "Empty animation group",
+      suggestion = "AnimationGroup requires at least one animation",
+    },
+    ANIM_011 = {
+      code = "FLEXLOVE_ANIM_011",
+      category = "VAL",
+      description = "Invalid animation group mode",
+      suggestion = "AnimationGroup mode must be 'parallel' or 'sequence'",
+    },
+
+    -- Blur Errors (BLUR_001 - BLUR_099)
+    BLUR_001 = {
+      code = "FLEXLOVE_BLUR_001",
+      category = "VAL",
+      description = "Missing draw function",
+      suggestion = "applyToRegion requires a draw function to render the content to be blurred",
+    },
+    BLUR_002 = {
+      code = "FLEXLOVE_BLUR_002",
+      category = "VAL",
+      description = "Missing backdrop canvas",
+      suggestion = "applyBackdrop requires a backdrop canvas parameter",
+    },
+
+    -- FlexLove Core Errors (CORE_001 - CORE_099)
+    CORE_001 = {
+      code = "FLEXLOVE_CORE_001",
+      category = "VAL",
+      description = "Invalid callback function",
+      suggestion = "deferCallback expects a function argument",
+    },
+    CORE_002 = {
+      code = "FLEXLOVE_CORE_002",
+      category = "SYS",
+      description = "Deferred callback execution failed",
+      suggestion = "Check the callback function for errors. Error details included in message.",
+    },
+    CORE_003 = {
+      code = "FLEXLOVE_CORE_003",
+      category = "VAL",
+      description = "Invalid garbage collection strategy",
+      suggestion = "GC strategy must be one of: 'default', 'aggressive', 'conservative'",
+    },
+
+    -- Element Errors (ELEM_001 - ELEM_099)
+    ELEM_001 = {
+      code = "FLEXLOVE_ELEM_001",
+      category = "VAL",
+      description = "Invalid text size",
+      suggestion = "textSize must be greater than 0",
+    },
+    ELEM_002 = {
+      code = "FLEXLOVE_ELEM_002",
+      category = "VAL",
+      description = "Invalid text size unit",
+      suggestion = "textSize unit must be one of: px, %, vw, vh, ew, eh, or presets: xs, sm, md, lg, xl, xxl, 2xl, 3xl, 4xl",
+    },
+    ELEM_003 = {
+      code = "FLEXLOVE_ELEM_003",
+      category = "VAL",
+      description = "Invalid transition configuration",
+      suggestion = "setTransition() requires a table with transition properties",
+    },
+    ELEM_004 = {
+      code = "FLEXLOVE_ELEM_004",
+      category = "VAL",
+      description = "Invalid transition duration",
+      suggestion = "Transition duration must be a non-negative number in seconds",
+    },
+    ELEM_005 = {
+      code = "FLEXLOVE_ELEM_005",
+      category = "VAL",
+      description = "Invalid transition group",
+      suggestion = "setTransitionGroup() requires an array of property names",
+    },
+    ELEM_006 = {
+      code = "FLEXLOVE_ELEM_006",
+      category = "VAL",
+      description = "Incompatible element configuration",
+      suggestion = "passwordMode and multiline cannot be used together. Multiline will be disabled.",
+    },
+
+    -- Module Loader Warnings (MOD_001 - MOD_099)
+    MOD_001 = {
+      code = "FLEXLOVE_MOD_001",
+      category = "RES",
+      description = "Optional module not found",
+      suggestion = "Using stub implementation for optional module. This is expected if the module is not required.",
+    },
+
+    -- Utility Errors (UTIL_001 - UTIL_099)
+    UTIL_001 = {
+      code = "FLEXLOVE_UTIL_001",
+      category = "VAL",
+      description = "Text truncation warning",
+      suggestion = "Text was truncated to fit within the maximum allowed length",
+    },
+
+    -- Image/Rendering Errors (IMG_001 - IMG_099)
+    IMG_001 = {
+      code = "FLEXLOVE_IMG_001",
+      category = "REN",
+      description = "Stencil buffer not available",
+      suggestion = "Cannot apply corner radius to image without stencil buffer support. Check graphics capabilities.",
+    },
   },
 }
 
@@ -670,64 +834,33 @@ function ErrorHandler:_formatStackTrace(level)
   return ""
 end
 
---- Format an error or warning message with optional error code
+--- Format an error or warning message using error code lookup
 ---@param module string The module name (e.g., "Element", "Units", "Theme")
 ---@param level string "Error" or "Warning"
----@param codeOrMessage string Error code (e.g., "VAL_001") or message
----@param messageOrDetails string|table|nil Message or details object
----@param detailsOrSuggestion table|string|nil Details or suggestion
----@param suggestionOrNil string|nil Suggestion
+---@param code string Error code (e.g., "VAL_001")
+---@param details table|nil Optional details object
 ---@return string Formatted message
-function ErrorHandler:_formatMessage(module, level, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestionOrNil)
-  local code = nil
-  local message = codeOrMessage
-  local details = nil
-  local suggestion = nil
+function ErrorHandler:_formatMessage(module, level, code, details)
+  local codeInfo = ErrorCodes.get(code)
 
-  -- Parse arguments (support multiple signatures)
-  if type(codeOrMessage) == "string" and ErrorCodes.get(codeOrMessage) then
-    -- Called with error code
-    code = codeOrMessage
-    message = messageOrDetails or ErrorCodes.describe(code)
-
-    if type(detailsOrSuggestion) == "table" then
-      details = detailsOrSuggestion
-      suggestion = suggestionOrNil or ErrorCodes.getSuggestion(code)
-    elseif type(detailsOrSuggestion) == "string" then
-      suggestion = detailsOrSuggestion
-    else
-      suggestion = ErrorCodes.getSuggestion(code)
-    end
-  else
-    -- Called with message only (backward compatibility)
-    message = codeOrMessage
-    if type(messageOrDetails) == "table" then
-      details = messageOrDetails
-      suggestion = detailsOrSuggestion
-    elseif type(messageOrDetails) == "string" then
-      suggestion = messageOrDetails
-    end
+  if not codeInfo then
+    return string.format("[FlexLove - %s] %s: Unknown error code: %s", module, level, code)
   end
 
   -- Build formatted message
   local parts = {}
 
-  -- Header: [FlexLove - Module] Level [CODE]: Message
-  if code then
-    local codeInfo = ErrorCodes.get(code)
-    table.insert(parts, string.format("[FlexLove - %s] %s [%s]: %s", module, level, codeInfo.code, message))
-  else
-    table.insert(parts, string.format("[FlexLove - %s] %s: %s", module, level, message))
-  end
+  -- Header: [FlexLove - Module] Level [CODE]: Description
+  table.insert(parts, string.format("[FlexLove - %s] %s [%s]: %s", module, level, codeInfo.code, codeInfo.description))
 
   -- Details section
-  if details then
+  if details and type(details) == "table" then
     table.insert(parts, self:_formatDetails(details))
   end
 
   -- Suggestion section
-  if suggestion and suggestion ~= "" then
-    table.insert(parts, string.format("\n\nSuggestion: %s", suggestion))
+  if codeInfo.suggestion and codeInfo.suggestion ~= "" then
+    table.insert(parts, string.format("\n\nSuggestion: %s", codeInfo.suggestion))
   end
 
   return table.concat(parts, "")
@@ -807,43 +940,17 @@ end
 
 --- Throw a critical error (stops execution)
 ---@param module string The module name
----@param codeOrMessage string Error code or message
----@param messageOrDetails string|table|nil Message or details
----@param detailsOrSuggestion table|string|nil Details or suggestion
----@param suggestion string|nil Suggestion
-function ErrorHandler:error(module, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
-  local formattedMessage = self:_formatMessage(module, "Error", codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
+---@param code string Error code (e.g., "VAL_001")
+---@param details table|nil Optional details object
+function ErrorHandler:error(module, code, details)
+  local formattedMessage = self:_formatMessage(module, "Error", code, details)
 
-  -- Parse arguments for logging
-  local code = nil
-  local message = codeOrMessage
-  local details = nil
-  local logSuggestion = nil
-
-  if type(codeOrMessage) == "string" and ErrorCodes.get(codeOrMessage) then
-    code = codeOrMessage
-    message = messageOrDetails or ErrorCodes.describe(code)
-
-    if type(detailsOrSuggestion) == "table" then
-      details = detailsOrSuggestion
-      logSuggestion = suggestion or ErrorCodes.getSuggestion(code)
-    elseif type(detailsOrSuggestion) == "string" then
-      logSuggestion = detailsOrSuggestion
-    else
-      logSuggestion = ErrorCodes.getSuggestion(code)
-    end
-  else
-    message = codeOrMessage
-    if type(messageOrDetails) == "table" then
-      details = messageOrDetails
-      logSuggestion = detailsOrSuggestion
-    elseif type(messageOrDetails) == "string" then
-      logSuggestion = messageOrDetails
-    end
-  end
+  local codeInfo = ErrorCodes.get(code)
+  local message = codeInfo and codeInfo.description or code
+  local suggestion = codeInfo and codeInfo.suggestion or nil
 
   -- Log the error
-  self:_writeLog("ERROR", LOG_LEVEL.ERROR, module, code, message, details, logSuggestion)
+  self:_writeLog("ERROR", LOG_LEVEL.ERROR, module, code, message, details, suggestion)
 
   if self.includeStackTrace then
     formattedMessage = formattedMessage .. self:_formatStackTrace(3)
@@ -854,41 +961,15 @@ end
 
 --- Print a warning (non-critical, continues execution)
 ---@param module string The module name
----@param codeOrMessage string Warning code or message
----@param messageOrDetails string|table|nil Message or details
----@param detailsOrSuggestion table|string|nil Details or suggestion
----@param suggestion string|nil Suggestion
-function ErrorHandler:warn(module, codeOrMessage, messageOrDetails, detailsOrSuggestion, suggestion)
-  -- Parse arguments for logging
-  local code = nil
-  local message = codeOrMessage
-  local details = nil
-  local logSuggestion = nil
-
-  if type(codeOrMessage) == "string" and ErrorCodes.get(codeOrMessage) then
-    code = codeOrMessage
-    message = messageOrDetails or ErrorCodes.describe(code)
-
-    if type(detailsOrSuggestion) == "table" then
-      details = detailsOrSuggestion
-      logSuggestion = suggestion or ErrorCodes.getSuggestion(code)
-    elseif type(detailsOrSuggestion) == "string" then
-      logSuggestion = detailsOrSuggestion
-    else
-      logSuggestion = ErrorCodes.getSuggestion(code)
-    end
-  else
-    message = codeOrMessage
-    if type(messageOrDetails) == "table" then
-      details = messageOrDetails
-      logSuggestion = detailsOrSuggestion
-    elseif type(messageOrDetails) == "string" then
-      logSuggestion = messageOrDetails
-    end
-  end
+---@param code string Warning code (e.g., "VAL_001")
+---@param details table|nil Optional details object
+function ErrorHandler:warn(module, code, details)
+  local codeInfo = ErrorCodes.get(code)
+  local message = codeInfo and codeInfo.description or code
+  local suggestion = codeInfo and codeInfo.suggestion or nil
 
   -- Log the warning
-  self:_writeLog("WARNING", LOG_LEVEL.WARNING, module, code, message, details, logSuggestion)
+  self:_writeLog("WARNING", LOG_LEVEL.WARNING, module, code, message, details, suggestion)
 end
 
 --- Validate that a value is not nil

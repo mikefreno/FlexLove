@@ -134,7 +134,10 @@ function ModuleLoader.safeRequire(modulePath, isOptional)
       if ModuleLoader._ErrorHandler then
         ModuleLoader._ErrorHandler:warn(
           "ModuleLoader",
-          string.format("Optional module '%s' not found, using stub implementation", modulePath)
+          "MOD_001",
+          {
+            modulePath = modulePath
+          }
         )
       end
       

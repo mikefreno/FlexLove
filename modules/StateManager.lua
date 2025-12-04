@@ -270,10 +270,10 @@ function StateManager.getState(id, defaultState)
     if not ErrorHandler then
       ErrorHandler = require("modules.ErrorHandler")
     end
-    ErrorHandler.error("StateManager", "SYS_001", "Invalid state ID", {
+    ErrorHandler.error("StateManager", "SYS_001", {
       parameter = "id",
       value = "nil",
-    }, "Provide a valid non-nil ID string to getState()")
+    })
   end
 
   -- Create state if it doesn't exist
@@ -306,10 +306,10 @@ function StateManager.setState(id, state)
     if not ErrorHandler then
       ErrorHandler = require("modules.ErrorHandler")
     end
-    ErrorHandler.error("StateManager", "SYS_001", "Invalid state ID", {
+    ErrorHandler.error("StateManager", "SYS_001", {
       parameter = "id",
       value = "nil",
-    }, "Provide a valid non-nil ID string to setState()")
+    })
   end
 
   -- Create sparse state (remove default values)
@@ -529,12 +529,11 @@ function StateManager.getStats()
   -- Warn if callSiteCounters is unexpectedly large
   if callSiteCount > 1000 then
     if ErrorHandler then
-      local message = string.format("callSiteCounters has %d entries (expected near 0 per frame)", callSiteCount)
-      ErrorHandler.warn("StateManager", "STATE_001", message, {
+      ErrorHandler.warn("StateManager", "STATE_001", {
         count = callSiteCount,
         expected = "near 0",
         frameNumber = frameNumber,
-      }, "This indicates incrementFrame() may not be called properly or counters aren't being reset. Check immediate mode frame management.")
+      })
     else
       print(string.format("[StateManager] WARNING: callSiteCounters has %d entries", callSiteCount))
     end

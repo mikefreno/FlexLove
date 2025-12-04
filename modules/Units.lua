@@ -23,48 +23,48 @@ function Units.parse(value)
   end
 
   if type(value) ~= "string" then
-    Units._ErrorHandler:warn("Units", "VAL_001", "Invalid property type", {
+    Units._ErrorHandler:warn("Units", "VAL_001", {
       property = "unit value",
       expected = "string or number",
       got = type(value),
-    }, "Using fallback: 0px")
+    })
     return 0, "px"
   end
 
   -- Check for unit-only input (e.g., "px", "%", "vw" without a number)
   local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
   if validUnits[value] then
-    Units._ErrorHandler:warn("Units", "VAL_005", "Invalid unit format", {
+    Units._ErrorHandler:warn("Units", "VAL_005", {
       input = value,
       expected = "number + unit (e.g., '50" .. value .. "')",
-    }, string.format("Add a numeric value before '%s', like '50%s'. Using fallback: 0px", value, value))
+    })
     return 0, "px"
   end
 
   -- Check for invalid format (space between number and unit)
   if value:match("%d%s+%a") then
-    Units._ErrorHandler:warn("Units", "VAL_005", "Invalid unit format", {
+    Units._ErrorHandler:warn("Units", "VAL_005", {
       input = value,
       issue = "contains space between number and unit",
-    }, "Remove spaces: use '50px' not '50 px'. Using fallback: 0px")
+    })
     return 0, "px"
   end
 
   -- Match number followed by optional unit
   local numStr, unit = value:match("^([%-]?[%d%.]+)(.*)$")
   if not numStr then
-    Units._ErrorHandler:warn("Units", "VAL_005", "Invalid unit format", {
+    Units._ErrorHandler:warn("Units", "VAL_005", {
       input = value,
-    }, "Expected format: number + unit (e.g., '50px', '10%', '2vw'). Using fallback: 0px")
+    })
     return 0, "px"
   end
 
   local num = tonumber(numStr)
   if not num then
-    Units._ErrorHandler:warn("Units", "VAL_005", "Invalid unit format", {
+    Units._ErrorHandler:warn("Units", "VAL_005", {
       input = value,
       issue = "numeric value cannot be parsed",
-    }, "Using fallback: 0px")
+    })
     return 0, "px"
   end
 
@@ -75,11 +75,11 @@ function Units.parse(value)
 
   -- validUnits is already defined at the top of the function
   if not validUnits[unit] then
-    Units._ErrorHandler:warn("Units", "VAL_005", "Invalid unit format", {
+    Units._ErrorHandler:warn("Units", "VAL_005", {
       input = value,
       unit = unit,
       validUnits = "px, %, vw, vh, ew, eh",
-    }, string.format("Treating '%s' as pixels", value))
+    })
     return num, "px"
   end
 
@@ -99,10 +99,10 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
     return value
   elseif unit == "%" then
     if not parentSize then
-      Units._ErrorHandler:warn("Units", "LAY_003", "Invalid dimensions", {
+      Units._ErrorHandler:warn("Units", "LAY_003", {
         unit = "%",
         issue = "parent dimension not available",
-      }, "Percentage units require a parent element with explicit dimensions. Using fallback: 0px")
+      })
       return 0
     end
     return (value / 100) * parentSize
@@ -111,10 +111,10 @@ function Units.resolve(value, unit, viewportWidth, viewportHeight, parentSize)
   elseif unit == "vh" then
     return (value / 100) * viewportHeight
   else
-    Units._ErrorHandler:warn("Units", "VAL_005", "Invalid unit format", {
+    Units._ErrorHandler:warn("Units", "VAL_005", {
       unit = unit,
       validUnits = "px, %, vw, vh, ew, eh",
-    }, string.format("Unknown unit type: '%s'. Using fallback: 0px", unit))
+    })
     return 0
   end
 end

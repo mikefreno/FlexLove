@@ -542,28 +542,28 @@ Animation.__index = Animation
 function Animation.new(props)
   if type(props) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Animation.new() requires a table argument. Using default values.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_001")
     end
     props = { duration = 1, start = {}, final = {} }
   end
 
   if type(props.duration) ~= "number" or props.duration <= 0 then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Animation duration must be a positive number. Using 1 second.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_002")
     end
     props.duration = 1
   end
 
   if type(props.start) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Animation start must be a table. Using empty table.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_001")
     end
     props.start = {}
   end
 
   if type(props.final) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Animation final must be a table. Using empty table.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_001")
     end
     props.final = {}
   end
@@ -925,7 +925,7 @@ end
 function Animation:apply(element)
   if not element or type(element) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Cannot apply animation to nil or non-table element.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_003")
     end
     return
   end
@@ -1035,7 +1035,7 @@ function Animation:chain(nextAnimation)
     return nextAnimation
   else
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "chain() requires an Animation or function.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_004")
     end
     return self
   end
@@ -1047,7 +1047,7 @@ end
 function Animation:delay(seconds)
   if type(seconds) ~= "number" or seconds < 0 then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "delay() requires a non-negative number. Using 0.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_005")
     end
     seconds = 0
   end
@@ -1062,7 +1062,7 @@ end
 function Animation:repeatCount(count)
   if type(count) ~= "number" or count < 0 then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "repeatCount() requires a non-negative number. Using 0.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_006")
     end
     count = 0
   end
@@ -1138,21 +1138,21 @@ end
 function Animation.keyframes(props)
   if type(props) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Animation.keyframes() requires a table argument. Using defaults.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_007")
     end
     props = { duration = 1, keyframes = {} }
   end
 
   if type(props.duration) ~= "number" or props.duration <= 0 then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Keyframe duration must be positive. Using 1 second.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_002")
     end
     props.duration = 1
   end
 
   if type(props.keyframes) ~= "table" or #props.keyframes < 2 then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("Animation", "Keyframes require at least 2 keyframes. Using empty animation.")
+      Animation._ErrorHandler:warn("Animation", "ANIM_008")
     end
     props.keyframes = {
       { at = 0, values = {} },
@@ -1224,14 +1224,14 @@ AnimationGroup.__index = AnimationGroup
 function AnimationGroup.new(props)
   if type(props) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("AnimationGroup", "AnimationGroup.new() requires a table. Using defaults.")
+      Animation._ErrorHandler:warn("AnimationGroup", "ANIM_009")
     end
     props = { animations = {} }
   end
 
   if type(props.animations) ~= "table" or #props.animations == 0 then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("AnimationGroup", "AnimationGroup requires at least one animation.")
+      Animation._ErrorHandler:warn("AnimationGroup", "ANIM_010")
     end
     props.animations = {}
   end
@@ -1246,7 +1246,9 @@ function AnimationGroup.new(props)
 
   if self.mode ~= "parallel" and self.mode ~= "sequence" and self.mode ~= "stagger" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("AnimationGroup", string.format("Invalid mode: %s. Using 'parallel'.", tostring(self.mode)))
+      Animation._ErrorHandler:warn("AnimationGroup", "ANIM_011", {
+        mode = tostring(self.mode),
+      })
     end
     self.mode = "parallel"
   end
@@ -1512,7 +1514,7 @@ end
 function AnimationGroup:apply(element)
   if not element or type(element) ~= "table" then
     if Animation._ErrorHandler then
-      Animation._ErrorHandler:warn("AnimationGroup", "Cannot apply group to nil or non-table element.")
+      Animation._ErrorHandler:warn("AnimationGroup", "ANIM_003")
     end
     return
   end

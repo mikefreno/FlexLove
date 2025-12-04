@@ -271,16 +271,13 @@ function Performance:_addWarning(name, value, level)
 
     if now - lastWarningTime >= 60 then
       if self._ErrorHandler and self._ErrorHandler.warn then
-        local message = string.format("%s = %.2fms", name, value)
         local code = level == "critical" and "PERF_002" or "PERF_001"
-        local suggestion = level == "critical" and "This operation is causing frame drops. Consider optimizing or reducing frequency."
-          or "This operation is taking longer than recommended. Monitor for patterns."
 
-        self._ErrorHandler:warn("Performance", code, message, {
+        self._ErrorHandler:warn("Performance", code, {
           metric = name,
           value = string.format("%.2fms", value),
           threshold = level == "critical" and self.criticalThresholdMs or self.warningThresholdMs,
-        }, suggestion)
+        })
       else
         local prefix = level == "critical" and "[CRITICAL]" or "[WARNING]"
         print(string.format("%s Performance: %s = %.2fms", prefix, name, value))
@@ -405,7 +402,7 @@ function Performance:logWarning(warningKey, module, message, details, suggestion
   end
 
   if self._ErrorHandler and self._ErrorHandler.warn then
-    self._ErrorHandler:warn(module, "PERF_001", message, details or {}, suggestion)
+    self._ErrorHandler:warn(module, "PERF_001", details or {})
   else
     print(string.format("[FlexLove - %s] Performance Warning: %s", module, message))
     if suggestion then
@@ -529,12 +526,12 @@ function Performance:_sampleMemory()
         if not self._shownWarnings[name] then
           local message = string.format("Table '%s' growing consistently", name)
           if self._ErrorHandler and self._ErrorHandler.warn then
-            self._ErrorHandler:warn("Performance", "MEM_001", message, {
+            self._ErrorHandler:warn("Performance", "MEM_001", {
               table = name,
               initialSize = sizes[1],
               currentSize = sizes[#sizes],
               growthPercent = math.floor(((sizes[#sizes] / sizes[1]) - 1) * 100),
-            }, "Check for memory leaks. Review cache eviction policies and ensure objects are released.")
+            })
           end
 
           self._shownWarnings[name] = true

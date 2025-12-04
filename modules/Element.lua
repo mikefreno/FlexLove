@@ -351,7 +351,7 @@ function Element.new(props)
 
   -- Validate property combinations: passwordMode disables multiline
   if self.passwordMode and props.multiline then
-    Element._ErrorHandler:warn("Element", "passwordMode is enabled, multiline will be disabled")
+    Element._ErrorHandler:warn("Element", "ELEM_006")
     self.multiline = false
   elseif self.passwordMode then
     self.multiline = false
@@ -743,15 +743,16 @@ function Element.new(props)
         -- Pixel units
         self.textSize = value
       else
-        Element._ErrorHandler:error(
-          "Element",
-          string.format("Unknown textSize unit '%s'. Valid units: px, %%, vw, vh, ew, eh. Or use presets: xs, sm, md, lg, xl, xxl, 2xl, 3xl, 4xl", unit)
-        )
+        Element._ErrorHandler:error("Element", "ELEM_002", {
+          unit = unit,
+        })
       end
     else
       -- Validate pixel textSize value
       if props.textSize <= 0 then
-        Element._ErrorHandler:error("Element", "textSize must be greater than 0, got: " .. tostring(props.textSize))
+        Element._ErrorHandler:error("Element", "ELEM_001", {
+          value = tostring(props.textSize),
+        })
       end
 
       -- Pixel textSize value
@@ -3071,13 +3072,15 @@ function Element:setTransition(property, config)
   end
 
   if type(config) ~= "table" then
-    Element._ErrorHandler:warn("Element", "setTransition() requires a config table. Using default config.")
+    Element._ErrorHandler:warn("Element", "ELEM_003")
     config = {}
   end
 
   -- Validate config
   if config.duration and (type(config.duration) ~= "number" or config.duration < 0) then
-    Element._ErrorHandler:warn("Element", "transition duration must be a non-negative number. Using 0.3 seconds.")
+    Element._ErrorHandler:warn("Element", "ELEM_004", {
+      value = tostring(config.duration),
+    })
     config.duration = 0.3
   end
 
@@ -3095,7 +3098,7 @@ end
 ---@param properties table Array of property names
 function Element:setTransitionGroup(groupName, config, properties)
   if type(properties) ~= "table" then
-    Element._ErrorHandler:warn("Element", "setTransitionGroup() requires a properties array. No transitions set.")
+    Element._ErrorHandler:warn("Element", "ELEM_005")
     return
   end
 

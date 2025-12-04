@@ -55,7 +55,7 @@ end
 function Color.fromHex(hexWithTag)
   -- Validate input type
   if type(hexWithTag) ~= "string" then
-    Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
+    Color._ErrorHandler:warn("Color", "VAL_004", {
       input = tostring(hexWithTag),
       issue = "not a string",
       fallback = "white (#FFFFFF)",
@@ -69,7 +69,7 @@ function Color.fromHex(hexWithTag)
     local g = tonumber("0x" .. hex:sub(3, 4))
     local b = tonumber("0x" .. hex:sub(5, 6))
     if not r or not g or not b then
-      Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
+      Color._ErrorHandler:warn("Color", "VAL_004", {
         input = hexWithTag,
         issue = "invalid hex digits",
         fallback = "white (#FFFFFF)",
@@ -83,7 +83,7 @@ function Color.fromHex(hexWithTag)
     local b = tonumber("0x" .. hex:sub(5, 6))
     local a = tonumber("0x" .. hex:sub(7, 8))
     if not r or not g or not b or not a then
-      Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
+      Color._ErrorHandler:warn("Color", "VAL_004", {
         input = hexWithTag,
         issue = "invalid hex digits",
         fallback = "white (#FFFFFFFF)",
@@ -92,7 +92,7 @@ function Color.fromHex(hexWithTag)
     end
     return Color.new(r / 255, g / 255, b / 255, a / 255)
   else
-    Color._ErrorHandler:warn("Color", "VAL_004", "Invalid color format", {
+    Color._ErrorHandler:warn("Color", "VAL_004", {
       input = hexWithTag,
       expected = "#RRGGBB or #RRGGBBAA",
       hexLength = #hex,

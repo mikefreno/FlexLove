@@ -633,9 +633,9 @@ function EventHandler:_invokeCallback(element, event)
         self.onEvent(element, event)
       end)
     else
-      EventHandler._ErrorHandler:error("EventHandler", "SYS_003", "FlexLove.deferCallback not available", {
+      EventHandler._ErrorHandler:error("EventHandler", "SYS_003", {
         eventType = event.type,
-      }, "Ensure FlexLove module is properly loaded")
+      })
     end
   else
     self.onEvent(element, event)

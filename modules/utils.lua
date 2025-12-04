@@ -342,7 +342,11 @@ local function validateEnum(value, enumTable, propName, moduleName)
   table.sort(validOptions)
 
   if ErrorHandler then
-    ErrorHandler:error(moduleName or "Element", string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
+    ErrorHandler:error(moduleName or "Element", "VAL_007", {
+      property = propName,
+      expected = table.concat(validOptions, ", "),
+      got = tostring(value),
+    })
   else
     error(string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
   end
@@ -361,17 +365,22 @@ local function validateRange(value, min, max, propName, moduleName)
   end
   if type(value) ~= "number" then
     if ErrorHandler then
-      ErrorHandler:error(moduleName or "Element", string.format("%s must be a number, got %s", propName, type(value)))
+      ErrorHandler:error(moduleName or "Element", "VAL_001", {
+        property = propName,
+        expected = "number",
+        got = type(value),
+      })
     else
       error(string.format("%s must be a number, got %s", propName, type(value)))
     end
-  end
-  if value < min or value > max then
+  elseif value < min or value > max then
     if ErrorHandler then
-      ErrorHandler:error(
-        moduleName or "Element",
-        string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value))
-      )
+      ErrorHandler:error(moduleName or "Element", "VAL_002", {
+        property = propName,
+        min = tostring(min),
+        max = tostring(max),
+        value = tostring(value),
+      })
     else
       error(string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value)))
     end
@@ -392,7 +401,11 @@ local function validateType(value, expectedType, propName, moduleName)
   local actualType = type(value)
   if actualType ~= expectedType then
     if ErrorHandler then
-      ErrorHandler:error(moduleName or "Element", string.format("%s must be %s, got %s", propName, expectedType, actualType))
+      ErrorHandler:error(moduleName or "Element", "VAL_001", {
+        property = propName,
+        expected = expectedType,
+        got = actualType,
+      })
     else
       error(string.format("%s must be %s, got %s", propName, expectedType, actualType))
     end
@@ -555,6 +568,12 @@ local function sanitizeText(text, options)
   -- Limit string length (use UTF-8 character count, not byte count)
   local charCount = utf8.len(text)
   if charCount and charCount > maxLength then
+    if ErrorHandler then
+      ErrorHandler:warn("utils", "UTIL_001", {
+        original = charCount,
+        truncated = maxLength,
+      })
+    end
     -- Truncate to maxLength UTF-8 characters
     local bytePos = utf8.offset(text, maxLength + 1)
     if bytePos then

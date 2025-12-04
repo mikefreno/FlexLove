@@ -34,7 +34,7 @@ end
 
 function TestValidationUtils:testValidateEnum_InvalidValue()
   local testEnum = { VALUE1 = "value1", VALUE2 = "value2" }
-  luaunit.assertErrorMsgContains("must be one of", function()
+  luaunit.assertErrorMsgContains("VAL_007", function()
     utils.validateEnum("invalid", testEnum, "testProp")
   end)
 end
@@ -46,10 +46,10 @@ function TestValidationUtils:testValidateRange_InRange()
 end
 
 function TestValidationUtils:testValidateRange_OutOfRange()
-  luaunit.assertErrorMsgContains("must be between", function()
+  luaunit.assertErrorMsgContains("VAL_002", function()
     utils.validateRange(-1, 0, 10, "testProp")
   end)
-  luaunit.assertErrorMsgContains("must be between", function()
+  luaunit.assertErrorMsgContains("VAL_002", function()
     utils.validateRange(11, 0, 10, "testProp")
   end)
 end
@@ -59,7 +59,7 @@ function TestValidationUtils:testValidateRange_NilValue()
 end
 
 function TestValidationUtils:testValidateRange_WrongType()
-  luaunit.assertErrorMsgContains("must be a number", function()
+  luaunit.assertErrorMsgContains("VAL_001", function()
     utils.validateRange("not a number", 0, 10, "testProp")
   end)
 end
@@ -73,10 +73,10 @@ function TestValidationUtils:testValidateType_CorrectType()
 end
 
 function TestValidationUtils:testValidateType_WrongType()
-  luaunit.assertErrorMsgContains("must be string", function()
+  luaunit.assertErrorMsgContains("VAL_001", function()
     utils.validateType(123, "string", "testProp")
   end)
-  luaunit.assertErrorMsgContains("must be number", function()
+  luaunit.assertErrorMsgContains("VAL_001", function()
     utils.validateType("hello", "number", "testProp")
   end)
 end

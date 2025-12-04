@@ -233,11 +233,11 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
             self.cornerRadius.bottomRight
           )
         end
-        Renderer._ErrorHandler:warn("Renderer", "IMG_001", "Cannot apply corner radius to image: stencil buffer not available", {
+        Renderer._ErrorHandler:warn("Renderer", "IMG_001", {
           imagePath = self.imagePath or "unknown",
           cornerRadius = cornerRadiusStr,
           error = tostring(err),
-        }, "Ensure the active canvas has stencil=true enabled, or remove cornerRadius from images")
+        })
         -- Continue without corner radius
         hasCornerRadius = false
       else
@@ -380,9 +380,9 @@ end
 ---@param backdropCanvas table|nil Backdrop canvas for backdrop blur
 function Renderer:draw(element, backdropCanvas)
   if not element then
-    Renderer._ErrorHandler:warn("Renderer", "SYS_002", "Element parameter required", {
+    Renderer._ErrorHandler:warn("Renderer", "SYS_002", {
       method = "draw",
-    }, "Pass element as first parameter to draw()")
+    })
     return
   end
 

@@ -370,7 +370,7 @@ local activeTheme = nil
 function Theme.new(definition)
   -- Validate input type first
   if type(definition) ~= "table" then
-    Theme._ErrorHandler:warn("Theme", "THM_001", "Invalid theme definition", {
+    Theme._ErrorHandler:warn("Theme", "THM_001", {
       error = "Theme definition must be a table, got " .. type(definition),
     })
     return Theme.new({ name = "fallback", components = {}, colors = {}, fonts = {} })
@@ -379,7 +379,7 @@ function Theme.new(definition)
   -- Validate theme definition
   local valid, err = validateThemeDefinition(definition)
   if not valid then
-    Theme._ErrorHandler:warn("Theme", "THM_001", "Invalid theme definition", {
+    Theme._ErrorHandler:warn("Theme", "THM_001", {
       error = tostring(err),
     })
     return Theme.new({ name = "fallback", components = {}, colors = {}, fonts = {} })
@@ -397,7 +397,7 @@ function Theme.new(definition)
         self.atlas = image
         self.atlasData = imageData
       else
-        Theme._ErrorHandler:warn("Theme", "RES_001", "Failed to load global atlas", {
+        Theme._ErrorHandler:warn("Theme", "RES_001", {
           theme = definition.name,
           path = resolvedPath,
           error = loaderr,
@@ -425,7 +425,7 @@ function Theme.new(definition)
     local contentHeight = srcHeight - 2
 
     if contentWidth <= 0 or contentHeight <= 0 then
-      Theme._ErrorHandler:warn("Theme", "RES_002", "Nine-patch image too small", {
+      Theme._ErrorHandler:warn("Theme", "RES_002", {
         width = srcWidth,
         height = srcHeight,
         reason = "Image must be larger than 2x2 pixels to have content after stripping 1px border",
@@ -460,7 +460,7 @@ function Theme.new(definition)
         comp.insets = parseResult.insets
         comp._ninePatchData = parseResult
       else
-        Theme._ErrorHandler:warn("Theme", "RES_003", "Failed to parse nine-patch image", {
+        Theme._ErrorHandler:warn("Theme", "RES_003", {
           context = errorContext,
           path = resolvedPath,
           error = tostring(parseErr),
@@ -481,7 +481,7 @@ function Theme.new(definition)
         comp._loadedAtlasData = imageData
       end
     else
-      Theme._ErrorHandler:warn("Theme", "RES_001", "Failed to load atlas", {
+      Theme._ErrorHandler:warn("Theme", "RES_001", {
         context = errorContext,
         path = resolvedPath,
         error = tostring(loaderr),
@@ -575,12 +575,12 @@ function Theme.load(path)
     if success then
       definition = result
     else
-      Theme._ErrorHandler:warn("Theme", "RES_004", "Failed to load theme file", {
+      Theme._ErrorHandler:warn("Theme", "RES_004", {
         theme = path,
         tried = themePath,
         error = tostring(result),
         fallback = "nil (no theme loaded)",
-      }, "Check that the theme file exists in the themes/ directory or provide a valid module path")
+      })
       return nil
     end
   end
@@ -607,11 +607,11 @@ function Theme.setActive(themeOrName)
   end
 
   if not activeTheme then
-    Theme._ErrorHandler:warn("Theme", "THM_002", "Failed to set active theme", {
+    Theme._ErrorHandler:warn("Theme", "THM_002", {
       theme = tostring(themeOrName),
       reason = "Theme not found or not loaded",
       fallback = "current theme unchanged",
-    }, "Ensure the theme is loaded with Theme.load() before setting it active")
+    })
     -- Keep current activeTheme unchanged (fallback behavior)
   end
 end

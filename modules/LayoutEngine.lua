@@ -240,18 +240,18 @@ function LayoutEngine:layoutChildren()
       -- Warn if child uses percentage sizing but parent has autosizing
       if child.units and child.units.width then
         if child.units.width.unit == "%" and self.element.autosizing and self.element.autosizing.width then
-          LayoutEngine._ErrorHandler:warn("LayoutEngine", "LAY_004", "Invalid sizing combination", {
+          LayoutEngine._ErrorHandler:warn("LayoutEngine", "LAY_004", {
             child = child.id or "unnamed",
             issue = "percentage width with parent auto-sizing",
-          }, "Use fixed or viewport units instead of percentage when parent has auto-sizing enabled")
+          })
         end
       end
       if child.units and child.units.height then
         if child.units.height.unit == "%" and self.element.autosizing and self.element.autosizing.height then
-          LayoutEngine._ErrorHandler:warn("LayoutEngine", "LAY_004", "Invalid sizing combination", {
+          LayoutEngine._ErrorHandler:warn("LayoutEngine", "LAY_004", {
             child = child.id or "unnamed",
             issue = "percentage height with parent auto-sizing",
-          }, "Use fixed or viewport units instead of percentage when parent has auto-sizing enabled")
+          })
         end
       end
     end

@@ -355,7 +355,9 @@ local function checkLargeBlurWarning(elementId, width, height, blurType)
   local suggestion =
     "Consider using retained mode for this component to avoid recreating blur effects every frame. Large blur operations are expensive and can cause performance issues in immediate mode."
 
-  Blur._ErrorHandler:warn("Blur", "PERF_003", message, suggestion)
+  Blur._ErrorHandler:warn("Blur", "PERF_003", {
+    area = string.format("%.0fx%.0f", width or 0, height or 0),
+  })
 end
 
 --- Create a new blur effect instance
@@ -388,7 +390,7 @@ end
 function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
   if type(drawFunc) ~= "function" then
     if Blur._ErrorHandler then
-      Blur._ErrorHandler:warn("Blur", "applyToRegion requires a draw function.")
+      Blur._ErrorHandler:warn("Blur", "BLUR_001")
     end
     return
   end
@@ -467,7 +469,7 @@ end
 function Blur:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
   if not backdropCanvas then
     if Blur._ErrorHandler then
-      Blur._ErrorHandler:warn("Blur", "applyBackdrop requires a backdrop canvas.")
+      Blur._ErrorHandler:warn("Blur", "BLUR_002")
     end
     return
   end
@@ -586,7 +588,7 @@ function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas
   -- Not cached, render and cache
   if not backdropCanvas then
     if Blur._ErrorHandler then
-      Blur._ErrorHandler:warn("Blur", "applyBackdrop requires a backdrop canvas.")
+      Blur._ErrorHandler:warn("Blur", "BLUR_002")
     end
     return
   end

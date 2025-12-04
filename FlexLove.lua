@@ -272,7 +272,7 @@ end
 ---@param callback function The callback to execute
 function flexlove.deferCallback(callback)
   if type(callback) ~= "function" then
-    flexlove._ErrorHandler:warn("FlexLove", "deferCallback expects a function")
+    flexlove._ErrorHandler:warn("FlexLove", "CORE_001")
     return
   end
   table.insert(flexlove._deferredCallbacks, callback)
@@ -300,7 +300,9 @@ function flexlove.executeDeferredCallbacks()
   for _, callback in ipairs(callbacks) do
     local success, err = xpcall(callback, debug.traceback)
     if not success then
-      flexlove._ErrorHandler:warn("FlexLove", string.format("Deferred callback failed: %s", tostring(err)))
+      flexlove._ErrorHandler:warn("FlexLove", "CORE_002", {
+        error = tostring(err),
+      })
     end
   end
 end
@@ -787,7 +789,9 @@ function flexlove.setGCStrategy(strategy)
   if strategy == "auto" or strategy == "periodic" or strategy == "manual" or strategy == "disabled" then
     flexlove._gcConfig.strategy = strategy
   else
-    flexlove._ErrorHandler:warn("FlexLove", "Invalid GC strategy: " .. tostring(strategy))
+    flexlove._ErrorHandler:warn("FlexLove", "CORE_003", {
+      strategy = tostring(strategy),
+    })
   end
 end
 

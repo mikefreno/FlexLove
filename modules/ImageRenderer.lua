@@ -30,7 +30,7 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
   objectPosition = objectPosition or "center center"
 
   if imageWidth <= 0 or imageHeight <= 0 or boundsWidth <= 0 or boundsHeight <= 0 then
-    ErrorHandler:error("ImageRenderer", "VAL_002", "Dimensions must be positive", {
+    ErrorHandler:error("ImageRenderer", "VAL_002", {
       imageWidth = imageWidth,
       imageHeight = imageHeight,
       boundsWidth = boundsWidth,
@@ -116,7 +116,7 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
       return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "contain", objectPosition)
     end
   else
-    ErrorHandler:warn("ImageRenderer", "VAL_007", string.format("Invalid fit mode: '%s'. Must be one of: fill, contain, cover, scale-down, none", tostring(fitMode)), {
+    ErrorHandler:warn("ImageRenderer", "VAL_007", {
       fitMode = fitMode,
       fallback = "fill"
     })
@@ -362,7 +362,7 @@ function ImageRenderer.drawTiled(image, x, y, width, height, repeatMode, opacity
       end
     end
   else
-    ErrorHandler:warn("ImageRenderer", "VAL_007", string.format("Invalid repeat mode: '%s'. Using 'no-repeat'", tostring(repeatMode)), {
+    ErrorHandler:warn("ImageRenderer", "VAL_007", {
       repeatMode = repeatMode,
       fallback = "no-repeat"
     })

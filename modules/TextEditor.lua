@@ -1123,7 +1123,6 @@ function TextEditor:handleTextInput(element, text)
 
   -- Insert text at cursor position
   self:insertText(element, text)
-
   -- Trigger onTextChange callback
   if self.onTextChange and self._textBuffer ~= oldText then
     self.onTextChange(element, self._textBuffer, oldText)
@@ -1699,45 +1698,50 @@ end
 
 --- Restore state from persistence
 ---@param state table State to restore
-function TextEditor:setState(state)
+---@param element Element? The parent element (needed for focus restoration)
+function TextEditor:setState(state, element)
   if not state then
     return
   end
-  
+
   if state._cursorPosition ~= nil then
     self._cursorPosition = state._cursorPosition
   end
-  
+
   if state._selectionStart ~= nil then
     self._selectionStart = state._selectionStart
   end
-  
+
   if state._selectionEnd ~= nil then
     self._selectionEnd = state._selectionEnd
   end
-  
+
   if state._textBuffer ~= nil then
     self._textBuffer = state._textBuffer
   end
-  
+
   if state._cursorBlinkTimer ~= nil then
     self._cursorBlinkTimer = state._cursorBlinkTimer
   end
-  
+
   if state._cursorVisible ~= nil then
     self._cursorVisible = state._cursorVisible
   end
-  
+
   if state._cursorBlinkPaused ~= nil then
     self._cursorBlinkPaused = state._cursorBlinkPaused
   end
-  
+
   if state._cursorBlinkPauseTimer ~= nil then
     self._cursorBlinkPauseTimer = state._cursorBlinkPauseTimer
   end
-  
+
   if state._focused ~= nil then
     self._focused = state._focused
+    -- Restore focused element in Context if this element was focused
+    if self._focused and element then
+      self._Context._focusedElement = element
+    end
   end
 end
 
@@ -1748,7 +1752,12 @@ function TextEditor:_saveState(element)
     return
   end
 
-  self._StateManager.updateState(element._stateId, {
+  -- Get current state (may have other sub-modules like eventHandler, scrollManager)
+  local currentState = self._StateManager.getState(element._stateId) or {}
+
+  -- Update only the textEditor sub-table to match the nested structure
+  -- used by element:saveState() at endFrame
+  currentState.textEditor = {
     _focused = self._focused,
     _textBuffer = self._textBuffer,
     _cursorPosition = self._cursorPosition,
@@ -1758,14 +1767,9 @@ function TextEditor:_saveState(element)
     _cursorVisible = self._cursorVisible,
     _cursorBlinkPaused = self._cursorBlinkPaused,
     _cursorBlinkPauseTimer = self._cursorBlinkPauseTimer,
-  })
-end
+  }
 
-
---- Cleanup method to break circular references (for immediate mode)
-function TextEditor:_cleanup()
-  -- TextEditor → element is circular, but breaking it breaks functionality
-  -- Module refs are singletons, not circular
+  self._StateManager.updateState(element._stateId, currentState)
 end
 
 return TextEditor

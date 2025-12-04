@@ -172,7 +172,7 @@ function LayoutEngine:layoutChildren()
     timerName = "layout_" .. (self.element.id or tostring(self.element):match("0x%x+") or "unknown")
     LayoutEngine._Performance:startTimer(timerName)
   end
-  
+
   if self.element == nil then
     return
   end
@@ -1023,12 +1023,14 @@ function LayoutEngine:_canSkipLayout()
   end
 
   local cache = self._layoutCache
-  
+
   -- Check if layout inputs have changed
-  if cache.childrenCount == childrenCount and
-     cache.containerWidth == containerWidth and
-     cache.containerHeight == containerHeight and
-     cache.childrenHash == childrenHash then
+  if
+    cache.childrenCount == childrenCount
+    and cache.containerWidth == containerWidth
+    and cache.containerHeight == containerHeight
+    and cache.childrenHash == childrenHash
+  then
     return true -- Layout hasn't changed, can skip
   end
 
@@ -1070,15 +1072,6 @@ function LayoutEngine:_trackLayoutRecalculation()
       "This may indicate a layout thrashing issue. Check for circular dependencies or dynamic sizing that triggers re-layout"
     )
   end
-end
-
-
---- Cleanup method to break circular references (for immediate mode)
-function LayoutEngine:_cleanup()
-  -- Circular refs: Element → LayoutEngine → element → Element
-  -- But breaking element ref breaks functionality
-  -- Module refs are singletons, not circular
-  -- In immediate mode, full GC happens anyway
 end
 
 return LayoutEngine

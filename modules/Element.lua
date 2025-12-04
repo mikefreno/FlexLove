@@ -465,8 +465,7 @@ function Element.new(props)
       end
     else
       -- Store as table only if non-zero values exist
-      local hasNonZero = props.cornerRadius.topLeft or props.cornerRadius.topRight or 
-                         props.cornerRadius.bottomLeft or props.cornerRadius.bottomRight
+      local hasNonZero = props.cornerRadius.topLeft or props.cornerRadius.topRight or props.cornerRadius.bottomLeft or props.cornerRadius.bottomRight
       if hasNonZero then
         self.cornerRadius = {
           topLeft = props.cornerRadius.topLeft or 0,
@@ -1456,11 +1455,6 @@ function Element.new(props)
   -- Register element in z-index tracking for immediate mode
   if Element._Context._immediateMode then
     Element._Context.registerElement(self)
-  end
-
-  -- Initialize TextEditor after element is fully constructed
-  if self._textEditor then
-    self._textEditor:restoreState(self)
   end
 
   return self
@@ -3172,26 +3166,15 @@ end
 ---@return ElementStateData state Complete state snapshot
 function Element:saveState()
   local state = {}
-  
-  -- Element-owned state
-  state._focused = self._focused
-  
-  -- EventHandler state (if exists)
   if self._eventHandler then
     state.eventHandler = self._eventHandler:getState()
   end
-  
-  -- TextEditor state (if exists)
   if self._textEditor then
     state.textEditor = self._textEditor:getState()
   end
-  
-  -- ScrollManager state (if exists)
   if self._scrollManager then
     state.scrollManager = self._scrollManager:getState()
   end
-  
-  -- Blur cache data (for cache invalidation)
   if self.backdropBlur or self.contentBlur then
     state.blur = {
       _blurX = self.x,
@@ -3199,18 +3182,18 @@ function Element:saveState()
       _blurWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right),
       _blurHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom),
     }
-    
+
     if self.backdropBlur then
       state.blur._backdropBlurIntensity = self.backdropBlur.intensity
       state.blur._backdropBlurQuality = self.backdropBlur.quality
     end
-    
+
     if self.contentBlur then
       state.blur._contentBlurIntensity = self.contentBlur.intensity
       state.blur._contentBlurQuality = self.contentBlur.quality
     end
   end
-  
+
   return state
 end
 
@@ -3221,27 +3204,28 @@ function Element:restoreState(state)
   if not state then
     return
   end
-  
-  -- Restore element-owned state
-  if state._focused ~= nil then
-    self._focused = state._focused
-  end
-  
+
   -- Restore EventHandler state (if exists)
   if self._eventHandler and state.eventHandler then
     self._eventHandler:setState(state.eventHandler)
   end
-  
+
   -- Restore TextEditor state (if exists)
   if self._textEditor and state.textEditor then
-    self._textEditor:setState(state.textEditor)
+    self._textEditor:setState(state.textEditor, self)
+    -- Sync TextEditor's focus state to Element for theme management
+    self._focused = self._textEditor._focused
+    self._cursorPosition = self._textEditor._cursorPosition
+    self._selectionStart = self._textEditor._selectionStart
+    self._selectionEnd = self._textEditor._selectionEnd
+    self._textBuffer = self._textEditor._textBuffer
   end
-  
+
   -- Restore ScrollManager state (if exists)
   if self._scrollManager and state.scrollManager then
     self._scrollManager:setState(state.scrollManager)
   end
-  
+
   -- Note: Blur cache data is used for invalidation, not restoration
 end
 
@@ -3253,10 +3237,10 @@ function Element:shouldInvalidateBlurCache(oldState, newState)
   if not oldState or not oldState.blur or not newState.blur then
     return false
   end
-  
+
   local old = oldState.blur
   local new = newState.blur
-  
+
   -- Check if any blur-related property changed
   return old._blurX ~= new._blurX
     or old._blurY ~= new._blurY
@@ -3271,31 +3255,6 @@ end
 --- Cleanup method to break circular references (for immediate mode)
 --- Note: Cleans internal module state but keeps structure for inspection
 function Element:_cleanup()
-  -- Clean up module internal state
-  if self._eventHandler then
-    self._eventHandler:_cleanup()
-  end
-  
-  if self._themeManager then
-    self._themeManager:_cleanup()
-  end
-  
-  if self._renderer then
-    self._renderer:_cleanup()
-  end
-  
-  if self._layoutEngine then
-    self._layoutEngine:_cleanup()
-  end
-  
-  if self._scrollManager then
-    self._scrollManager:_cleanup()
-  end
-  
-  if self._textEditor then
-    self._textEditor:_cleanup()
-  end
-  
   -- Clear event callbacks (may hold closures)
   self.onEvent = nil
   self.onFocus = nil

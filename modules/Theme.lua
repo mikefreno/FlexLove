@@ -961,14 +961,6 @@ function ThemeManager:setTheme(themeName, componentName)
   self.themeComponent = componentName
 end
 
-
---- Cleanup method to break circular references (for immediate mode)
-function ThemeManager:_cleanup()
-  -- ThemeManager doesn't create circular references
-  -- Theme refs are to shared theme objects
-end
-
--- Export both Theme and ThemeManager
 Theme.Manager = ThemeManager
 
 --- Check theme definitions for correctness before use to catch configuration errors early

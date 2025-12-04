@@ -1940,7 +1940,8 @@ function TestTextEditorStateSaving:test_saveState_immediate_mode()
   editor:setText(element, "New text")
 
   luaunit.assertNotNil(savedState)
-  luaunit.assertEquals(savedState._textBuffer, "New text")
+  luaunit.assertNotNil(savedState.textEditor, "State should have textEditor sub-table")
+  luaunit.assertEquals(savedState.textEditor._textBuffer, "New text")
 end
 
 function TestTextEditorStateSaving:test_saveState_not_immediate_mode()
@@ -1971,6 +1972,95 @@ function TestTextEditorStateSaving:test_saveState_not_immediate_mode()
 
   -- Should not save in retained mode
   luaunit.assertFalse(saveCalled)
+end
+
+-- ============================================================================
+-- Immediate Mode State Persistence Tests
+-- ============================================================================
+
+TestTextEditorImmediateMode = {}
+
+function TestTextEditorImmediateMode:test_focus_persists_across_frames()
+  -- Simulate immediate mode
+  MockContext._immediateMode = true
+  
+  -- Create editor and focus it
+  local editor1 = createTextEditor({text = "Hello", editable = true})
+  local element1 = createMockElement()
+  editor1:focus(element1)
+  
+  luaunit.assertTrue(editor1._focused)
+  luaunit.assertEquals(MockContext._focusedElement, element1)
+  
+  -- Get state
+  local state = editor1:getState()
+  luaunit.assertTrue(state._focused)
+  
+  -- Create new editor (simulating next frame)
+  local editor2 = createTextEditor({text = "Hello", editable = true})
+  local element2 = createMockElement()
+  
+  -- Restore state
+  editor2:setState(state, element2)
+  
+  -- Focus should be restored
+  luaunit.assertTrue(editor2._focused)
+  luaunit.assertEquals(MockContext._focusedElement, element2)
+  
+  -- Reset
+  MockContext._immediateMode = false
+  MockContext._focusedElement = nil
+end
+
+function TestTextEditorImmediateMode:test_text_input_works_after_state_restore()
+  -- Simulate immediate mode
+  MockContext._immediateMode = true
+  
+  -- Create editor and focus it
+  local editor1 = createTextEditor({text = "Hello", editable = true})
+  local element1 = createMockElement()
+  editor1:focus(element1)
+  
+  -- Get state
+  local state = editor1:getState()
+  
+  -- Create new editor (simulating next frame)
+  local editor2 = createTextEditor({text = "Hello", editable = true})
+  local element2 = createMockElement()
+  
+  -- Restore state (this should restore focus)
+  editor2:setState(state, element2)
+  
+  -- Text input should work because focus was restored
+  editor2:handleTextInput(element2, "X")
+  luaunit.assertEquals(editor2:getText(), "HelloX")
+  
+  -- Reset
+  MockContext._immediateMode = false
+  MockContext._focusedElement = nil
+end
+
+function TestTextEditorImmediateMode:test_cursor_position_persists()
+  MockContext._immediateMode = true
+  
+  local editor1 = createTextEditor({text = "Hello", editable = true})
+  local element1 = createMockElement()
+  editor1:focus(element1)
+  editor1:moveCursorBy(element1, -2) -- Move cursor to position 3
+  
+  local state = editor1:getState()
+  luaunit.assertEquals(state._cursorPosition, 3)
+  
+  -- Restore in new editor
+  local editor2 = createTextEditor({text = "Hello", editable = true})
+  local element2 = createMockElement()
+  editor2:setState(state, element2)
+  
+  luaunit.assertEquals(editor2._cursorPosition, 3)
+  
+  -- Reset
+  MockContext._immediateMode = false
+  MockContext._focusedElement = nil
 end
 
 -- ============================================================================

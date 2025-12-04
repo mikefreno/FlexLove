@@ -640,35 +640,35 @@ function ScrollManager:setState(state)
   elseif state.scrollX ~= nil then
     self._scrollX = state.scrollX
   end
-  
+
   if state._scrollY ~= nil then
     self._scrollY = state._scrollY
   elseif state.scrollY ~= nil then
     self._scrollY = state.scrollY
   end
-  
+
   if state._scrollbarDragging ~= nil then
     self._scrollbarDragging = state._scrollbarDragging
   elseif state.scrollbarDragging ~= nil then
     self._scrollbarDragging = state.scrollbarDragging
   end
-  
+
   if state._hoveredScrollbar ~= nil then
     self._hoveredScrollbar = state._hoveredScrollbar
   elseif state.hoveredScrollbar ~= nil then
     self._hoveredScrollbar = state.hoveredScrollbar
   end
-  
+
   if state._scrollbarDragOffset ~= nil then
     self._scrollbarDragOffset = state._scrollbarDragOffset
   elseif state.scrollbarDragOffset ~= nil then
     self._scrollbarDragOffset = state.scrollbarDragOffset
   end
-  
+
   if state._scrollbarHoveredVertical ~= nil then
     self._scrollbarHoveredVertical = state._scrollbarHoveredVertical
   end
-  
+
   if state._scrollbarHoveredHorizontal ~= nil then
     self._scrollbarHoveredHorizontal = state._scrollbarHoveredHorizontal
   end
@@ -892,16 +892,6 @@ end
 ---@return boolean
 function ScrollManager:isMomentumScrolling()
   return self._momentumScrolling
-end
-
-
---- Cleanup method to break circular references (for immediate mode)
-function ScrollManager:_cleanup()
-  -- Cleanup breaks circular references only
-  -- The main circular ref is: Element → ScrollManager → element → Element
-  -- Breaking element ref would break functionality, so we keep it
-  -- Module refs (_utils, _Color) are not circular, they're shared singletons
-  -- In immediate mode, the whole element will be GC'd anyway, so minimal cleanup needed
 end
 
 return ScrollManager

@@ -158,9 +158,9 @@ function flexlove.init(config)
     if blurOptimizations == nil then
       blurOptimizations = true -- Default to enabled
     end
-    Blur.init({ 
+    Blur.init({
       ErrorHandler = flexlove._ErrorHandler,
-      immediateModeOptimizations = blurOptimizations and config.immediateMode or false
+      immediateModeOptimizations = blurOptimizations and config.immediateMode or false,
     })
   end
 
@@ -439,11 +439,11 @@ function flexlove.endFrame()
     if element.id and element.id ~= "" then
       -- Collect state from element and all sub-modules
       local stateUpdate = element:saveState()
-      
+
       -- Use optimized update that only changes modified values
       -- Returns true if state was changed (meaning blur cache needs invalidation)
       local stateChanged = StateManager.updateStateIfChanged(element.id, stateUpdate)
-      
+
       -- Invalidate blur cache if blur-related properties changed
       if stateChanged and (element.backdropBlur or element.contentBlur) and Blur then
         Blur.clearElementCache(element.id)

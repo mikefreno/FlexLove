@@ -120,8 +120,6 @@ function Renderer.new(config, deps)
   return self
 end
 
-
-
 --- Get or create blur instance for this element
 ---@return table|nil Blur instance or nil
 function Renderer:getBlurInstance()
@@ -202,10 +200,7 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
     if type(self.cornerRadius) == "number" then
       hasCornerRadius = self.cornerRadius > 0
     else
-      hasCornerRadius = self.cornerRadius.topLeft > 0
-        or self.cornerRadius.topRight > 0
-        or self.cornerRadius.bottomLeft > 0
-        or self.cornerRadius.bottomRight > 0
+      hasCornerRadius = self.cornerRadius.topLeft > 0 or self.cornerRadius.topRight > 0 or self.cornerRadius.bottomLeft > 0 or self.cornerRadius.bottomRight > 0
     end
   end
 
@@ -340,7 +335,7 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
   if not self.border then
     return
   end
-  
+
   -- Handle border as number (uniform border width)
   if type(self.border) == "number" then
     local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
@@ -348,7 +343,7 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
     self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
     return
   end
-  
+
   local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
 
@@ -961,14 +956,6 @@ end
 function Renderer:destroy()
   self._loadedImage = nil
   self._blurInstance = nil
-end
-
-
---- Cleanup method to break circular references (for immediate mode)
-function Renderer:_cleanup()
-  -- Renderer doesn't create circular references (no element back-reference)
-  -- Module refs are singletons
-  -- In immediate mode, full element cleanup happens via array clearing
 end
 
 return Renderer

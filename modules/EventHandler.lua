@@ -218,7 +218,6 @@ end
 ---@param my number Mouse Y position
 ---@param button number Mouse button (1=left, 2=right, 3=middle)
 function EventHandler:_handleMousePress(element, mx, my, button)
-
   -- Check if press is on scrollbar first (skip if already handled)
   if button == 1 and not self._scrollbarPressHandled and element._handleScrollbarPress then
     if element:_handleScrollbarPress(mx, my, button) then
@@ -263,7 +262,6 @@ end
 ---@param button number Mouse button
 ---@param isHovering boolean Whether mouse is over element
 function EventHandler:_handleMouseDrag(element, mx, my, button, isHovering)
-
   local lastX = self._lastMouseX[button] or mx
   local lastY = self._lastMouseY[button] or my
 
@@ -303,7 +301,6 @@ end
 ---@param my number Mouse Y position
 ---@param button number Mouse button
 function EventHandler:_handleMouseRelease(element, mx, my, button)
-
   local currentTime = love.timer.getTime()
   local modifiers = EventHandler._utils.getModifiers()
 
@@ -471,7 +468,6 @@ end
 ---@param y number Touch Y position
 ---@param pressure number Touch pressure (0-1)
 function EventHandler:_handleTouchBegan(element, touchId, x, y, pressure)
-
   -- Create touch state
   self._touches[touchId] = {
     x = x,
@@ -640,15 +636,6 @@ function EventHandler:_invokeCallback(element, event)
   else
     self.onEvent(element, event)
   end
-end
-
-
---- Cleanup method to break circular references (for immediate mode)
---- Note: Only clears module references, preserves state for inspection/testing
-function EventHandler:_cleanup()
-  -- DO NOT clear state data (_pressed, _touches, etc.) - they're needed for state persistence
-  -- Only clear module references that could create circular dependencies
-  -- (In practice, EventHandler doesn't store refs to Context/utils, so nothing to do)
 end
 
 return EventHandler

@@ -1463,6 +1463,11 @@ function Element.new(props)
     Element._Context.registerElement(self)
   end
 
+  -- Performance optimization: dirty flags for layout tracking
+  -- These flags help skip unnecessary layout recalculations
+  self._dirty = false -- Element properties have changed, needs layout
+  self._childrenDirty = false -- Children have changed, needs layout
+
   return self
 end
 
@@ -1495,6 +1500,27 @@ end
 ---@return number
 function Element:getBorderBoxHeight()
   return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+end
+
+--- Mark this element and its ancestors as dirty, requiring layout recalculation
+--- Call this when element properties change that affect layout
+function Element:invalidateLayout()
+  self._dirty = true
+  
+  -- Invalidate dimension caches
+  self._borderBoxWidthCache = nil
+  self._borderBoxHeightCache = nil
+  
+  -- Mark parent as having dirty children
+  if self.parent then
+    self.parent._childrenDirty = true
+    -- Propagate up the tree (parents need to know their descendants changed)
+    local ancestor = self.parent
+    while ancestor do
+      ancestor._childrenDirty = true
+      ancestor = ancestor.parent
+    end
+  end
 end
 
 --- Sync ScrollManager state to Element properties for backward compatibility
@@ -3139,6 +3165,18 @@ function Element:setProperty(property, value)
     return
   end
 
+  -- Properties that affect layout and require invalidation
+  local layoutProperties = {
+    width = true, height = true,
+    padding = true, margin = true,
+    gap = true,
+    flexDirection = true, flexWrap = true,
+    justifyContent = true, alignItems = true, alignContent = true,
+    positioning = true,
+    gridRows = true, gridColumns = true,
+    top = true, right = true, bottom = true, left = true,
+  }
+
   if shouldTransition and transitionConfig then
     local currentValue = self[property]
 
@@ -3160,6 +3198,11 @@ function Element:setProperty(property, value)
     end
   else
     self[property] = value
+  end
+
+  -- Invalidate layout if this property affects layout
+  if layoutProperties[property] then
+    self:invalidateLayout()
   end
 end
 

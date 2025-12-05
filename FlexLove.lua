@@ -511,7 +511,7 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   end)
 
   local function hasBackdropBlur(element)
-    if element.backdropBlur and element.backdropBlur.intensity > 0 then
+    if element.backdropBlur and element.backdropBlur.radius > 0 then
       return true
     end
     for _, child in ipairs(element.children) do

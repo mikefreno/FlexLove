@@ -70,8 +70,8 @@
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions
 ---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-patch corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
----@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10)
----@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10)
+---@field contentBlur {radius:number, quality:number?}? -- Blur the element's content including children (radius: pixels, quality: 1-10, default: 5)
+---@field backdropBlur {radius:number, quality:number?}? -- Blur content behind the element (radius: pixels, quality: 1-10, default: 5)
 ---@field _blurInstance table? -- Internal: cached blur effect instance
 ---@field editable boolean -- Whether the element is editable (default: false)
 ---@field multiline boolean -- Whether the element supports multiple lines (default: false)
@@ -2123,10 +2123,10 @@ function Element:draw(backdropCanvas)
   end
 
   -- Apply content blur if configured
-  if self.contentBlur and self.contentBlur.intensity > 0 and #sortedChildren > 0 then
+  if self.contentBlur and self.contentBlur.radius > 0 and #sortedChildren > 0 then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Element._Blur.applyToRegion(blurInstance, self.contentBlur.intensity, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
+      Element._Blur.applyToRegion(blurInstance, self.contentBlur.radius, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
     else
       drawChildren()
     end
@@ -3190,13 +3190,13 @@ function Element:saveState()
     }
 
     if self.backdropBlur then
-      state.blur._backdropBlurIntensity = self.backdropBlur.intensity
-      state.blur._backdropBlurQuality = self.backdropBlur.quality
+      state.blur._backdropBlurRadius = self.backdropBlur.radius
+      state.blur._backdropBlurQuality = self.backdropBlur.quality or 5
     end
 
     if self.contentBlur then
-      state.blur._contentBlurIntensity = self.contentBlur.intensity
-      state.blur._contentBlurQuality = self.contentBlur.quality
+      state.blur._contentBlurRadius = self.contentBlur.radius
+      state.blur._contentBlurQuality = self.contentBlur.quality or 5
     end
   end
 
@@ -3252,9 +3252,9 @@ function Element:shouldInvalidateBlurCache(oldState, newState)
     or old._blurY ~= new._blurY
     or old._blurWidth ~= new._blurWidth
     or old._blurHeight ~= new._blurHeight
-    or old._backdropBlurIntensity ~= new._backdropBlurIntensity
+    or old._backdropBlurRadius ~= new._backdropBlurRadius
     or old._backdropBlurQuality ~= new._backdropBlurQuality
-    or old._contentBlurIntensity ~= new._contentBlurIntensity
+    or old._contentBlurRadius ~= new._contentBlurRadius
     or old._contentBlurQuality ~= new._contentBlurQuality
 end
 

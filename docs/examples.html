@@ -377,10 +377,11 @@ end</code></pre>
 
         <div class="note">
           <p>
-            <strong>💡 Tip:</strong> Use <code>positioning = "grid"</code> with 
-            <code>gridRows</code> and <code>gridColumns</code> to create true grid 
-            layouts. Children auto-flow into cells left-to-right, top-to-bottom. 
-            Perfect for tables, schedules, and structured data displays.
+            <strong>💡 Tip:</strong> Use <code>positioning = "grid"</code> with
+            <code>gridRows</code> and <code>gridColumns</code> to create true
+            grid layouts. Children auto-flow into cells left-to-right,
+            top-to-bottom. Perfect for tables, schedules, and structured data
+            displays.
           </p>
         </div>
 
@@ -589,7 +590,7 @@ local window = FlexLove.new({
   positioning = "flex",
   flexDirection = "vertical",
   gap = 10,
-  backdropBlur = { intensity = 50, quality = 10 },
+  backdropBlur = { radius = 10, quality = 10 },
   backgroundColor = Color.new(0.1, 0.1, 0.1, 0.8)
 })
 
@@ -1088,32 +1089,32 @@ end</code></pre>
       });
 
       // Add copy buttons to code blocks
-      document.querySelectorAll('pre code').forEach((codeBlock) => {
+      document.querySelectorAll("pre code").forEach((codeBlock) => {
         const pre = codeBlock.parentElement;
-        const button = document.createElement('button');
-        button.className = 'copy-button';
-        button.textContent = 'Copy';
-        button.title = 'Copy to clipboard';
-        
-        button.addEventListener('click', async () => {
+        const button = document.createElement("button");
+        button.className = "copy-button";
+        button.textContent = "Copy";
+        button.title = "Copy to clipboard";
+
+        button.addEventListener("click", async () => {
           const code = codeBlock.textContent;
           try {
             await navigator.clipboard.writeText(code);
-            button.textContent = 'Copied!';
-            button.classList.add('copied');
+            button.textContent = "Copied!";
+            button.classList.add("copied");
             setTimeout(() => {
-              button.textContent = 'Copy';
-              button.classList.remove('copied');
+              button.textContent = "Copy";
+              button.classList.remove("copied");
             }, 2000);
           } catch (err) {
-            console.error('Failed to copy:', err);
-            button.textContent = 'Failed';
+            console.error("Failed to copy:", err);
+            button.textContent = "Failed";
             setTimeout(() => {
-              button.textContent = 'Copy';
+              button.textContent = "Copy";
             }, 2000);
           }
         });
-        
+
         pre.appendChild(button);
       });
     </script>

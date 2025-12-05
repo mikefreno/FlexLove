@@ -393,7 +393,7 @@ function TestCriticalFailures:test_blur_invalid_quality()
     FlexLove.new({
       width = 100,
       height = 100,
-      contentBlur = { intensity = 50, quality = 0 },
+      contentBlur = { radius = 50, quality = 0 },
     })
   end)
 
@@ -403,7 +403,7 @@ function TestCriticalFailures:test_blur_invalid_quality()
     FlexLove.new({
       width = 100,
       height = 100,
-      contentBlur = { intensity = 50, quality = -5 },
+      contentBlur = { radius = 50, quality = -5 },
     })
   end)
 

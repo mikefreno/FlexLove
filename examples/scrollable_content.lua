@@ -25,7 +25,7 @@ function ScrollableContentExample.new()
     justifyContent = "center",
     alignItems = "center",
     gap = 10,
-    backdropBlur = { intensity = 50, quality = 10 },
+    backdropBlur = { radius = 20, quality = 10 },
     backgroundColor = Color.new(0.1, 0.1, 0.1, 0.8),
   })
 

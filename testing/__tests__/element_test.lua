@@ -1881,7 +1881,7 @@ end
 
 function TestElementBlur:test_getBlurInstance_with_blur()
   local element = createBasicElement({
-    backdropBlur = { intensity = 50, quality = 5 },
+    backdropBlur = { radius = 50, quality = 5 },
   })
 
   -- Blur instance should be created when backdropBlur is set
@@ -1981,7 +1981,7 @@ end
 
 function TestElementDraw:test_draw_with_blur()
   local element = createBasicElement({
-    backdropBlur = { intensity = 50, quality = 5 },
+    backdropBlur = { radius = 50, quality = 5 },
     backgroundColor = Color.new(1, 1, 1, 0.5),
   })
 
@@ -2906,7 +2906,7 @@ function TestElementEdgeCases:test_invalid_blur_config()
     id = "blur",
     width = 100,
     height = 100,
-    contentBlur = { intensity = -10, quality = 5 },
+    contentBlur = { radius = -10, quality = 5 },
   })
   luaunit.assertNotNil(element)
 
@@ -2915,7 +2915,7 @@ function TestElementEdgeCases:test_invalid_blur_config()
     id = "blur2",
     width = 100,
     height = 100,
-    backdropBlur = { intensity = 150, quality = 5 },
+    backdropBlur = { radius = 150, quality = 5 },
   })
   luaunit.assertNotNil(element)
 
@@ -2924,7 +2924,7 @@ function TestElementEdgeCases:test_invalid_blur_config()
     id = "blur3",
     width = 100,
     height = 100,
-    contentBlur = { intensity = 50, quality = 0 },
+    contentBlur = { radius = 50, quality = 0 },
   })
   luaunit.assertNotNil(element)
 end

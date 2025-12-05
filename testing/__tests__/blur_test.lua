@@ -104,7 +104,7 @@ end
 -- applyToRegion() Edge Cases
 -- ============================================================================
 
-function TestBlur:testApplyToRegionWithZeroIntensity()
+function TestBlur:testApplyToRegionWithZeroRadius()
   local blur = Blur.new({quality = 5})
   local called = false
   local drawFunc = function()
@@ -116,7 +116,7 @@ function TestBlur:testApplyToRegionWithZeroIntensity()
   luaunit.assertTrue(called)
 end
 
-function TestBlur:testApplyToRegionWithNegativeIntensity()
+function TestBlur:testApplyToRegionWithNegativeRadius()
   local blur = Blur.new({quality = 5})
   local called = false
   local drawFunc = function()
@@ -176,14 +176,14 @@ function TestBlur:testApplyToRegionWithNegativeHeight()
   luaunit.assertTrue(called)
 end
 
-function TestBlur:testApplyToRegionWithIntensityOver100()
+function TestBlur:testApplyToRegionWithLargeRadius()
   local blur = Blur.new({quality = 5})
   local called = false
   local drawFunc = function()
     called = true
   end
 
-  -- Should clamp intensity to 100
+  -- Should work with large radius values
   blur:applyToRegion(150, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
 end
@@ -240,36 +240,36 @@ function TestBlur:testApplyToRegionWithVeryLargeDimensions()
   luaunit.assertTrue(called)
 end
 
-function TestBlur:testApplyToRegionIntensityBoundaries()
+function TestBlur:testApplyToRegionRadiusValues()
   local blur = Blur.new({quality = 5})
   local called = false
   local drawFunc = function()
     called = true
   end
 
-  -- Test boundary values that affect passes calculation
-  -- intensity 20 = 1 pass
+  -- Test various radius values
+  -- Small radius
+  blur:applyToRegion(5, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+  
+  called = false
+  -- Medium radius
+  blur:applyToRegion(10, 0, 0, 100, 100, drawFunc)
+  luaunit.assertTrue(called)
+  
+  called = false
+  -- Large radius
   blur:applyToRegion(20, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
   
   called = false
-  -- intensity 40 = 2 passes
-  blur:applyToRegion(40, 0, 0, 100, 100, drawFunc)
+  -- Very large radius
+  blur:applyToRegion(50, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
   
   called = false
-  -- intensity 60 = 3 passes
-  blur:applyToRegion(60, 0, 0, 100, 100, drawFunc)
-  luaunit.assertTrue(called)
-  
-  called = false
-  -- intensity 80 = 4 passes
-  blur:applyToRegion(80, 0, 0, 100, 100, drawFunc)
-  luaunit.assertTrue(called)
-  
-  called = false
-  -- intensity 100 = 5 passes
-  blur:applyToRegion(100, 0, 0, 100, 100, drawFunc)
+  -- Fractional radius
+  blur:applyToRegion(2.5, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
 end
 
@@ -277,7 +277,7 @@ end
 -- applyBackdrop() Edge Cases
 -- ============================================================================
 
-function TestBlur:testApplyBackdropWithZeroIntensity()
+function TestBlur:testApplyBackdropWithZeroRadius()
   local blur = Blur.new({quality = 5})
   local mockCanvas = {
     getDimensions = function()
@@ -290,7 +290,7 @@ function TestBlur:testApplyBackdropWithZeroIntensity()
   luaunit.assertTrue(true)
 end
 
-function TestBlur:testApplyBackdropWithNegativeIntensity()
+function TestBlur:testApplyBackdropWithNegativeRadius()
   local blur = Blur.new({quality = 5})
   local mockCanvas = {
     getDimensions = function()
@@ -337,7 +337,7 @@ function TestBlur:testApplyBackdropWithNilCanvas()
   luaunit.assertTrue(true) -- Should reach here without crash
 end
 
-function TestBlur:testApplyBackdropWithIntensityOver100()
+function TestBlur:testApplyBackdropWithLargeRadius()
   local blur = Blur.new({quality = 5})
   local mockCanvas = {
     getDimensions = function()
@@ -345,7 +345,7 @@ function TestBlur:testApplyBackdropWithIntensityOver100()
     end,
   }
 
-  -- Should clamp intensity to 100
+  -- Should work with large radius values
   blur:applyBackdrop(200, 0, 0, 100, 100, mockCanvas)
   luaunit.assertTrue(true)
 end

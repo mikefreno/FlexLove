@@ -95,8 +95,8 @@ local AnimationProps = {}
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions (default: sourced from theme or {1, 1})
 ---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-patch corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)
----@field contentBlur {intensity:number, quality:number}? -- Blur the element's content including children (intensity: 0-100, quality: 1-10, default: nil)
----@field backdropBlur {intensity:number, quality:number}? -- Blur content behind the element (intensity: 0-100, quality: 1-10, default: nil)
+---@field contentBlur {radius:number, quality:number?}? -- Blur the element's content including children (radius: pixels, quality: 1-10, default(quality): 5)
+---@field backdropBlur {radius:number, quality:number?}? -- Blur content behind the element (radius: pixels, quality: 1-10, default(quality): 5)
 ---@field editable boolean? -- Whether the element is editable (default: false)
 ---@field multiline boolean? -- Whether the element supports multiple lines (default: false)
 ---@field textWrap boolean|"word"|"char"? -- Text wrapping mode (default: false for single-line, "word" for multi-line)
@@ -204,7 +204,7 @@ local FlexLoveConfig = {}
 ---@field _blurY number
 ---@field _blurWidth number
 ---@field _blurHeight number
----@field _backdropBlurIntensity number?
----@field _backdropBlurQuality string?
----@field _contentBlurIntensity number?
----@field _contentBlurQuality string?
+---@field _backdropBlurRadius number?
+---@field _backdropBlurQuality number?
+---@field _contentBlurRadius number?
+---@field _contentBlurQuality number?

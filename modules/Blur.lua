@@ -12,7 +12,7 @@ local Cache = {
   MAX_CANVAS_SIZE = 20,
   MAX_QUAD_SIZE = 20,
   MAX_BLURRED_CANVAS_CACHE = 50, -- Maximum cached blurred canvases
-  INTENSITY_THRESHOLD = 5, -- Skip blur below this intensity
+  RADIUS_THRESHOLD = 0.5, -- Skip blur below this radius
   LARGE_BLUR_THRESHOLD = 250 * 250, -- Warn if blur area exceeds this (250x250px)
 }
 
@@ -133,12 +133,12 @@ end
 ---@param y number Y position
 ---@param width number Width
 ---@param height number Height
----@param intensity number Blur intensity
+---@param radius number Blur radius
 ---@param quality number Blur quality
 ---@param isBackdrop boolean Whether this is backdrop blur
 ---@return string key Cache key
-function Cache.generateBlurCacheKey(elementId, x, y, width, height, intensity, quality, isBackdrop)
-  return string.format("%s:%d:%d:%d:%d:%d:%d:%s", elementId, x, y, width, height, intensity, quality, tostring(isBackdrop))
+function Cache.generateBlurCacheKey(elementId, x, y, width, height, radius, quality, isBackdrop)
+  return string.format("%s:%d:%d:%d:%d:%.1f:%d:%s", elementId, x, y, width, height, radius, quality, tostring(isBackdrop))
 end
 
 --- Get cached blurred canvas
@@ -381,13 +381,13 @@ function Blur.new(props)
 end
 
 --- Apply blur to a region of the screen
----@param intensity number Blur intensity (0-100)
+---@param radius number Blur radius in pixels
 ---@param x number X position
 ---@param y number Y position
 ---@param width number Width of region
 ---@param height number Height of region
 ---@param drawFunc function Function to draw content to be blurred
-function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
+function Blur:applyToRegion(radius, x, y, width, height, drawFunc)
   if type(drawFunc) ~= "function" then
     if Blur._ErrorHandler then
       Blur._ErrorHandler:warn("Blur", "BLUR_001")
@@ -395,13 +395,13 @@ function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
     return
   end
 
-  if intensity <= 0 or width <= 0 or height <= 0 then
+  if radius <= 0 or width <= 0 or height <= 0 then
     drawFunc()
     return
   end
 
-  -- Early exit for very low intensity (optimization)
-  if intensity < Cache.INTENSITY_THRESHOLD then
+  -- Early exit for very low radius (optimization)
+  if radius < Cache.RADIUS_THRESHOLD then
     drawFunc()
     return
   end
@@ -409,11 +409,9 @@ function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
   -- Check for large blur area in immediate mode
   checkLargeBlurWarning(nil, width, height, "content")
 
-  intensity = math.max(0, math.min(100, intensity))
-
-  -- Intensity 0-100 maps to 0-5 passes
-  local passes = math.ceil(intensity / 20)
-  passes = math.max(1, math.min(5, passes))
+  -- Calculate offset multiplier based on radius and quality
+  -- Higher quality = more samples = smaller steps for same radius
+  local offsetMultiplier = radius / self.quality
 
   local canvas1 = Cache.getCanvas(width, height)
   local canvas2 = Cache.getCanvas(width, height)
@@ -435,17 +433,16 @@ function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.setBlendMode("alpha", "premultiplied")
 
-  for i = 1, passes do
-    love.graphics.setCanvas(canvas2)
-    love.graphics.clear()
-    self.shader:send("direction", { 1 / width, 0 })
-    love.graphics.draw(canvas1, 0, 0)
+  -- Single pass with radius-controlled offset
+  love.graphics.setCanvas(canvas2)
+  love.graphics.clear()
+  self.shader:send("direction", { offsetMultiplier / width, 0 })
+  love.graphics.draw(canvas1, 0, 0)
 
-    love.graphics.setCanvas(canvas1)
-    love.graphics.clear()
-    self.shader:send("direction", { 0, 1 / height })
-    love.graphics.draw(canvas2, 0, 0)
-  end
+  love.graphics.setCanvas(canvas1)
+  love.graphics.clear()
+  self.shader:send("direction", { 0, offsetMultiplier / height })
+  love.graphics.draw(canvas2, 0, 0)
 
   love.graphics.setCanvas(prevCanvas)
   love.graphics.setShader()
@@ -460,13 +457,13 @@ function Blur:applyToRegion(intensity, x, y, width, height, drawFunc)
 end
 
 --- Apply backdrop blur effect (blur content behind a region)
----@param intensity number Blur intensity (0-100)
+---@param radius number Blur radius in pixels
 ---@param x number X position
 ---@param y number Y position
 ---@param width number Width of region
 ---@param height number Height of region
 ---@param backdropCanvas love.Canvas Canvas containing the backdrop content
-function Blur:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
+function Blur:applyBackdrop(radius, x, y, width, height, backdropCanvas)
   if not backdropCanvas then
     if Blur._ErrorHandler then
       Blur._ErrorHandler:warn("Blur", "BLUR_002")
@@ -474,19 +471,17 @@ function Blur:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
     return
   end
 
-  if intensity <= 0 or width <= 0 or height <= 0 then
+  if radius <= 0 or width <= 0 or height <= 0 then
     return
   end
 
-  -- Early exit for very low intensity (optimization)
-  if intensity < Cache.INTENSITY_THRESHOLD then
+  -- Early exit for very low radius (optimization)
+  if radius < Cache.RADIUS_THRESHOLD then
     return
   end
 
-  intensity = math.max(0, math.min(100, intensity))
-
-  local passes = math.ceil(intensity / 20)
-  passes = math.max(1, math.min(5, passes))
+  -- Calculate offset multiplier based on radius and quality
+  local offsetMultiplier = radius / self.quality
 
   local canvas1 = Cache.getCanvas(width, height)
   local canvas2 = Cache.getCanvas(width, height)
@@ -507,17 +502,16 @@ function Blur:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
 
   love.graphics.setShader(self.shader)
 
-  for i = 1, passes do
-    love.graphics.setCanvas(canvas2)
-    love.graphics.clear()
-    self.shader:send("direction", { 1 / width, 0 })
-    love.graphics.draw(canvas1, 0, 0)
+  -- Single pass with radius-controlled offset
+  love.graphics.setCanvas(canvas2)
+  love.graphics.clear()
+  self.shader:send("direction", { offsetMultiplier / width, 0 })
+  love.graphics.draw(canvas1, 0, 0)
 
-    love.graphics.setCanvas(canvas1)
-    love.graphics.clear()
-    self.shader:send("direction", { 0, 1 / height })
-    love.graphics.draw(canvas2, 0, 0)
-  end
+  love.graphics.setCanvas(canvas1)
+  love.graphics.clear()
+  self.shader:send("direction", { 0, offsetMultiplier / height })
+  love.graphics.draw(canvas2, 0, 0)
 
   love.graphics.setCanvas(prevCanvas)
   love.graphics.setShader()
@@ -550,21 +544,21 @@ function Blur.clearCache()
 end
 
 --- Apply backdrop blur with caching support
----@param intensity number Blur intensity (0-100)
+---@param radius number Blur radius in pixels
 ---@param x number X position
 ---@param y number Y position
 ---@param width number Width of region
 ---@param height number Height of region
 ---@param backdropCanvas love.Canvas Canvas containing the backdrop content
 ---@param elementId string|nil Element ID for caching (nil disables caching)
-function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas, elementId)
+function Blur:applyBackdropCached(radius, x, y, width, height, backdropCanvas, elementId)
   -- If caching is disabled or no element ID, fall back to regular apply
   if not Blur._immediateModeOptimizations or not elementId then
-    return self:applyBackdrop(intensity, x, y, width, height, backdropCanvas)
+    return self:applyBackdrop(radius, x, y, width, height, backdropCanvas)
   end
 
   -- Generate cache key
-  local cacheKey = Cache.generateBlurCacheKey(elementId, x, y, width, height, intensity, self.quality, true)
+  local cacheKey = Cache.generateBlurCacheKey(elementId, x, y, width, height, radius, self.quality, true)
 
   -- Check cache
   local cachedCanvas = Cache.getBlurredCanvas(cacheKey)
@@ -593,22 +587,20 @@ function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas
     return
   end
 
-  if intensity <= 0 or width <= 0 or height <= 0 then
+  if radius <= 0 or width <= 0 or height <= 0 then
     return
   end
 
-  -- Early exit for very low intensity (optimization)
-  if intensity < Cache.INTENSITY_THRESHOLD then
+  -- Early exit for very low radius (optimization)
+  if radius < Cache.RADIUS_THRESHOLD then
     return
   end
 
   -- Check for large blur area in immediate mode
   checkLargeBlurWarning(elementId, width, height, "backdrop")
 
-  intensity = math.max(0, math.min(100, intensity))
-
-  local passes = math.ceil(intensity / 20)
-  passes = math.max(1, math.min(5, passes))
+  -- Calculate offset multiplier based on radius and quality
+  local offsetMultiplier = radius / self.quality
 
   local canvas1 = Cache.getCanvas(width, height)
   local canvas2 = Cache.getCanvas(width, height)
@@ -629,17 +621,16 @@ function Blur:applyBackdropCached(intensity, x, y, width, height, backdropCanvas
 
   love.graphics.setShader(self.shader)
 
-  for i = 1, passes do
-    love.graphics.setCanvas(canvas2)
-    love.graphics.clear()
-    self.shader:send("direction", { 1 / width, 0 })
-    love.graphics.draw(canvas1, 0, 0)
+  -- Single pass with radius-controlled offset
+  love.graphics.setCanvas(canvas2)
+  love.graphics.clear()
+  self.shader:send("direction", { offsetMultiplier / width, 0 })
+  love.graphics.draw(canvas1, 0, 0)
 
-    love.graphics.setCanvas(canvas1)
-    love.graphics.clear()
-    self.shader:send("direction", { 0, 1 / height })
-    love.graphics.draw(canvas2, 0, 0)
-  end
+  love.graphics.setCanvas(canvas1)
+  love.graphics.clear()
+  self.shader:send("direction", { 0, offsetMultiplier / height })
+  love.graphics.draw(canvas2, 0, 0)
 
   -- Cache the result
   local cachedResult = love.graphics.newCanvas(width, height)

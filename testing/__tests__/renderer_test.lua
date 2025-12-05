@@ -438,26 +438,26 @@ TestRendererBlur = {}
 function TestRendererBlur:testNewWithContentBlur()
   local renderer = Renderer.new({
     contentBlur = {
-      intensity = 5,
+      radius = 5,
       quality = "high",
     },
   }, createDeps())
 
   luaunit.assertNotNil(renderer.contentBlur)
-  luaunit.assertEquals(renderer.contentBlur.intensity, 5)
+  luaunit.assertEquals(renderer.contentBlur.radius, 5)
   luaunit.assertEquals(renderer.contentBlur.quality, "high")
 end
 
 function TestRendererBlur:testNewWithBackdropBlur()
   local renderer = Renderer.new({
     backdropBlur = {
-      intensity = 10,
+      radius = 10,
       quality = "medium",
     },
   }, createDeps())
 
   luaunit.assertNotNil(renderer.backdropBlur)
-  luaunit.assertEquals(renderer.backdropBlur.intensity, 10)
+  luaunit.assertEquals(renderer.backdropBlur.radius, 10)
   luaunit.assertEquals(renderer.backdropBlur.quality, "medium")
 end
 
@@ -923,7 +923,7 @@ function TestRendererEdgeCases:test_blur_with_invalid_intensity()
     id = "test1",
     width = 100,
     height = 100,
-    contentBlur = { intensity = -10, quality = 5 },
+    contentBlur = { radius = -10, quality = 5 },
   })
   luaunit.assertNotNil(element1)
 
@@ -932,7 +932,7 @@ function TestRendererEdgeCases:test_blur_with_invalid_intensity()
     id = "test2",
     width = 100,
     height = 100,
-    backdropBlur = { intensity = 200, quality = 5 },
+    backdropBlur = { radius = 200, quality = 5 },
   })
   luaunit.assertNotNil(element2)
 end
@@ -943,7 +943,7 @@ function TestRendererEdgeCases:test_blur_with_invalid_quality()
     id = "test1",
     width = 100,
     height = 100,
-    contentBlur = { intensity = 10, quality = 0 },
+    contentBlur = { radius = 10, quality = 0 },
   })
   luaunit.assertNotNil(element1)
 
@@ -952,7 +952,7 @@ function TestRendererEdgeCases:test_blur_with_invalid_quality()
     id = "test2",
     width = 100,
     height = 100,
-    contentBlur = { intensity = 10, quality = 100 },
+    contentBlur = { radius = 10, quality = 100 },
   })
   luaunit.assertNotNil(element2)
 end

@@ -25,14 +25,18 @@
 ---@field _lastFrameCount number Last frame number for resetting counters
 ---@field _ErrorHandler ErrorHandler? ErrorHandler module dependency
 ---@field _Performance Performance? Performance module dependency
+---@field _FFI table? FFI module dependency
+---@field _useFFI boolean Whether to use FFI optimizations
 local LayoutEngine = {}
 LayoutEngine.__index = LayoutEngine
 
 --- Initialize module with shared dependencies
----@param deps table Dependencies {ErrorHandler, Performance}
+---@param deps table Dependencies {ErrorHandler, Performance, FFI}
 function LayoutEngine.init(deps)
   LayoutEngine._ErrorHandler = deps.ErrorHandler
   LayoutEngine._Performance = deps.Performance
+  LayoutEngine._FFI = deps.FFI
+  LayoutEngine._useFFI = deps.FFI and deps.FFI.enabled or false
 end
 
 ---@class LayoutEngineProps
@@ -161,6 +165,61 @@ function LayoutEngine:applyPositioningOffsets(child)
       child.x = parent.x + parent.padding.left + parent.width - child.right - elementBorderBoxWidth
     end
   end
+end
+
+--- Batch calculate child positions using FFI (optimization for large child counts)
+---@param children table Array of child elements
+---@param startX number Starting X position
+---@param startY number Starting Y position
+---@param spacing number Spacing between children
+---@param isHorizontal boolean True if horizontal layout
+---@return table positions Array of {x, y} positions
+function LayoutEngine:_batchCalculatePositions(children, startX, startY, spacing, isHorizontal)
+  local count = #children
+  
+  -- Use FFI for batch calculations if available and count is large enough
+  if LayoutEngine._useFFI and LayoutEngine._FFI and count > 10 then
+    local positions = LayoutEngine._FFI:allocateVec2Array(count)
+    local currentPos = isHorizontal and startX or startY
+    
+    for i = 0, count - 1 do
+      local child = children[i + 1] -- Lua is 1-indexed
+      
+      if isHorizontal then
+        positions[i].x = currentPos + child.margin.left
+        positions[i].y = startY + child.margin.top
+        currentPos = currentPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + spacing
+      else
+        positions[i].x = startX + child.margin.left
+        positions[i].y = currentPos + child.margin.top
+        currentPos = currentPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + spacing
+      end
+    end
+    
+    return positions
+  end
+  
+  -- Fallback to Lua table
+  local positions = {}
+  local currentPos = isHorizontal and startX or startY
+  
+  for i, child in ipairs(children) do
+    if isHorizontal then
+      positions[i] = {
+        x = currentPos + child.margin.left,
+        y = startY + child.margin.top
+      }
+      currentPos = currentPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + spacing
+    else
+      positions[i] = {
+        x = startX + child.margin.left,
+        y = currentPos + child.margin.top
+      }
+      currentPos = currentPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + spacing
+    end
+  end
+  
+  return positions
 end
 
 --- Layout children within this element according to positioning mode

@@ -32,6 +32,8 @@ local ScrollManager = req("ScrollManager")
 local Element = req("Element")
 ---@type Color
 local Color = req("Color")
+---@type FFI
+local FFI = req("FFI")
 
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
@@ -116,6 +118,9 @@ function flexlove.init(config)
     enableRotation = config.errorLogRotateEnabled,
   })
 
+  -- Initialize FFI module (LuaJIT optimizations)
+  flexlove._FFI = FFI.init({ ErrorHandler = flexlove._ErrorHandler })
+
   -- Initialize Performance if available
   if ModuleLoader.isModuleLoaded(modulePath .. "modules.Performance") then
     flexlove._Performance = Performance.init({
@@ -129,7 +134,7 @@ function flexlove.init(config)
       logWarnings = config.performanceWarnings or false,
       warningsEnabled = config.performanceWarnings or false,
       memoryProfiling = config.memoryProfiling or config.immediateMode and true or false,
-    }, { ErrorHandler = flexlove._ErrorHandler })
+    }, { ErrorHandler = flexlove._ErrorHandler, FFI = flexlove._FFI })
 
     if config.immediateMode then
       flexlove._Performance:registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
@@ -166,7 +171,7 @@ function flexlove.init(config)
 
   -- Initialize required modules
   Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler })
-  Color.init({ ErrorHandler = flexlove._ErrorHandler })
+  Color.init({ ErrorHandler = flexlove._ErrorHandler, FFI = flexlove._FFI })
   utils.init({ ErrorHandler = flexlove._ErrorHandler })
 
   -- Initialize optional Animation module
@@ -179,7 +184,7 @@ function flexlove.init(config)
     Theme.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils })
   end
 
-  LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance })
+  LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, FFI = flexlove._FFI })
   EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils })
 
   flexlove._defaultDependencies = {

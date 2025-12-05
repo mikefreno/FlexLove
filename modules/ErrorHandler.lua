@@ -187,6 +187,30 @@ local ErrorCodes = {
       description = "Invalid theme color",
       suggestion = "Theme colors must be valid color values (hex, rgba, Color object)",
     },
+    THM_007 = {
+      code = "FLEXLOVE_THM_007",
+      category = "THM",
+      description = "themeStateLock has no effect without a valid theme component",
+      suggestion = "Ensure themeComponent is set and valid when using themeStateLock",
+    },
+    THM_008 = {
+      code = "FLEXLOVE_THM_008",
+      category = "THM",
+      description = "Theme component has no state variants",
+      suggestion = "themeStateLock has no effect on components without state variants",
+    },
+    THM_009 = {
+      code = "FLEXLOVE_THM_009",
+      category = "THM",
+      description = "Requested theme state does not exist",
+      suggestion = "Use one of the available theme states or set themeStateLock to false",
+    },
+    THM_010 = {
+      code = "FLEXLOVE_THM_010",
+      category = "THM",
+      description = "Invalid themeStateLock type",
+      suggestion = "themeStateLock must be boolean or string (state name)",
+    },
 
     -- Event Errors (EVT_001 - EVT_099)
     EVT_001 = {

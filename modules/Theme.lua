@@ -742,6 +742,7 @@ end
 ---@field disabled boolean
 ---@field active boolean
 ---@field disableHighlight boolean -- If true, disable pressed highlight overlay
+---@field themeStateLock boolean|string? -- Lock theme state: true/"default" = lock to base state, false = normal behavior, string = specific state
 ---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges
 ---@field scalingAlgorithm string? -- "nearest" or "bilinear" scaling for 9-patch
 ---@field _element Element? -- Reference to parent Element
@@ -749,7 +750,7 @@ local ThemeManager = {}
 ThemeManager.__index = ThemeManager
 
 ---Create a new ThemeManager instance
----@param config table Configuration options {theme: string?, themeComponent: string?, disabled: boolean?, active: boolean?, disableHighlight: boolean?, scaleCorners: number?, scalingAlgorithm: string?}
+---@param config table Configuration options {theme: string?, themeComponent: string?, disabled: boolean?, active: boolean?, disableHighlight: boolean?, themeStateLock: boolean|string?, scaleCorners: number?, scalingAlgorithm: string?}
 ---@return ThemeManager manager The new ThemeManager instance
 function ThemeManager.new(config)
   local self = setmetatable({}, ThemeManager)
@@ -759,10 +760,18 @@ function ThemeManager.new(config)
   self.disabled = config.disabled or false
   self.active = config.active or false
   self.disableHighlight = config.disableHighlight
+  self.themeStateLock = config.themeStateLock or false
   self.scaleCorners = config.scaleCorners
   self.scalingAlgorithm = config.scalingAlgorithm
 
-  self._themeState = "normal"
+  -- Set initial state based on themeStateLock
+  if self.themeStateLock == true or self.themeStateLock == "default" then
+    self._themeState = "normal"
+  elseif type(self.themeStateLock) == "string" then
+    self._themeState = self.themeStateLock
+  else
+    self._themeState = "normal"
+  end
 
   return self
 end
@@ -774,6 +783,31 @@ end
 ---@param isDisabled boolean Whether element is disabled
 ---@return string state The new theme state ("normal", "hover", "pressed", "active", "disabled")
 function ThemeManager:updateState(isHovered, isPressed, isFocused, isDisabled)
+  -- If themeStateLock is set (and not false), use the locked state
+  if self.themeStateLock ~= false and self.themeStateLock ~= nil then
+    local lockedState
+    
+    if self.themeStateLock == true or self.themeStateLock == "default" then
+      -- true or "default" means lock to "normal" (base state)
+      lockedState = "normal"
+    elseif type(self.themeStateLock) == "string" then
+      -- String means lock to specific state
+      lockedState = self.themeStateLock
+      
+      -- Validate the locked state exists in the theme component (will be done during initialization)
+      -- For now, just use the string value
+    else
+      -- Invalid themeStateLock value, fall back to normal behavior
+      lockedState = nil
+    end
+    
+    if lockedState then
+      self._themeState = lockedState
+      return lockedState
+    end
+  end
+  
+  -- Normal behavior: calculate state based on interaction
   local newState = "normal"
 
   if isDisabled or self.disabled then
@@ -959,6 +993,89 @@ end
 function ThemeManager:setTheme(themeName, componentName)
   self.theme = themeName
   self.themeComponent = componentName
+end
+
+---Validate themeStateLock and warn if invalid
+---@return boolean isValid True if themeStateLock is valid or false/nil
+function ThemeManager:validateThemeStateLock()
+  -- false or nil is always valid (no lock)
+  if not self.themeStateLock or self.themeStateLock == false then
+    return true
+  end
+  
+  -- true is always valid (lock to normal)
+  if self.themeStateLock == true then
+    return true
+  end
+  
+  -- String value needs validation
+  if type(self.themeStateLock) == "string" then
+    -- "default" is always valid (lock to normal/base state)
+    if self.themeStateLock == "default" then
+      return true
+    end
+    
+    local component = self:getComponent()
+    
+    -- If no component, warn that themeStateLock has no effect
+    if not component then
+      if self.themeComponent then
+        Theme._ErrorHandler:warn("Theme", "THM_007", {
+          themeComponent = self.themeComponent,
+          reason = "themeStateLock has no effect without a valid theme component",
+        })
+      end
+      self.themeStateLock = false
+      return false
+    end
+    
+    -- Check if component has any states at all
+    if not component.states or type(component.states) ~= "table" or next(component.states) == nil then
+      Theme._ErrorHandler:warn("Theme", "THM_008", {
+        themeComponent = self.themeComponent,
+        reason = "Theme component has no state variants, themeStateLock has no effect",
+      })
+      self.themeStateLock = false
+      return false
+    end
+    
+    -- Check if the specified state exists
+    if not component.states[self.themeStateLock] then
+      -- Warn and fall back to false (no lock)
+      Theme._ErrorHandler:warn("Theme", "THM_009", {
+        themeComponent = self.themeComponent,
+        requestedState = self.themeStateLock,
+        availableStates = table.concat(self:_getAvailableStates(component), ", "),
+        fallback = "themeStateLock disabled (using dynamic state)",
+      })
+      self.themeStateLock = false
+      return false
+    end
+    
+    return true
+  end
+  
+  -- Invalid type for themeStateLock
+  Theme._ErrorHandler:warn("Theme", "THM_010", {
+    themeStateLockType = type(self.themeStateLock),
+    reason = "themeStateLock must be boolean or string",
+    fallback = "themeStateLock disabled",
+  })
+  self.themeStateLock = false
+  return false
+end
+
+---Get available state names for a component
+---@param component ThemeComponent The component to check
+---@return table stateNames Array of state names
+function ThemeManager:_getAvailableStates(component)
+  local states = {}
+  if component and component.states and type(component.states) == "table" then
+    for stateName, _ in pairs(component.states) do
+      table.insert(states, stateName)
+    end
+  end
+  return states
 end
 
 Theme.Manager = ThemeManager

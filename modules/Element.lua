@@ -309,9 +309,15 @@ function Element.new(props)
     disabled = props.disabled or false,
     active = props.active or false,
     disableHighlight = props.disableHighlight,
+    themeStateLock = props.themeStateLock or false,
     scaleCorners = props.scaleCorners,
     scalingAlgorithm = props.scalingAlgorithm,
   })
+  
+  -- Validate themeStateLock after ThemeManager is created
+  if props.themeStateLock and props.themeComponent then
+    self._themeManager:validateThemeStateLock()
+  end
 
   -- Expose theme properties for backward compatibility
   self.theme = self._themeManager.theme

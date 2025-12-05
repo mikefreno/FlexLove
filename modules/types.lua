@@ -91,6 +91,7 @@ local AnimationProps = {}
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false, or true when using themeComponent)
+---@field themeStateLock boolean|string? -- Lock theme state: true/"default" = lock to base state, false = normal behavior, string = specific state ("hover", "pressed", "active", "disabled") (default: false)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Multiplier for auto-sized content dimensions (default: sourced from theme or {1, 1})
 ---@field scaleCorners number? -- Scale multiplier for 9-patch corners/edges. E.g., 2 = 2x size (overrides theme setting)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Scaling algorithm for 9-patch corners: "nearest" (sharp/pixelated) or "bilinear" (smooth) (overrides theme setting)

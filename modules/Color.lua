@@ -4,14 +4,18 @@
 ---@field b number Blue component (0-1)
 ---@field a number Alpha component (0-1)
 ---@field _ErrorHandler table? ErrorHandler module dependency
+---@field _FFI table? FFI module dependency
+---@field _useFFI boolean Whether to use FFI optimizations
 local Color = {}
 Color.__index = Color
 
 --- Initialize module with shared dependencies
----@param deps table Dependencies {ErrorHandler}
+---@param deps table Dependencies {ErrorHandler, FFI}
 function Color.init(deps)
   if type(deps) == "table" then
     Color._ErrorHandler = deps.ErrorHandler
+    Color._FFI = deps.FFI
+    Color._useFFI = deps.FFI and deps.FFI.enabled or false
   end
 end
 
@@ -23,14 +27,16 @@ end
 ---@param a number? Alpha component (0-1), defaults to 1
 ---@return Color color The new color instance
 function Color.new(r, g, b, a)
-  local self = setmetatable({}, Color)
-
   -- Sanitize and clamp color components
   local _, sanitizedR = Color.validateColorChannel(r or 0, 1)
   local _, sanitizedG = Color.validateColorChannel(g or 0, 1)
   local _, sanitizedB = Color.validateColorChannel(b or 0, 1)
   local _, sanitizedA = Color.validateColorChannel(a or 1, 1)
 
+  -- Note: We don't use FFI for colors because they need methods (toRGBA, etc.)
+  -- FFI structs don't support metatables/methods without wrapping
+  -- The wrapping overhead negates the FFI benefits
+  local self = setmetatable({}, Color)
   self.r = sanitizedR or 0
   self.g = sanitizedG or 0
   self.b = sanitizedB or 0
@@ -337,13 +343,16 @@ function Color.lerp(colorA, colorB, t)
   -- Clamp t to 0-1 range
   t = math.max(0, math.min(1, t))
 
-  -- Linear interpolation for each channel
-  local r = colorA.r * (1 - t) + colorB.r * t
-  local g = colorA.g * (1 - t) + colorB.g * t
-  local b = colorA.b * (1 - t) + colorB.b * t
-  local a = colorA.a * (1 - t) + colorB.a * t
+  -- Linear interpolation for each channel (optimized for both FFI and Lua)
+  local oneMinusT = 1 - t
+  local r = colorA.r * oneMinusT + colorB.r * t
+  local g = colorA.g * oneMinusT + colorB.g * t
+  local b = colorA.b * oneMinusT + colorB.b * t
+  local a = colorA.a * oneMinusT + colorB.a * t
 
   return Color.new(r, g, b, a)
 end
+
+
 
 return Color

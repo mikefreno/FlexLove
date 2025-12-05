@@ -9,6 +9,8 @@
 ---@field logWarnings boolean
 ---@field warningsEnabled boolean
 ---@field _ErrorHandler table?
+---@field _FFI table?
+---@field _useFFI boolean
 ---@field _timers table
 ---@field _metrics table
 ---@field _lastMetricsCleanup number
@@ -30,7 +32,7 @@ local MAX_METRICS_COUNT = 500
 local CORE_METRICS = { frame = true, layout = true, render = true }
 
 ---@param config {enabled?: boolean, hudEnabled?: boolean, hudToggleKey?: string, hudPosition?: {x: number, y: number}, warningThresholdMs?: number, criticalThresholdMs?: number, logToConsole?: boolean, logWarnings?: boolean, warningsEnabled?: boolean, memoryProfiling?: boolean}?
----@param deps {ErrorHandler: ErrorHandler}
+---@param deps {ErrorHandler: ErrorHandler, FFI: table?}
 ---@return Performance
 function Performance.init(config, deps)
   if instance == nil then
@@ -46,6 +48,10 @@ function Performance.init(config, deps)
     self.logToConsole = config and config.logToConsole or false
     self.logWarnings = config and config.logWarnings or true
     self.warningsEnabled = config and config.warningsEnabled or true
+
+    -- FFI optimization
+    self._FFI = deps and deps.FFI
+    self._useFFI = self._FFI and self._FFI.enabled or false
 
     self._timers = {}
     self._metrics = {}

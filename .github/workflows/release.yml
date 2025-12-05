@@ -178,15 +178,20 @@ jobs:
         id: release_notes
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          CURRENT_TAG="v${VERSION}"
+          REPO="${{ github.repository }}"
           
-          # Get the previous tag
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          # Get the previous tag (exclude current tag if it exists)
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1)
           
           # Generate changelog
           if [ -n "$PREVIOUS_TAG" ]; then
             echo "## Changes since $PREVIOUS_TAG" > release_notes.md
             echo "" >> release_notes.md
-            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s" --no-merges >> release_notes.md
+            # Get commits between tags with links, excluding [skip ci] commits and version release commits
+            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- [%s](https://github.com/${REPO}/commit/%H)" --no-merges | \
+              grep -v "\[skip ci\]" | \
+              grep -v " release\]" >> release_notes.md || echo "- No notable changes" >> release_notes.md
             echo "" >> release_notes.md
             echo "" >> release_notes.md
           else

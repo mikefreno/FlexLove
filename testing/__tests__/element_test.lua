@@ -1737,8 +1737,12 @@ function TestElementAutoSizing:test_autosize_with_margin()
     parent = parent,
   })
 
-  -- Parent should size to children (margins don't add to content size in flex layout)
-  luaunit.assertEquals(parent.width, 200)
+  -- Parent should size to children including margins (flexbox includes margins in sizing)
+  -- Child1: 100px + 20px right margin = 120px
+  -- Child2: 20px left margin + 100px = 120px
+  -- Total width: 240px
+  -- Max height: 100px (no vertical margins)
+  luaunit.assertEquals(parent.width, 240)
   luaunit.assertEquals(parent.height, 100)
 end
 

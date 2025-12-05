@@ -634,6 +634,55 @@ function LayoutEngine:layoutChildren()
   end
 end
 
+--- Simulate wrapping children into lines for auto-sizing calculations
+---@param children table Array of child elements
+---@param availableSize number Available space in main axis
+---@param isHorizontal boolean True if flex direction is horizontal
+---@return table Array of lines, where each line is an array of children
+function LayoutEngine:_simulateWrap(children, availableSize, isHorizontal)
+  local lines = {}
+  local currentLine = {}
+  local currentLineSize = 0
+
+  for _, child in ipairs(children) do
+    -- Calculate child size in main axis (including margins)
+    local childMainSize = 0
+    local childMainMargin = 0
+    if isHorizontal then
+      childMainSize = child:getBorderBoxWidth()
+      if child.margin then
+        childMainMargin = child.margin.left + child.margin.right
+      end
+    else
+      childMainSize = child:getBorderBoxHeight()
+      if child.margin then
+        childMainMargin = child.margin.top + child.margin.bottom
+      end
+    end
+    local childTotalMainSize = childMainSize + childMainMargin
+
+    -- Check if adding this child would exceed the available space
+    local lineSpacing = #currentLine > 0 and self.gap or 0
+    if #currentLine > 0 and currentLineSize + lineSpacing + childTotalMainSize > availableSize then
+      -- Start a new line
+      table.insert(lines, currentLine)
+      currentLine = { child }
+      currentLineSize = childTotalMainSize
+    else
+      -- Add to current line
+      table.insert(currentLine, child)
+      currentLineSize = currentLineSize + lineSpacing + childTotalMainSize
+    end
+  end
+
+  -- Add the last line if it has children
+  if #currentLine > 0 then
+    table.insert(lines, currentLine)
+  end
+
+  return lines
+end
+
 --- Calculate auto width based on children
 ---@return number
 function LayoutEngine:calculateAutoWidth()
@@ -647,32 +696,72 @@ function LayoutEngine:calculateAutoWidth()
     return contentWidth
   end
 
-  -- For HORIZONTAL flex: sum children widths + gaps
-  -- For VERTICAL flex: max of children widths
-  local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
-  local totalWidth = contentWidth
-  local maxWidth = contentWidth
-  local participatingChildren = 0
-
+  -- Get flex children (children that participate in flex layout)
+  local flexChildren = {}
   for _, child in ipairs(self.element.children) do
-    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box width for auto-sizing calculations
-      local childBorderBoxWidth = child:getBorderBoxWidth()
-      if isHorizontal then
-        totalWidth = totalWidth + childBorderBoxWidth
-      else
-        maxWidth = math.max(maxWidth, childBorderBoxWidth)
-      end
-      participatingChildren = participatingChildren + 1
+      table.insert(flexChildren, child)
     end
   end
 
+  if #flexChildren == 0 then
+    return contentWidth
+  end
+
+  local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+  
   if isHorizontal then
-    -- Add gaps between children (n-1 gaps for n children)
-    local gapCount = math.max(0, participatingChildren - 1)
-    return totalWidth + (self.gap * gapCount)
+    -- HORIZONTAL flex with potential wrapping
+    if self.flexWrap ~= self._FlexWrap.NOWRAP and self.element.width and self.element.width > 0 then
+      -- Container has explicit width and wrapping enabled - calculate based on wrapped lines
+      local availableWidth = self.element.width
+      local lines = self:_simulateWrap(flexChildren, availableWidth, true)
+      
+      -- Find the widest line
+      local maxLineWidth = contentWidth
+      for _, line in ipairs(lines) do
+        local lineWidth = 0
+        for i, child in ipairs(line) do
+          local childBorderBoxWidth = child:getBorderBoxWidth()
+          local childMarginH = 0
+          if child.margin then
+            childMarginH = child.margin.left + child.margin.right
+          end
+          lineWidth = lineWidth + childBorderBoxWidth + childMarginH
+          if i < #line then
+            lineWidth = lineWidth + self.gap
+          end
+        end
+        maxLineWidth = math.max(maxLineWidth, lineWidth)
+      end
+      return maxLineWidth
+    else
+      -- No wrapping or no explicit width - sum all children on one line
+      local totalWidth = contentWidth
+      for i, child in ipairs(flexChildren) do
+        local childBorderBoxWidth = child:getBorderBoxWidth()
+        local childMarginH = 0
+        if child.margin then
+          childMarginH = child.margin.left + child.margin.right
+        end
+        totalWidth = totalWidth + childBorderBoxWidth + childMarginH
+        if i < #flexChildren then
+          totalWidth = totalWidth + self.gap
+        end
+      end
+      return totalWidth
+    end
   else
+    -- VERTICAL flex - return max child width (including margins)
+    local maxWidth = contentWidth
+    for _, child in ipairs(flexChildren) do
+      local childBorderBoxWidth = child:getBorderBoxWidth()
+      local childMarginH = 0
+      if child.margin then
+        childMarginH = child.margin.left + child.margin.right
+      end
+      maxWidth = math.max(maxWidth, childBorderBoxWidth + childMarginH)
+    end
     return maxWidth
   end
 end
@@ -688,33 +777,99 @@ function LayoutEngine:calculateAutoHeight()
     return height
   end
 
-  -- For VERTICAL flex: sum children heights + gaps
-  -- For HORIZONTAL flex: max of children heights
-  local isVertical = self.flexDirection == self._FlexDirection.VERTICAL
-  local totalHeight = height
-  local maxHeight = height
-  local participatingChildren = 0
-
+  -- Get flex children (children that participate in flex layout)
+  local flexChildren = {}
   for _, child in ipairs(self.element.children) do
-    -- Skip explicitly absolute positioned children as they don't affect parent auto-sizing
     if not child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box height for auto-sizing calculations
-      local childBorderBoxHeight = child:getBorderBoxHeight()
-      if isVertical then
-        totalHeight = totalHeight + childBorderBoxHeight
-      else
-        maxHeight = math.max(maxHeight, childBorderBoxHeight)
-      end
-      participatingChildren = participatingChildren + 1
+      table.insert(flexChildren, child)
     end
   end
 
+  if #flexChildren == 0 then
+    return height
+  end
+
+  local isVertical = self.flexDirection == self._FlexDirection.VERTICAL
+  
   if isVertical then
-    -- Add gaps between children (n-1 gaps for n children)
-    local gapCount = math.max(0, participatingChildren - 1)
-    return totalHeight + (self.gap * gapCount)
+    -- VERTICAL flex with potential wrapping
+    if self.flexWrap ~= self._FlexWrap.NOWRAP and self.element.height and self.element.height > 0 then
+      -- Container has explicit height and wrapping enabled - calculate based on wrapped lines
+      local availableHeight = self.element.height
+      local lines = self:_simulateWrap(flexChildren, availableHeight, false)
+      
+      -- Sum all line heights
+      local totalLinesHeight = height
+      for i, line in ipairs(lines) do
+        local lineHeight = 0
+        for _, child in ipairs(line) do
+          local childBorderBoxHeight = child:getBorderBoxHeight()
+          local childMarginV = 0
+          if child.margin then
+            childMarginV = child.margin.top + child.margin.bottom
+          end
+          lineHeight = math.max(lineHeight, childBorderBoxHeight + childMarginV)
+        end
+        totalLinesHeight = totalLinesHeight + lineHeight
+        if i < #lines then
+          totalLinesHeight = totalLinesHeight + self.gap
+        end
+      end
+      return totalLinesHeight
+    else
+      -- No wrapping or no explicit height - sum all children on one line
+      local totalHeight = height
+      for i, child in ipairs(flexChildren) do
+        local childBorderBoxHeight = child:getBorderBoxHeight()
+        local childMarginV = 0
+        if child.margin then
+          childMarginV = child.margin.top + child.margin.bottom
+        end
+        totalHeight = totalHeight + childBorderBoxHeight + childMarginV
+        if i < #flexChildren then
+          totalHeight = totalHeight + self.gap
+        end
+      end
+      return totalHeight
+    end
   else
-    return maxHeight
+    -- HORIZONTAL flex with potential wrapping
+    if self.flexWrap ~= self._FlexWrap.NOWRAP and self.element.width and self.element.width > 0 then
+      -- Container has explicit width and wrapping enabled - calculate based on wrapped lines
+      local availableWidth = self.element.width
+      local lines = self:_simulateWrap(flexChildren, availableWidth, true)
+      
+      -- Sum all line heights (cross-axis for horizontal flex)
+      local totalLinesHeight = height
+      for i, line in ipairs(lines) do
+        local lineHeight = 0
+        for _, child in ipairs(line) do
+          local childBorderBoxHeight = child:getBorderBoxHeight()
+          local childMarginV = 0
+          if child.margin then
+            childMarginV = child.margin.top + child.margin.bottom
+          end
+          lineHeight = math.max(lineHeight, childBorderBoxHeight + childMarginV)
+        end
+        totalLinesHeight = totalLinesHeight + lineHeight
+        if i < #lines then
+          totalLinesHeight = totalLinesHeight + self.gap
+        end
+      end
+      return totalLinesHeight
+    else
+      -- No wrapping or no explicit width - return max child height (including margins)
+      local maxHeight = height
+      for _, child in ipairs(flexChildren) do
+        local childBorderBoxHeight = child:getBorderBoxHeight()
+        local childMarginV = 0
+        if child.margin then
+          childMarginV = child.margin.top + child.margin.bottom
+        end
+        maxHeight = math.max(maxHeight, childBorderBoxHeight + childMarginV)
+      end
+      return maxHeight
+    end
   end
 end
 

@@ -56,7 +56,7 @@ local enums = utils.enums
 
 ---@class FlexLove
 local flexlove = Context
-flexlove._VERSION = "0.5.3"
+flexlove._VERSION = "0.5.4"
 flexlove._DESCRIPTION = "UI Library for LÖVE Framework based on flexbox"
 flexlove._URL = "https://github.com/mikefreno/FlexLove"
 flexlove._LICENSE = [[

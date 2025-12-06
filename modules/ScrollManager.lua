@@ -86,7 +86,12 @@ function ScrollManager.new(config, deps)
   self.scrollBarStyle = config.scrollBarStyle -- Theme scrollbar style name (nil = use default)
 
   -- scrollbarKnobOffset can be number or table {x, y} or {horizontal, vertical}
-  self.scrollbarKnobOffset = self._utils.normalizeOffsetTable(config.scrollbarKnobOffset, 0)
+  -- Only normalize if actually provided (nil means use theme default)
+  if config.scrollbarKnobOffset ~= nil then
+    self.scrollbarKnobOffset = self._utils.normalizeOffsetTable(config.scrollbarKnobOffset, 0)
+  else
+    self.scrollbarKnobOffset = nil
+  end
 
   -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
   self.hideScrollbars = self._utils.normalizeBooleanTable(config.hideScrollbars, false)

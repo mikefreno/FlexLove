@@ -1056,12 +1056,17 @@ function TestScrollManagerEdgeCases:testScrollbarKnobOffsetTableHorizontalVertic
 end
 
 function TestScrollManagerEdgeCases:testScrollbarKnobOffsetDefault()
+  -- When not provided, scrollbarKnobOffset should be nil (use theme default)
   local sm = createScrollManager({})
-  luaunit.assertNotNil(sm.scrollbarKnobOffset)
-  luaunit.assertEquals(sm.scrollbarKnobOffset.x, 0)
-  luaunit.assertEquals(sm.scrollbarKnobOffset.y, 0)
-  luaunit.assertEquals(sm.scrollbarKnobOffset.horizontal, 0)
-  luaunit.assertEquals(sm.scrollbarKnobOffset.vertical, 0)
+  luaunit.assertNil(sm.scrollbarKnobOffset)
+  
+  -- When explicitly set to 0, it should be normalized
+  local sm2 = createScrollManager({ scrollbarKnobOffset = 0 })
+  luaunit.assertNotNil(sm2.scrollbarKnobOffset)
+  luaunit.assertEquals(sm2.scrollbarKnobOffset.x, 0)
+  luaunit.assertEquals(sm2.scrollbarKnobOffset.y, 0)
+  luaunit.assertEquals(sm2.scrollbarKnobOffset.horizontal, 0)
+  luaunit.assertEquals(sm2.scrollbarKnobOffset.vertical, 0)
 end
 
 function TestScrollManagerEdgeCases:testScrollbarKnobOffsetStatePersistence()

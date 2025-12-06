@@ -71,12 +71,18 @@ end
 ## Quick Demos
 All of the following use the [metal theme](./themes/metal.lua)
 ![Basic Layout](./resources/basic.png)
+
+https://github.com/user-attachments/assets/39d958ce-f9e6-4ac6-9920-ac512f4612e9
+
+https://github.com/user-attachments/assets/00984a74-c59b-4030-b6eb-65d08b9655e6
+
+https://github.com/user-attachments/assets/922b38eb-a186-4a1a-b748-aa7815203f1a
+
+https://github.com/user-attachments/assets/9840f61b-4f60-4f63-ab3b-912c7da7ad14
+
+https://github.com/user-attachments/assets/388e0f59-8f93-420a-8b4c-efb9bccab251
+
 ![Backdrop Blur](./resources/backdropblur.png)
-![Responsive Design](./resources/resizing.mp4)
-![Responsive Elements](./resources/responsive-elements.mp4)
-![Scrollables](./resources/scrollable.mp4)
-[![Sliders](./resources/slider.mp4)]
-![Text Input](./resources/textInput.mp4)
 
 ## Build Profiles
 

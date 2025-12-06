@@ -75,7 +75,7 @@ All of the following use the [metal theme](./themes/metal.lua)
 ![Responsive Design](./resources/resizing.mp4)
 ![Responsive Elements](./resources/responsive-elements.mp4)
 ![Scrollables](./resources/scrollable.mp4)
-![Sliders](./resources/slider.mp4)
+[![Sliders](./resources/slider.mp4)]
 ![Text Input](./resources/textInput.mp4)
 
 ## Build Profiles
@@ -173,11 +173,6 @@ local button2 = FlexLove.new({
 
 ```
 
-**Best for:**
-- Complex UIs with many persistent elements
-- Elements that maintain state over time
-- UIs that don't change frequently
-
 #### Immediate Mode
 In immediate mode, you recreate UI elements every frame based on your application state. This approach can be simpler for dynamic UIs that change frequently.
 There is of course some overhead for this, which is why it is not the default behavior.
@@ -204,12 +199,6 @@ local button2 = FlexLove.new({
 })
 
 ```
-
-**Best for:**
-- Simple UIs that change frequently
-- Procedurally generated interfaces
-- Debugging and development tools
-- UIs driven directly by application state
 
 You should be able to mix both modes in the same application - use retained mode for your main UI and immediate mode for debug overlays or dynamic elements,
 though this hasn't been tested.

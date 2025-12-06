@@ -38,33 +38,34 @@ likely.
 ```lua
 local FlexLove = require("FlexLove")
 
--- Initialize with base scaling and theme
+-- (Optional) Initialize with a theme and immediate mode
 FlexLove.init({
-  baseScale = { width = 1920, height = 1080 },
   theme = "space"
-  immediateMode = true -- Optional: enable immediate mode (default: false)
+  immediateMode = true
 })
 
--- Create a button with flexbox layout
-local button = FlexLove.new({
-  width = "20vw",
-  height = "10vh",
-  backgroundColor = Color.new(0.2, 0.2, 0.8, 1),
-  text = "Click Me",
-  textSize = "md",
-  themeComponent = "button",
-  onEvent = function(element, event)
-    print("Button clicked!")
-  end
-})
-
--- In your love.update and love.draw:
 function love.update(dt)
   FlexLove.update(dt)
 end
 
 function love.draw()
-  FlexLove.draw()
+    FlexLove.draw(function()
+        -- Game content (will be blurred by backdrop blur)
+        local button = FlexLove.new({
+        width = "20vw",
+        height = "10vh",
+        backgroundColor = Color.new(0.2, 0.2, 0.8, 1),
+        text = "Click Me",
+        textSize = "md",
+        themeComponent = "button",
+        onEvent = function(element, event)
+            print("Button clicked!")
+    end
+    })
+    end, function()
+        -- This is drawn AFTER all GUI elements - no backdrop blur
+        SomeMetaComponent:draw()
+    end)
 end
 ```
 

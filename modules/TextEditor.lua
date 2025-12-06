@@ -1,4 +1,5 @@
-local utf8 = utf8 or require("utf8")
+local UTF8 = require((...):match("(.-)[^%.]+$") .. "UTF8")
+local utf8 = UTF8
 
 ---@class TextEditor
 ---@field editable boolean

@@ -1,3 +1,5 @@
+local UTF8 = require((...):match("(.-)[^%.]+$") .. "UTF8")
+
 ---@class Renderer
 ---@field backgroundColor Color
 ---@field borderColor Color
@@ -463,7 +465,7 @@ end
 ---@return table Array of {text, startIdx, endIdx}
 function Renderer:wrapLine(element, line, maxWidth)
   -- UTF-8 support
-  local utf8 = utf8 or require("utf8")
+  local utf8 = UTF8
 
   if not element.editable then
     return { { text = line, startIdx = 0, endIdx = utf8.len(line) } }

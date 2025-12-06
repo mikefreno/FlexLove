@@ -15,16 +15,19 @@ This interactive script will:
 2. Ask you to select: Major / Minor / Patch / Custom version bump
 3. Calculate the new version (resetting lower components to 0)
 4. Update `FlexLove.lua` with the new version
-5. Update `README.md` first line with the new version
-6. Create a git commit: `v{version} release`
-7. Create a git tag: `v{version}`
-8. Prompt you to push the changes
+5. Update `docs/index.html` footer version
+6. Create/update rockspec file: `flexlove-{version}-1.rockspec`
+7. Create a git commit: `v{version} release`
+8. Create a git tag: `v{version}`
+9. Push changes and tag to GitHub
 
 After pushing the tag, GitHub Actions automatically:
 - Archives previous documentation
 - Generates new documentation  
 - Creates 4 build profile packages (minimal, slim, default, full) with SHA256 checksums
 - Publishes GitHub release with all profile packages
+
+The script will display next steps for publishing to LuaRocks (see [LUAROCKS_PUBLISHING.md](LUAROCKS_PUBLISHING.md)).
 
 ### Example Usage
 
@@ -124,6 +127,7 @@ shasum -a 256 -c flexlove-*-v0.3.0.zip.sha256
 ## Release Checklist
 
 - [ ] Version updated in `FlexLove.lua`
+- [ ] Rockspec created/updated (automated by `make-tag.sh`)
 - [ ] Documentation regenerated (`./scripts/generate_docs.sh`)
 - [ ] Changes committed and pushed
 - [ ] Profile packages created (`./scripts/create-profile-packages.sh`)
@@ -131,6 +135,7 @@ shasum -a 256 -c flexlove-*-v0.3.0.zip.sha256
 - [ ] All profile packages tested
 - [ ] Git tag created and pushed
 - [ ] GitHub release published with all 4 profile packages and checksums
+- [ ] Published to LuaRocks (`luarocks upload flexlove-{version}-1.rockspec`)
 
 ## Versioning
 
@@ -211,6 +216,43 @@ unzip flexlove-default-v0.3.0.zip
 **macOS/Linux:** Use `shasum -a 256 -c`  
 **Windows:** Use `certutil -hashfile flexlove-<profile>-v0.3.0.zip SHA256` and compare manually
 
+## Publishing to LuaRocks
+
+After creating a GitHub release, publish to LuaRocks for easy installation:
+
+### First-Time Setup
+
+1. Create a LuaRocks account at [https://luarocks.org/register](https://luarocks.org/register)
+2. Get your API key from [https://luarocks.org/settings/api-keys](https://luarocks.org/settings/api-keys)
+3. Configure it locally:
+   ```bash
+   luarocks config api-key YOUR_API_KEY_HERE
+   ```
+
+### Publishing a Release
+
+The `make-tag.sh` script automatically creates the rockspec file. After the tag is pushed:
+
+```bash
+# Upload to LuaRocks
+luarocks upload flexlove-{version}-1.rockspec
+
+# Example for version 0.5.5:
+luarocks upload flexlove-0.5.5-1.rockspec
+```
+
+### Verifying Publication
+
+```bash
+# Search for your package
+luarocks search flexlove
+
+# Test installation
+luarocks install flexlove
+```
+
+For detailed instructions, see [LUAROCKS_PUBLISHING.md](LUAROCKS_PUBLISHING.md).
+
 ## Automated Releases (Future)
 
 Consider adding GitHub Actions workflow to automate:
@@ -218,5 +260,6 @@ Consider adding GitHub Actions workflow to automate:
 - Release package creation
 - Documentation deployment
 - GitHub release creation
+- LuaRocks publishing
 
 See `.github/workflows/release.yml` (to be created)

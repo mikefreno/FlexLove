@@ -113,8 +113,9 @@ echo ""
 echo -e "${YELLOW}This will:${NC}"
 echo "  1. Update FlexLove.lua → flexlove._VERSION = \"${NEW_VERSION}\""
 echo "  2. Update docs/index.html → footer version"
-echo "  3. Stage changes for commit"
-echo "  4. Create git tag v${NEW_VERSION}"
+echo "  3. Create/update rockspec → flexlove-${NEW_VERSION}-1.rockspec"
+echo "  4. Stage changes for commit"
+echo "  5. Create git tag v${NEW_VERSION}"
 echo ""
 read -p "Proceed? (y/n) " -n 1 -r
 echo ""
@@ -124,12 +125,12 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-echo -e "${CYAN}[1/3]${NC} Updating FlexLove.lua..."
+echo -e "${CYAN}[1/4]${NC} Updating FlexLove.lua..."
 sed -i.bak "s/flexlove\._VERSION = \".*\"/flexlove._VERSION = \"${NEW_VERSION}\"/" FlexLove.lua
 rm -f FlexLove.lua.bak
 echo -e "${GREEN}✓ FlexLove.lua updated${NC}"
 
-echo -e "${CYAN}[2/3]${NC} Updating docs/index.html..."
+echo -e "${CYAN}[2/4]${NC} Updating docs/index.html..."
 if [ -f docs/index.html ]; then
   sed -i.bak -E "s/FlexLöve v[0-9]+\.[0-9]+\.[0-9]+/FlexLöve v${NEW_VERSION}/" docs/index.html
   rm -f docs/index.html.bak
@@ -138,8 +139,31 @@ else
   echo -e "${YELLOW}⚠ docs/index.html not found, skipping${NC}"
 fi
 
-echo -e "${CYAN}[3/3]${NC} Staging changes..."
-git add FlexLove.lua docs/index.html
+echo -e "${CYAN}[3/4]${NC} Creating/updating rockspec..."
+# Find the most recent rockspec to use as template
+LATEST_ROCKSPEC=$(ls -1 flexlove-*.rockspec 2>/dev/null | sort -V | tail -n 1)
+NEW_ROCKSPEC="flexlove-${NEW_VERSION}-1.rockspec"
+
+if [ -n "$LATEST_ROCKSPEC" ] && [ -f "$LATEST_ROCKSPEC" ]; then
+  # Copy existing rockspec and update version/tag
+  cp "$LATEST_ROCKSPEC" "$NEW_ROCKSPEC"
+  # Update version line
+  sed -i.bak "s/^version = \".*\"/version = \"${NEW_VERSION}-1\"/" "$NEW_ROCKSPEC"
+  # Update tag line
+  sed -i.bak "s/tag = \"v.*\"/tag = \"v${NEW_VERSION}\"/" "$NEW_ROCKSPEC"
+  rm -f "${NEW_ROCKSPEC}.bak"
+  echo -e "${GREEN}✓ Created ${NEW_ROCKSPEC} from ${LATEST_ROCKSPEC}${NC}"
+else
+  echo -e "${YELLOW}⚠ No existing rockspec found, skipping rockspec creation${NC}"
+  echo -e "${YELLOW}  You can manually create one later or run this script again${NC}"
+fi
+
+echo -e "${CYAN}[4/4]${NC} Staging changes..."
+if [ -f "$NEW_ROCKSPEC" ]; then
+  git add FlexLove.lua docs/index.html "$NEW_ROCKSPEC"
+else
+  git add FlexLove.lua docs/index.html
+fi
 echo -e "${GREEN}✓ Changes staged${NC}"
 
 echo ""
@@ -158,7 +182,11 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "You can:"
   echo "  - Review changes: git diff --cached"
   echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
-  echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html"
+  if [ -f "$NEW_ROCKSPEC" ]; then
+    echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html ${NEW_ROCKSPEC}"
+  else
+    echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html"
+  fi
   exit 0
 fi
 
@@ -186,13 +214,17 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "You can:"
   echo "  - Review changes: git diff --cached"
   echo "  - Commit manually: git commit -m 'v${NEW_VERSION} release'"
-  echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html"
+  if [ -f "$NEW_ROCKSPEC" ]; then
+    echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html ${NEW_ROCKSPEC}"
+  else
+    echo "  - Unstage: git restore --staged FlexLove.lua docs/index.html"
+  fi
   exit 0
 fi
 
 # Commit changes
 echo ""
-echo -e "${CYAN}[4/4]${NC} Committing and tagging..."
+echo -e "${CYAN}[5/5]${NC} Committing and tagging..."
 git commit -m "$COMMIT_MSG"
 git tag -a "v${NEW_VERSION}" -m "Release version ${NEW_VERSION}"
 
@@ -254,7 +286,20 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo -e "${CYAN}Version:${NC} ${CURRENT_VERSION} → ${GREEN}${NEW_VERSION}${NC}"
 echo -e "${CYAN}Tag created:${NC} ${GREEN}v${NEW_VERSION}${NC}"
+if [ -f "$NEW_ROCKSPEC" ]; then
+  echo -e "${CYAN}Rockspec:${NC} ${GREEN}${NEW_ROCKSPEC}${NC}"
+fi
 echo ""
 echo -e "${BLUE}Release will be available at:${NC}"
 echo "  https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')/releases/tag/v${NEW_VERSION}"
 echo ""
+if [ -f "$NEW_ROCKSPEC" ]; then
+  echo -e "${BLUE}Next steps for LuaRocks publishing:${NC}"
+  echo "  1. Wait for GitHub Actions to complete"
+  echo "  2. Upload to LuaRocks:"
+  echo "     ${CYAN}luarocks upload ${NEW_ROCKSPEC}${NC}"
+  echo ""
+  echo -e "${YELLOW}Note: Ensure you have your LuaRocks API key configured${NC}"
+  echo "  ${CYAN}luarocks config api-key YOUR_API_KEY${NC}"
+  echo ""
+fi

@@ -801,33 +801,37 @@ function Renderer:drawText(element)
     end
 
     -- Draw selection highlight for editable elements
-    if element._textEditor and element._textEditor:isFocused() and element._textEditor:hasSelection() and element.text and element.text ~= "" then
-      local selStart, selEnd = element._textEditor:getSelection()
-      local selectionColor = element.selectionColor or self._Color.new(0.3, 0.5, 0.8, 0.5)
-      local selectionWithOpacity = self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
+    if element._textEditor and element._textEditor:isFocused() and element._textEditor:hasSelection() then
+      -- For editable elements, check TextEditor buffer instead of element.text
+      local textBuffer = element._textEditor:getText()
+      if textBuffer and textBuffer ~= "" then
+        local selStart, selEnd = element._textEditor:getSelection()
+        local selectionColor = element.selectionColor or self._Color.new(0.3, 0.5, 0.8, 0.5)
+        local selectionWithOpacity = self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
 
-      -- Get selection rectangles from TextEditor
-      local selectionRects = element._textEditor:_getSelectionRects(element, selStart, selEnd)
+        -- Get selection rectangles from TextEditor
+        local selectionRects = element._textEditor:_getSelectionRects(element, selStart, selEnd)
 
-      -- Apply scissor for single-line editable inputs
-      if not element.multiline then
-        love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
-      end
-
-      -- Draw selection background rectangles
-      love.graphics.setColor(selectionWithOpacity:toRGBA())
-      for _, rect in ipairs(selectionRects) do
-        local rectX = contentX + rect.x
-        local rectY = contentY + rect.y
-        if not element.multiline and element._textEditor._textScrollX then
-          rectX = rectX - element._textEditor._textScrollX
+        -- Apply scissor for single-line editable inputs
+        if not element.multiline then
+          love.graphics.setScissor(contentX, contentY, textAreaWidth, textAreaHeight)
         end
-        love.graphics.rectangle("fill", rectX, rectY, rect.width, rect.height)
-      end
 
-      -- Reset scissor
-      if not element.multiline then
-        love.graphics.setScissor()
+        -- Draw selection background rectangles
+        love.graphics.setColor(selectionWithOpacity:toRGBA())
+        for _, rect in ipairs(selectionRects) do
+          local rectX = contentX + rect.x
+          local rectY = contentY + rect.y
+          if not element.multiline and element._textEditor._textScrollX then
+            rectX = rectX - element._textEditor._textScrollX
+          end
+          love.graphics.rectangle("fill", rectX, rectY, rect.width, rect.height)
+        end
+
+        -- Reset scissor
+        if not element.multiline then
+          love.graphics.setScissor()
+        end
       end
     end
 

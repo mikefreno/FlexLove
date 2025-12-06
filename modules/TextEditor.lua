@@ -1500,14 +1500,14 @@ end
 ---@param mouseX number
 ---@param mouseY number
 function TextEditor:handleTextDrag(element, mouseX, mouseY)
-  if not self._focused or not self._mouseDownPosition then
+  if not self._focused or not element._mouseDownPosition then
     return
   end
 
   local currentPos = self:mouseToTextPosition(element, mouseX, mouseY)
 
-  if currentPos ~= self._mouseDownPosition then
-    self:setSelection(element, self._mouseDownPosition, currentPos)
+  if currentPos ~= element._mouseDownPosition then
+    self:setSelection(element, element._mouseDownPosition, currentPos)
     self._cursorPosition = currentPos
     self._textDragOccurred = true
   else

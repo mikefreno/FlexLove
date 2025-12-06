@@ -416,7 +416,15 @@ function Element.new(props)
       onTextChange = props.onTextChange,
       onEnter = props.onEnter,
     }, textEditorDeps)
-    -- Initialize will be called after self is fully constructed
+
+    -- Restore TextEditor state from StateManager in immediate mode
+    if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
+      local state = Element._StateManager.getState(self._stateId)
+      if state and state.textEditor then
+        -- Restore from nested textEditor state (saved via saveState())
+        self._textEditor:setState(state.textEditor, self)
+      end
+    end
   end
 
   -- Set parent first so it's available for size calculations
@@ -3305,6 +3313,14 @@ function Element:saveState()
     end
   end
 
+  -- Save drag tracking state for text selection
+  if self._mouseDownPosition ~= nil then
+    state._mouseDownPosition = self._mouseDownPosition
+  end
+  if self._textDragOccurred ~= nil then
+    state._textDragOccurred = self._textDragOccurred
+  end
+
   return state
 end
 
@@ -3335,6 +3351,14 @@ function Element:restoreState(state)
   -- Restore ScrollManager state (if exists)
   if self._scrollManager and state.scrollManager then
     self._scrollManager:setState(state.scrollManager)
+  end
+
+  -- Restore drag tracking state for text selection
+  if state._mouseDownPosition ~= nil then
+    self._mouseDownPosition = state._mouseDownPosition
+  end
+  if state._textDragOccurred ~= nil then
+    self._textDragOccurred = state._textDragOccurred
   end
 
   -- Note: Blur cache data is used for invalidation, not restoration

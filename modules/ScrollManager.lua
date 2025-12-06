@@ -31,7 +31,11 @@
 ---@field _scrollbarHoveredHorizontal boolean -- True if mouse is over horizontal scrollbar
 ---@field _scrollbarDragging boolean -- True if currently dragging a scrollbar
 ---@field _hoveredScrollbar string? -- "vertical" or "horizontal" when dragging
----@field _scrollbarDragOffset number -- Offset from thumb top when drag started
+---@field _scrollbarDragOffset number -- DEPRECATED: Offset from thumb top when drag started (kept for compatibility)
+---@field _dragStartMouseX number -- Mouse X position when drag started
+---@field _dragStartMouseY number -- Mouse Y position when drag started
+---@field _dragStartScrollX number -- Scroll X position when drag started
+---@field _dragStartScrollY number -- Scroll Y position when drag started
 ---@field _scrollbarPressHandled boolean -- Track if scrollbar press was handled this frame
 ---@field _touchScrolling boolean -- True if currently touch scrolling
 ---@field _scrollVelocityX number -- Current horizontal scroll velocity (px/s)
@@ -112,7 +116,11 @@ function ScrollManager.new(config, deps)
   self._scrollbarHoveredHorizontal = false
   self._scrollbarDragging = false
   self._hoveredScrollbar = nil -- "vertical" or "horizontal"
-  self._scrollbarDragOffset = 0
+  self._scrollbarDragOffset = 0 -- DEPRECATED: kept for backward compatibility
+  self._dragStartMouseX = 0 -- Mouse X position when drag started
+  self._dragStartMouseY = 0 -- Mouse Y position when drag started
+  self._dragStartScrollX = 0 -- Scroll X position when drag started
+  self._dragStartScrollY = 0 -- Scroll Y position when drag started
   self._scrollbarPressHandled = false
 
   -- Touch scrolling state
@@ -416,26 +424,18 @@ function ScrollManager:handleMousePress(element, mouseX, mouseY, button)
   end
 
   if scrollbar.region == "thumb" then
-    -- Start dragging thumb
+    -- Start dragging thumb - store start positions for relative movement tracking
     self._scrollbarDragging = true
     self._hoveredScrollbar = scrollbar.component
-    local dims = self:calculateScrollbarDimensions(element)
 
-    if scrollbar.component == "vertical" then
-      local contentY = element.y + element.padding.top
-      local trackY = contentY + self.scrollbarPadding
-      local thumbY = trackY + dims.vertical.thumbY
-      self._scrollbarDragOffset = mouseY - thumbY
-    elseif scrollbar.component == "horizontal" then
-      local contentX = element.x + element.padding.left
-      local trackX = contentX + self.scrollbarPadding
-      local thumbX = trackX + dims.horizontal.thumbX
-      self._scrollbarDragOffset = mouseX - thumbX
-    end
+    -- Store drag start positions for relative movement calculation
+    self._dragStartMouseX = mouseX
+    self._dragStartMouseY = mouseY
+    self._dragStartScrollX = self._scrollX
+    self._dragStartScrollY = self._scrollY
 
     return true -- Event consumed
   elseif scrollbar.region == "track" then
-    -- Click on track - jump to position
     self:_scrollToTrackPosition(element, mouseX, mouseY, scrollbar.component)
     return true
   end
@@ -456,34 +456,36 @@ function ScrollManager:handleMouseMove(element, mouseX, mouseY)
   local dims = self:calculateScrollbarDimensions(element)
 
   if self._hoveredScrollbar == "vertical" then
-    local contentY = element.y + element.padding.top
-    local trackY = contentY + self.scrollbarPadding
     local trackH = dims.vertical.trackHeight
     local thumbH = dims.vertical.thumbHeight
 
-    -- Calculate new thumb position
-    local newThumbY = mouseY - self._scrollbarDragOffset - trackY
-    newThumbY = self._utils.clamp(newThumbY, 0, trackH - thumbH)
+    -- Calculate relative mouse movement from drag start
+    local mouseDeltaY = mouseY - self._dragStartMouseY
 
-    -- Convert thumb position to scroll position
-    local scrollRatio = (trackH - thumbH) > 0 and (newThumbY / (trackH - thumbH)) or 0
-    local newScrollY = scrollRatio * self._maxScrollY
+    -- Convert mouse delta to scroll delta
+    -- scrollDelta / maxScroll = thumbDelta / (trackHeight - thumbHeight)
+    local scrollableTrackHeight = trackH - thumbH
+    local scrollDelta = scrollableTrackHeight > 0 and (mouseDeltaY / scrollableTrackHeight) * self._maxScrollY or 0
+
+    local newScrollY = self._dragStartScrollY + scrollDelta
+    newScrollY = self._utils.clamp(newScrollY, 0, self._maxScrollY)
 
     self:setScroll(nil, newScrollY)
     return true
   elseif self._hoveredScrollbar == "horizontal" then
-    local contentX = element.x + element.padding.left
-    local trackX = contentX + self.scrollbarPadding
     local trackW = dims.horizontal.trackWidth
     local thumbW = dims.horizontal.thumbWidth
 
-    -- Calculate new thumb position
-    local newThumbX = mouseX - self._scrollbarDragOffset - trackX
-    newThumbX = self._utils.clamp(newThumbX, 0, trackW - thumbW)
+    -- Calculate relative mouse movement from drag start
+    local mouseDeltaX = mouseX - self._dragStartMouseX
 
-    -- Convert thumb position to scroll position
-    local scrollRatio = (trackW - thumbW) > 0 and (newThumbX / (trackW - thumbW)) or 0
-    local newScrollX = scrollRatio * self._maxScrollX
+    -- Convert mouse delta to scroll delta
+    local scrollableTrackWidth = trackW - thumbW
+    local scrollDelta = scrollableTrackWidth > 0 and (mouseDeltaX / scrollableTrackWidth) * self._maxScrollX or 0
+
+    -- Apply delta to starting scroll position
+    local newScrollX = self._dragStartScrollX + scrollDelta
+    newScrollX = self._utils.clamp(newScrollX, 0, self._maxScrollX)
 
     self:setScroll(newScrollX, nil)
     return true
@@ -646,7 +648,11 @@ function ScrollManager:getState()
     _targetScrollY = self._targetScrollY,
     _scrollbarDragging = self._scrollbarDragging or false,
     _hoveredScrollbar = self._hoveredScrollbar,
-    _scrollbarDragOffset = self._scrollbarDragOffset or 0,
+    _scrollbarDragOffset = self._scrollbarDragOffset or 0, -- Deprecated but kept for compatibility
+    _dragStartMouseX = self._dragStartMouseX or 0,
+    _dragStartMouseY = self._dragStartMouseY or 0,
+    _dragStartScrollX = self._dragStartScrollX or 0,
+    _dragStartScrollY = self._dragStartScrollY or 0,
     _scrollbarHoveredVertical = self._scrollbarHoveredVertical or false,
     _scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal or false,
     scrollBarStyle = self.scrollBarStyle,
@@ -695,6 +701,23 @@ function ScrollManager:setState(state)
     self._scrollbarDragOffset = state.scrollbarDragOffset
   end
 
+  -- Restore drag start positions for relative movement tracking
+  if state._dragStartMouseX ~= nil then
+    self._dragStartMouseX = state._dragStartMouseX
+  end
+
+  if state._dragStartMouseY ~= nil then
+    self._dragStartMouseY = state._dragStartMouseY
+  end
+
+  if state._dragStartScrollX ~= nil then
+    self._dragStartScrollX = state._dragStartScrollX
+  end
+
+  if state._dragStartScrollY ~= nil then
+    self._dragStartScrollY = state._dragStartScrollY
+  end
+
   if state._scrollbarHoveredVertical ~= nil then
     self._scrollbarHoveredVertical = state._scrollbarHoveredVertical
   end
@@ -722,11 +745,11 @@ function ScrollManager:setState(state)
   if state._contentHeight ~= nil then
     self._contentHeight = state._contentHeight
   end
-  
+
   if state._targetScrollX ~= nil then
     self._targetScrollX = state._targetScrollX
   end
-  
+
   if state._targetScrollY ~= nil then
     self._targetScrollY = state._targetScrollY
   end
@@ -864,7 +887,7 @@ function ScrollManager:update(dt)
         self._targetScrollY = nil
       end
     end
-    
+
     if self._targetScrollX then
       local diff = self._targetScrollX - self._scrollX
       if math.abs(diff) > 0.5 then
@@ -875,7 +898,7 @@ function ScrollManager:update(dt)
       end
     end
   end
-  
+
   if not self._momentumScrolling then
     -- Handle bounce back if overscrolled
     if self.bounceEnabled then

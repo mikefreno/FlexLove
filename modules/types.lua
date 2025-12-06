@@ -121,6 +121,8 @@ local AnimationProps = {}
 ---@field scrollbarRadius number? -- Corner radius for scrollbar (default: 6)
 ---@field scrollbarPadding number? -- Padding between scrollbar and edge (default: 2)
 ---@field scrollSpeed number? -- Pixels per wheel notch (default: 20)
+---@field smoothScrollEnabled boolean? -- Enable smooth scrolling animation for wheel events (default: false)
+---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars, default: uses first scrollbar or fallback rendering)
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control, default: false)
 ---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
 ---@field image love.Image? -- Image object to display

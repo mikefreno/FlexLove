@@ -841,7 +841,6 @@ end
 ---@param dy number
 function flexlove.wheelmoved(dx, dy)
   local mx, my = love.mouse.getPosition()
-
   local function findScrollableAtPosition(elements, x, y)
     for i = #elements, 1, -1 do
       local element = elements[i]
@@ -871,7 +870,6 @@ function flexlove.wheelmoved(dx, dy)
   end
 
   if flexlove._immediateMode then
-    -- Find topmost scrollable element at mouse position using z-index ordering
     for i = #Context._zIndexOrderedElements, 1, -1 do
       local element = Context._zIndexOrderedElements[i]
 
@@ -939,14 +937,14 @@ function flexlove.wheelmoved(dx, dy)
         if not isClipped then
           local overflowX = element.overflowX or element.overflow
           local overflowY = element.overflowY or element.overflow
-          if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
+
+          if overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" then
             element:_handleWheelScroll(dx, dy)
 
-            -- Save scroll position to StateManager immediately in immediate mode
-            if element._stateId then
+            if element._stateId and element._scrollManager then
+              local scrollManagerState = element._scrollManager:getState()
               StateManager.updateState(element._stateId, {
-                _scrollX = element._scrollX,
-                _scrollY = element._scrollY,
+                scrollManager = scrollManagerState,
               })
             end
             return

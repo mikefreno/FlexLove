@@ -3,6 +3,16 @@ local Color = require("libs.FlexLove").Color
 return {
   name = "Metal Theme",
   contentAutoSizingMultiplier = { width = 1.05, height = 1.1 },
+  scrollbars = {
+    v1 = {
+      bar = "themes/metal/Button/Button01a_1.9.png",
+      frame = "themes/metal/Frame/Frame01a.9.png",
+    },
+    v2 = {
+      bar = "themes/metal/Button/Button01a_1.9.png",
+      frame = "themes/metal/Frame/Frame01a.9.png",
+    },
+  },
   components = {
     framev1 = {
       atlas = "themes/metal/Frame/Frame01a.9.png",

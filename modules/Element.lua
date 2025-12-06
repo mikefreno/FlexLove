@@ -132,6 +132,7 @@
 ---@field scrollbarRadius number? -- Scrollbar corner radius
 ---@field scrollbarPadding number? -- Scrollbar padding from edges
 ---@field scrollSpeed number? -- Scroll speed multiplier
+---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
 ---@field _overflowX boolean? -- Internal: whether content overflows horizontally
 ---@field _overflowY boolean? -- Internal: whether content overflows vertically
 ---@field _contentWidth number? -- Internal: total content width
@@ -1423,6 +1424,8 @@ function Element.new(props)
       scrollbarRadius = props.scrollbarRadius,
       scrollbarPadding = props.scrollbarPadding,
       scrollSpeed = props.scrollSpeed,
+      smoothScrollEnabled = props.smoothScrollEnabled,
+      scrollBarStyle = props.scrollBarStyle,
       hideScrollbars = props.hideScrollbars,
       _scrollX = props._scrollX,
       _scrollY = props._scrollY,
@@ -1438,6 +1441,7 @@ function Element.new(props)
     self.scrollbarRadius = self._scrollManager.scrollbarRadius
     self.scrollbarPadding = self._scrollManager.scrollbarPadding
     self.scrollSpeed = self._scrollManager.scrollSpeed
+    self.scrollBarStyle = self._scrollManager.scrollBarStyle
     self.hideScrollbars = self._scrollManager.hideScrollbars
 
     -- Initialize state properties (will be synced from ScrollManager)
@@ -2210,6 +2214,12 @@ function Element:update(dt)
   -- Update text editor cursor blink
   if self._textEditor then
     self._textEditor:update(self, dt)
+  end
+
+  -- Update scroll manager for smooth scrolling and momentum
+  if self._scrollManager then
+    self._scrollManager:update(dt)
+    self:_syncScrollManagerState()
   end
 
   -- Update animation if exists

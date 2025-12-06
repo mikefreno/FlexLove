@@ -172,10 +172,12 @@ Each profile package includes:
 
 | Profile | Modules | Approximate Size |
 |---------|---------|------------------|
-| **Minimal** | 16 core modules | ~60% of full |
-| **Slim** | 21 modules | ~80% of full |
-| **Default** | 23 modules + themes | ~95% of full |
-| **Full** | 24 modules + themes | 100% |
+| **Minimal** | 19 core modules | ~70% of full |
+| **Slim** | 24 modules | ~80% of full |
+| **Default** | 27 modules + themes | ~95% of full |
+| **Full** | 29 modules + themes | 100% |
+
+**Note:** All profiles now include UTF8.lua for Lua 5.1+ compatibility.
 
 Users who want examples, documentation source, or development tools should clone the full repository.
 

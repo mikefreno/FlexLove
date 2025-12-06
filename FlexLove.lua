@@ -1,4 +1,10 @@
-local modulePath = (...):match("(.-)[^%.]+$") -- Get the module path prefix (e.g., "libs." or "")
+local packageName = ... or "FlexLove"
+local modulePath = packageName:match("(.-)[^%.]+$") -- Get the module path prefix (e.g., "libs." or "")
+-- If modulePath is empty (e.g., require("FlexLove")), use the package name
+if modulePath == "" then
+  modulePath = packageName .. "."
+end
+
 local function req(name)
   return require(modulePath .. "modules." .. name)
 end

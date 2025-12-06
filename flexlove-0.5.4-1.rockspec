@@ -31,8 +31,8 @@ description = {
 }
 
 dependencies = {
-   "lua >= 5.1",
-   "luautf8 >= 0.1.3"
+  "lua >= 5.1",
+  "luautf8 >= 0.1.3",
 }
 
 build = {
@@ -67,7 +67,7 @@ build = {
     ["FlexLove.modules.types"] = "modules/types.lua",
     ["FlexLove.modules.Units"] = "modules/Units.lua",
     ["FlexLove.modules.UTF8"] = "modules/UTF8.lua",
-    ["FlexLove.modules.utils"] = "modules/utils.lua"
+    ["FlexLove.modules.utils"] = "modules/utils.lua",
   },
   copy_directories = {
     "docs",

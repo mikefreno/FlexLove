@@ -31,16 +31,30 @@ This library is under rapid, active development. While many features are functio
 
 ## Quick Start
 
-Add the `modules` directory and `FlexLove.lua` into your project. I recommend going to the
-RELEASES page, but you can clone the repo if you want the latest features, but bugs are more
-likely. 
+[Recommended] Go to the [releases](https://github.com/mikefreno/FlexLove/releases) page and download the latest release,
+there are a few different options for different build profiles, I recommend the "default" build. Then add the `modules` directory and `FlexLove.lua` into your project.
+
+Or, if you can also try will luarocks:
+
+```bash
+luarocks install flexlove
+```
+
+Going this route, you will need to link the luarocks path to your project:
+(for mac/linux)
+```lua
+package.path = package.path .. ";/Users/<your_username>/.luarocks/share/lua/5.1/?.lua"
+package.path = package.path .. ";/Users/<your_username>/.luarocks/share/lua/5.1/?/init.lua"
+package.cpath = package.cpath .. ";/Users/<your_username>/.luarocks/lib/lua/5.1/?.so"
+```
+
 
 ```lua
 local FlexLove = require("FlexLove")
 
 -- (Optional) Initialize with a theme and immediate mode
 FlexLove.init({
-  theme = "space"
+  theme = "space",
   immediateMode = true
 })
 

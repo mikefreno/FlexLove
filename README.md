@@ -2,7 +2,10 @@
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
-FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system. It provides a simple way to create and manage UI elements with automatic layout calculations, animations, theming, and responsive design. Immediate mode support is now included (retained is default). 
+FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system.
+The goals of this project are two-fold, first, anyone with basic CSS knowledge should be able to
+use this library with minimal learning curve. Second, this library should take you from early prototyping to production. 
+
 
 ## ⚠️ Development Status
 
@@ -24,7 +27,7 @@ This library is under rapid, active development. While many features are functio
 - **Text Rendering**: Flexible text display with alignment and auto-scaling
 - **Corner Radius**: Rounded corners with individual corner control
 - **Advanced Positioning**: Absolute, relative, flex, and grid positioning modes
-- **Multi-Touch & Gestures**: Touch event tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), and touch scrolling with momentum/bounce
+- **Multi-Touch & Gestures(Not yet tested)**: Touch event tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), and touch scrolling with momentum/bounce
 
 ## Quick Start
 
@@ -64,6 +67,16 @@ function love.draw()
   FlexLove.draw()
 end
 ```
+
+## Quick Demos
+All of the following use the [metal theme](./themes/metal.lua)
+![Basic Layout](./resources/basic.png)
+![Backdrop Blur](./resources/backdropblur.png)
+![Responsive Design](./resources/resizing.mp4)
+![Responsive Elements](./resources/responsive-elements.mp4)
+![Scrollables](./resources/scrollable.mp4)
+![Sliders](./resources/slider.mp4)
+![Text Input](./resources/textInput.mp4)
 
 ## Build Profiles
 

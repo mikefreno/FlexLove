@@ -89,7 +89,7 @@ for profile in minimal slim default full; do
   # Create temp directory
   TEMP_DIR=$(mktemp -d)
   BUILD_DIR="${TEMP_DIR}/flexlove"
-  
+
   echo "  → Creating build directory: $BUILD_DIR"
   mkdir -p "$BUILD_DIR/modules" || {
     echo -e "${RED}Error: Failed to create build directory${NC}"
@@ -174,12 +174,12 @@ EOF
   if [ "$profile" == "default" ] || [ "$profile" == "full" ]; then
     echo "  → Copying themes/"
     mkdir -p "$BUILD_DIR/themes"
-    
+
     # Copy README
     if [ -f "themes/README.md" ]; then
       cp "themes/README.md" "$BUILD_DIR/themes/"
     fi
-    
+
     # Copy theme files as .example.lua
     if [ -f "themes/metal.lua" ]; then
       cp "themes/metal.lua" "$BUILD_DIR/themes/metal.example.lua"

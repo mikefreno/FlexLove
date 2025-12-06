@@ -8,6 +8,7 @@
 ---@field scrollbarRadius number -- Border radius for scrollbars
 ---@field scrollbarPadding number -- Padding around scrollbar
 ---@field scrollSpeed number -- Scroll speed for wheel events (pixels per wheel unit)
+---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
 ---@field touchScrollEnabled boolean -- Enable touch scrolling
 ---@field momentumScrollEnabled boolean -- Enable momentum scrolling
@@ -21,6 +22,9 @@
 ---@field _contentHeight number -- Total content height (including overflow)
 ---@field _scrollX number -- Current horizontal scroll position
 ---@field _scrollY number -- Current vertical scroll position
+---@field _targetScrollX number? -- Target scroll X for smooth scrolling
+---@field _targetScrollY number? -- Target scroll Y for smooth scrolling
+---@field _smoothScrollSpeed number -- Speed of smooth scroll interpolation (0-1, higher = faster)
 ---@field _maxScrollX number -- Maximum horizontal scroll (contentWidth - containerWidth)
 ---@field _maxScrollY number -- Maximum vertical scroll (contentHeight - containerHeight)
 ---@field _scrollbarHoveredVertical boolean -- True if mouse is over vertical scrollbar
@@ -74,6 +78,7 @@ function ScrollManager.new(config, deps)
   self.scrollbarRadius = config.scrollbarRadius or 6
   self.scrollbarPadding = config.scrollbarPadding or 2
   self.scrollSpeed = config.scrollSpeed or 20
+  self.scrollBarStyle = config.scrollBarStyle -- Theme scrollbar style name (nil = use default)
 
   -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
   self.hideScrollbars = self._utils.normalizeBooleanTable(config.hideScrollbars, false)
@@ -95,6 +100,10 @@ function ScrollManager.new(config, deps)
   -- Scroll state (can be restored from config in immediate mode)
   self._scrollX = config._scrollX or 0
   self._scrollY = config._scrollY or 0
+  self._targetScrollX = nil
+  self._targetScrollY = nil
+  self._smoothScrollSpeed = 0.25 -- Interpolation speed (0-1, higher = faster)
+  self.smoothScrollEnabled = config.smoothScrollEnabled or false -- Enable smooth wheel scrolling
   self._maxScrollX = 0
   self._maxScrollY = 0
 
@@ -552,24 +561,38 @@ function ScrollManager:handleWheel(x, y)
     return false
   end
 
-  local hasVerticalOverflow = self._overflowY and self._maxScrollY > 0
-  local hasHorizontalOverflow = self._overflowX and self._maxScrollX > 0
+  -- In immediate mode, overflow might not be calculated yet, so allow scrolling based on maxScroll values
+  -- If _overflowY is nil/false but _maxScrollY > 0, we should still allow scrolling (from restored state)
+  local hasVerticalOverflow = (self._overflowY and self._maxScrollY > 0) or (self._maxScrollY and self._maxScrollY > 0)
+  local hasHorizontalOverflow = (self._overflowX and self._maxScrollX > 0) or (self._maxScrollX and self._maxScrollX > 0)
 
   local scrolled = false
 
   -- Vertical scrolling
   if y ~= 0 and hasVerticalOverflow then
     local delta = -y * self.scrollSpeed -- Negative because wheel up = scroll up
-    local newScrollY = self._scrollY + delta
-    self:setScroll(nil, newScrollY)
+    if self.smoothScrollEnabled then
+      -- Set target for smooth scrolling instead of instant jump
+      self._targetScrollY = self._utils.clamp((self._targetScrollY or self._scrollY) + delta, 0, self._maxScrollY)
+    else
+      -- Instant scrolling (default behavior)
+      local newScrollY = self._scrollY + delta
+      self:setScroll(nil, newScrollY)
+    end
     scrolled = true
   end
 
   -- Horizontal scrolling
   if x ~= 0 and hasHorizontalOverflow then
     local delta = -x * self.scrollSpeed
-    local newScrollX = self._scrollX + delta
-    self:setScroll(newScrollX, nil)
+    if self.smoothScrollEnabled then
+      -- Set target for smooth scrolling instead of instant jump
+      self._targetScrollX = self._utils.clamp((self._targetScrollX or self._scrollX) + delta, 0, self._maxScrollX)
+    else
+      -- Instant scrolling (default behavior)
+      local newScrollX = self._scrollX + delta
+      self:setScroll(newScrollX, nil)
+    end
     scrolled = true
   end
 
@@ -619,11 +642,18 @@ function ScrollManager:getState()
   return {
     _scrollX = self._scrollX or 0,
     _scrollY = self._scrollY or 0,
+    _targetScrollX = self._targetScrollX,
+    _targetScrollY = self._targetScrollY,
     _scrollbarDragging = self._scrollbarDragging or false,
     _hoveredScrollbar = self._hoveredScrollbar,
     _scrollbarDragOffset = self._scrollbarDragOffset or 0,
     _scrollbarHoveredVertical = self._scrollbarHoveredVertical or false,
     _scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal or false,
+    scrollBarStyle = self.scrollBarStyle,
+    _overflowX = self._overflowX,
+    _overflowY = self._overflowY,
+    _contentWidth = self._contentWidth,
+    _contentHeight = self._contentHeight,
   }
 end
 
@@ -671,6 +701,34 @@ function ScrollManager:setState(state)
 
   if state._scrollbarHoveredHorizontal ~= nil then
     self._scrollbarHoveredHorizontal = state._scrollbarHoveredHorizontal
+  end
+
+  if state.scrollBarStyle ~= nil then
+    self.scrollBarStyle = state.scrollBarStyle
+  end
+
+  if state._overflowX ~= nil then
+    self._overflowX = state._overflowX
+  end
+
+  if state._overflowY ~= nil then
+    self._overflowY = state._overflowY
+  end
+
+  if state._contentWidth ~= nil then
+    self._contentWidth = state._contentWidth
+  end
+
+  if state._contentHeight ~= nil then
+    self._contentHeight = state._contentHeight
+  end
+  
+  if state._targetScrollX ~= nil then
+    self._targetScrollX = state._targetScrollX
+  end
+  
+  if state._targetScrollY ~= nil then
+    self._targetScrollY = state._targetScrollY
   end
 end
 
@@ -795,6 +853,29 @@ end
 --- Update momentum scrolling (call every frame with dt)
 ---@param dt number Delta time in seconds
 function ScrollManager:update(dt)
+  -- Smooth scroll interpolation
+  if self._targetScrollX or self._targetScrollY then
+    if self._targetScrollY then
+      local diff = self._targetScrollY - self._scrollY
+      if math.abs(diff) > 0.5 then
+        self._scrollY = self._scrollY + diff * self._smoothScrollSpeed
+      else
+        self._scrollY = self._targetScrollY
+        self._targetScrollY = nil
+      end
+    end
+    
+    if self._targetScrollX then
+      local diff = self._targetScrollX - self._scrollX
+      if math.abs(diff) > 0.5 then
+        self._scrollX = self._scrollX + diff * self._smoothScrollSpeed
+      else
+        self._scrollX = self._targetScrollX
+        self._targetScrollX = nil
+      end
+    end
+  end
+  
   if not self._momentumScrolling then
     -- Handle bounce back if overscrolled
     if self.bounceEnabled then

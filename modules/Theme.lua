@@ -64,6 +64,10 @@ local function validateThemeDefinition(definition)
     return false, "Theme 'fonts' must be a table"
   end
 
+  if definition.scrollbars and type(definition.scrollbars) ~= "table" then
+    return false, "Theme 'scrollbars' must be a table"
+  end
+
   return true, nil
 end
 
@@ -331,6 +335,7 @@ end
 ---@field name string
 ---@field atlas string|love.Image? -- Optional: global atlas (can be overridden per component)
 ---@field components table<string, ThemeComponent>
+---@field scrollbars table<string, ThemeComponent>? -- Optional: scrollbar component definitions (uses ThemeComponent format)
 ---@field colors table<string, Color>?
 ---@field fonts table<string, string>? -- Optional: font family definitions (name -> path)
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: default multiplier for auto-sized content dimensions
@@ -340,6 +345,7 @@ end
 ---@field atlas love.Image? -- Optional: global atlas
 ---@field atlasData love.ImageData?
 ---@field components table<string, ThemeComponent>
+---@field scrollbars table<string, ThemeComponent> -- Scrollbar component definitions
 ---@field colors table<string, Color>
 ---@field fonts table<string, string> -- Font family definitions
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: default multiplier for auto-sized content dimensions
@@ -409,6 +415,7 @@ function Theme.new(definition)
   end
 
   self.components = definition.components or {}
+  self.scrollbars = definition.scrollbars or {}
   self.colors = definition.colors or {}
   self.fonts = definition.fonts or {}
   self.contentAutoSizingMultiplier = definition.contentAutoSizingMultiplier or nil
@@ -552,6 +559,84 @@ function Theme.new(definition)
     end
   end
 
+  -- Load scrollbar-specific atlases and process 9-patch definitions
+  -- Scrollbars can have 'bar' and 'frame' subcomponents
+  for scrollbarName, scrollbarDef in pairs(self.scrollbars) do
+    -- Handle scrollbar definitions with bar/frame subcomponents
+    if scrollbarDef.bar or scrollbarDef.frame then
+      -- Process 'bar' subcomponent
+      if scrollbarDef.bar then
+        if type(scrollbarDef.bar) == "string" then
+          -- Convert string path to ThemeComponent structure
+          local barComponent = { atlas = scrollbarDef.bar }
+          loadAtlasWithNinePatch(barComponent, scrollbarDef.bar, "for scrollbar '" .. scrollbarName .. ".bar'")
+          if barComponent.insets then
+            createRegionsFromInsets(barComponent, barComponent._loadedAtlas or self.atlas)
+          end
+          scrollbarDef.bar = barComponent
+        elseif type(scrollbarDef.bar) == "table" then
+          -- Already a ThemeComponent structure, process it
+          if scrollbarDef.bar.atlas and type(scrollbarDef.bar.atlas) == "string" then
+            loadAtlasWithNinePatch(scrollbarDef.bar, scrollbarDef.bar.atlas, "for scrollbar '" .. scrollbarName .. ".bar'")
+          end
+          if scrollbarDef.bar.insets then
+            createRegionsFromInsets(scrollbarDef.bar, scrollbarDef.bar._loadedAtlas or self.atlas)
+          end
+        end
+      end
+
+      -- Process 'frame' subcomponent
+      if scrollbarDef.frame then
+        if type(scrollbarDef.frame) == "string" then
+          -- Convert string path to ThemeComponent structure
+          local frameComponent = { atlas = scrollbarDef.frame }
+          loadAtlasWithNinePatch(frameComponent, scrollbarDef.frame, "for scrollbar '" .. scrollbarName .. ".frame'")
+          if frameComponent.insets then
+            createRegionsFromInsets(frameComponent, frameComponent._loadedAtlas or self.atlas)
+          end
+          scrollbarDef.frame = frameComponent
+        elseif type(scrollbarDef.frame) == "table" then
+          -- Already a ThemeComponent structure, process it
+          if scrollbarDef.frame.atlas and type(scrollbarDef.frame.atlas) == "string" then
+            loadAtlasWithNinePatch(scrollbarDef.frame, scrollbarDef.frame.atlas, "for scrollbar '" .. scrollbarName .. ".frame'")
+          end
+          if scrollbarDef.frame.insets then
+            createRegionsFromInsets(scrollbarDef.frame, scrollbarDef.frame._loadedAtlas or self.atlas)
+          end
+        end
+      end
+    else
+      -- Treat as a single ThemeComponent (no bar/frame split)
+      if scrollbarDef.atlas then
+        if type(scrollbarDef.atlas) == "string" then
+          loadAtlasWithNinePatch(scrollbarDef, scrollbarDef.atlas, "for scrollbar '" .. scrollbarName .. "'")
+        else
+          scrollbarDef._loadedAtlas = scrollbarDef.atlas
+        end
+      end
+
+      if scrollbarDef.insets then
+        createRegionsFromInsets(scrollbarDef, self.atlas)
+      end
+
+      if scrollbarDef.states then
+        for stateName, stateComponent in pairs(scrollbarDef.states) do
+          if stateComponent.atlas then
+            if type(stateComponent.atlas) == "string" then
+              loadAtlasWithNinePatch(stateComponent, stateComponent.atlas, "for scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "'")
+            else
+              stateComponent._loadedAtlas = stateComponent.atlas
+            end
+          end
+
+          if stateComponent.insets then
+            createRegionsFromInsets(stateComponent, scrollbarDef._loadedAtlas or self.atlas)
+          end
+        end
+      end
+    end
+  end
+
   return self
 end
 
@@ -644,6 +729,50 @@ function Theme.getComponent(componentName, state)
   end
 
   return component
+end
+
+--- Get the first (default) scrollbar from the active theme
+--- Returns the first scrollbar component in insertion order
+---@return ThemeComponent? scrollbar Returns first scrollbar component or nil if no scrollbars defined
+function Theme.getDefaultScrollbar()
+  if not activeTheme or not activeTheme.scrollbars then
+    return nil
+  end
+
+  -- Return first scrollbar in insertion order (Lua 5.3+ preserves order)
+  for _, scrollbar in pairs(activeTheme.scrollbars) do
+    return scrollbar
+  end
+
+  return nil
+end
+
+--- Retrieve themed scrollbar components for consistent scrollbar styling
+--- Use this to apply theme-based scrollbar appearance to scrollable elements
+---@param scrollbarName string? Name of the scrollbar style (e.g., "v1", "v2"). If nil, returns default (first) scrollbar
+---@param state string? Optional state name (e.g., "hover", "pressed") - currently unused for scrollbars
+---@return ThemeComponent? scrollbar Returns scrollbar component or nil if not found
+function Theme.getScrollbar(scrollbarName, state)
+  if not activeTheme or not activeTheme.scrollbars then
+    return nil
+  end
+
+  -- If no scrollbarName specified, return default (first) scrollbar
+  if not scrollbarName then
+    return Theme.getDefaultScrollbar()
+  end
+
+  local scrollbar = activeTheme.scrollbars[scrollbarName]
+  if not scrollbar then
+    return nil
+  end
+
+  -- Check for state-specific override (if scrollbar supports states in the future)
+  if state and scrollbar.states and scrollbar.states[state] then
+    return scrollbar.states[state]
+  end
+
+  return scrollbar
 end
 
 --- Access theme-defined fonts for consistent typography across your UI
@@ -887,6 +1016,26 @@ function ThemeManager:getStateComponent()
   end
 
   return component
+end
+
+---Get a scrollbar component from the theme
+---@param scrollbarName string? The scrollbar style name (e.g., "v1", "v2"). If nil, returns default (first) scrollbar
+---@return ThemeComponent? scrollbar The scrollbar component, or nil if not found
+function ThemeManager:getScrollbarComponent(scrollbarName)
+  local themeToUse = self:getTheme()
+  if not themeToUse or not themeToUse.scrollbars or type(themeToUse.scrollbars) ~= "table" then
+    return nil
+  end
+
+  -- If no scrollbarName specified, return default (first) scrollbar
+  if not scrollbarName then
+    for _, scrollbar in pairs(themeToUse.scrollbars) do
+      return scrollbar
+    end
+    return nil
+  end
+
+  return themeToUse.scrollbars[scrollbarName]
 end
 
 ---Get a style property from the current state component
@@ -1219,6 +1368,69 @@ function Theme.validateTheme(theme, options)
     end
   end
 
+  -- Scrollbars validation (optional)
+  if theme.scrollbars ~= nil then
+    if type(theme.scrollbars) ~= "table" then
+      table.insert(errors, "Theme 'scrollbars' must be a table")
+    else
+      for scrollbarName, scrollbarDef in pairs(theme.scrollbars) do
+        if type(scrollbarDef) == "table" then
+          -- Check if it has bar/frame subcomponents
+          if scrollbarDef.bar or scrollbarDef.frame then
+            -- Validate bar subcomponent
+            if scrollbarDef.bar ~= nil then
+              if type(scrollbarDef.bar) ~= "string" and type(scrollbarDef.bar) ~= "table" then
+                table.insert(errors, "Scrollbar '" .. scrollbarName .. "' bar must be a string or table")
+              end
+            end
+            -- Validate frame subcomponent
+            if scrollbarDef.frame ~= nil then
+              if type(scrollbarDef.frame) ~= "string" and type(scrollbarDef.frame) ~= "table" then
+                table.insert(errors, "Scrollbar '" .. scrollbarName .. "' frame must be a string or table")
+              end
+            end
+          else
+            -- Validate as a single ThemeComponent
+            -- Validate atlas if present
+            if scrollbarDef.atlas ~= nil and type(scrollbarDef.atlas) ~= "string" then
+              table.insert(errors, "Scrollbar '" .. scrollbarName .. "' atlas must be a string")
+            end
+
+            -- Validate insets if present
+            if scrollbarDef.insets ~= nil then
+              if type(scrollbarDef.insets) ~= "table" then
+                table.insert(errors, "Scrollbar '" .. scrollbarName .. "' insets must be a table")
+              else
+                for _, side in ipairs({ "left", "top", "right", "bottom" }) do
+                  if scrollbarDef.insets[side] == nil then
+                    table.insert(errors, "Scrollbar '" .. scrollbarName .. "' insets must have '" .. side .. "' field")
+                  elseif type(scrollbarDef.insets[side]) ~= "number" then
+                    table.insert(errors, "Scrollbar '" .. scrollbarName .. "' insets." .. side .. " must be a number")
+                  elseif scrollbarDef.insets[side] < 0 then
+                    table.insert(errors, "Scrollbar '" .. scrollbarName .. "' insets." .. side .. " must be non-negative")
+                  end
+                end
+              end
+            end
+
+            -- Validate states if present
+            if scrollbarDef.states ~= nil then
+              if type(scrollbarDef.states) ~= "table" then
+                table.insert(errors, "Scrollbar '" .. scrollbarName .. "' states must be a table")
+              else
+                for stateName, stateComponent in pairs(scrollbarDef.states) do
+                  if type(stateComponent) ~= "table" then
+                    table.insert(errors, "Scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "' must be a table")
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
   -- contentAutoSizingMultiplier validation (optional)
   if theme.contentAutoSizingMultiplier ~= nil then
     if type(theme.contentAutoSizingMultiplier) ~= "table" then
@@ -1254,6 +1466,7 @@ function Theme.validateTheme(theme, options)
       name = true,
       atlas = true,
       components = true,
+      scrollbars = true,
       colors = true,
       fonts = true,
       contentAutoSizingMultiplier = true,
@@ -1328,6 +1541,11 @@ function Theme.sanitizeTheme(theme)
   -- Sanitize components (preserve as-is, they're complex)
   if type(theme.components) == "table" then
     sanitized.components = theme.components
+  end
+
+  -- Sanitize scrollbars (preserve as-is, they're complex like components)
+  if type(theme.scrollbars) == "table" then
+    sanitized.scrollbars = theme.scrollbars
   end
 
   -- Sanitize contentAutoSizingMultiplier

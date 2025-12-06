@@ -880,6 +880,12 @@ end
 ---@param h number Height
 ---@param dims table Scrollbar dimensions from _calculateScrollbarDimensions
 function Renderer:drawScrollbars(element, x, y, w, h, dims)
+  -- Try to get themed scrollbar component
+  local scrollbarComponent = nil
+  if element.scrollBarStyle or self._Theme.hasActive() then
+    scrollbarComponent = self._Theme.getScrollbar(element.scrollBarStyle)
+  end
+
   -- Vertical scrollbar
   if dims.vertical.visible and not element.hideScrollbars.vertical then
     -- Position scrollbar within content area (x, y is border-box origin)
@@ -888,25 +894,57 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
     local trackX = contentX + w - element.scrollbarWidth - element.scrollbarPadding
     local trackY = contentY + element.scrollbarPadding
 
-    -- Determine thumb color based on state (independent for vertical)
-    local thumbColor = element.scrollbarColor
-    if element._scrollbarDragging and element._hoveredScrollbar == "vertical" then
-      -- Active state: brighter
-      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.4)
-      thumbColor = self._Color.new(r, g, b, a)
-    elseif element._scrollbarHoveredVertical then
-      -- Hover state: slightly brighter
-      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.2)
-      thumbColor = self._Color.new(r, g, b, a)
+    -- Check if we should use themed rendering
+    if scrollbarComponent then
+      -- Themed scrollbar rendering using NinePatch
+      local frameComponent = scrollbarComponent.frame or scrollbarComponent
+      local barComponent = scrollbarComponent.bar or scrollbarComponent
+
+      -- Draw track (frame) if component exists
+      if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
+        self._NinePatch.draw(
+          frameComponent,
+          frameComponent._loadedAtlas,
+          trackX,
+          trackY,
+          element.scrollbarWidth,
+          dims.vertical.trackHeight
+        )
+      end
+
+      -- Draw thumb (bar) if component exists
+      if barComponent and barComponent._loadedAtlas and barComponent.regions then
+        self._NinePatch.draw(
+          barComponent,
+          barComponent._loadedAtlas,
+          trackX,
+          trackY + dims.vertical.thumbY,
+          element.scrollbarWidth,
+          dims.vertical.thumbHeight
+        )
+      end
+    else
+      -- Fallback to color-based rendering
+      -- Determine thumb color based on state (independent for vertical)
+      local thumbColor = element.scrollbarColor
+      if element._scrollbarDragging and element._hoveredScrollbar == "vertical" then
+        -- Active state: brighter
+        local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.4)
+        thumbColor = self._Color.new(r, g, b, a)
+      elseif element._scrollbarHoveredVertical then
+        -- Hover state: slightly brighter
+        local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.2)
+        thumbColor = self._Color.new(r, g, b, a)
+      end
+
+      -- Draw track
+      love.graphics.setColor(element.scrollbarTrackColor:toRGBA())
+      love.graphics.rectangle("fill", trackX, trackY, element.scrollbarWidth, dims.vertical.trackHeight, element.scrollbarRadius)
+
+      -- Draw thumb with state-based color
+      love.graphics.setColor(thumbColor:toRGBA())
+      love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY, element.scrollbarWidth, dims.vertical.thumbHeight, element.scrollbarRadius)
     end
-
-    -- Draw track
-    love.graphics.setColor(element.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, element.scrollbarWidth, dims.vertical.trackHeight, element.scrollbarRadius)
-
-    -- Draw thumb with state-based color
-    love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY, element.scrollbarWidth, dims.vertical.thumbHeight, element.scrollbarRadius)
   end
 
   -- Horizontal scrollbar
@@ -917,25 +955,57 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
     local trackX = contentX + element.scrollbarPadding
     local trackY = contentY + h - element.scrollbarWidth - element.scrollbarPadding
 
-    -- Determine thumb color based on state (independent for horizontal)
-    local thumbColor = element.scrollbarColor
-    if element._scrollbarDragging and element._hoveredScrollbar == "horizontal" then
-      -- Active state: brighter
-      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.4)
-      thumbColor = self._Color.new(r, g, b, a)
-    elseif element._scrollbarHoveredHorizontal then
-      -- Hover state: slightly brighter
-      local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.2)
-      thumbColor = self._Color.new(r, g, b, a)
+    -- Check if we should use themed rendering
+    if scrollbarComponent then
+      -- Themed scrollbar rendering using NinePatch
+      local frameComponent = scrollbarComponent.frame or scrollbarComponent
+      local barComponent = scrollbarComponent.bar or scrollbarComponent
+
+      -- Draw track (frame) if component exists
+      if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
+        self._NinePatch.draw(
+          frameComponent,
+          frameComponent._loadedAtlas,
+          trackX,
+          trackY,
+          dims.horizontal.trackWidth,
+          element.scrollbarWidth
+        )
+      end
+
+      -- Draw thumb (bar) if component exists
+      if barComponent and barComponent._loadedAtlas and barComponent.regions then
+        self._NinePatch.draw(
+          barComponent,
+          barComponent._loadedAtlas,
+          trackX + dims.horizontal.thumbX,
+          trackY,
+          dims.horizontal.thumbWidth,
+          element.scrollbarWidth
+        )
+      end
+    else
+      -- Fallback to color-based rendering
+      -- Determine thumb color based on state (independent for horizontal)
+      local thumbColor = element.scrollbarColor
+      if element._scrollbarDragging and element._hoveredScrollbar == "horizontal" then
+        -- Active state: brighter
+        local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.4)
+        thumbColor = self._Color.new(r, g, b, a)
+      elseif element._scrollbarHoveredHorizontal then
+        -- Hover state: slightly brighter
+        local r, g, b, a = self._utils.brightenColor(thumbColor.r, thumbColor.g, thumbColor.b, thumbColor.a, 1.2)
+        thumbColor = self._Color.new(r, g, b, a)
+      end
+
+      -- Draw track
+      love.graphics.setColor(element.scrollbarTrackColor:toRGBA())
+      love.graphics.rectangle("fill", trackX, trackY, dims.horizontal.trackWidth, element.scrollbarWidth, element.scrollbarRadius)
+
+      -- Draw thumb with state-based color
+      love.graphics.setColor(thumbColor:toRGBA())
+      love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY, dims.horizontal.thumbWidth, element.scrollbarWidth, element.scrollbarRadius)
     end
-
-    -- Draw track
-    love.graphics.setColor(element.scrollbarTrackColor:toRGBA())
-    love.graphics.rectangle("fill", trackX, trackY, dims.horizontal.trackWidth, element.scrollbarWidth, element.scrollbarRadius)
-
-    -- Draw thumb with state-based color
-    love.graphics.setColor(thumbColor:toRGBA())
-    love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY, dims.horizontal.thumbWidth, element.scrollbarWidth, element.scrollbarRadius)
   end
 
   -- Reset color

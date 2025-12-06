@@ -266,6 +266,14 @@ function EventHandler:_handleMouseDrag(element, mx, my, button, isHovering)
   local lastY = self._lastMouseY[button] or my
 
   if lastX ~= mx or lastY ~= my then
+    -- Handle scrollbar drag if scrollbar was pressed
+    if button == 1 and self._scrollbarPressHandled and element._handleScrollbarDrag then
+      element:_handleScrollbarDrag(mx, my)
+      self._lastMouseX[button] = mx
+      self._lastMouseY[button] = my
+      return -- Don't process other drag events while dragging scrollbar
+    end
+
     -- Mouse has moved - fire drag event only if still hovering
     if isHovering then
       local modifiers = EventHandler._utils.getModifiers()
@@ -303,6 +311,16 @@ end
 function EventHandler:_handleMouseRelease(element, mx, my, button)
   local currentTime = love.timer.getTime()
   local modifiers = EventHandler._utils.getModifiers()
+
+  -- Handle scrollbar release if scrollbar was pressed
+  if button == 1 and self._scrollbarPressHandled and element._handleScrollbarRelease then
+    element:_handleScrollbarRelease(button)
+    self._scrollbarPressHandled = false -- Reset flag
+    self._pressed[button] = false
+    self._dragStartX[button] = nil
+    self._dragStartY[button] = nil
+    return -- Don't process click events for scrollbar release
+  end
 
   -- Determine click count (double-click detection)
   local clickCount = 1

@@ -900,6 +900,20 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
       local frameComponent = scrollbarComponent.frame or scrollbarComponent
       local barComponent = scrollbarComponent.bar or scrollbarComponent
 
+      -- Calculate knob offset (element overrides theme)
+      local knobOffsetX = 0
+      local knobOffsetY = 0
+      
+      -- Use element offset if provided, otherwise use theme offset
+      if element.scrollbarKnobOffset then
+        knobOffsetX = element.scrollbarKnobOffset.x or 0
+        knobOffsetY = element.scrollbarKnobOffset.vertical or 0
+      elseif barComponent and barComponent.knobOffset then
+        local themeOffset = self._utils.normalizeOffsetTable(barComponent.knobOffset, 0)
+        knobOffsetX = themeOffset.x
+        knobOffsetY = themeOffset.vertical
+      end
+
       -- Draw track (frame) if component exists
       if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
         self._NinePatch.draw(
@@ -917,8 +931,8 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         self._NinePatch.draw(
           barComponent,
           barComponent._loadedAtlas,
-          trackX,
-          trackY + dims.vertical.thumbY,
+          trackX + knobOffsetX,
+          trackY + dims.vertical.thumbY + knobOffsetY,
           element.scrollbarWidth,
           dims.vertical.thumbHeight
         )
@@ -961,6 +975,20 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
       local frameComponent = scrollbarComponent.frame or scrollbarComponent
       local barComponent = scrollbarComponent.bar or scrollbarComponent
 
+      -- Calculate knob offset (element overrides theme)
+      local knobOffsetX = 0
+      local knobOffsetY = 0
+      
+      -- Use element offset if provided, otherwise use theme offset
+      if element.scrollbarKnobOffset then
+        knobOffsetX = element.scrollbarKnobOffset.horizontal or 0
+        knobOffsetY = element.scrollbarKnobOffset.y or 0
+      elseif barComponent and barComponent.knobOffset then
+        local themeOffset = self._utils.normalizeOffsetTable(barComponent.knobOffset, 0)
+        knobOffsetX = themeOffset.horizontal
+        knobOffsetY = themeOffset.y
+      end
+
       -- Draw track (frame) if component exists
       if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
         self._NinePatch.draw(
@@ -978,8 +1006,8 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         self._NinePatch.draw(
           barComponent,
           barComponent._loadedAtlas,
-          trackX + dims.horizontal.thumbX,
-          trackY,
+          trackX + dims.horizontal.thumbX + knobOffsetX,
+          trackY + knobOffsetY,
           dims.horizontal.thumbWidth,
           element.scrollbarWidth
         )

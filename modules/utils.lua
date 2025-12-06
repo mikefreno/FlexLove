@@ -546,6 +546,36 @@ local function normalizeBooleanTable(value, defaultValue)
   return { vertical = defaultValue, horizontal = defaultValue }
 end
 
+--- Normalize an offset value to {x, y} or {horizontal, vertical} format
+---@param value number|table|nil Input value (number applies to both, table for individual control)
+---@param defaultValue number Default value if nil (default: 0)
+---@return table Normalized table with x/y or horizontal/vertical fields
+local function normalizeOffsetTable(value, defaultValue)
+  defaultValue = defaultValue or 0
+
+  if value == nil then
+    return { x = defaultValue, y = defaultValue, horizontal = defaultValue, vertical = defaultValue }
+  end
+
+  if type(value) == "number" then
+    return { x = value, y = value, horizontal = value, vertical = value }
+  end
+
+  if type(value) == "table" then
+    -- Support both {x, y} and {horizontal, vertical} formats
+    local x = value.x or value.horizontal or defaultValue
+    local y = value.y or value.vertical or defaultValue
+    return {
+      x = x,
+      y = y,
+      horizontal = x,
+      vertical = y,
+    }
+  end
+
+  return { x = defaultValue, y = defaultValue, horizontal = defaultValue, vertical = defaultValue }
+end
+
 -- Text sanitization utilities
 
 --- Sanitize text to prevent security vulnerabilities
@@ -1187,6 +1217,7 @@ return {
   brightenColor = brightenColor,
   resolveImagePath = resolveImagePath,
   normalizeBooleanTable = normalizeBooleanTable,
+  normalizeOffsetTable = normalizeOffsetTable,
   resolveFontPath = resolveFontPath,
   getFont = getFont,
   applyContentMultiplier = applyContentMultiplier,

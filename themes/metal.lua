@@ -7,10 +7,12 @@ return {
     v1 = {
       bar = "themes/metal/Button/Button01a_1.9.png",
       frame = "themes/metal/Frame/Frame01a.9.png",
+      knobOffset = { x = 4, y = 4 }, -- 0, 0 is default
     },
     v2 = {
       bar = "themes/metal/Button/Button01a_1.9.png",
       frame = "themes/metal/Frame/Frame01a.9.png",
+      knobOffset = { x = 4, y = 4 }, -- 0, 0 is default
     },
   },
   components = {

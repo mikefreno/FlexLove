@@ -322,6 +322,7 @@ end
 ---@field contentAutoSizingMultiplier {width:number?, height:number?}? -- Optional: multiplier for auto-sized content dimensions
 ---@field scaleCorners number? -- Optional: scale multiplier for non-stretched regions (corners/edges). E.g., 2 = 2x size. Default: nil (no scaling)
 ---@field scalingAlgorithm "nearest"|"bilinear"? -- Optional: scaling algorithm for non-stretched regions. Default: "bilinear"
+---@field knobOffset number|table? -- Optional: offset for scrollbar knob/handle (number or {x, y} or {horizontal, vertical})
 ---@field _loadedAtlas string|love.Image? -- Internal: cached loaded atlas image
 ---@field _loadedAtlasData love.ImageData? -- Internal: cached loaded atlas ImageData for pixel access
 ---@field _ninePatchData {insets:table, contentPadding:table, stretchX:table, stretchY:table}? -- Internal: parsed 9-patch data with stretch regions and content padding
@@ -569,6 +570,10 @@ function Theme.new(definition)
         if type(scrollbarDef.bar) == "string" then
           -- Convert string path to ThemeComponent structure
           local barComponent = { atlas = scrollbarDef.bar }
+          -- Copy knobOffset from parent scrollbarDef if it exists
+          if scrollbarDef.knobOffset then
+            barComponent.knobOffset = scrollbarDef.knobOffset
+          end
           loadAtlasWithNinePatch(barComponent, scrollbarDef.bar, "for scrollbar '" .. scrollbarName .. ".bar'")
           if barComponent.insets then
             createRegionsFromInsets(barComponent, barComponent._loadedAtlas or self.atlas)
@@ -576,6 +581,10 @@ function Theme.new(definition)
           scrollbarDef.bar = barComponent
         elseif type(scrollbarDef.bar) == "table" then
           -- Already a ThemeComponent structure, process it
+          -- Copy knobOffset from parent if bar component doesn't have one
+          if scrollbarDef.knobOffset and not scrollbarDef.bar.knobOffset then
+            scrollbarDef.bar.knobOffset = scrollbarDef.knobOffset
+          end
           if scrollbarDef.bar.atlas and type(scrollbarDef.bar.atlas) == "string" then
             loadAtlasWithNinePatch(scrollbarDef.bar, scrollbarDef.bar.atlas, "for scrollbar '" .. scrollbarName .. ".bar'")
           end

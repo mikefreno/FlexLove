@@ -133,6 +133,7 @@
 ---@field scrollbarPadding number? -- Scrollbar padding from edges
 ---@field scrollSpeed number? -- Scroll speed multiplier
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
+---@field scrollbarKnobOffset number|table? -- Scrollbar knob/handle offset (number or {x, y} or {horizontal, vertical})
 ---@field _overflowX boolean? -- Internal: whether content overflows horizontally
 ---@field _overflowY boolean? -- Internal: whether content overflows vertically
 ---@field _contentWidth number? -- Internal: total content width
@@ -1444,6 +1445,7 @@ function Element.new(props)
       scrollSpeed = props.scrollSpeed,
       smoothScrollEnabled = props.smoothScrollEnabled,
       scrollBarStyle = props.scrollBarStyle,
+      scrollbarKnobOffset = props.scrollbarKnobOffset,
       hideScrollbars = props.hideScrollbars,
       _scrollX = props._scrollX,
       _scrollY = props._scrollY,
@@ -1460,6 +1462,7 @@ function Element.new(props)
     self.scrollbarPadding = self._scrollManager.scrollbarPadding
     self.scrollSpeed = self._scrollManager.scrollSpeed
     self.scrollBarStyle = self._scrollManager.scrollBarStyle
+    self.scrollbarKnobOffset = self._scrollManager.scrollbarKnobOffset
     self.hideScrollbars = self._scrollManager.hideScrollbars
 
     -- Initialize state properties (will be synced from ScrollManager)

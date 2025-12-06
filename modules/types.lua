@@ -123,6 +123,7 @@ local AnimationProps = {}
 ---@field scrollSpeed number? -- Pixels per wheel notch (default: 20)
 ---@field smoothScrollEnabled boolean? -- Enable smooth scrolling animation for wheel events (default: false)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars, default: uses first scrollbar or fallback rendering)
+---@field scrollbarKnobOffset number|{x:number, y:number}|{horizontal:number, vertical:number}? -- Offset for scrollbar knob/handle position in pixels (number for both axes, or table for per-axis control, default: 0, adds to theme offset)
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control, default: false)
 ---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
 ---@field image love.Image? -- Image object to display

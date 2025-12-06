@@ -1027,6 +1027,54 @@ function TestScrollManagerEdgeCases:testIsMomentumScrolling()
   luaunit.assertTrue(sm:isMomentumScrolling())
 end
 
+-- Test scrollbarKnobOffset configuration
+function TestScrollManagerEdgeCases:testScrollbarKnobOffsetNumber()
+  local sm = createScrollManager({ scrollbarKnobOffset = 5 })
+  luaunit.assertNotNil(sm.scrollbarKnobOffset)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.x, 5)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.y, 5)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.horizontal, 5)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.vertical, 5)
+end
+
+function TestScrollManagerEdgeCases:testScrollbarKnobOffsetTableXY()
+  local sm = createScrollManager({ scrollbarKnobOffset = { x = 10, y = 20 } })
+  luaunit.assertNotNil(sm.scrollbarKnobOffset)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.x, 10)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.y, 20)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.horizontal, 10)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.vertical, 20)
+end
+
+function TestScrollManagerEdgeCases:testScrollbarKnobOffsetTableHorizontalVertical()
+  local sm = createScrollManager({ scrollbarKnobOffset = { horizontal = 15, vertical = 25 } })
+  luaunit.assertNotNil(sm.scrollbarKnobOffset)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.x, 15)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.y, 25)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.horizontal, 15)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.vertical, 25)
+end
+
+function TestScrollManagerEdgeCases:testScrollbarKnobOffsetDefault()
+  local sm = createScrollManager({})
+  luaunit.assertNotNil(sm.scrollbarKnobOffset)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.x, 0)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.y, 0)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.horizontal, 0)
+  luaunit.assertEquals(sm.scrollbarKnobOffset.vertical, 0)
+end
+
+function TestScrollManagerEdgeCases:testScrollbarKnobOffsetStatePersistence()
+  local sm = createScrollManager({ scrollbarKnobOffset = { x = 5, y = 10 } })
+  local state = sm:getState()
+  luaunit.assertNotNil(state.scrollbarKnobOffset)
+  
+  local sm2 = createScrollManager({})
+  sm2:setState(state)
+  luaunit.assertEquals(sm2.scrollbarKnobOffset.x, 5)
+  luaunit.assertEquals(sm2.scrollbarKnobOffset.y, 10)
+end
+
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())
 end

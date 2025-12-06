@@ -9,6 +9,7 @@
 ---@field scrollbarPadding number -- Padding around scrollbar
 ---@field scrollSpeed number -- Scroll speed for wheel events (pixels per wheel unit)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
+---@field scrollbarKnobOffset table -- {x: number, y: number, horizontal: number, vertical: number} -- Offset for scrollbar knob/handle position
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
 ---@field touchScrollEnabled boolean -- Enable touch scrolling
 ---@field momentumScrollEnabled boolean -- Enable momentum scrolling
@@ -83,6 +84,9 @@ function ScrollManager.new(config, deps)
   self.scrollbarPadding = config.scrollbarPadding or 2
   self.scrollSpeed = config.scrollSpeed or 20
   self.scrollBarStyle = config.scrollBarStyle -- Theme scrollbar style name (nil = use default)
+
+  -- scrollbarKnobOffset can be number or table {x, y} or {horizontal, vertical}
+  self.scrollbarKnobOffset = self._utils.normalizeOffsetTable(config.scrollbarKnobOffset, 0)
 
   -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
   self.hideScrollbars = self._utils.normalizeBooleanTable(config.hideScrollbars, false)
@@ -656,6 +660,7 @@ function ScrollManager:getState()
     _scrollbarHoveredVertical = self._scrollbarHoveredVertical or false,
     _scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal or false,
     scrollBarStyle = self.scrollBarStyle,
+    scrollbarKnobOffset = self.scrollbarKnobOffset,
     _overflowX = self._overflowX,
     _overflowY = self._overflowY,
     _contentWidth = self._contentWidth,
@@ -728,6 +733,10 @@ function ScrollManager:setState(state)
 
   if state.scrollBarStyle ~= nil then
     self.scrollBarStyle = state.scrollBarStyle
+  end
+
+  if state.scrollbarKnobOffset ~= nil then
+    self.scrollbarKnobOffset = self._utils.normalizeOffsetTable(state.scrollbarKnobOffset, 0)
   end
 
   if state._overflowX ~= nil then

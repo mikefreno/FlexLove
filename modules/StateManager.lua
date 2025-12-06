@@ -37,6 +37,10 @@ local stateDefaults = {
   scrollbarDragging = false,
   hoveredScrollbar = nil,
   scrollbarDragOffset = 0,
+  dragStartMouseX = 0,
+  dragStartMouseY = 0,
+  dragStartScrollX = 0,
+  dragStartScrollY = 0,
 
   -- Scroll position
   scrollX = 0,

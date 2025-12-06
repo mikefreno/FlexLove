@@ -314,7 +314,7 @@ function Element.new(props)
     scaleCorners = props.scaleCorners,
     scalingAlgorithm = props.scalingAlgorithm,
   })
-  
+
   -- Validate themeStateLock after ThemeManager is created
   if props.themeStateLock and props.themeComponent then
     self._themeManager:validateThemeStateLock()
@@ -1458,6 +1458,32 @@ function Element.new(props)
     self._scrollbarDragging = false
     self._hoveredScrollbar = nil
     self._scrollbarDragOffset = 0
+
+    -- Restore scrollbar state from StateManager in immediate mode (must happen before layout)
+    if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
+      local state = Element._StateManager.getState(self._stateId)
+      if state and state.scrollManager then
+        -- Restore from nested scrollManager state (saved via saveState())
+        self._scrollbarHoveredVertical = state.scrollManager._scrollbarHoveredVertical or false
+        self._scrollbarHoveredHorizontal = state.scrollManager._scrollbarHoveredHorizontal or false
+        self._scrollbarDragging = state.scrollManager._scrollbarDragging or false
+        self._hoveredScrollbar = state.scrollManager._hoveredScrollbar
+        self._scrollbarDragOffset = state.scrollManager._scrollbarDragOffset or 0
+
+        -- Apply to ScrollManager immediately
+        self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
+        self._scrollManager._scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal
+        self._scrollManager._scrollbarDragging = self._scrollbarDragging
+        self._scrollManager._hoveredScrollbar = self._hoveredScrollbar
+        self._scrollManager._scrollbarDragOffset = self._scrollbarDragOffset
+
+        -- Restore drag start positions for relative movement tracking
+        self._scrollManager._dragStartMouseX = state.scrollManager._dragStartMouseX or 0
+        self._scrollManager._dragStartMouseY = state.scrollManager._dragStartMouseY or 0
+        self._scrollManager._dragStartScrollX = state.scrollManager._dragStartScrollX or 0
+        self._scrollManager._dragStartScrollY = state.scrollManager._dragStartScrollY or 0
+      end
+    end
   else
     self._scrollManager = nil
   end
@@ -1510,11 +1536,11 @@ end
 --- Call this when element properties change that affect layout
 function Element:invalidateLayout()
   self._dirty = true
-  
+
   -- Invalidate dimension caches
   self._borderBoxWidthCache = nil
   self._borderBoxHeightCache = nil
-  
+
   -- Mark parent as having dirty children
   if self.parent then
     self.parent._childrenDirty = true
@@ -2190,12 +2216,13 @@ function Element:update(dt)
   -- Restore scrollbar state from StateManager in immediate mode
   if self._stateId and Element._Context._immediateMode then
     local state = Element._StateManager.getState(self._stateId)
-    if state then
-      self._scrollbarHoveredVertical = state.scrollbarHoveredVertical or false
-      self._scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal or false
-      self._scrollbarDragging = state.scrollbarDragging or false
-      self._hoveredScrollbar = state.hoveredScrollbar
-      self._scrollbarDragOffset = state.scrollbarDragOffset or 0
+    if state and state.scrollManager then
+      -- Restore from nested scrollManager state (saved via saveState())
+      self._scrollbarHoveredVertical = state.scrollManager._scrollbarHoveredVertical or false
+      self._scrollbarHoveredHorizontal = state.scrollManager._scrollbarHoveredHorizontal or false
+      self._scrollbarDragging = state.scrollManager._scrollbarDragging or false
+      self._hoveredScrollbar = state.scrollManager._hoveredScrollbar
+      self._scrollbarDragOffset = state.scrollManager._scrollbarDragOffset or 0
 
       if self._scrollManager then
         self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
@@ -2203,6 +2230,12 @@ function Element:update(dt)
         self._scrollManager._scrollbarDragging = self._scrollbarDragging
         self._scrollManager._hoveredScrollbar = self._hoveredScrollbar
         self._scrollManager._scrollbarDragOffset = self._scrollbarDragOffset
+
+        -- Restore drag start positions for relative movement tracking
+        self._scrollManager._dragStartMouseX = state.scrollManager._dragStartMouseX or 0
+        self._scrollManager._dragStartMouseY = state.scrollManager._dragStartMouseY or 0
+        self._scrollManager._dragStartScrollX = state.scrollManager._dragStartScrollX or 0
+        self._scrollManager._dragStartScrollY = state.scrollManager._dragStartScrollY or 0
       end
     end
   end
@@ -2317,14 +2350,8 @@ function Element:update(dt)
     self:_syncScrollManagerState()
   end
 
-  if self._stateId and Element._Context._immediateMode then
-    Element._StateManager.updateState(self._stateId, {
-      scrollbarHoveredVertical = self._scrollbarHoveredVertical,
-      scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal,
-      scrollbarDragging = self._scrollbarDragging,
-      hoveredScrollbar = self._hoveredScrollbar,
-    })
-  end
+  -- Note: Scrollbar state is saved via saveState() -> ScrollManager:getState() at end of frame
+  -- This intermediate save is kept for backward compatibility with hover states
 
   if self._scrollbarDragging and love.mouse.isDown(1) then
     self:_handleScrollbarDrag(mx, my)
@@ -2439,9 +2466,7 @@ function Element:update(dt)
       -- Update theme state via ThemeManager
       local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
-      -- Update state (in StateManager if in immediate mode, otherwise locally)
       if self._stateId and Element._Context._immediateMode then
-        -- Update in StateManager for immediate mode
         local hover = newThemeState == "hover"
         local pressed = newThemeState == "pressed"
         local focused = newThemeState == "active" or self._focused
@@ -2455,9 +2480,6 @@ function Element:update(dt)
         })
       end
 
-      -- Always update local state for backward compatibility
-      self._themeState = newThemeState
-      -- Sync theme state with Renderer module
       if self._renderer then
         self._renderer:setThemeState(newThemeState)
       end
@@ -3177,14 +3199,23 @@ function Element:setProperty(property, value)
 
   -- Properties that affect layout and require invalidation
   local layoutProperties = {
-    width = true, height = true,
-    padding = true, margin = true,
+    width = true,
+    height = true,
+    padding = true,
+    margin = true,
     gap = true,
-    flexDirection = true, flexWrap = true,
-    justifyContent = true, alignItems = true, alignContent = true,
+    flexDirection = true,
+    flexWrap = true,
+    justifyContent = true,
+    alignItems = true,
+    alignContent = true,
     positioning = true,
-    gridRows = true, gridColumns = true,
-    top = true, right = true, bottom = true, left = true,
+    gridRows = true,
+    gridColumns = true,
+    top = true,
+    right = true,
+    bottom = true,
+    left = true,
   }
 
   if shouldTransition and transitionConfig then

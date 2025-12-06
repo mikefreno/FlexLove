@@ -559,13 +559,19 @@ function Element.new(props)
           Element._Context.deferCallback(function()
             local success, callbackErr = pcall(self.onImageLoad, self, loadedImage)
             if not success then
-              print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+              Element._ErrorHandler:warn("Element", "EVT_002", {
+                callback = "onImageLoad",
+                error = tostring(callbackErr),
+              })
             end
           end)
         else
           local success, callbackErr = pcall(self.onImageLoad, self, loadedImage)
           if not success then
-            print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+            Element._ErrorHandler:warn("Element", "EVT_002", {
+              callback = "onImageLoad",
+              error = tostring(callbackErr),
+            })
           end
         end
       end
@@ -578,13 +584,19 @@ function Element.new(props)
           Element._Context.deferCallback(function()
             local success, callbackErr = pcall(self.onImageError, self, err or "Unknown error")
             if not success then
-              print(string.format("[Element] onImageError error: %s", tostring(callbackErr)))
+              Element._ErrorHandler:warn("Element", "EVT_002", {
+                callback = "onImageError",
+                error = tostring(callbackErr),
+              })
             end
           end)
         else
           local success, callbackErr = pcall(self.onImageError, self, err or "Unknown error")
           if not success then
-            print(string.format("[Element] onImageError error: %s", tostring(callbackErr)))
+            Element._ErrorHandler:warn("Element", "EVT_002", {
+              callback = "onImageError",
+              error = tostring(callbackErr),
+            })
           end
         end
       end
@@ -597,13 +609,19 @@ function Element.new(props)
         Element._Context.deferCallback(function()
           local success, callbackErr = pcall(self.onImageLoad, self, self.image)
           if not success then
-            print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+            Element._ErrorHandler:warn("Element", "EVT_002", {
+              callback = "onImageLoad",
+              error = tostring(callbackErr),
+            })
           end
         end)
       else
         local success, callbackErr = pcall(self.onImageLoad, self, self.image)
         if not success then
-          print(string.format("[Element] onImageLoad error: %s", tostring(callbackErr)))
+          Element._ErrorHandler:warn("Element", "EVT_002", {
+            callback = "onImageLoad",
+            error = tostring(callbackErr),
+          })
         end
       end
     end

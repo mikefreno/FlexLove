@@ -538,8 +538,6 @@ function StateManager.getStats()
         expected = "near 0",
         frameNumber = frameNumber,
       })
-    else
-      print(string.format("[StateManager] WARNING: callSiteCounters has %d entries", callSiteCount))
     end
   end
 

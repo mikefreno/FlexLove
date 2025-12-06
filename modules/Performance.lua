@@ -145,7 +145,15 @@ function Performance:stopTimer(name)
   end
 
   if self.logToConsole then
-    print(string.format("[Performance] %s: %.3fms", name, elapsed))
+    -- Use ErrorHandler if available, otherwise fall back to print
+    if self._ErrorHandler and self._ErrorHandler.warn then
+      self._ErrorHandler:warn("Performance", "PERF_001", {
+        metric = name,
+        elapsed = string.format("%.3fms", elapsed),
+      })
+    else
+      print(string.format("[Performance] %s: %.3fms", name, elapsed))
+    end
   end
 
   return elapsed
@@ -284,9 +292,6 @@ function Performance:_addWarning(name, value, level)
           value = string.format("%.2fms", value),
           threshold = level == "critical" and self.criticalThresholdMs or self.warningThresholdMs,
         })
-      else
-        local prefix = level == "critical" and "[CRITICAL]" or "[WARNING]"
-        print(string.format("%s Performance: %s = %.2fms", prefix, name, value))
       end
 
       self._shownWarnings[warningKey] = now
@@ -409,11 +414,6 @@ function Performance:logWarning(warningKey, module, message, details, suggestion
 
   if self._ErrorHandler and self._ErrorHandler.warn then
     self._ErrorHandler:warn(module, "PERF_001", details or {})
-  else
-    print(string.format("[FlexLove - %s] Performance Warning: %s", module, message))
-    if suggestion then
-      print(string.format("  Suggestion: %s", suggestion))
-    end
   end
 end
 

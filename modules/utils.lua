@@ -224,7 +224,15 @@ function FONT_CACHE.get(size, fontPath)
     if success then
       font = result
     else
-      print("[FlexLove] Failed to load font: " .. fontPath .. " - using default font")
+      -- Use ErrorHandler if available, otherwise fall back to print
+      if ErrorHandler then
+        ErrorHandler:warn("utils", "RES_004", {
+          resourceType = "font",
+          path = fontPath,
+        })
+      else
+        print("[FlexLove] Failed to load font: " .. fontPath .. " - using default font")
+      end
       font = love.graphics.newFont(size)
     end
   else
@@ -462,8 +470,17 @@ local function safeLoadImage(imagePath)
   end)
 
   if not success then
-    local errorMsg = string.format("[FlexLove] Failed to load image data: %s - %s", imagePath, tostring(imageData))
-    print(errorMsg)
+    local errorMsg = string.format("Failed to load image data: %s - %s", imagePath, tostring(imageData))
+    -- Use ErrorHandler if available, otherwise fall back to print
+    if ErrorHandler then
+      ErrorHandler:warn("utils", "RES_004", {
+        resourceType = "image data",
+        path = imagePath,
+        error = tostring(imageData),
+      })
+    else
+      print("[FlexLove] " .. errorMsg)
+    end
     return nil, nil, errorMsg
   end
 
@@ -474,8 +491,17 @@ local function safeLoadImage(imagePath)
   if imageSuccess then
     return image, imageData, nil
   else
-    local errorMsg = string.format("[FlexLove] Failed to create image: %s - %s", imagePath, tostring(image))
-    print(errorMsg)
+    local errorMsg = string.format("Failed to create image: %s - %s", imagePath, tostring(image))
+    -- Use ErrorHandler if available, otherwise fall back to print
+    if ErrorHandler then
+      ErrorHandler:warn("utils", "RES_004", {
+        resourceType = "image",
+        path = imagePath,
+        error = tostring(image),
+      })
+    else
+      print("[FlexLove] " .. errorMsg)
+    end
     return nil, nil, errorMsg
   end
 end

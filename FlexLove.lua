@@ -91,12 +91,14 @@ flexlove._LICENSE = [[
 ]]
 
 -- GC (Garbage Collection) configuration
+---@type GCConfig
 flexlove._gcConfig = {
   strategy = "auto", -- "auto", "periodic", "manual", "disabled"
   memoryThreshold = 100, -- MB before forcing GC
   interval = 60, -- Frames between GC steps (for periodic mode)
   stepSize = 200, -- Work units per GC step (higher = more aggressive)
 }
+---@type GCState
 flexlove._gcState = {
   framesSinceLastGC = 0,
   lastMemory = 0,
@@ -104,6 +106,7 @@ flexlove._gcState = {
 }
 
 -- Deferred callback queue for operations that cannot run while Canvas is active
+---@type function[]
 flexlove._deferredCallbacks = {}
 
 -- Track accumulated delta time for immediate mode updates
@@ -474,8 +477,11 @@ function flexlove.endFrame()
   flexlove._Performance:resetFrameCounters()
 end
 
+---@type love.Canvas?
 flexlove._gameCanvas = nil
+---@type love.Canvas?
 flexlove._backdropCanvas = nil
+---@type {width: number, height: number}
 flexlove._canvasDimensions = { width = 0, height = 0 }
 
 --- Render all UI elements with optional backdrop blur support for glassmorphic effects
@@ -596,9 +602,10 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   -- of love.draw() after ALL canvases have been released.
 end
 
----@param element Element
----@param target Element
----@return boolean
+--- Check if element is an ancestor of target
+---@param element Element The potential ancestor element
+---@param target Element The target element to check
+---@return boolean isAncestor True if element is an ancestor of target
 local function isAncestor(element, target)
   local current = target.parent
   while current do
@@ -811,7 +818,7 @@ end
 
 --- Monitor memory management behavior to diagnose performance issues and tune GC settings
 --- Use this to identify memory leaks or optimize garbage collection timing
----@return table stats {gcCount, framesSinceLastGC, currentMemoryMB, strategy}
+---@return GCStats stats GC statistics
 function flexlove.getGCStats()
   return {
     gcCount = flexlove._gcState.gcCount,
@@ -1116,7 +1123,7 @@ end
 ---   height = "10vh",
 --- })
 ---@param expr string The calc expression (e.g., "50% - 10vw", "100px + 20%")
----@return table calcObject A calc expression object that will be evaluated during layout
+---@return CalcObject calcObject A calc expression object that will be evaluated during layout
 function flexlove.calc(expr)
   return Calc.new(expr)
 end

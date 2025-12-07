@@ -4,7 +4,7 @@
 local Calc = {}
 
 --- Initialize Calc module with dependencies
----@param deps table Dependencies: { ErrorHandler = table? }
+---@param deps CalcDependencies Dependencies: { ErrorHandler = ErrorHandler? }
 function Calc.init(deps)
   Calc._ErrorHandler = deps.ErrorHandler
 end
@@ -24,7 +24,7 @@ local TokenType = {
 
 --- Tokenize a calc expression string into tokens
 ---@param expr string The expression to tokenize (e.g., "50% - 10vw")
----@return table|nil tokens Array of tokens with type, value, unit
+---@return CalcToken[]? tokens Array of tokens with type, value, unit
 ---@return string? error Error message if tokenization fails
 local function tokenize(expr)
   local tokens = {}
@@ -157,13 +157,13 @@ end
 
 --- Parser for calc expressions using recursive descent
 ---@class Parser
----@field tokens table Array of tokens
+---@field tokens CalcToken[] Array of tokens
 ---@field pos number Current token position
 local Parser = {}
 Parser.__index = Parser
 
 --- Create a new parser
----@param tokens table Array of tokens
+---@param tokens CalcToken[] Array of tokens
 ---@return Parser
 function Parser.new(tokens)
   local self = setmetatable({}, Parser)
@@ -173,7 +173,7 @@ function Parser.new(tokens)
 end
 
 --- Get current token
----@return table token Current token
+---@return CalcToken token Current token
 function Parser:current()
   return self.tokens[self.pos]
 end
@@ -184,7 +184,7 @@ function Parser:advance()
 end
 
 --- Parse expression (handles + and -)
----@return table ast Abstract syntax tree node
+---@return CalcASTNode ast Abstract syntax tree node
 function Parser:parseExpression()
   local left = self:parseTerm()
 
@@ -203,7 +203,7 @@ function Parser:parseExpression()
 end
 
 --- Parse term (handles * and /)
----@return table ast Abstract syntax tree node
+---@return CalcASTNode ast Abstract syntax tree node
 function Parser:parseTerm()
   local left = self:parseFactor()
 
@@ -222,7 +222,7 @@ function Parser:parseTerm()
 end
 
 --- Parse factor (handles numbers and parentheses)
----@return table ast Abstract syntax tree node
+---@return CalcASTNode ast Abstract syntax tree node
 function Parser:parseFactor()
   local token = self:current()
 
@@ -247,7 +247,7 @@ function Parser:parseFactor()
 end
 
 --- Parse the tokens into an AST
----@return table ast Abstract syntax tree
+---@return CalcASTNode ast Abstract syntax tree
 function Parser:parse()
   local ast = self:parseExpression()
   if self:current().type ~= TokenType.EOF then
@@ -259,7 +259,7 @@ end
 --- Create a calc expression object that can be resolved later
 --- This is the main API function that users call
 ---@param expr string The calc expression (e.g., "50% - 10vw")
----@return table calcObject A calc expression object with AST
+---@return CalcObject calcObject A calc expression object with AST
 function Calc.new(expr)
   -- Tokenize
   local tokens, err = tokenize(expr)
@@ -316,7 +316,7 @@ function Calc.isCalc(value)
 end
 
 --- Resolve a calc expression to pixel value
----@param calcObj table The calc expression object
+---@param calcObj CalcObject The calc expression object
 ---@param viewportWidth number Viewport width in pixels
 ---@param viewportHeight number Viewport height in pixels
 ---@param parentSize number? Parent dimension for percentage units

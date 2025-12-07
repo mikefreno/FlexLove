@@ -34,24 +34,24 @@ local AnimationProps = {}
 ---@class ElementProps
 ---@field id string? -- Unique identifier for the element (auto-generated in immediate mode if not provided)
 ---@field parent Element? -- Parent element for hierarchical structure
----@field x number|string? -- X coordinate of the element (default: 0)
----@field y number|string? -- Y coordinate of the element (default: 0)
+---@field x number|string|CalcObject? -- X coordinate: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: 0)
+---@field y number|string|CalcObject? -- Y coordinate: number (px), string ("50%", "10vh"), or CalcObject from FlexLove.calc() (default: 0)
 ---@field z number? -- Z-index for layering (default: 0)
----@field width number|string? -- Width of the element (default: calculated automatically)
----@field height number|string? -- Height of the element (default: calculated automatically)
----@field top number|string? -- Offset from top edge (CSS-style positioning)
----@field right number|string? -- Offset from right edge (CSS-style positioning)
----@field bottom number|string? -- Offset from bottom edge (CSS-style positioning)
----@field left number|string? -- Offset from left edge (CSS-style positioning)
+---@field width number|string|CalcObject? -- Width of the element: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: calculated automatically)
+---@field height number|string|CalcObject? -- Height of the element: number (px), string ("50%", "10vh"), or CalcObject from FlexLove.calc() (default: calculated automatically)
+---@field top number|string|CalcObject? -- Offset from top edge: number (px), string ("50%", "10vh"), or CalcObject (CSS-style positioning)
+---@field right number|string|CalcObject? -- Offset from right edge: number (px), string ("50%", "10vw"), or CalcObject (CSS-style positioning)
+---@field bottom number|string|CalcObject? -- Offset from bottom edge: number (px), string ("50%", "10vh"), or CalcObject (CSS-style positioning)
+---@field left number|string|CalcObject? -- Offset from left edge: number (px), string ("50%", "10vw"), or CalcObject (CSS-style positioning)
 ---@field border Border? -- Border configuration for the element
 ---@field borderColor Color? -- Color of the border (default: black)
 ---@field opacity number? -- Element opacity 0-1 (default: 1)
 ---@field visibility "visible"|"hidden"? -- Element visibility (default: "visible")
 ---@field backgroundColor Color? -- Background color (default: transparent)
 ---@field cornerRadius number|{topLeft:number?, topRight:number?, bottomLeft:number?, bottomRight:number?}? -- Corner radius: number (all corners) or table for individual corners (default: 0)
----@field gap number|string? -- Space between children elements (default: 0)
----@field padding number|string|{top:number|string?, right:number|string?, bottom:number|string?, left:number|string?, horizontal:number|string?, vertical:number|string?}? -- Padding around children: single value for all sides or table for individual sides (default: {top=0, right=0, bottom=0, left=0})
----@field margin number|string|{top:number|string?, right:number|string?, bottom:number|string?, left:number|string?, horizontal:number|string?, vertical:number|string?}? -- Margin around element: single value for all sides or table for individual sides (default: {top=0, right=0, bottom=0, left=0})
+---@field gap number|string|CalcObject? -- Space between children elements: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: 0)
+---@field padding number|string|CalcObject|{top:number|string|CalcObject?, right:number|string|CalcObject?, bottom:number|string|CalcObject?, left:number|string|CalcObject?, horizontal:number|string|CalcObject?, vertical:number|string|CalcObject?}? -- Padding around children: single value, string, CalcObject for all sides, or table for individual sides (default: {top=0, right=0, bottom=0, left=0})
+---@field margin number|string|CalcObject|{top:number|string|CalcObject?, right:number|string|CalcObject?, bottom:number|string|CalcObject?, left:number|string|CalcObject?, horizontal:number|string|CalcObject?, vertical:number|string|CalcObject?}? -- Margin around element: single value, string, CalcObject for all sides, or table for individual sides (default: {top=0, right=0, bottom=0, left=0})
 ---@field text string? -- Text content to display (default: nil)
 ---@field textAlign TextAlign? -- Alignment of the text content (default: START)
 ---@field textColor Color? -- Color of the text content (default: black or theme text color)
@@ -84,8 +84,8 @@ local AnimationProps = {}
 ---@field transition TransitionProps? -- Transition settings for animations
 ---@field gridRows number? -- Number of rows in the grid (default: 1)
 ---@field gridColumns number? -- Number of columns in the grid (default: 1)
----@field columnGap number|string? -- Gap between grid columns (default: 0)
----@field rowGap number|string? -- Gap between grid rows (default: 0)
+---@field columnGap number|string|CalcObject? -- Gap between grid columns: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: 0)
+---@field rowGap number|string|CalcObject? -- Gap between grid rows: number (px), string ("50%", "10vh"), or CalcObject from FlexLove.calc() (default: 0)
 ---@field theme string? -- Theme name to use (e.g., "space", "metal"). Defaults to theme from flexlove.init()
 ---@field themeComponent string? -- Theme component to use (e.g., "panel", "button", "input"). If nil, no theme is applied
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
@@ -211,3 +211,74 @@ local FlexLoveConfig = {}
 ---@field _backdropBlurQuality number?
 ---@field _contentBlurRadius number?
 ---@field _contentBlurQuality number?
+
+--=====================================--
+-- For Calc.lua
+--=====================================--
+---@class CalcDependencies
+---@field ErrorHandler ErrorHandler? -- Error handler module
+
+---@class CalcToken
+---@field type string -- Token type: "NUMBER", "UNIT", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "LPAREN", "RPAREN", "EOF"
+---@field value number? -- Numeric value (for NUMBER tokens)
+---@field unit string? -- Unit type: "px", "%", "vw", "vh", "ew", "eh" (for NUMBER tokens)
+
+---@class CalcASTNode
+---@field type string -- Node type: "number", "add", "subtract", "multiply", "divide"
+---@field value number? -- Numeric value (for "number" nodes)
+---@field unit string? -- Unit type (for "number" nodes)
+---@field left CalcASTNode? -- Left operand (for operator nodes)
+---@field right CalcASTNode? -- Right operand (for operator nodes)
+
+---@class CalcObject
+---@field _isCalc boolean -- Marker to identify calc objects (always true)
+---@field _expr string -- Original expression string
+---@field _ast CalcASTNode? -- Parsed abstract syntax tree (nil if parsing failed)
+---@field _error string? -- Error message if parsing failed
+
+--=====================================--
+-- For FlexLove.lua Internals
+--=====================================--
+---@class GCConfig
+---@field strategy string -- "auto", "periodic", "manual", or "disabled"
+---@field memoryThreshold number -- MB before forcing GC
+---@field interval number -- Frames between GC steps (for periodic mode)
+---@field stepSize number -- Work units per GC step (higher = more aggressive)
+
+---@class GCState
+---@field framesSinceLastGC number -- Frames elapsed since last GC
+---@field lastMemory number -- Last recorded memory usage in MB
+---@field gcCount number -- Total number of GC operations performed
+
+---@class GCStats
+---@field gcCount number -- Total number of GC operations performed
+---@field framesSinceLastGC number -- Frames elapsed since last GC
+---@field currentMemoryMB number -- Current memory usage in MB
+---@field strategy string -- Current GC strategy
+---@field threshold number -- Memory threshold in MB
+
+---@class FlexLoveDependencies
+---@field Context table -- Context module
+---@field Theme Theme? -- Theme module
+---@field Color Color -- Color module
+---@field Calc Calc -- Calc module
+---@field Units table -- Units module
+---@field Blur table? -- Blur module
+---@field ImageRenderer table? -- ImageRenderer module
+---@field ImageScaler table? -- ImageScaler module
+---@field NinePatch table? -- NinePatch module
+---@field RoundedRect table -- RoundedRect module
+---@field ImageCache table? -- ImageCache module
+---@field utils table -- Utils module
+---@field Grid table -- Grid module
+---@field InputEvent table -- InputEvent module
+---@field GestureRecognizer table? -- GestureRecognizer module
+---@field StateManager StateManager -- StateManager module
+---@field TextEditor table -- TextEditor module
+---@field LayoutEngine LayoutEngine -- LayoutEngine module
+---@field Renderer table -- Renderer module
+---@field EventHandler EventHandler -- EventHandler module
+---@field ScrollManager table -- ScrollManager module
+---@field ErrorHandler ErrorHandler -- ErrorHandler module
+---@field Performance Performance? -- Performance module
+---@field Transform table? -- Transform module

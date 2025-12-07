@@ -162,6 +162,7 @@ function Element.init(deps)
   Element._Color = deps.Color
   Element._Context = deps.Context
   Element._Units = deps.Units
+  Element._Calc = deps.Calc
   Element._utils = deps.utils
   Element._InputEvent = deps.InputEvent
   Element._EventHandler = deps.EventHandler
@@ -826,11 +827,22 @@ function Element.new(props)
   local widthProp = props.width
   local tempWidth = 0 -- Temporary width for padding resolution
   if widthProp then
-    if type(widthProp) == "string" then
+    -- Check if it's a CalcObject (table with _isCalc marker)
+    local isCalc = Element._Calc and Element._Calc.isCalc(widthProp)
+    if type(widthProp) == "string" or isCalc then
       local value, unit = Element._Units.parse(widthProp)
       self.units.width = { value = value, unit = unit }
       local parentWidth = self.parent and self.parent.width or viewportWidth
       tempWidth = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+      -- Defensive check: ensure tempWidth is a number after resolution
+      if type(tempWidth) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "width resolution returned non-number value",
+          type = type(tempWidth),
+          value = tostring(tempWidth),
+        })
+        tempWidth = 0
+      end
     else
       tempWidth = Element._Context.baseScale and (widthProp * scaleX) or widthProp
       self.units.width = { value = widthProp, unit = "px" }
@@ -856,11 +868,22 @@ function Element.new(props)
   local heightProp = props.height
   local tempHeight = 0 -- Temporary height for padding resolution
   if heightProp then
-    if type(heightProp) == "string" then
+    -- Check if it's a CalcObject (table with _isCalc marker)
+    local isCalc = Element._Calc and Element._Calc.isCalc(heightProp)
+    if type(heightProp) == "string" or isCalc then
       local value, unit = Element._Units.parse(heightProp)
       self.units.height = { value = value, unit = unit }
       local parentHeight = self.parent and self.parent.height or viewportHeight
       tempHeight = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+      -- Defensive check: ensure tempHeight is a number after resolution
+      if type(tempHeight) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "height resolution returned non-number value",
+          type = type(tempHeight),
+          value = tostring(tempHeight),
+        })
+        tempHeight = 0
+      end
     else
       -- Apply base scaling to pixel values
       tempHeight = Element._Context.baseScale and (heightProp * scaleY) or heightProp
@@ -877,14 +900,25 @@ function Element.new(props)
 
   --- child positioning ---
   if props.gap then
-    if type(props.gap) == "string" then
+    local isCalc = Element._Calc and Element._Calc.isCalc(props.gap)
+    if type(props.gap) == "string" or isCalc then
       local value, unit = Element._Units.parse(props.gap)
       self.units.gap = { value = value, unit = unit }
       -- Gap percentages should be relative to the element's own size, not parent
       -- For horizontal flex, gap is based on width; for vertical flex, based on height
       local flexDir = props.flexDirection or Element._utils.enums.FlexDirection.HORIZONTAL
       local containerSize = (flexDir == Element._utils.enums.FlexDirection.HORIZONTAL) and self.width or self.height
-      self.gap = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, containerSize)
+      local resolvedGap = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, containerSize)
+      -- Defensive check: ensure gap is a number after resolution
+      if type(resolvedGap) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "gap resolution returned non-number value",
+          type = type(resolvedGap),
+          value = tostring(resolvedGap),
+        })
+        resolvedGap = 0
+      end
+      self.gap = resolvedGap
     else
       self.gap = props.gap
       self.units.gap = { value = props.gap, unit = "px" }
@@ -925,6 +959,27 @@ function Element.new(props)
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
   local tempPadding
   if use9PatchPadding then
+    -- Ensure tempWidth and tempHeight are numbers (not CalcObjects)
+    -- This should already be true after Units.resolve(), but add defensive check
+    if type(tempWidth) ~= "number" then
+      if Element._ErrorHandler then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "tempWidth is not a number after resolution",
+          type = type(tempWidth),
+        })
+      end
+      tempWidth = 0
+    end
+    if type(tempHeight) ~= "number" then
+      if Element._ErrorHandler then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "tempHeight is not a number after resolution",
+          type = type(tempHeight),
+        })
+      end
+      tempHeight = 0
+    end
+    
     -- Get scaled 9-patch content padding from ThemeManager
     local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
     if scaledPadding then
@@ -1092,10 +1147,19 @@ function Element.new(props)
 
     -- Handle x position with units
     if props.x then
-      if type(props.x) == "string" or type(props.x) == "table" then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.x)
+      if type(props.x) == "string" or isCalc then
         local value, unit = Element._Units.parse(props.x)
         self.units.x = { value = value, unit = unit }
-        self.x = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        local resolvedX = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        if type(resolvedX) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "x resolution returned non-number value",
+            type = type(resolvedX),
+          })
+          resolvedX = 0
+        end
+        self.x = resolvedX
       else
         -- Apply base scaling to pixel positions
         self.x = Element._Context.baseScale and (props.x * scaleX) or props.x
@@ -1108,10 +1172,19 @@ function Element.new(props)
 
     -- Handle y position with units
     if props.y then
-      if type(props.y) == "string" or type(props.y) == "table" then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.y)
+      if type(props.y) == "string" or isCalc then
         local value, unit = Element._Units.parse(props.y)
         self.units.y = { value = value, unit = unit }
-        self.y = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        local resolvedY = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        if type(resolvedY) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "y resolution returned non-number value",
+            type = type(resolvedY),
+          })
+          resolvedY = 0
+        end
+        self.y = resolvedY
       else
         -- Apply base scaling to pixel positions
         self.y = Element._Context.baseScale and (props.y * scaleY) or props.y
@@ -1181,11 +1254,19 @@ function Element.new(props)
 
       -- Handle x position with units
       if props.x then
-        if type(props.x) == "string" or type(props.x) == "table" then
+        local isCalc = Element._Calc and Element._Calc.isCalc(props.x)
+        if type(props.x) == "string" or isCalc then
           local value, unit = Element._Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
           local offsetX = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          if type(offsetX) ~= "number" then
+            Element._ErrorHandler:warn("Element", "LAY_003", {
+              issue = "x resolution returned non-number value",
+              type = type(offsetX),
+            })
+            offsetX = 0
+          end
           self.x = baseX + offsetX
         else
           -- Apply base scaling to pixel positions
@@ -1200,11 +1281,19 @@ function Element.new(props)
 
       -- Handle y position with units
       if props.y then
-        if type(props.y) == "string" or type(props.y) == "table" then
+        local isCalc = Element._Calc and Element._Calc.isCalc(props.y)
+        if type(props.y) == "string" or isCalc then
           local value, unit = Element._Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           local parentHeight = self.parent.height
           local offsetY = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          if type(offsetY) ~= "number" then
+            Element._ErrorHandler:warn("Element", "LAY_003", {
+              issue = "y resolution returned non-number value",
+              type = type(offsetY),
+            })
+            offsetY = 0
+          end
           self.y = baseY + offsetY
         else
           -- Apply base scaling to pixel positions
@@ -1225,11 +1314,19 @@ function Element.new(props)
       local baseY = self.parent.y + self.parent.padding.top
 
       if props.x then
-        if type(props.x) == "string" or type(props.x) == "table" then
+        local isCalc = Element._Calc and Element._Calc.isCalc(props.x)
+        if type(props.x) == "string" or isCalc then
           local value, unit = Element._Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
           local offsetX = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, parentWidth)
+          if type(offsetX) ~= "number" then
+            Element._ErrorHandler:warn("Element", "LAY_003", {
+              issue = "x resolution returned non-number value",
+              type = type(offsetX),
+            })
+            offsetX = 0
+          end
           self.x = baseX + offsetX
         else
           -- Apply base scaling to pixel offsets
@@ -1243,11 +1340,19 @@ function Element.new(props)
       end
 
       if props.y then
-        if type(props.y) == "string" or type(props.y) == "table" then
+        local isCalc = Element._Calc and Element._Calc.isCalc(props.y)
+        if type(props.y) == "string" or isCalc then
           local value, unit = Element._Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           parentHeight = self.parent.height
           local offsetY = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, parentHeight)
+          if type(offsetY) ~= "number" then
+            Element._ErrorHandler:warn("Element", "LAY_003", {
+              issue = "y resolution returned non-number value",
+              type = type(offsetY),
+            })
+            offsetY = 0
+          end
           self.y = baseY + offsetY
         else
           -- Apply base scaling to pixel offsets
@@ -1283,10 +1388,19 @@ function Element.new(props)
   -- Handle positioning properties for ALL elements (with or without parent)
   -- Handle top positioning with units
   if props.top then
-    if type(props.top) == "string" then
+    local isCalc = Element._Calc and Element._Calc.isCalc(props.top)
+    if type(props.top) == "string" or isCalc then
       local value, unit = Element._Units.parse(props.top)
       self.units.top = { value = value, unit = unit }
-      self.top = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      local resolvedTop = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      if type(resolvedTop) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "top resolution returned non-number value",
+          type = type(resolvedTop),
+        })
+        resolvedTop = 0
+      end
+      self.top = resolvedTop
     else
       self.top = props.top
       self.units.top = { value = props.top, unit = "px" }
@@ -1298,10 +1412,19 @@ function Element.new(props)
 
   -- Handle right positioning with units
   if props.right then
-    if type(props.right) == "string" then
+    local isCalc = Element._Calc and Element._Calc.isCalc(props.right)
+    if type(props.right) == "string" or isCalc then
       local value, unit = Element._Units.parse(props.right)
       self.units.right = { value = value, unit = unit }
-      self.right = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      local resolvedRight = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      if type(resolvedRight) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "right resolution returned non-number value",
+          type = type(resolvedRight),
+        })
+        resolvedRight = 0
+      end
+      self.right = resolvedRight
     else
       self.right = props.right
       self.units.right = { value = props.right, unit = "px" }
@@ -1313,10 +1436,19 @@ function Element.new(props)
 
   -- Handle bottom positioning with units
   if props.bottom then
-    if type(props.bottom) == "string" then
+    local isCalc = Element._Calc and Element._Calc.isCalc(props.bottom)
+    if type(props.bottom) == "string" or isCalc then
       local value, unit = Element._Units.parse(props.bottom)
       self.units.bottom = { value = value, unit = unit }
-      self.bottom = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      local resolvedBottom = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+      if type(resolvedBottom) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "bottom resolution returned non-number value",
+          type = type(resolvedBottom),
+        })
+        resolvedBottom = 0
+      end
+      self.bottom = resolvedBottom
     else
       self.bottom = props.bottom
       self.units.bottom = { value = props.bottom, unit = "px" }
@@ -1328,10 +1460,19 @@ function Element.new(props)
 
   -- Handle left positioning with units
   if props.left then
-    if type(props.left) == "string" then
+    local isCalc = Element._Calc and Element._Calc.isCalc(props.left)
+    if type(props.left) == "string" or isCalc then
       local value, unit = Element._Units.parse(props.left)
       self.units.left = { value = value, unit = unit }
-      self.left = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      local resolvedLeft = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+      if type(resolvedLeft) ~= "number" then
+        Element._ErrorHandler:warn("Element", "LAY_003", {
+          issue = "left resolution returned non-number value",
+          type = type(resolvedLeft),
+        })
+        resolvedLeft = 0
+      end
+      self.left = resolvedLeft
     else
       self.left = props.left
       self.units.left = { value = props.left, unit = "px" }
@@ -1378,9 +1519,18 @@ function Element.new(props)
 
     -- Handle columnGap and rowGap
     if props.columnGap then
-      if type(props.columnGap) == "string" then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.columnGap)
+      if type(props.columnGap) == "string" or isCalc then
         local value, unit = Element._Units.parse(props.columnGap)
-        self.columnGap = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, self.width)
+        local resolvedColumnGap = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, self.width)
+        if type(resolvedColumnGap) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "columnGap resolution returned non-number value",
+            type = type(resolvedColumnGap),
+          })
+          resolvedColumnGap = 0
+        end
+        self.columnGap = resolvedColumnGap
       else
         self.columnGap = props.columnGap
       end
@@ -1389,9 +1539,18 @@ function Element.new(props)
     end
 
     if props.rowGap then
-      if type(props.rowGap) == "string" then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.rowGap)
+      if type(props.rowGap) == "string" or isCalc then
         local value, unit = Element._Units.parse(props.rowGap)
-        self.rowGap = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, self.height)
+        local resolvedRowGap = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, self.height)
+        if type(resolvedRowGap) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "rowGap resolution returned non-number value",
+            type = type(resolvedRowGap),
+          })
+          resolvedRowGap = 0
+        end
+        self.rowGap = resolvedRowGap
       else
         self.rowGap = props.rowGap
       end

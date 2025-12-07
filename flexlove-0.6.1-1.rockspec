@@ -24,6 +24,14 @@ description = {
       - Text input with rich editing features
       - Responsive design with viewport units
       - Both immediate and retained rendering modes
+
+      Going this route, you will need to link the luarocks path to your project:
+      (for mac/linux)
+      ```lua
+      package.path = package.path .. ";/Users/<your_username>/.luarocks/share/lua/5.1/?.lua"
+      package.path = package.path .. ";/Users/<your_username>/.luarocks/share/lua/5.1/?/init.lua"
+      package.cpath = package.cpath .. ";/Users/<your_username>/.luarocks/lib/lua/5.1/?.so"
+      ```
    ]],
   homepage = "https://mikefreno.github.io/FlexLove/",
   license = "MIT",

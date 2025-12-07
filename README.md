@@ -34,7 +34,7 @@ This library is under rapid, active development. While many features are functio
 [Recommended] Go to the [releases](https://github.com/mikefreno/FlexLove/releases) page and download the latest release,
 there are a few different options for different build profiles, I recommend the "default" build. Then add the `modules` directory and `FlexLove.lua` into your project.
 
-Or, if you can also try will luarocks:
+Or, you can also install with luarocks:
 
 ```bash
 luarocks install flexlove

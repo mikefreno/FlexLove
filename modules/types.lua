@@ -142,10 +142,10 @@ local AnimationProps = {}
 local ElementProps = {}
 
 ---@class Border
----@field top boolean
----@field right boolean
----@field bottom boolean
----@field left boolean
+---@field top boolean|number -- true sets width to 1px, number sets width to specified pixels (default: 0)
+---@field right boolean|number -- true sets width to 1px, number sets width to specified pixels (default: 0)
+---@field bottom boolean|number -- true sets width to 1px, number sets width to specified pixels (default: 0)
+---@field left boolean|number -- true sets width to 1px, number sets width to specified pixels (default: 0)
 local Border = {}
 
 ---@class TransformProps

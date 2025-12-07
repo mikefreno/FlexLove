@@ -439,11 +439,22 @@ function Element.new(props)
     -- Check if any border side is truthy
     local hasAnyBorder = props.border.top or props.border.right or props.border.bottom or props.border.left
     if hasAnyBorder then
+      -- Normalize border values: boolean true → 1, number → value, false/nil → false
+      local function normalizeBorderValue(value)
+        if value == true then
+          return 1
+        elseif type(value) == "number" then
+          return value
+        else
+          return false
+        end
+      end
+      
       self.border = {
-        top = props.border.top or false,
-        right = props.border.right or false,
-        bottom = props.border.bottom or false,
-        left = props.border.left or false,
+        top = normalizeBorderValue(props.border.top),
+        right = normalizeBorderValue(props.border.right),
+        bottom = normalizeBorderValue(props.border.bottom),
+        left = normalizeBorderValue(props.border.left),
       }
     else
       self.border = nil

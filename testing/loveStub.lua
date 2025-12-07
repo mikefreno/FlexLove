@@ -82,6 +82,15 @@ function love_helper.graphics.line(x1, y1, x2, y2)
   -- Mock line drawing
 end
 
+function love_helper.graphics.setLineWidth(width)
+  -- Mock line width setting
+end
+
+function love_helper.graphics.getLineWidth()
+  -- Mock getting line width
+  return 1
+end
+
 function love_helper.graphics.polygon(mode, ...)
   -- Mock polygon drawing
 end

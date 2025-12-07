@@ -342,33 +342,51 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
   if type(self.border) == "number" then
     local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
     love.graphics.setColor(borderColorWithOpacity:toRGBA())
+    love.graphics.setLineWidth(self.border)
     self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+    love.graphics.setLineWidth(1) -- Reset to default
     return
   end
 
   local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
 
-  -- Check if all borders are enabled
+  -- Check if all borders are enabled with same width
   local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
+  local uniformWidth = allBorders and 
+    type(self.border.top) == "number" and 
+    self.border.top == self.border.right and 
+    self.border.top == self.border.bottom and 
+    self.border.top == self.border.left
 
-  if allBorders then
-    -- Draw complete rounded rectangle border
+  if uniformWidth then
+    -- Draw complete rounded rectangle border with uniform width
+    love.graphics.setLineWidth(self.border.top)
     self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+    love.graphics.setLineWidth(1) -- Reset to default
   else
-    -- Draw individual borders (without rounded corners for partial borders)
+    -- Draw individual borders with varying widths (without rounded corners for partial/varying borders)
     if self.border.top then
+      local width = type(self.border.top) == "number" and self.border.top or 1
+      love.graphics.setLineWidth(width)
       love.graphics.line(x, y, x + borderBoxWidth, y)
     end
     if self.border.bottom then
+      local width = type(self.border.bottom) == "number" and self.border.bottom or 1
+      love.graphics.setLineWidth(width)
       love.graphics.line(x, y + borderBoxHeight, x + borderBoxWidth, y + borderBoxHeight)
     end
     if self.border.left then
+      local width = type(self.border.left) == "number" and self.border.left or 1
+      love.graphics.setLineWidth(width)
       love.graphics.line(x, y, x, y + borderBoxHeight)
     end
     if self.border.right then
+      local width = type(self.border.right) == "number" and self.border.right or 1
+      love.graphics.setLineWidth(width)
       love.graphics.line(x + borderBoxWidth, y, x + borderBoxWidth, y + borderBoxHeight)
     end
+    love.graphics.setLineWidth(1) -- Reset to default
   end
 end
 

@@ -30,46 +30,46 @@ local function tokenize(expr)
   local tokens = {}
   local i = 1
   local len = #expr
-  
+
   while i <= len do
     local char = expr:sub(i, i)
-    
+
     -- Skip whitespace
     if char:match("%s") then
       i = i + 1
     -- Number (including decimals, but NOT negative - handled separately below)
     elseif char:match("%d") or (char == "." and expr:sub(i + 1, i + 1):match("%d")) then
       local numStr = ""
-      
+
       -- Parse integer and decimal parts
       while i <= len and (expr:sub(i, i):match("%d") or expr:sub(i, i) == ".") do
         numStr = numStr .. expr:sub(i, i)
         i = i + 1
       end
-      
+
       local num = tonumber(numStr)
       if not num then
         return nil, "Invalid number: " .. numStr
       end
-      
+
       -- Check for unit following the number
       local unitStr = ""
       while i <= len and expr:sub(i, i):match("[%a%%]") do
         unitStr = unitStr .. expr:sub(i, i)
         i = i + 1
       end
-      
+
       -- Default to px if no unit
       if unitStr == "" then
         unitStr = "px"
       end
-      
+
       -- Validate unit
       local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
       if not validUnits[unitStr] then
         return nil, "Invalid unit: " .. unitStr
       end
-      
+
       table.insert(tokens, {
         type = TokenType.NUMBER,
         value = num,
@@ -83,42 +83,47 @@ local function tokenize(expr)
       -- Check if this is a negative number or subtraction
       -- It's a negative number if previous token is an operator or opening paren
       local prevToken = tokens[#tokens]
-      if not prevToken or prevToken.type == TokenType.PLUS or prevToken.type == TokenType.MINUS 
-         or prevToken.type == TokenType.MULTIPLY or prevToken.type == TokenType.DIVIDE
-         or prevToken.type == TokenType.LPAREN then
+      if
+        not prevToken
+        or prevToken.type == TokenType.PLUS
+        or prevToken.type == TokenType.MINUS
+        or prevToken.type == TokenType.MULTIPLY
+        or prevToken.type == TokenType.DIVIDE
+        or prevToken.type == TokenType.LPAREN
+      then
         -- This is a negative number, continue to number parsing
         local numStr = "-"
         i = i + 1
-        
+
         -- Parse integer and decimal parts
         while i <= len and (expr:sub(i, i):match("%d") or expr:sub(i, i) == ".") do
           numStr = numStr .. expr:sub(i, i)
           i = i + 1
         end
-        
+
         local num = tonumber(numStr)
         if not num then
           return nil, "Invalid number: " .. numStr
         end
-        
+
         -- Check for unit following the number
         local unitStr = ""
         while i <= len and expr:sub(i, i):match("[%a%%]") do
           unitStr = unitStr .. expr:sub(i, i)
           i = i + 1
         end
-        
+
         -- Default to px if no unit
         if unitStr == "" then
           unitStr = "px"
         end
-        
+
         -- Validate unit
         local validUnits = { px = true, ["%"] = true, vw = true, vh = true, ew = true, eh = true }
         if not validUnits[unitStr] then
           return nil, "Invalid unit: " .. unitStr
         end
-        
+
         table.insert(tokens, {
           type = TokenType.NUMBER,
           value = num,
@@ -145,7 +150,7 @@ local function tokenize(expr)
       return nil, "Unexpected character: " .. char
     end
   end
-  
+
   table.insert(tokens, { type = TokenType.EOF })
   return tokens
 end
@@ -182,7 +187,7 @@ end
 ---@return table ast Abstract syntax tree node
 function Parser:parseExpression()
   local left = self:parseTerm()
-  
+
   while self:current().type == TokenType.PLUS or self:current().type == TokenType.MINUS do
     local op = self:current().type
     self:advance()
@@ -193,7 +198,7 @@ function Parser:parseExpression()
       right = right,
     }
   end
-  
+
   return left
 end
 
@@ -201,7 +206,7 @@ end
 ---@return table ast Abstract syntax tree node
 function Parser:parseTerm()
   local left = self:parseFactor()
-  
+
   while self:current().type == TokenType.MULTIPLY or self:current().type == TokenType.DIVIDE do
     local op = self:current().type
     self:advance()
@@ -212,7 +217,7 @@ function Parser:parseTerm()
       right = right,
     }
   end
-  
+
   return left
 end
 
@@ -220,7 +225,7 @@ end
 ---@return table ast Abstract syntax tree node
 function Parser:parseFactor()
   local token = self:current()
-  
+
   if token.type == TokenType.NUMBER then
     self:advance()
     return {
@@ -273,13 +278,13 @@ function Calc.new(expr)
       _error = err,
     }
   end
-  
+
   -- Parse
   local parser = Parser.new(tokens)
   local success, ast = pcall(function()
     return parser:parse()
   end)
-  
+
   if not success then
     if Calc._ErrorHandler then
       Calc._ErrorHandler:warn("Calc", "VAL_006", {
@@ -295,7 +300,7 @@ function Calc.new(expr)
       _error = ast,
     }
   end
-  
+
   return {
     _isCalc = true,
     _expr = expr,
@@ -323,7 +328,7 @@ function Calc.resolve(calcObj, viewportWidth, viewportHeight, parentSize, elemen
     -- Error during parsing, return 0
     return 0
   end
-  
+
   --- Evaluate AST node recursively
   ---@param node table AST node
   ---@return number value Evaluated value in pixels
@@ -332,7 +337,7 @@ function Calc.resolve(calcObj, viewportWidth, viewportHeight, parentSize, elemen
       -- Convert unit to pixels
       local value = node.value
       local unit = node.unit
-      
+
       if unit == "px" then
         return value
       elseif unit == "%" then
@@ -397,7 +402,7 @@ function Calc.resolve(calcObj, viewportWidth, viewportHeight, parentSize, elemen
       return 0
     end
   end
-  
+
   return evaluate(calcObj._ast)
 end
 

@@ -9,9 +9,17 @@ require("testing.loveStub")
 local luaunit = require("testing.luaunit")
 local Units = require("modules.Units")
 local Context = require("modules.Context")
+local ErrorHandler = require("modules.ErrorHandler")
+local Calc = require("modules.Calc")
 
--- Initialize Units module with Context
-Units.init({ Context = Context })
+-- Initialize ErrorHandler
+ErrorHandler.init({})
+
+-- Initialize Calc
+Calc.init({ ErrorHandler = ErrorHandler })
+
+-- Initialize Units module with dependencies
+Units.init({ Context = Context, ErrorHandler = ErrorHandler, Calc = Calc })
 
 -- Mock viewport dimensions for consistent tests
 local MOCK_VIEWPORT_WIDTH = 1920

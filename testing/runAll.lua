@@ -56,6 +56,7 @@ local testFiles = {
   "testing/__tests__/theme_test.lua",
   "testing/__tests__/units_test.lua",
   "testing/__tests__/utils_test.lua",
+  "testing/__tests__/calc_test.lua",
   -- Feature/Integration tests
   "testing/__tests__/critical_failures_test.lua",
   "testing/__tests__/flexlove_test.lua",

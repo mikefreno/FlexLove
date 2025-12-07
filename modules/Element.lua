@@ -1092,7 +1092,7 @@ function Element.new(props)
 
     -- Handle x position with units
     if props.x then
-      if type(props.x) == "string" then
+      if type(props.x) == "string" or type(props.x) == "table" then
         local value, unit = Element._Units.parse(props.x)
         self.units.x = { value = value, unit = unit }
         self.x = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
@@ -1108,7 +1108,7 @@ function Element.new(props)
 
     -- Handle y position with units
     if props.y then
-      if type(props.y) == "string" then
+      if type(props.y) == "string" or type(props.y) == "table" then
         local value, unit = Element._Units.parse(props.y)
         self.units.y = { value = value, unit = unit }
         self.y = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
@@ -1181,7 +1181,7 @@ function Element.new(props)
 
       -- Handle x position with units
       if props.x then
-        if type(props.x) == "string" then
+        if type(props.x) == "string" or type(props.x) == "table" then
           local value, unit = Element._Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
@@ -1200,7 +1200,7 @@ function Element.new(props)
 
       -- Handle y position with units
       if props.y then
-        if type(props.y) == "string" then
+        if type(props.y) == "string" or type(props.y) == "table" then
           local value, unit = Element._Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           local parentHeight = self.parent.height
@@ -1225,7 +1225,7 @@ function Element.new(props)
       local baseY = self.parent.y + self.parent.padding.top
 
       if props.x then
-        if type(props.x) == "string" then
+        if type(props.x) == "string" or type(props.x) == "table" then
           local value, unit = Element._Units.parse(props.x)
           self.units.x = { value = value, unit = unit }
           local parentWidth = self.parent.width
@@ -1243,7 +1243,7 @@ function Element.new(props)
       end
 
       if props.y then
-        if type(props.y) == "string" then
+        if type(props.y) == "string" or type(props.y) == "table" then
           local value, unit = Element._Units.parse(props.y)
           self.units.y = { value = value, unit = unit }
           parentHeight = self.parent.height

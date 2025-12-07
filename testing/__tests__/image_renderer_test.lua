@@ -518,6 +518,13 @@ function TestImageRendererElementIntegration:setUp()
   local Renderer = require("modules.Renderer")
   local EventHandler = require("modules.EventHandler")
   local ImageCache = require("modules.ImageCache")
+  local Context = require("modules.Context")
+  local StateManager = require("modules.StateManager")
+  local InputEvent = require("modules.InputEvent")
+  local Theme = require("modules.Theme")
+  local TextEditor = require("modules.TextEditor")
+  local ScrollManager = require("modules.ScrollManager")
+  local RoundedRect = require("modules.RoundedRect")
 
   self.deps = {
     utils = utils,
@@ -529,7 +536,18 @@ function TestImageRendererElementIntegration:setUp()
     ImageCache = ImageCache,
     ImageRenderer = ImageRenderer,
     ErrorHandler = ErrorHandler,
+    Context = Context,
+    StateManager = StateManager,
+    InputEvent = InputEvent,
+    Theme = Theme,
+    TextEditor = TextEditor,
+    ScrollManager = ScrollManager,
+    RoundedRect = RoundedRect,
   }
+  
+  -- Initialize Element with dependencies
+  Element.init(self.deps)
+  
   self.Element = Element
 end
 

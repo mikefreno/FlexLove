@@ -29,7 +29,7 @@ jobs:
             VERSION=$(grep -m 1 "_VERSION" FlexLove.lua | awk -F'"' '{print $2}')
             echo "Triggered manually, using FlexLove.lua version"
           fi
-          
+
           # Verify version was extracted
           if [ -z "$VERSION" ]; then
             echo "ERROR: Failed to extract version from FlexLove.lua"
@@ -37,7 +37,7 @@ jobs:
             grep "_VERSION" FlexLove.lua || echo "No _VERSION found"
             exit 1
           fi
-          
+
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
@@ -128,7 +128,7 @@ jobs:
           echo "Contents:"
           ls -la
           echo ""
-          
+
           # Create all 4 profile packages
           ./scripts/create-profile-packages.sh
 
@@ -180,10 +180,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           CURRENT_TAG="v${VERSION}"
           REPO="${{ github.repository }}"
-          
+
           # Get the previous tag (exclude current tag if it exists)
           PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1)
-          
+
           # Generate changelog
           if [ -n "$PREVIOUS_TAG" ]; then
             echo "## Changes since $PREVIOUS_TAG" > release_notes.md
@@ -201,7 +201,7 @@ jobs:
             echo "" >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           # Append the rest of the release notes
           cat >> release_notes.md << 'EOF'
           ## Build Profiles
@@ -212,7 +212,7 @@ jobs:
           |---------|------|-------------|---------|
           | **Minimal** | ~70% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
           | **Slim** | ~80% | + Animation and Image support | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
-          | **Default** | ~95% | + Theme and Blur effects | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
+          | **Default** | ~95% | + Theme, Calc, Blur effects | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
           | **Full** | 100% | All modules including debugging tools | `flexlove-full-v${{ steps.version.outputs.version }}.zip` |
 
           **Choose the profile that matches your needs!** See the [Build Profiles Documentation](https://github.com/${{ github.repository }}/blob/main/docs/BUILD_PROFILES.md) for detailed module listings.

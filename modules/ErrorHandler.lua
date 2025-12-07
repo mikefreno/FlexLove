@@ -46,8 +46,8 @@ local ErrorCodes = {
     VAL_006 = {
       code = "FLEXLOVE_VAL_006",
       category = "VAL",
-      description = "Invalid file path",
-      suggestion = "Check that the file path is correct and the file exists",
+      description = "Invalid calc() expression or calculation error",
+      suggestion = "Check calc() syntax and ensure no division by zero. Format: calc('value1 operator value2') with operators: +, -, *, / and units: px, %, vw, vh, ew, eh",
     },
     VAL_007 = {
       code = "FLEXLOVE_VAL_007",

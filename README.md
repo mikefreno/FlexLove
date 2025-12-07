@@ -110,25 +110,6 @@ FlexLöve supports optional modules to reduce bundle size for different use case
 - **Default (~95%)** - Adds themes, blur effects, and gestures
 - **Full (100%)** - Everything including performance monitoring
 
-### Example: Minimal Build
-
-For a lightweight build, exclude these optional module files:
-```
-modules/Animation.lua
-modules/Theme.lua
-modules/Blur.lua
-modules/ImageRenderer.lua
-modules/ImageScaler.lua
-modules/ImageCache.lua
-modules/NinePatch.lua
-modules/GestureRecognizer.lua
-modules/Performance.lua
-```
-
-The library automatically detects missing modules and provides safe no-op stubs. No code changes needed!
-
-📖 **See [BUILD_PROFILES.md](./docs/BUILD_PROFILES.md) and [MODULE_DEPENDENCIES.md](./docs/MODULE_DEPENDENCIES.md) for detailed information.**
-
 ## Documentation
 
 📚 **[View Full API Documentation](https://mikefreno.github.io/FlexLove/api.html)**
@@ -573,6 +554,39 @@ local element = FlexLove.new({
   textSize = "3vh"  -- 3% of viewport height
 })
 ```
+
+#### Dynamic Calculations with calc()
+
+Use `calc()` for CSS-like dynamic calculations in layout properties:
+
+```lua
+-- Center a button horizontally (accounting for its width)
+local button = FlexLove.new({
+  x = FlexLove.calc("50% - 10vw"),  -- Centers a 20vw wide button
+  y = "50vh",
+  width = "20vw",
+  height = "10vh",
+  text = "Centered Button"
+})
+
+-- Complex calculations with multiple operations
+local sidebar = FlexLove.new({
+  width = FlexLove.calc("100vw - 300px"),  -- Full width minus fixed sidebar
+  height = FlexLove.calc("100vh - 50px"),  -- Full height minus header
+  x = "300px",
+  y = "50px"
+})
+
+-- Using parentheses for order of operations
+local panel = FlexLove.new({
+  width = FlexLove.calc("(100vw - 40px) / 3"),  -- Three equal columns with 40px total padding
+  padding = { left = "10px", right = "10px" }
+})
+```
+
+**Supported operations:** `+`, `-`, `*`, `/`  
+**Supported units:** `px`, `%`, `vw`, `vh`, `ew`, `eh`  
+**Note:** Element width/height units (`ew`, `eh`) cannot be used in position calculations (`x`, `y`) due to circular dependencies.
 
 ### Animations
 

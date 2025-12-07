@@ -11,6 +11,16 @@ local Theme = require("modules.Theme")
 local Blur = require("modules.Blur")
 local utils = require("modules.utils")
 local ErrorHandler = require("modules.ErrorHandler")
+
+-- Setup package loader to map FlexLove.modules.X to modules/X
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function() return require("modules." .. moduleName) end
+  end
+end)
+
 local FlexLove = require("FlexLove")
 
 -- Initialize ErrorHandler

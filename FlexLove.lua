@@ -20,6 +20,7 @@ end
 
 -- Required core modules
 local utils = req("utils")
+local Calc = req("Calc")
 local Units = req("Units")
 local Context = req("Context")
 ---@type StateManager
@@ -176,7 +177,8 @@ function flexlove.init(config)
   end
 
   -- Initialize required modules
-  Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler })
+  Calc.init({ ErrorHandler = flexlove._ErrorHandler })
+  Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler, Calc = Calc })
   Color.init({ ErrorHandler = flexlove._ErrorHandler, FFI = flexlove._FFI })
   utils.init({ ErrorHandler = flexlove._ErrorHandler })
 
@@ -197,6 +199,7 @@ function flexlove.init(config)
     Context = Context,
     Theme = Theme,
     Color = Color,
+    Calc = Calc,
     Units = Units,
     Blur = Blur,
     ImageRenderer = ImageRenderer,
@@ -1101,6 +1104,21 @@ function flexlove.getStateStats()
     return { stateCount = 0, frameNumber = 0 }
   end
   return StateManager.getStats()
+end
+
+--- Create a calc() expression for dynamic CSS-like calculations
+--- Use this to create responsive layouts that adapt to viewport and parent dimensions
+--- @usage
+--- local button = FlexLove.new({
+---   x = FlexLove.calc("50% - 10vw"),
+---   y = FlexLove.calc("50% - 5vh"),
+---   width = "20vw",
+---   height = "10vh",
+--- })
+---@param expr string The calc expression (e.g., "50% - 10vw", "100px + 20%")
+---@return table calcObject A calc expression object that will be evaluated during layout
+function flexlove.calc(expr)
+  return Calc.new(expr)
 end
 
 flexlove.Animation = Animation

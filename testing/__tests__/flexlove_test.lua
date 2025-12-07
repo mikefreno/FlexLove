@@ -1,3 +1,12 @@
+-- Add custom package searcher to handle FlexLove.modules.X imports
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function() return require("modules." .. moduleName) end
+  end
+end)
+
 local luaunit = require("testing.luaunit")
 local ErrorHandler = require("modules.ErrorHandler")
 require("testing.loveStub")

@@ -6,10 +6,9 @@ ErrorHandler.init({})
 require("testing.loveStub")
 
 local ImageScaler = require("modules.ImageScaler")
-local ErrorHandler = require("modules.ErrorHandler")
 
--- Initialize ErrorHandler
-ErrorHandler.init({})
+-- Initialize ImageScaler with ErrorHandler
+ImageScaler.init({ ErrorHandler = ErrorHandler })
 
 TestImageScaler = {}
 

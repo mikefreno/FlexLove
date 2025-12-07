@@ -41,6 +41,7 @@ build = {
     ["FlexLove"] = "FlexLove.lua",
     ["FlexLove.modules.Animation"] = "modules/Animation.lua",
     ["FlexLove.modules.Blur"] = "modules/Blur.lua",
+    ["FlexLove.modules.Calc"] = "modules/Calc.lua",
     ["FlexLove.modules.Color"] = "modules/Color.lua",
     ["FlexLove.modules.Context"] = "modules/Context.lua",
     ["FlexLove.modules.Element"] = "modules/Element.lua",
@@ -69,8 +70,8 @@ build = {
     ["FlexLove.modules.UTF8"] = "modules/UTF8.lua",
     ["FlexLove.modules.utils"] = "modules/utils.lua",
   },
-  copy_directories = {
-    "docs",
-    "examples",
-  },
+  --copy_directories = {
+  --"docs",
+  --"examples",
+  --},
 }

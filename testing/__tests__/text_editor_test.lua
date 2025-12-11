@@ -18,17 +18,33 @@ local utils = require("modules.utils")
 -- ============================================================================
 
 -- Mock Context
-local MockContext = {
-  _immediateMode = false,
-  _focusedElement = nil,
-  setFocusedElement = function(self, element)
-    self._focusedElement = element
-  end,
-}
+local MockContext = {}
+MockContext._immediateMode = false
+MockContext._focusedElement = nil
+MockContext.setFocused = function(element)
+  if MockContext._focusedElement and MockContext._focusedElement ~= element then
+    -- Blur previous element if it has a text editor
+    if MockContext._focusedElement._textEditor then
+      MockContext._focusedElement._textEditor._focused = false
+    end
+  end
+  MockContext._focusedElement = element
+  if element and element._textEditor then
+    element._textEditor._focused = true
+  end
+end
+MockContext.getFocused = function()
+  return MockContext._focusedElement
+end
+MockContext.clearFocus = function()
+  MockContext.setFocused(nil)
+end
 
 -- Mock StateManager
 local MockStateManager = {
-  getState = function(id) return nil end,
+  getState = function(id)
+    return nil
+  end,
   updateState = function(id, state) end,
   saveState = function(id, state) end,
 }
@@ -54,7 +70,7 @@ local function createMockElement(width, height)
     y = 10,
     _absoluteX = 10,
     _absoluteY = 10,
-    padding = {top = 5, right = 5, bottom = 5, left = 5},
+    padding = { top = 5, right = 5, bottom = 5, left = 5 },
     _borderBoxWidth = (width or 200) + 10,
     _borderBoxHeight = (height or 30) + 10,
     getScaledContentPadding = function(self)
@@ -63,8 +79,12 @@ local function createMockElement(width, height)
     _renderer = {
       getFont = function(self, element)
         return {
-          getWidth = function(text) return #text * 8 end,
-          getHeight = function() return 16 end,
+          getWidth = function(text)
+            return #text * 8
+          end,
+          getHeight = function()
+            return 16
+          end,
         }
       end,
       wrapLine = function(element, line, maxWidth)
@@ -75,29 +95,29 @@ local function createMockElement(width, height)
         for word in line:gmatch("%S+") do
           table.insert(words, word)
         end
-        
+
         local wrapped = {}
         local currentLine = ""
         local startIdx = 0
-        
+
         for i, word in ipairs(words) do
           local testLine = currentLine == "" and word or (currentLine .. " " .. word)
           if #testLine * 8 <= maxWidth then
             currentLine = testLine
           else
             if currentLine ~= "" then
-              table.insert(wrapped, {text = currentLine, startIdx = startIdx, endIdx = startIdx + #currentLine})
+              table.insert(wrapped, { text = currentLine, startIdx = startIdx, endIdx = startIdx + #currentLine })
               startIdx = startIdx + #currentLine + 1
             end
             currentLine = word
           end
         end
-        
+
         if currentLine ~= "" then
-          table.insert(wrapped, {text = currentLine, startIdx = startIdx, endIdx = startIdx + #currentLine})
+          table.insert(wrapped, { text = currentLine, startIdx = startIdx, endIdx = startIdx + #currentLine })
         end
-        
-        return #wrapped > 0 and wrapped or {{text = line, startIdx = 0, endIdx = #line}}
+
+        return #wrapped > 0 and wrapped or { { text = line, startIdx = 0, endIdx = #line } }
       end,
     },
   }
@@ -156,10 +176,10 @@ end
 function TestTextEditorConstructor:test_restoreState_restores_focus()
   local editor = createTextEditor()
   local element = createMockElement()
-  
+
   -- This test verifies restoreState works without error
   editor:restoreState(element)
-  
+
   -- Element is no longer stored in _element field (refactored away)
   luaunit.assertTrue(true) -- Test passes if no error
 end
@@ -180,10 +200,10 @@ function TestTextEditorConstructor:test_allowTabs_default()
 end
 
 function TestTextEditorConstructor:test_allowNewlines_follows_multiline()
-  local editor = createTextEditor({multiline = true})
+  local editor = createTextEditor({ multiline = true })
   luaunit.assertTrue(editor.allowNewlines)
 
-  editor = createTextEditor({multiline = false})
+  editor = createTextEditor({ multiline = false })
   luaunit.assertFalse(editor.allowNewlines)
 end
 
@@ -202,7 +222,7 @@ end
 TestTextEditorBufferOps = {}
 
 function TestTextEditorBufferOps:test_getText_returns_text()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   luaunit.assertEquals(editor:getText(), "Hello World")
 end
 
@@ -250,56 +270,56 @@ function TestTextEditorBufferOps:test_setText_with_empty_string()
 end
 
 function TestTextEditorBufferOps:test_setText_with_nil()
-  local editor = createTextEditor({text = "initial"})
+  local editor = createTextEditor({ text = "initial" })
   local element = createMockElement()
   editor:setText(element, nil)
   luaunit.assertEquals(editor:getText(), "") -- Should default to empty string
 end
 
 function TestTextEditorBufferOps:test_insertText_at_position()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:insertText(element, " World", 5)
   luaunit.assertEquals(editor:getText(), "Hello World")
 end
 
 function TestTextEditorBufferOps:test_insertText_at_start()
-  local editor = createTextEditor({text = "World"})
+  local editor = createTextEditor({ text = "World" })
   local element = createMockElement()
   editor:insertText(element, "Hello ", 0)
   luaunit.assertEquals(editor:getText(), "Hello World")
 end
 
 function TestTextEditorBufferOps:test_insertText_with_empty_string()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:insertText(element, "", 2)
   luaunit.assertEquals(editor:getText(), "Hello") -- Should remain unchanged
 end
 
 function TestTextEditorBufferOps:test_insertText_at_invalid_position()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   -- Insert at negative position (should treat as 0)
   editor:insertText(element, "X", -10)
   luaunit.assertStrContains(editor:getText(), "X")
 end
 
 function TestTextEditorBufferOps:test_insertText_beyond_length()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:insertText(element, "X", 1000)
   luaunit.assertStrContains(editor:getText(), "X")
 end
 
 function TestTextEditorBufferOps:test_insertText_when_at_maxLength()
-  local editor = createTextEditor({text = "Hello", maxLength = 5})
+  local editor = createTextEditor({ text = "Hello", maxLength = 5 })
   local element = createMockElement()
   editor:insertText(element, "X", 5)
   luaunit.assertEquals(editor:getText(), "Hello") -- Should not insert
 end
 
 function TestTextEditorBufferOps:test_insertText_updates_cursor()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -310,21 +330,21 @@ function TestTextEditorBufferOps:test_insertText_updates_cursor()
 end
 
 function TestTextEditorBufferOps:test_deleteText_removes_range()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:deleteText(element, 5, 11) -- Remove " World"
   luaunit.assertEquals(editor:getText(), "Hello")
 end
 
 function TestTextEditorBufferOps:test_deleteText_handles_reversed()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:deleteText(element, 11, 5) -- Reversed: should swap
   luaunit.assertEquals(editor:getText(), "Hello")
 end
 
 function TestTextEditorBufferOps:test_deleteText_with_inverted_range()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:deleteText(element, 10, 2) -- End before start
   -- Should swap and delete
@@ -332,35 +352,35 @@ function TestTextEditorBufferOps:test_deleteText_with_inverted_range()
 end
 
 function TestTextEditorBufferOps:test_deleteText_beyond_bounds()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:deleteText(element, 10, 20) -- Beyond text length
   luaunit.assertEquals(editor:getText(), "Hello") -- Should clamp to bounds
 end
 
 function TestTextEditorBufferOps:test_deleteText_with_negative_positions()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:deleteText(element, -5, -1) -- Negative positions
   luaunit.assertEquals(editor:getText(), "Hello") -- Should clamp to 0
 end
 
 function TestTextEditorBufferOps:test_replaceText_replaces_range()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:replaceText(element, 6, 11, "Lua")
   luaunit.assertEquals(editor:getText(), "Hello Lua")
 end
 
 function TestTextEditorBufferOps:test_replaceText_with_empty_string()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:replaceText(element, 0, 5, "")
   luaunit.assertEquals(editor:getText(), " World") -- Should just delete
 end
 
 function TestTextEditorBufferOps:test_replaceText_beyond_bounds()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:replaceText(element, 10, 20, "X")
   luaunit.assertStrContains(editor:getText(), "X")
@@ -373,35 +393,35 @@ end
 TestTextEditorCursor = {}
 
 function TestTextEditorCursor:test_setCursorPosition()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 3)
   luaunit.assertEquals(editor:getCursorPosition(), 3)
 end
 
 function TestTextEditorCursor:test_setCursorPosition_clamps()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 100) -- Beyond text length
   luaunit.assertEquals(editor:getCursorPosition(), 5)
 end
 
 function TestTextEditorCursor:test_setCursorPosition_negative()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, -10)
   luaunit.assertEquals(editor:getCursorPosition(), 0) -- Should clamp to 0
 end
 
 function TestTextEditorCursor:test_setCursorPosition_with_non_number()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor._cursorPosition = "invalid" -- Corrupt state
   editor:setCursorPosition(element, 3)
   luaunit.assertEquals(editor:getCursorPosition(), 3) -- Should validate and fix
 end
 
 function TestTextEditorCursor:test_moveCursorBy()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 2)
   editor:moveCursorBy(element, 2)
@@ -409,7 +429,7 @@ function TestTextEditorCursor:test_moveCursorBy()
 end
 
 function TestTextEditorCursor:test_moveCursorBy_zero()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 2)
   editor:moveCursorBy(element, 0)
@@ -417,7 +437,7 @@ function TestTextEditorCursor:test_moveCursorBy_zero()
 end
 
 function TestTextEditorCursor:test_moveCursorBy_large_negative()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 2)
   editor:moveCursorBy(element, -1000)
@@ -425,7 +445,7 @@ function TestTextEditorCursor:test_moveCursorBy_large_negative()
 end
 
 function TestTextEditorCursor:test_moveCursorBy_large_positive()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 2)
   editor:moveCursorBy(element, 1000)
@@ -433,7 +453,7 @@ function TestTextEditorCursor:test_moveCursorBy_large_positive()
 end
 
 function TestTextEditorCursor:test_moveCursorToStart()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setCursorPosition(element, 3)
   editor:moveCursorToStart(element)
@@ -441,14 +461,14 @@ function TestTextEditorCursor:test_moveCursorToStart()
 end
 
 function TestTextEditorCursor:test_moveCursorToEnd()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:moveCursorToEnd(element)
   luaunit.assertEquals(editor:getCursorPosition(), 5)
 end
 
 function TestTextEditorCursor:test_moveCursor_with_empty_buffer()
-  local editor = createTextEditor({text = ""})
+  local editor = createTextEditor({ text = "" })
   editor:moveCursorToStart(element)
   luaunit.assertEquals(editor:getCursorPosition(), 0)
   editor:moveCursorToEnd(element)
@@ -456,7 +476,7 @@ function TestTextEditorCursor:test_moveCursor_with_empty_buffer()
 end
 
 function TestTextEditorCursor:test_getCursorScreenPosition_single_line()
-  local editor = createTextEditor({text = "Hello", multiline = false})
+  local editor = createTextEditor({ text = "Hello", multiline = false })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -470,7 +490,7 @@ function TestTextEditorCursor:test_getCursorScreenPosition_single_line()
 end
 
 function TestTextEditorCursor:test_getCursorScreenPosition_multiline()
-  local editor = createTextEditor({text = "Line 1\nLine 2", multiline = true})
+  local editor = createTextEditor({ text = "Line 1\nLine 2", multiline = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -484,7 +504,7 @@ end
 function TestTextEditorCursor:test_getCursorScreenPosition_password_mode()
   local editor = createTextEditor({
     text = "password123",
-    passwordMode = true
+    passwordMode = true,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -497,7 +517,7 @@ function TestTextEditorCursor:test_getCursorScreenPosition_password_mode()
 end
 
 function TestTextEditorCursor:test_getCursorScreenPosition_without_element()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local x, y = editor:_getCursorScreenPosition()
   luaunit.assertEquals(x, 0)
   luaunit.assertEquals(y, 0)
@@ -510,7 +530,7 @@ end
 TestTextEditorWordNav = {}
 
 function TestTextEditorWordNav:test_moveCursorToNextWord()
-  local editor = createTextEditor({text = "Hello World Test"})
+  local editor = createTextEditor({ text = "Hello World Test" })
   local element = createMockElement()
   local element = createMockElement()
   editor:restoreState(element)
@@ -522,7 +542,7 @@ function TestTextEditorWordNav:test_moveCursorToNextWord()
 end
 
 function TestTextEditorWordNav:test_moveCursorToPreviousWord()
-  local editor = createTextEditor({text = "Hello World Test"})
+  local editor = createTextEditor({ text = "Hello World Test" })
   local element = createMockElement()
   local element = createMockElement()
   editor:restoreState(element)
@@ -534,14 +554,14 @@ function TestTextEditorWordNav:test_moveCursorToPreviousWord()
 end
 
 function TestTextEditorWordNav:test_moveCursorToPreviousWord_at_start()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   editor:moveCursorToStart(element)
   editor:moveCursorToPreviousWord(element)
   luaunit.assertEquals(editor:getCursorPosition(), 0) -- Should stay at start
 end
 
 function TestTextEditorWordNav:test_moveCursorToNextWord_at_end()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   editor:moveCursorToEnd(element)
   editor:moveCursorToNextWord(element)
   luaunit.assertEquals(editor:getCursorPosition(), 11) -- Should stay at end
@@ -554,7 +574,7 @@ end
 TestTextEditorSelection = {}
 
 function TestTextEditorSelection:test_setSelection()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:setSelection(element, 0, 5)
 
@@ -564,7 +584,7 @@ function TestTextEditorSelection:test_setSelection()
 end
 
 function TestTextEditorSelection:test_setSelection_inverted_range()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:setSelection(element, 10, 2) -- End before start
   local start, endPos = editor:getSelection()
@@ -572,7 +592,7 @@ function TestTextEditorSelection:test_setSelection_inverted_range()
 end
 
 function TestTextEditorSelection:test_setSelection_beyond_bounds()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setSelection(element, 0, 1000)
   local start, endPos = editor:getSelection()
@@ -580,7 +600,7 @@ function TestTextEditorSelection:test_setSelection_beyond_bounds()
 end
 
 function TestTextEditorSelection:test_setSelection_negative_positions()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setSelection(element, -5, -1)
   -- When both positions are clamped to 0, start == end, so no selection
@@ -591,26 +611,26 @@ function TestTextEditorSelection:test_setSelection_negative_positions()
 end
 
 function TestTextEditorSelection:test_setSelection_same_start_end()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setSelection(element, 2, 2) -- Same position
   luaunit.assertFalse(editor:hasSelection()) -- Should be no selection
 end
 
 function TestTextEditorSelection:test_hasSelection_true()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setSelection(element, 0, 5)
   luaunit.assertTrue(editor:hasSelection())
 end
 
 function TestTextEditorSelection:test_hasSelection_false()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   luaunit.assertFalse(editor:hasSelection())
 end
 
 function TestTextEditorSelection:test_clearSelection()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:setSelection(element, 0, 5)
   editor:clearSelection(element)
@@ -618,19 +638,19 @@ function TestTextEditorSelection:test_clearSelection()
 end
 
 function TestTextEditorSelection:test_getSelectedText()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:setSelection(element, 0, 5)
   luaunit.assertEquals(editor:getSelectedText(), "Hello")
 end
 
 function TestTextEditorSelection:test_getSelectedText_with_no_selection()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   luaunit.assertNil(editor:getSelectedText())
 end
 
 function TestTextEditorSelection:test_deleteSelection()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:setSelection(element, 0, 6)
   editor:deleteSelection(element)
@@ -639,14 +659,14 @@ function TestTextEditorSelection:test_deleteSelection()
 end
 
 function TestTextEditorSelection:test_deleteSelection_with_no_selection()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local deleted = editor:deleteSelection(element)
   luaunit.assertFalse(deleted) -- Should return false
   luaunit.assertEquals(editor:getText(), "Hello") -- Text unchanged
 end
 
 function TestTextEditorSelection:test_selectAll()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:selectAll(element)
 
@@ -656,13 +676,13 @@ function TestTextEditorSelection:test_selectAll()
 end
 
 function TestTextEditorSelection:test_selectAll_with_empty_buffer()
-  local editor = createTextEditor({text = ""})
+  local editor = createTextEditor({ text = "" })
   editor:selectAll(element)
   luaunit.assertFalse(editor:hasSelection()) -- No selection on empty text
 end
 
 function TestTextEditorSelection:test_selectWordAtPosition()
-  local editor = createTextEditor({text = "Hello World Test"})
+  local editor = createTextEditor({ text = "Hello World Test" })
   local element = createMockElement()
   local element = createMockElement()
   editor:restoreState(element)
@@ -675,7 +695,7 @@ function TestTextEditorSelection:test_selectWordAtPosition()
 end
 
 function TestTextEditorSelection:test_selectWordAtPosition_with_punctuation()
-  local editor = createTextEditor({text = "Hello, World!"})
+  local editor = createTextEditor({ text = "Hello, World!" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -686,7 +706,7 @@ function TestTextEditorSelection:test_selectWordAtPosition_with_punctuation()
 end
 
 function TestTextEditorSelection:test_selectWordAtPosition_empty()
-  local editor = createTextEditor({text = ""})
+  local editor = createTextEditor({ text = "" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -695,7 +715,7 @@ function TestTextEditorSelection:test_selectWordAtPosition_empty()
 end
 
 function TestTextEditorSelection:test_selectWordAtPosition_on_whitespace()
-  local editor = createTextEditor({text = "Hello     World"})
+  local editor = createTextEditor({ text = "Hello     World" })
   editor:_selectWordAtPosition(element, 7) -- In whitespace
   -- Behavior depends on implementation
   luaunit.assertTrue(true)
@@ -708,7 +728,7 @@ end
 TestTextEditorSelectionRects = {}
 
 function TestTextEditorSelectionRects:test_getSelectionRects_single_line()
-  local editor = createTextEditor({text = "Hello World", multiline = false})
+  local editor = createTextEditor({ text = "Hello World", multiline = false })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -724,7 +744,7 @@ function TestTextEditorSelectionRects:test_getSelectionRects_single_line()
 end
 
 function TestTextEditorSelectionRects:test_getSelectionRects_multiline()
-  local editor = createTextEditor({text = "Line 1\nLine 2\nLine 3", multiline = true})
+  local editor = createTextEditor({ text = "Line 1\nLine 2\nLine 3", multiline = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -740,7 +760,7 @@ function TestTextEditorSelectionRects:test_getSelectionRects_password_mode()
   local editor = createTextEditor({
     text = "secret",
     passwordMode = true,
-    multiline = false
+    multiline = false,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -753,7 +773,7 @@ function TestTextEditorSelectionRects:test_getSelectionRects_password_mode()
 end
 
 function TestTextEditorSelectionRects:test_getSelectionRects_empty_buffer()
-  local editor = createTextEditor({text = ""})
+  local editor = createTextEditor({ text = "" })
   local mockElement = createMockElement()
   editor:restoreState(mockElement)
 
@@ -772,7 +792,9 @@ function TestTextEditorFocus:test_focus()
   local focusCalled = false
   local editor = createTextEditor({
     text = "Test",
-    onFocus = function() focusCalled = true end
+    onFocus = function()
+      focusCalled = true
+    end,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -786,7 +808,9 @@ function TestTextEditorFocus:test_blur()
   local blurCalled = false
   local editor = createTextEditor({
     text = "Test",
-    onBlur = function() blurCalled = true end
+    onBlur = function()
+      blurCalled = true
+    end,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -800,7 +824,7 @@ end
 function TestTextEditorFocus:test_selectOnFocus()
   local editor = createTextEditor({
     text = "Hello World",
-    selectOnFocus = true
+    selectOnFocus = true,
   })
   local element = createMockElement()
   local element = createMockElement()
@@ -842,8 +866,8 @@ function TestTextEditorFocus:test_blur_twice()
 end
 
 function TestTextEditorFocus:test_focus_blurs_previous()
-  local editor1 = createTextEditor({text = "Editor 1"})
-  local editor2 = createTextEditor({text = "Editor 2"})
+  local editor1 = createTextEditor({ text = "Editor 1" })
+  local editor2 = createTextEditor({ text = "Editor 2" })
 
   local element1 = createMockElement()
   local element2 = createMockElement()
@@ -871,7 +895,7 @@ end
 TestTextEditorKeyboard = {}
 
 function TestTextEditorKeyboard:test_handleTextInput()
-  local editor = createTextEditor({text = "", editable = true})
+  local editor = createTextEditor({ text = "", editable = true })
   local element = createMockElement()
   local element = createMockElement()
   editor:restoreState(element)
@@ -884,21 +908,21 @@ function TestTextEditorKeyboard:test_handleTextInput()
 end
 
 function TestTextEditorKeyboard:test_handleTextInput_without_focus()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:handleTextInput(element, "X")
   luaunit.assertEquals(editor:getText(), "Hello") -- Should not insert
 end
 
 function TestTextEditorKeyboard:test_handleTextInput_empty_string()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor:focus(element)
   editor:handleTextInput(element, "")
   luaunit.assertEquals(editor:getText(), "Hello") -- Should not modify
 end
 
 function TestTextEditorKeyboard:test_handleTextInput_newline_in_singleline()
-  local editor = createTextEditor({text = "Hello", multiline = false, allowNewlines = false})
+  local editor = createTextEditor({ text = "Hello", multiline = false, allowNewlines = false })
   editor:focus(element)
   editor:handleTextInput(element, "\n")
   -- Should sanitize newline in single-line mode
@@ -920,7 +944,7 @@ function TestTextEditorKeyboard:test_handleTextInput_callback_returns_false()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_backspace()
-  local editor = createTextEditor({text = "Hello", editable = true})
+  local editor = createTextEditor({ text = "Hello", editable = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -932,7 +956,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_backspace()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_backspace_at_start()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor:focus(element)
   editor:moveCursorToStart(element)
   editor:handleKeyPress(element, "backspace", "backspace", false)
@@ -940,7 +964,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_backspace_at_start()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_delete()
-  local editor = createTextEditor({text = "Hello", editable = true})
+  local editor = createTextEditor({ text = "Hello", editable = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -952,7 +976,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_delete()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_delete_at_end()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor:focus(element)
   editor:moveCursorToEnd(element)
   editor:handleKeyPress(element, "delete", "delete", false)
@@ -960,7 +984,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_delete_at_end()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_return_multiline()
-  local editor = createTextEditor({text = "Hello", editable = true, multiline = true})
+  local editor = createTextEditor({ text = "Hello", editable = true, multiline = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -978,7 +1002,9 @@ function TestTextEditorKeyboard:test_handleKeyPress_return_singleline()
     text = "Hello",
     editable = true,
     multiline = false,
-    onEnter = function() onEnterCalled = true end
+    onEnter = function()
+      onEnterCalled = true
+    end,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -991,7 +1017,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_return_singleline()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_home_end()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1008,7 +1034,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_home_end()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_arrow_keys()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1025,21 +1051,21 @@ function TestTextEditorKeyboard:test_handleKeyPress_arrow_keys()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_without_focus()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:handleKeyPress(element, "backspace", "backspace", false)
   luaunit.assertEquals(editor:getText(), "Hello") -- Should not modify
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_unknown_key()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor:focus(element)
   editor:handleKeyPress(element, "unknownkey", "unknownkey", false)
   luaunit.assertEquals(editor:getText(), "Hello") -- Should ignore
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_escape_with_selection()
-  local editor = createTextEditor({text = "Select me"})
+  local editor = createTextEditor({ text = "Select me" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1052,7 +1078,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_escape_with_selection()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_escape_without_selection()
-  local editor = createTextEditor({text = "Test"})
+  local editor = createTextEditor({ text = "Test" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1063,7 +1089,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_escape_without_selection()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_arrow_with_shift()
-  local editor = createTextEditor({text = "Select this"})
+  local editor = createTextEditor({ text = "Select this" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1079,7 +1105,7 @@ function TestTextEditorKeyboard:test_handleKeyPress_arrow_with_shift()
 end
 
 function TestTextEditorKeyboard:test_handleKeyPress_ctrl_backspace()
-  local editor = createTextEditor({text = "Delete this"})
+  local editor = createTextEditor({ text = "Delete this" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1101,7 +1127,7 @@ end
 TestTextEditorMouse = {}
 
 function TestTextEditorMouse:test_mouseToTextPosition()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   local element = createMockElement()
   editor:restoreState(element)
@@ -1113,7 +1139,7 @@ function TestTextEditorMouse:test_mouseToTextPosition()
 end
 
 function TestTextEditorMouse:test_mouseToTextPosition_without_element()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   local pos = editor:mouseToTextPosition(element, 10, 10)
   luaunit.assertEquals(pos, 0) -- Should return 0 without element
@@ -1132,7 +1158,7 @@ function TestTextEditorMouse:test_mouseToTextPosition_with_nil_buffer()
 end
 
 function TestTextEditorMouse:test_mouseToTextPosition_negative_coords()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local mockElement = createMockElement()
   mockElement.x = 100
   mockElement.y = 100
@@ -1143,7 +1169,7 @@ function TestTextEditorMouse:test_mouseToTextPosition_negative_coords()
 end
 
 function TestTextEditorMouse:test_mouseToTextPosition_multiline()
-  local editor = createTextEditor({text = "Line 1\nLine 2\nLine 3", multiline = true})
+  local editor = createTextEditor({ text = "Line 1\nLine 2\nLine 3", multiline = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1155,7 +1181,7 @@ function TestTextEditorMouse:test_mouseToTextPosition_multiline()
 end
 
 function TestTextEditorMouse:test_handleTextClick_single_click()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1164,7 +1190,7 @@ function TestTextEditorMouse:test_handleTextClick_single_click()
 end
 
 function TestTextEditorMouse:test_handleTextClick_double_click()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1177,7 +1203,7 @@ function TestTextEditorMouse:test_handleTextClick_double_click()
 end
 
 function TestTextEditorMouse:test_handleTextClick_triple_click()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1188,7 +1214,7 @@ function TestTextEditorMouse:test_handleTextClick_triple_click()
 end
 
 function TestTextEditorMouse:test_handleTextClick_without_focus()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:handleTextClick(element, 10, 10, 1)
   -- Should not error, but also won't do anything without focus
@@ -1196,7 +1222,7 @@ function TestTextEditorMouse:test_handleTextClick_without_focus()
 end
 
 function TestTextEditorMouse:test_handleTextClick_zero_count()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor:focus(element)
   editor:handleTextClick(element, 10, 10, 0)
   -- Should not error
@@ -1204,7 +1230,7 @@ function TestTextEditorMouse:test_handleTextClick_zero_count()
 end
 
 function TestTextEditorMouse:test_handleTextDrag()
-  local editor = createTextEditor({text = "Hello World"})
+  local editor = createTextEditor({ text = "Hello World" })
   local element = createMockElement()
   local element = createMockElement()
   editor:restoreState(element)
@@ -1224,7 +1250,7 @@ function TestTextEditorMouse:test_handleTextDrag()
 end
 
 function TestTextEditorMouse:test_handleTextDrag_without_mousedown()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   editor:focus(element)
   editor:handleTextDrag(element, 20, 10) -- Drag without mouseDownPosition
   -- Should not error
@@ -1232,7 +1258,7 @@ function TestTextEditorMouse:test_handleTextDrag_without_mousedown()
 end
 
 function TestTextEditorMouse:test_handleTextDrag_sets_flag()
-  local editor = createTextEditor({text = "Drag me"})
+  local editor = createTextEditor({ text = "Drag me" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1250,7 +1276,7 @@ end
 TestTextEditorMultiline = {}
 
 function TestTextEditorMultiline:test_multiline_split_lines()
-  local editor = createTextEditor({multiline = true, text = "Line 1\nLine 2\nLine 3"})
+  local editor = createTextEditor({ multiline = true, text = "Line 1\nLine 2\nLine 3" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1263,7 +1289,7 @@ function TestTextEditorMultiline:test_multiline_split_lines()
 end
 
 function TestTextEditorMultiline:test_multiline_cursor_movement()
-  local editor = createTextEditor({multiline = true, text = "Line 1\nLine 2"})
+  local editor = createTextEditor({ multiline = true, text = "Line 1\nLine 2" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1277,7 +1303,7 @@ function TestTextEditorMultiline:test_multiline_cursor_movement()
 end
 
 function TestTextEditorMultiline:test_multiline_insert_newline()
-  local editor = createTextEditor({multiline = true, text = "Hello"})
+  local editor = createTextEditor({ multiline = true, text = "Hello" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1298,7 +1324,7 @@ function TestTextEditorWrapping:test_word_wrapping()
   local editor = createTextEditor({
     multiline = true,
     textWrap = "word",
-    text = "This is a long line that should wrap"
+    text = "This is a long line that should wrap",
   })
   local element = createMockElement(50, 100) -- Very narrow width to force wrapping
   editor:restoreState(element)
@@ -1313,7 +1339,7 @@ function TestTextEditorWrapping:test_char_wrapping()
   local editor = createTextEditor({
     multiline = true,
     textWrap = "char",
-    text = "Verylongwordwithoutspaces"
+    text = "Verylongwordwithoutspaces",
   })
   local element = createMockElement(100, 100)
   editor:restoreState(element)
@@ -1326,7 +1352,7 @@ function TestTextEditorWrapping:test_no_wrapping()
   local editor = createTextEditor({
     multiline = true,
     textWrap = false,
-    text = "This is a long line that should not wrap"
+    text = "This is a long line that should not wrap",
   })
   local element = createMockElement(100, 100)
   editor:restoreState(element)
@@ -1337,7 +1363,7 @@ function TestTextEditorWrapping:test_no_wrapping()
 end
 
 function TestTextEditorWrapping:test_wrapLine_empty_line()
-  local editor = createTextEditor({multiline = true, textWrap = "word"})
+  local editor = createTextEditor({ multiline = true, textWrap = "word" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1351,7 +1377,7 @@ function TestTextEditorWrapping:test_calculateWrapping_empty_lines()
   local editor = createTextEditor({
     multiline = true,
     textWrap = "word",
-    text = "Line 1\n\nLine 3"
+    text = "Line 1\n\nLine 3",
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -1365,7 +1391,7 @@ function TestTextEditorWrapping:test_calculateWrapping_no_element()
   local editor = createTextEditor({
     multiline = true,
     textWrap = "word",
-    text = "Test"
+    text = "Test",
   })
 
   -- No element initialized
@@ -1381,14 +1407,14 @@ end
 TestTextEditorSanitization = {}
 
 function TestTextEditorSanitization:test_sanitize_max_length()
-  local editor = createTextEditor({maxLength = 5})
+  local editor = createTextEditor({ maxLength = 5 })
   local element = createMockElement()
   editor:setText(element, "HelloWorld")
   luaunit.assertEquals(editor:getText(), "Hello")
 end
 
 function TestTextEditorSanitization:test_sanitize_zero_maxLength()
-  local editor = createTextEditor({maxLength = 0})
+  local editor = createTextEditor({ maxLength = 0 })
   local element = createMockElement()
   editor:setText(element, "test")
   luaunit.assertEquals(editor:getText(), "") -- Should be empty
@@ -1469,7 +1495,7 @@ function TestTextEditorSanitization:test_disallow_newlines()
     text = "",
     editable = true,
     multiline = false,
-    allowNewlines = false
+    allowNewlines = false,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -1483,7 +1509,7 @@ function TestTextEditorSanitization:test_disallow_tabs()
   local editor = createTextEditor({
     text = "",
     editable = true,
-    allowTabs = false
+    allowTabs = false,
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -1526,7 +1552,7 @@ end
 TestTextEditorPassword = {}
 
 function TestTextEditorPassword:test_password_mode_masks_text()
-  local editor = createTextEditor({text = "secret123", passwordMode = true})
+  local editor = createTextEditor({ text = "secret123", passwordMode = true })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1538,7 +1564,7 @@ function TestTextEditorPassword:test_password_mode_masks_text()
 end
 
 function TestTextEditorPassword:test_password_mode_empty_text()
-  local editor = createTextEditor({passwordMode = true, text = ""})
+  local editor = createTextEditor({ passwordMode = true, text = "" })
   luaunit.assertEquals(editor:getText(), "")
 end
 
@@ -1549,7 +1575,7 @@ end
 TestTextEditorValidation = {}
 
 function TestTextEditorValidation:test_number_input_type()
-  local editor = createTextEditor({text = "", editable = true, inputType = "number"})
+  local editor = createTextEditor({ text = "", editable = true, inputType = "number" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1563,7 +1589,7 @@ function TestTextEditorValidation:test_number_input_type()
 end
 
 function TestTextEditorValidation:test_max_length()
-  local editor = createTextEditor({text = "", editable = true, maxLength = 5})
+  local editor = createTextEditor({ text = "", editable = true, maxLength = 5 })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1576,13 +1602,13 @@ end
 
 function TestTextEditorValidation:test_invalid_input_type()
   -- Invalid input type (not validated by constructor)
-  local editor = createTextEditor({inputType = "invalid"})
+  local editor = createTextEditor({ inputType = "invalid" })
   luaunit.assertEquals(editor.inputType, "invalid")
 end
 
 function TestTextEditorValidation:test_negative_maxLength()
   -- Negative maxLength should be ignored
-  local editor = createTextEditor({maxLength = -10})
+  local editor = createTextEditor({ maxLength = -10 })
   luaunit.assertEquals(editor.maxLength, -10) -- Module doesn't validate, just stores
 end
 
@@ -1593,7 +1619,7 @@ end
 TestTextEditorUpdate = {}
 
 function TestTextEditorUpdate:test_update_cursor_blink()
-  local editor = createTextEditor({text = "Test", cursorBlinkRate = 0.5})
+  local editor = createTextEditor({ text = "Test", cursorBlinkRate = 0.5 })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1612,7 +1638,7 @@ function TestTextEditorUpdate:test_update_cursor_blink()
 end
 
 function TestTextEditorUpdate:test_cursor_blink_pause()
-  local editor = createTextEditor({text = "Test", cursorBlinkRate = 0.5})
+  local editor = createTextEditor({ text = "Test", cursorBlinkRate = 0.5 })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1624,7 +1650,7 @@ function TestTextEditorUpdate:test_cursor_blink_pause()
 end
 
 function TestTextEditorUpdate:test_cursor_blink_pause_resume()
-  local editor = createTextEditor({text = "Test"})
+  local editor = createTextEditor({ text = "Test" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1640,7 +1666,7 @@ function TestTextEditorUpdate:test_cursor_blink_pause_resume()
 end
 
 function TestTextEditorUpdate:test_update_not_focused()
-  local editor = createTextEditor({text = "Test"})
+  local editor = createTextEditor({ text = "Test" })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1673,7 +1699,7 @@ function TestTextEditorUpdate:test_update_zero_dt()
 end
 
 function TestTextEditorUpdate:test_cursor_blink_cycle()
-  local editor = createTextEditor({text = "Test", cursorBlinkRate = 0.5})
+  local editor = createTextEditor({ text = "Test", cursorBlinkRate = 0.5 })
   local element = createMockElement()
   editor:restoreState(element)
 
@@ -1687,19 +1713,19 @@ end
 
 function TestTextEditorUpdate:test_cursor_blink_rate_negative()
   -- Negative blink rate
-  local editor = createTextEditor({cursorBlinkRate = -1})
+  local editor = createTextEditor({ cursorBlinkRate = -1 })
   luaunit.assertEquals(editor.cursorBlinkRate, -1) -- Should accept any value
 end
 
 function TestTextEditorUpdate:test_cursor_blink_rate_zero()
   -- Zero blink rate (would cause rapid blinking)
-  local editor = createTextEditor({cursorBlinkRate = 0})
+  local editor = createTextEditor({ cursorBlinkRate = 0 })
   luaunit.assertEquals(editor.cursorBlinkRate, 0)
 end
 
 function TestTextEditorUpdate:test_cursor_blink_rate_large()
   -- Very large blink rate
-  local editor = createTextEditor({cursorBlinkRate = 1000})
+  local editor = createTextEditor({ cursorBlinkRate = 1000 })
   luaunit.assertEquals(editor.cursorBlinkRate, 1000)
 end
 
@@ -1710,7 +1736,7 @@ end
 TestTextEditorScroll = {}
 
 function TestTextEditorScroll:test_updateTextScroll()
-  local editor = createTextEditor({text = "This is very long text that needs scrolling"})
+  local editor = createTextEditor({ text = "This is very long text that needs scrolling" })
   local element = createMockElement()
   local element = createMockElement(100, 30)
   editor:restoreState(element)
@@ -1724,7 +1750,7 @@ function TestTextEditorScroll:test_updateTextScroll()
 end
 
 function TestTextEditorScroll:test_updateTextScroll_keeps_cursor_visible()
-  local editor = createTextEditor({text = "Long text here"})
+  local editor = createTextEditor({ text = "Long text here" })
   local element = createMockElement(50, 30)
   editor:restoreState(element)
 
@@ -1737,7 +1763,7 @@ function TestTextEditorScroll:test_updateTextScroll_keeps_cursor_visible()
 end
 
 function TestTextEditorScroll:test_mouseToTextPosition_with_scroll()
-  local editor = createTextEditor({text = "Very long scrolling text"})
+  local editor = createTextEditor({ text = "Very long scrolling text" })
   local element = createMockElement(100, 30)
   editor:restoreState(element)
 
@@ -1758,7 +1784,7 @@ function TestTextEditorAutoGrow:test_updateAutoGrowHeight_single_line()
   local editor = createTextEditor({
     multiline = false,
     autoGrow = true,
-    text = "Single line"
+    text = "Single line",
   })
   local element = createMockElement()
   editor:restoreState(element)
@@ -1772,7 +1798,7 @@ function TestTextEditorAutoGrow:test_updateAutoGrowHeight_multiline()
   local editor = createTextEditor({
     multiline = true,
     autoGrow = true,
-    text = "Line 1\nLine 2\nLine 3"
+    text = "Line 1\nLine 2\nLine 3",
   })
   local element = createMockElement(200, 50)
   editor:restoreState(element)
@@ -1789,7 +1815,7 @@ function TestTextEditorAutoGrow:test_updateAutoGrowHeight_with_wrapping()
     multiline = true,
     autoGrow = true,
     textWrap = "word",
-    text = "This is a very long line that will wrap multiple times when displayed"
+    text = "This is a very long line that will wrap multiple times when displayed",
   })
   local element = createMockElement(100, 50)
   editor:restoreState(element)
@@ -1800,14 +1826,14 @@ function TestTextEditorAutoGrow:test_updateAutoGrowHeight_with_wrapping()
 end
 
 function TestTextEditorAutoGrow:test_autoGrow_without_element()
-  local editor = createTextEditor({autoGrow = true, multiline = true})
+  local editor = createTextEditor({ autoGrow = true, multiline = true })
   editor:updateAutoGrowHeight(element)
   -- Should not error without element
   luaunit.assertTrue(true)
 end
 
 function TestTextEditorAutoGrow:test_textWrap_zero_width()
-  local editor = createTextEditor({textWrap = true})
+  local editor = createTextEditor({ textWrap = true })
   local mockElement = createMockElement()
   mockElement.width = 0
   editor:restoreState(mockElement)
@@ -1831,28 +1857,28 @@ function TestTextEditorUTF8:test_setText_with_emoji()
 end
 
 function TestTextEditorUTF8:test_insertText_with_utf8()
-  local editor = createTextEditor({text = "Hello"})
+  local editor = createTextEditor({ text = "Hello" })
   local element = createMockElement()
   editor:insertText(element, "世界", 5) -- Chinese characters
   luaunit.assertStrContains(editor:getText(), "世界")
 end
 
 function TestTextEditorUTF8:test_cursorPosition_with_utf8()
-  local editor = createTextEditor({text = "Hello👋World"})
+  local editor = createTextEditor({ text = "Hello👋World" })
   -- Cursor positions should be in characters, not bytes
   editor:setCursorPosition(element, 6) -- After emoji
   luaunit.assertEquals(editor:getCursorPosition(), 6)
 end
 
 function TestTextEditorUTF8:test_deleteText_with_utf8()
-  local editor = createTextEditor({text = "Hello👋World"})
+  local editor = createTextEditor({ text = "Hello👋World" })
   local element = createMockElement()
   editor:deleteText(element, 5, 6) -- Delete emoji
   luaunit.assertEquals(editor:getText(), "HelloWorld")
 end
 
 function TestTextEditorUTF8:test_maxLength_with_utf8()
-  local editor = createTextEditor({maxLength = 10})
+  local editor = createTextEditor({ maxLength = 10 })
   local element = createMockElement()
   editor:setText(element, "Hello👋👋👋👋👋") -- 10 characters including emojis
   local len = utf8.len(editor:getText())
@@ -1884,10 +1910,18 @@ function TestTextEditorStateSaving:test_initialize_immediate_mode_with_state()
     saveState = function(id, state) end,
   }
 
-  local mockContext = {
-    _immediateMode = true,
-    _focusedElement = nil,
-  }
+  local mockContext = {}
+  mockContext._immediateMode = true
+  mockContext._focusedElement = nil
+  mockContext.setFocused = function(element)
+    mockContext._focusedElement = element
+  end
+  mockContext.getFocused = function()
+    return mockContext._focusedElement
+  end
+  mockContext.clearFocus = function()
+    mockContext._focusedElement = nil
+  end
 
   local editor = TextEditor.new({}, {
     Context = mockContext,
@@ -1915,7 +1949,9 @@ end
 function TestTextEditorStateSaving:test_saveState_immediate_mode()
   local savedState = nil
   local mockStateManager = {
-    getState = function(id) return nil end,
+    getState = function(id)
+      return nil
+    end,
     updateState = function(id, state)
       savedState = state
     end,
@@ -1926,7 +1962,7 @@ function TestTextEditorStateSaving:test_saveState_immediate_mode()
     _focusedElement = nil,
   }
 
-  local editor = TextEditor.new({text = "Test"}, {
+  local editor = TextEditor.new({ text = "Test" }, {
     Context = mockContext,
     StateManager = mockStateManager,
     Color = Color,
@@ -1947,18 +1983,29 @@ end
 function TestTextEditorStateSaving:test_saveState_not_immediate_mode()
   local saveCalled = false
   local mockStateManager = {
-    getState = function(id) return nil end,
+    getState = function(id)
+      return nil
+    end,
     updateState = function(id, state)
       saveCalled = true
     end,
   }
 
   local mockContext = {
-    _immediateMode = false,
+    _immediateMode = true,
     _focusedElement = nil,
+    setFocused = function(element)
+      mockContext._focusedElement = element
+    end,
+    getFocused = function()
+      return mockContext._focusedElement
+    end,
+    clearFocus = function()
+      mockContext._focusedElement = nil
+    end,
   }
 
-  local editor = TextEditor.new({text = "Test"}, {
+  local editor = TextEditor.new({ text = "Test" }, {
     Context = mockContext,
     StateManager = mockStateManager,
     Color = Color,
@@ -1983,30 +2030,30 @@ TestTextEditorImmediateMode = {}
 function TestTextEditorImmediateMode:test_focus_persists_across_frames()
   -- Simulate immediate mode
   MockContext._immediateMode = true
-  
+
   -- Create editor and focus it
-  local editor1 = createTextEditor({text = "Hello", editable = true})
+  local editor1 = createTextEditor({ text = "Hello", editable = true })
   local element1 = createMockElement()
   editor1:focus(element1)
-  
+
   luaunit.assertTrue(editor1._focused)
   luaunit.assertEquals(MockContext._focusedElement, element1)
-  
+
   -- Get state
   local state = editor1:getState()
   luaunit.assertTrue(state._focused)
-  
+
   -- Create new editor (simulating next frame)
-  local editor2 = createTextEditor({text = "Hello", editable = true})
+  local editor2 = createTextEditor({ text = "Hello", editable = true })
   local element2 = createMockElement()
-  
+
   -- Restore state
   editor2:setState(state, element2)
-  
+
   -- Focus should be restored
   luaunit.assertTrue(editor2._focused)
   luaunit.assertEquals(MockContext._focusedElement, element2)
-  
+
   -- Reset
   MockContext._immediateMode = false
   MockContext._focusedElement = nil
@@ -2015,26 +2062,26 @@ end
 function TestTextEditorImmediateMode:test_text_input_works_after_state_restore()
   -- Simulate immediate mode
   MockContext._immediateMode = true
-  
+
   -- Create editor and focus it
-  local editor1 = createTextEditor({text = "Hello", editable = true})
+  local editor1 = createTextEditor({ text = "Hello", editable = true })
   local element1 = createMockElement()
   editor1:focus(element1)
-  
+
   -- Get state
   local state = editor1:getState()
-  
+
   -- Create new editor (simulating next frame)
-  local editor2 = createTextEditor({text = "Hello", editable = true})
+  local editor2 = createTextEditor({ text = "Hello", editable = true })
   local element2 = createMockElement()
-  
+
   -- Restore state (this should restore focus)
   editor2:setState(state, element2)
-  
+
   -- Text input should work because focus was restored
   editor2:handleTextInput(element2, "X")
   luaunit.assertEquals(editor2:getText(), "HelloX")
-  
+
   -- Reset
   MockContext._immediateMode = false
   MockContext._focusedElement = nil
@@ -2042,22 +2089,22 @@ end
 
 function TestTextEditorImmediateMode:test_cursor_position_persists()
   MockContext._immediateMode = true
-  
-  local editor1 = createTextEditor({text = "Hello", editable = true})
+
+  local editor1 = createTextEditor({ text = "Hello", editable = true })
   local element1 = createMockElement()
   editor1:focus(element1)
   editor1:moveCursorBy(element1, -2) -- Move cursor to position 3
-  
+
   local state = editor1:getState()
   luaunit.assertEquals(state._cursorPosition, 3)
-  
+
   -- Restore in new editor
-  local editor2 = createTextEditor({text = "Hello", editable = true})
+  local editor2 = createTextEditor({ text = "Hello", editable = true })
   local element2 = createMockElement()
   editor2:setState(state, element2)
-  
+
   luaunit.assertEquals(editor2._cursorPosition, 3)
-  
+
   -- Reset
   MockContext._immediateMode = false
   MockContext._focusedElement = nil

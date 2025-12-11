@@ -1,22 +1,6 @@
--- Critical Failure Tests for FlexLove
--- These tests are designed to find ACTUAL BUGS:
--- 1. Memory leaks / garbage creation without cleanup
--- 2. Layout calculation bugs causing incorrect positioning
--- 3. Unsafe input access (nil dereference, division by zero, etc.)
-
-package.path = package.path .. ";./?.lua;./modules/?.lua"
-
--- Add custom package searcher to handle FlexLove.modules.X imports
-local originalSearchers = package.searchers or package.loaders
-table.insert(originalSearchers, 2, function(modname)
-  if modname:match("^FlexLove%.modules%.") then
-    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
-  end
-end)
-
 require("testing.loveStub")
 local luaunit = require("testing.luaunit")
+local ErrorHandler = require("modules.ErrorHandler") -- Load FlexLove
 local FlexLove = require("FlexLove")
 
 TestCriticalFailures = {}
@@ -427,7 +411,7 @@ end
 -- Test: 9-patch padding with corrupted theme state (Element.lua:752-755)
 function TestCriticalFailures:test_ninepatch_padding_nil_dereference()
   local Theme = require("modules.Theme")
-  
+
   -- Create a theme with 9-patch data
   local theme = Theme.new({
     name = "test_theme",
@@ -435,14 +419,14 @@ function TestCriticalFailures:test_ninepatch_padding_nil_dereference()
       container = {
         ninePatch = {
           imagePath = "themes/metal.lua", -- Invalid path to trigger edge case
-          contentPadding = { top = 10, left = 10, right = 10, bottom = 10 }
-        }
-      }
-    }
+          contentPadding = { top = 10, left = 10, right = 10, bottom = 10 },
+        },
+      },
+    },
   })
-  
+
   FlexLove.init({ theme = theme })
-  
+
   -- Try to create element that uses 9-patch padding
   -- If ninePatchContentPadding becomes nil but use9PatchPadding is true, this will crash
   local success, err = pcall(function()
@@ -453,18 +437,18 @@ function TestCriticalFailures:test_ninepatch_padding_nil_dereference()
       -- No explicit padding, should use 9-patch padding
     })
   end)
-  
+
   if not success then
     print("ERROR: " .. tostring(err))
   end
-  
+
   luaunit.assertTrue(success, "Should handle 9-patch padding gracefully")
 end
 
 -- Test: Theme with malformed 9-patch data
 function TestCriticalFailures:test_malformed_ninepatch_data()
   local Theme = require("modules.Theme")
-  
+
   -- Create theme with incomplete 9-patch data
   local success = pcall(function()
     local theme = Theme.new({
@@ -474,20 +458,20 @@ function TestCriticalFailures:test_malformed_ninepatch_data()
           ninePatch = {
             -- Missing imagePath
             contentPadding = { top = 10, left = 10 }, -- Incomplete padding
-          }
-        }
-      }
+          },
+        },
+      },
     })
-    
+
     FlexLove.init({ theme = theme })
-    
+
     FlexLove.new({
       width = 100,
       height = 100,
       component = "container",
     })
   end)
-  
+
   -- Should either succeed or fail with clear error (not nil dereference)
   luaunit.assertTrue(true) -- If we get here, no segfault
 end
@@ -499,10 +483,10 @@ end
 -- Test: Scrollable element with overflow content + immediate mode + state restoration
 function TestCriticalFailures:test_scroll_overflow_immediate_mode_integration()
   FlexLove.setMode("immediate")
-  
+
   for frame = 1, 3 do
     FlexLove.beginFrame()
-    
+
     local scrollContainer = FlexLove.new({
       id = "scroll_container",
       width = 200,
@@ -511,7 +495,7 @@ function TestCriticalFailures:test_scroll_overflow_immediate_mode_integration()
       positioning = "flex",
       flexDirection = "vertical",
     })
-    
+
     -- Add children that exceed container height
     for i = 1, 10 do
       FlexLove.new({
@@ -521,14 +505,14 @@ function TestCriticalFailures:test_scroll_overflow_immediate_mode_integration()
         parent = scrollContainer,
       })
     end
-    
+
     FlexLove.endFrame()
-    
+
     -- Scroll on second frame
     if frame == 2 then
       scrollContainer:setScrollPosition(0, 100)
     end
-    
+
     -- Check scroll position restored on third frame
     if frame == 3 then
       local scrollX, scrollY = scrollContainer:getScrollPosition()
@@ -548,7 +532,7 @@ function TestCriticalFailures:test_grid_autosized_children_percentage_gap()
     gridColumns = 3,
     gap = "5%", -- Percentage gap
   })
-  
+
   -- Add auto-sized children (no explicit dimensions)
   for i = 1, 9 do
     local child = FlexLove.new({
@@ -556,7 +540,7 @@ function TestCriticalFailures:test_grid_autosized_children_percentage_gap()
       text = "Cell " .. i,
       -- Auto-sizing based on text
     })
-    
+
     -- Verify child dimensions are valid
     luaunit.assertNotNil(child.width)
     luaunit.assertNotNil(child.height)
@@ -575,7 +559,7 @@ function TestCriticalFailures:test_nested_flex_conflicting_alignment()
     alignItems = "stretch",
     justifyContent = "center",
   })
-  
+
   local middle = FlexLove.new({
     parent = outer,
     height = 200,
@@ -585,21 +569,21 @@ function TestCriticalFailures:test_nested_flex_conflicting_alignment()
     alignItems = "flex-end",
     justifyContent = "space-between",
   })
-  
+
   local inner1 = FlexLove.new({
     parent = middle,
     width = 50,
     -- Auto height
     text = "A",
   })
-  
+
   local inner2 = FlexLove.new({
     parent = middle,
     width = 50,
     height = 100,
     text = "B",
   })
-  
+
   -- Verify all elements have valid dimensions and positions
   luaunit.assertTrue(outer.width > 0)
   luaunit.assertTrue(middle.width > 0)
@@ -617,7 +601,7 @@ function TestCriticalFailures:test_conflicting_size_sources()
     positioning = "flex",
     alignItems = "stretch",
   })
-  
+
   local success = pcall(function()
     FlexLove.new({
       parent = parent,
@@ -627,7 +611,7 @@ function TestCriticalFailures:test_conflicting_size_sources()
       padding = { top = 50, left = 50, right = 50, bottom = 50 },
     })
   end)
-  
+
   luaunit.assertTrue(success, "Should handle conflicting size sources")
 end
 
@@ -638,10 +622,9 @@ function TestCriticalFailures:test_image_resize_during_load()
     height = 100,
     imagePath = "nonexistent.png", -- Won't load, but should handle gracefully
   })
-  
-  -- Simulate resize while "loading"
-  FlexLove.resize(1920, 1080)
-  
+
+  FlexLove.resize()
+
   -- Element should still be valid
   luaunit.assertNotNil(element.width)
   luaunit.assertNotNil(element.height)
@@ -652,25 +635,25 @@ end
 -- Test: Rapid theme switching with active elements
 function TestCriticalFailures:test_rapid_theme_switching()
   local Theme = require("modules.Theme")
-  
+
   local theme1 = Theme.new({ name = "theme1", components = {} })
   local theme2 = Theme.new({ name = "theme2", components = {} })
-  
+
   FlexLove.init({ theme = theme1 })
-  
+
   -- Create elements with theme1
   local element1 = FlexLove.new({ width = 100, height = 100 })
   local element2 = FlexLove.new({ width = 100, height = 100 })
-  
+
   -- Switch theme
   FlexLove.destroy()
   FlexLove.init({ theme = theme2 })
-  
+
   -- Old elements should be invalidated (accessing them might crash)
   local success = pcall(function()
     element1:setText("test")
   end)
-  
+
   -- It's OK if this fails (element destroyed), but shouldn't segfault
   luaunit.assertTrue(true)
 end
@@ -682,20 +665,20 @@ function TestCriticalFailures:test_update_during_layout()
     height = 300,
     positioning = "flex",
   })
-  
+
   local child = FlexLove.new({
     width = 100,
     height = 100,
     parent = parent,
   })
-  
+
   -- Modify child properties immediately after creation (during layout)
   child:setText("Modified during layout")
   child.backgroundColor = { r = 1, g = 0, b = 0, a = 1 }
-  
+
   -- Trigger another layout
   parent:resize(400, 400)
-  
+
   -- Everything should still be valid
   luaunit.assertNotNil(child.text)
   luaunit.assertEquals(child.text, "Modified during layout")
@@ -708,7 +691,7 @@ end
 -- Test: Destroy element with active event listeners
 function TestCriticalFailures:test_destroy_with_active_listeners()
   local eventFired = false
-  
+
   local element = FlexLove.new({
     width = 100,
     height = 100,
@@ -716,20 +699,20 @@ function TestCriticalFailures:test_destroy_with_active_listeners()
       eventFired = true
     end,
   })
-  
+
   -- Simulate an event via InputEvent
   local InputEvent = require("modules.InputEvent")
   local event = InputEvent.new({ type = "pressed", button = 1, x = 50, y = 50 })
-  
+
   if element.onEvent and element:contains(50, 50) then
     element.onEvent(element, event)
   end
-  
+
   luaunit.assertTrue(eventFired, "Event should fire before destroy")
-  
+
   -- Destroy element
   element:destroy()
-  
+
   -- onEvent should be nil after destroy
   luaunit.assertNil(element.onEvent, "onEvent should be cleared after destroy")
 end
@@ -737,14 +720,14 @@ end
 -- Test: Double destroy should be safe
 function TestCriticalFailures:test_double_destroy_safety()
   local element = FlexLove.new({ width = 100, height = 100 })
-  
+
   element:destroy()
-  
+
   -- Second destroy should be safe (idempotent)
   local success = pcall(function()
     element:destroy()
   end)
-  
+
   luaunit.assertTrue(success, "Double destroy should be safe")
 end
 
@@ -752,13 +735,13 @@ end
 function TestCriticalFailures:test_circular_parent_child_reference()
   local parent = FlexLove.new({ width = 200, height = 200 })
   local child = FlexLove.new({ width = 100, height = 100, parent = parent })
-  
+
   -- Try to create circular reference (should be prevented)
   local success = pcall(function()
     parent.parent = child -- This should never be allowed
     parent:layoutChildren() -- This would cause infinite recursion
   end)
-  
+
   -- Even if we set circular reference, layout should not crash
   luaunit.assertTrue(true) -- If we get here, no stack overflow
 end
@@ -770,7 +753,7 @@ function TestCriticalFailures:test_modify_children_during_iteration()
     height = 300,
     positioning = "flex",
   })
-  
+
   -- Add several children
   local children = {}
   for i = 1, 5 do
@@ -780,19 +763,19 @@ function TestCriticalFailures:test_modify_children_during_iteration()
       parent = parent,
     })
   end
-  
+
   -- Remove child during layout (simulates user code modifying structure)
   local success = pcall(function()
     -- Trigger layout
     parent:layoutChildren()
-    
+
     -- Remove a child (modifies children array)
     children[3]:destroy()
-    
+
     -- Trigger layout again
     parent:layoutChildren()
   end)
-  
+
   luaunit.assertTrue(success, "Should handle children modification during layout")
 end
 

@@ -1,12 +1,3 @@
--- Add custom package searcher to handle FlexLove.modules.X imports
-local originalSearchers = package.searchers or package.loaders
-table.insert(originalSearchers, 2, function(modname)
-  if modname:match("^FlexLove%.modules%.") then
-    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
-  end
-end)
-
 local luaunit = require("testing.luaunit")
 local ErrorHandler = require("modules.ErrorHandler")
 require("testing.loveStub")
@@ -1314,7 +1305,7 @@ end
 -- Test: scrollSpeed prop is properly passed to ScrollManager in immediate mode
 function TestFlexLove:testScrollSpeedInImmediateMode()
   FlexLove.setMode("immediate")
-  
+
   FlexLove.beginFrame()
   local element = FlexLove.new({
     id = "scrollableElement",
@@ -1323,7 +1314,7 @@ function TestFlexLove:testScrollSpeedInImmediateMode()
     overflow = "auto",
     scrollSpeed = 75, -- Custom scroll speed
   })
-  
+
   -- Add children to make it scrollable
   for i = 1, 10 do
     FlexLove.new({
@@ -1333,12 +1324,12 @@ function TestFlexLove:testScrollSpeedInImmediateMode()
     })
   end
   FlexLove.endFrame()
-  
+
   -- Verify scrollSpeed was set correctly
   luaunit.assertEquals(element.scrollSpeed, 75)
   luaunit.assertNotNil(element._scrollManager)
   luaunit.assertEquals(element._scrollManager.scrollSpeed, 75)
-  
+
   -- Test another frame to ensure scrollSpeed persists
   FlexLove.beginFrame()
   local element2 = FlexLove.new({
@@ -1348,7 +1339,7 @@ function TestFlexLove:testScrollSpeedInImmediateMode()
     overflow = "auto",
     scrollSpeed = 75,
   })
-  
+
   for i = 1, 10 do
     FlexLove.new({
       parent = element2,
@@ -1357,7 +1348,7 @@ function TestFlexLove:testScrollSpeedInImmediateMode()
     })
   end
   FlexLove.endFrame()
-  
+
   -- Verify scrollSpeed is still correct after recreating element
   luaunit.assertEquals(element2.scrollSpeed, 75)
   luaunit.assertEquals(element2._scrollManager.scrollSpeed, 75)
@@ -1366,7 +1357,7 @@ end
 -- Test: smoothScrollEnabled prop is properly passed to ScrollManager
 function TestFlexLove:testSmoothScrollEnabledProp()
   FlexLove.setMode("immediate")
-  
+
   FlexLove.beginFrame()
   local element = FlexLove.new({
     id = "smoothScrollElement",
@@ -1375,7 +1366,7 @@ function TestFlexLove:testSmoothScrollEnabledProp()
     overflow = "auto",
     smoothScrollEnabled = true,
   })
-  
+
   for i = 1, 10 do
     FlexLove.new({
       parent = element,
@@ -1384,7 +1375,7 @@ function TestFlexLove:testSmoothScrollEnabledProp()
     })
   end
   FlexLove.endFrame()
-  
+
   -- Verify smoothScrollEnabled was set correctly
   luaunit.assertNotNil(element._scrollManager)
   luaunit.assertTrue(element._scrollManager.smoothScrollEnabled)
@@ -1393,7 +1384,7 @@ end
 -- Test: scrollSpeed must be provided every frame in immediate mode
 function TestFlexLove:testScrollSpeedMustBeProvidedEveryFrame()
   FlexLove.setMode("immediate")
-  
+
   -- Frame 1: Set custom scrollSpeed
   FlexLove.beginFrame()
   local element1 = FlexLove.new({
@@ -1408,7 +1399,7 @@ function TestFlexLove:testScrollSpeedMustBeProvidedEveryFrame()
   end
   FlexLove.endFrame()
   luaunit.assertEquals(element1._scrollManager.scrollSpeed, 50)
-  
+
   -- Frame 2: Forget to provide scrollSpeed (should default to 20)
   FlexLove.beginFrame()
   local element2 = FlexLove.new({
@@ -1422,7 +1413,7 @@ function TestFlexLove:testScrollSpeedMustBeProvidedEveryFrame()
     FlexLove.new({ parent = element2, width = 180, height = 50 })
   end
   FlexLove.endFrame()
-  
+
   -- In immediate mode, props must be provided every frame
   luaunit.assertEquals(element2._scrollManager.scrollSpeed, 20)
 end
@@ -1430,14 +1421,14 @@ end
 -- Test: smooth scrolling actually interpolates scroll position
 function TestFlexLove:testSmoothScrollingInterpolation()
   FlexLove.setMode("retained")
-  
+
   local element = FlexLove.new({
     width = 200,
     height = 200,
     overflow = "auto",
     smoothScrollEnabled = true,
   })
-  
+
   for i = 1, 20 do
     FlexLove.new({
       parent = element,
@@ -1445,27 +1436,27 @@ function TestFlexLove:testSmoothScrollingInterpolation()
       height = 50,
     })
   end
-  
+
   -- Manually set overflow state (normally done by layout)
   element._scrollManager._overflowY = true
   element._scrollManager._maxScrollY = 800 -- 20 * 50 - 200
-  
+
   -- Trigger wheel scroll
   element:_handleWheelScroll(0, -1) -- Scroll down
-  
+
   -- Should set target, not immediate scroll
   luaunit.assertNotNil(element._scrollManager._targetScrollY)
   local initialScroll = element._scrollManager._scrollY
   local targetScroll = element._scrollManager._targetScrollY
-  
+
   -- Initial scroll should be 0, target should be scrollSpeed (default 20)
   luaunit.assertEquals(initialScroll, 0)
   luaunit.assertEquals(targetScroll, 20)
-  
+
   -- Update should interpolate towards target
   element:update(0.016) -- One frame at 60fps
   local afterUpdate = element._scrollManager._scrollY
-  
+
   -- Scroll position should have moved towards target
   luaunit.assertTrue(afterUpdate > initialScroll)
   luaunit.assertTrue(afterUpdate <= targetScroll)

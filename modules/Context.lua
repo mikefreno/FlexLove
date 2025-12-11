@@ -18,6 +18,8 @@ local Context = {
   _autoBeganFrame = false,
   -- Z-index ordered element tracking for immediate mode
   _zIndexOrderedElements = {}, -- Array of elements sorted by z-index (lowest to highest)
+  -- Focus management guard
+  _settingFocus = false,
 }
 
 ---@return number, number -- scaleX, scaleY
@@ -141,6 +143,49 @@ function Context.getTopElementAt(x, y)
   end
 
   return nil
+end
+
+--- Set the focused element (centralizes focus management)
+--- Automatically blurs the previously focused element if different
+---@param element Element|nil The element to focus (nil to clear focus)
+function Context.setFocused(element)
+  if Context._focusedElement == element then
+    return -- Already focused
+  end
+
+  -- Prevent re-entry during focus change
+  if Context._settingFocus then
+    return
+  end
+  Context._settingFocus = true
+
+  -- Blur previously focused element
+  if Context._focusedElement and Context._focusedElement ~= element then
+    if Context._focusedElement._textEditor then
+      Context._focusedElement._textEditor:blur(Context._focusedElement)
+    end
+  end
+
+  -- Set new focused element
+  Context._focusedElement = element
+
+  -- Focus the new element's text editor if it has one
+  if element and element._textEditor then
+    element._textEditor._focused = true
+  end
+
+  Context._settingFocus = false
+end
+
+--- Get the currently focused element
+---@return Element|nil The focused element, or nil if none
+function Context.getFocused()
+  return Context._focusedElement
+end
+
+--- Clear focus from any element
+function Context.clearFocus()
+  Context.setFocused(nil)
 end
 
 return Context

@@ -862,8 +862,9 @@ end
 --- Hook this to love.textinput() to enable text entry in your UI
 ---@param text string
 function flexlove.textinput(text)
-  if flexlove._focusedElement then
-    flexlove._focusedElement:textinput(text)
+  local focusedElement = Context.getFocused()
+  if focusedElement then
+    focusedElement:textinput(text)
   end
 end
 
@@ -875,8 +876,9 @@ end
 function flexlove.keypressed(key, scancode, isrepeat)
   -- Handle performance HUD toggle
   flexlove._Performance:keypressed(key)
-  if flexlove._focusedElement then
-    flexlove._focusedElement:keypressed(key, scancode, isrepeat)
+  local focusedElement = Context.getFocused()
+  if focusedElement then
+    focusedElement:keypressed(key, scancode, isrepeat)
   end
 end
 
@@ -1028,7 +1030,7 @@ function flexlove.destroy()
   flexlove._gameCanvas = nil
   flexlove._backdropCanvas = nil
   flexlove._canvasDimensions = { width = 0, height = 0 }
-  flexlove._focusedElement = nil
+  Context.clearFocus()
   StateManager:reset()
 end
 
@@ -1159,6 +1161,27 @@ end
 ---@return CalcObject calcObject A calc expression object that will be evaluated during layout
 function flexlove.calc(expr)
   return Calc.new(expr)
+end
+
+--- Get the currently focused element
+--- Returns the element that is currently receiving keyboard input (e.g., text input, text area)
+---@return Element|nil The focused element, or nil if no element has focus
+function flexlove.getFocusedElement()
+  return Context.getFocused()
+end
+
+--- Set focus to a specific element
+--- Automatically blurs the previously focused element if different
+--- Use this to programmatically focus text inputs or other interactive elements
+---@param element Element|nil The element to focus (nil to clear focus)
+function flexlove.setFocusedElement(element)
+  Context.setFocused(element)
+end
+
+--- Clear focus from any element
+--- Removes keyboard focus from the currently focused element
+function flexlove.clearFocus()
+  Context.clearFocus()
 end
 
 flexlove.Animation = Animation

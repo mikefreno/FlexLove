@@ -189,7 +189,7 @@ function TextEditor:restoreState(element)
     if state then
       if state._focused then
         self._focused = true
-        self._Context._focusedElement = element
+        self._Context.setFocused(element)
       end
       if state._textBuffer and state._textBuffer ~= "" then
         self._textBuffer = state._textBuffer
@@ -1044,15 +1044,9 @@ function TextEditor:focus(element)
     return
   end
 
-  if self._Context._focusedElement and self._Context._focusedElement ~= element then
-    -- Blur the previously focused element's text editor if it has one
-    if self._Context._focusedElement._textEditor then
-      self._Context._focusedElement._textEditor:blur(self._Context._focusedElement)
-    end
-  end
-
+  -- Use centralized Context focus management
+  self._Context.setFocused(element)
   self._focused = true
-  self._Context._focusedElement = element
 
   self:_resetCursorBlink(element)
 
@@ -1078,7 +1072,9 @@ function TextEditor:blur(element)
 
   self._focused = false
 
-  if self._Context._focusedElement == element then
+  -- Clear focused element in Context if this element is currently focused
+  -- Use direct assignment to avoid circular call back to blur()
+  if self._Context.getFocused() == element then
     self._Context._focusedElement = nil
   end
 
@@ -1741,7 +1737,7 @@ function TextEditor:setState(state, element)
     self._focused = state._focused
     -- Restore focused element in Context if this element was focused
     if self._focused and element then
-      self._Context._focusedElement = element
+      self._Context.setFocused(element)
     end
   end
 end

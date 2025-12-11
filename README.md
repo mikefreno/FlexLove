@@ -2,15 +2,8 @@
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
-FlexLöve is a lightweight, flexible GUI library for Löve2D that implements a flexbox-based layout system.
-The goals of this project are two-fold, first, anyone with basic CSS knowledge should be able to
-use this library with minimal learning curve. Second, this library should take you from early prototyping to production. 
-
-
-## ⚠️ Development Status
-
-This library is under rapid, active development. While many features are functional, some aspects may change or have incomplete/broken implementations.
-
+FlexLöve is a flexible GUI library for Löve2D that implements a flexbox-based layout system.
+The goals of this project are two-fold, first, to make a UI library that anyone with basic CSS knowledge can run with a minimal learning curve, and second, to have a single library take you from early prototyping to production easily and gradually.
 
 ## Features
 
@@ -27,7 +20,7 @@ This library is under rapid, active development. While many features are functio
 - **Text Rendering**: Flexible text display with alignment and auto-scaling
 - **Corner Radius**: Rounded corners with individual corner control
 - **Advanced Positioning**: Absolute, relative, flex, and grid positioning modes
-- **Multi-Touch & Gestures(Not yet tested)**: Touch event tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), and touch scrolling with momentum/bounce
+- **(Warning - Alpha-stages - Not yet tested) Multi-Touch & Gestures**: Touch event tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), and touch scrolling with momentum/bounce
 
 ## Quick Start
 
@@ -43,20 +36,22 @@ luarocks install flexlove
 Going this route, you will need to link the luarocks path to your project:
 (for mac/linux)
 ```lua
-package.path = package.path .. ";/Users/<your_username>/.luarocks/share/lua/5.1/?.lua"
-package.path = package.path .. ";/Users/<your_username>/.luarocks/share/lua/5.1/?/init.lua"
-package.cpath = package.cpath .. ";/Users/<your_username>/.luarocks/lib/lua/5.1/?.so"
+package.path = package.path .. ";/Users/<username>/.luarocks/share/lua/<version>/?.lua"
+package.path = package.path .. ";/Users/<username>/.luarocks/share/lua/<version>/?/init.lua"
+package.cpath = package.cpath .. ";/Users/<username>/.luarocks/lib/lua/<version>/?.so"
 ```
 
 
 ```lua
 local FlexLove = require("FlexLove")
 
--- (Optional) Initialize with a theme and immediate mode
-FlexLove.init({
-  theme = "space",
-  immediateMode = true
-})
+function love.load()
+  -- (Optional) Initialize with a theme and immediate mode
+  FlexLove.init({
+    theme = "space",
+    immediateMode = true
+  })
+end
 
 function love.update(dt)
   FlexLove.update(dt)

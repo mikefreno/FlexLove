@@ -1,5 +1,5 @@
 ---@class InputEvent
----@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"|"touchpress"|"touchmove"|"touchrelease"|"touchcancel"
+---@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"|"hover"|"unhover"|"touchpress"|"touchmove"|"touchrelease"|"touchcancel"
 ---@field button number -- Mouse button: 1 (left), 2 (right), 3 (middle)
 ---@field x number -- Mouse/Touch X position
 ---@field y number -- Mouse/Touch Y position
@@ -15,7 +15,7 @@ local InputEvent = {}
 InputEvent.__index = InputEvent
 
 ---@class InputEventProps
----@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"|"touchpress"|"touchmove"|"touchrelease"|"touchcancel"
+---@field type "click"|"press"|"release"|"rightclick"|"middleclick"|"drag"|"hover"|"unhover"|"touchpress"|"touchmove"|"touchrelease"|"touchcancel"
 ---@field button number
 ---@field x number
 ---@field y number
@@ -42,12 +42,12 @@ function InputEvent.new(props)
   self.modifiers = props.modifiers
   self.clickCount = props.clickCount or 1
   self.timestamp = props.timestamp or love.timer.getTime()
-  
+
   -- Touch-specific properties
   self.touchId = props.touchId
   self.pressure = props.pressure or 1.0
   self.phase = props.phase
-  
+
   return self
 end
 
@@ -68,7 +68,7 @@ function InputEvent.fromTouch(id, x, y, phase, pressure)
   elseif phase == "cancelled" then
     eventType = "touchcancel"
   end
-  
+
   return InputEvent.new({
     type = eventType,
     button = 1, -- Treat touch as left button
@@ -76,7 +76,7 @@ function InputEvent.fromTouch(id, x, y, phase, pressure)
     y = y,
     dx = 0,
     dy = 0,
-    modifiers = {shift = false, ctrl = false, alt = false, super = false},
+    modifiers = { shift = false, ctrl = false, alt = false, super = false },
     clickCount = 1,
     timestamp = love.timer.getTime(),
     touchId = touchIdStr,

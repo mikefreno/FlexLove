@@ -1,8 +1,26 @@
 -- FlexLöve Profiler - Main Entry Point
 -- Load FlexLöve from parent directory
-package.path = package.path .. ";../?.lua;../?/init.lua"
 
-local FlexLove = require("libs.FlexLove")
+-- Override require to handle FlexLove.modules.X properly
+-- When FlexLove.lua requires "FlexLove.modules.ErrorHandler",
+-- we redirect it to "../modules/ErrorHandler"
+local originalRequire = require
+local function customRequire(modname)
+  -- Check if this is a FlexLove.modules.X require
+  local moduleName = modname:match("^FlexLove%.modules%.(.+)$")
+  if moduleName then
+    -- Redirect to ../modules/X
+    return originalRequire("modules." .. moduleName)
+  end
+  -- Otherwise use original require
+  return originalRequire(modname)
+end
+_G.require = customRequire
+
+-- Set up package.path for normal requires
+package.path = package.path .. ";../?.lua;../?/init.lua;../modules/?.lua"
+
+local FlexLove = originalRequire("FlexLove")
 local PerformanceProfiler = require("profiling.utils.PerformanceProfiler")
 local lv = love
 
@@ -118,17 +136,9 @@ local function buildMenu()
     padding = { horizontal = 40, vertical = 40 },
   })
 
-  local container = FlexLove.new({
-    parent = root,
-    positioning = "flex",
-    flexDirection = "vertical",
-    alignItems = "center",
-    gap = 30,
-  })
-
   -- Title
   FlexLove.new({
-    parent = container,
+    parent = root,
     width = 600,
     height = 80,
     backgroundColor = FlexLove.Color.new(0.15, 0.15, 0.25, 1),
@@ -139,6 +149,16 @@ local function buildMenu()
     text = "FlexLöve Performance Profiler",
     textSize = "3xl",
     textColor = FlexLove.Color.new(0.3, 0.8, 1, 1),
+  })
+
+  local container = FlexLove.new({
+    parent = root,
+    positioning = "flex",
+    flexDirection = "vertical",
+    alignItems = "center",
+    height = "100%",
+    width = "100%",
+    gap = 30,
   })
 
   -- Subtitle
@@ -152,32 +172,43 @@ local function buildMenu()
   -- Profile list
   local profileList = FlexLove.new({
     parent = container,
-    width = 600,
+    width = "80%",
+    height = "80%",
     positioning = "flex",
     flexDirection = "vertical",
     gap = 10,
+    padding = { vertical = 20, horizontal = 20 },
+    overflowY = "scroll",
+    --mode = "retained",
   })
 
   for i, profile in ipairs(state.profiles) do
     local isSelected = i == state.selectedIndex
+    local isHovered = i == state.hoveredIndex
     local button = FlexLove.new({
       parent = profileList,
-      width = "100%",
+      width = "50%",
       height = 50,
-      backgroundColor = isSelected and FlexLove.Color.new(0.2, 0.4, 0.8, 1) or FlexLove.Color.new(0.15, 0.15, 0.25, 1),
+      backgroundColor = isSelected and FlexLove.Color.new(0.2, 0.4, 0.8, 1)
+        or isHovered and FlexLove.Color.new(0.2, 0.2, 0.35, 1)
+        or FlexLove.Color.new(0.15, 0.15, 0.25, 1),
       borderRadius = 8,
       positioning = "flex",
-      justifyContent = "flex-start",
+      justifyContent = "center",
       alignItems = "center",
+      alignSelf = "center",
+      --mode = "retained",
       padding = { horizontal = 15, vertical = 15 },
-      onEvent = function(element, event)
+      onEvent = function(_, event)
         if event.type == "release" then
           state.selectedIndex = i
           loadProfile(profile)
         elseif event.type == "hover" and not isSelected then
-          element.backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.35, 1)
+          state.hoveredIndex = i
+          --element.backgroundColor = FlexLove.Color.new(0.2, 0.2, 0.35, 1)
         elseif event.type == "unhover" and not isSelected then
-          element.backgroundColor = FlexLove.Color.new(0.15, 0.15, 0.25, 1)
+          state.hoveredIndex = 0
+          --element.backgroundColor = FlexLove.Color.new(0.15, 0.15, 0.25, 1)
         end
       end,
     })
@@ -223,8 +254,6 @@ end
 
 function lv.load(args)
   FlexLove.init({
-    width = lv.graphics.getWidth(),
-    height = lv.graphics.getHeight(),
     immediateMode = true,
   })
 
@@ -264,6 +293,10 @@ function lv.update(dt)
       state.profiler:endFrame()
     end
   end
+end
+
+function lv.wheelmoved(x, y)
+  FlexLove.wheelmoved(x, y)
 end
 
 function lv.draw()

@@ -97,11 +97,19 @@ function TestTouchEvents:testEventHandler_TouchBegan()
   element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
+  -- Filter out hover/unhover events (from mouse processing)
+  local filteredEvents = {}
+  for _, event in ipairs(touchEvents) do
+    if event.type ~= "hover" and event.type ~= "unhover" then
+      table.insert(filteredEvents, event)
+    end
+  end
+
   -- Should have received at least one touchpress event
   -- Note: May receive multiple events due to test state/frame processing
-  lu.assertTrue(#touchEvents >= 1, "Should receive at least 1 touch event, got " .. #touchEvents)
-  lu.assertEquals(touchEvents[1].type, "touchpress")
-  lu.assertEquals(touchEvents[1].touchId, "touch1")
+  lu.assertTrue(#filteredEvents >= 1, "Should receive at least 1 touch event, got " .. #filteredEvents)
+  lu.assertEquals(filteredEvents[1].type, "touchpress")
+  lu.assertEquals(filteredEvents[1].touchId, "touch1")
 end
 
 -- Test: EventHandler tracks touch moved
@@ -147,12 +155,20 @@ function TestTouchEvents:testEventHandler_TouchMoved()
   element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
+  -- Filter out hover/unhover events (from mouse processing)
+  local filteredEvents = {}
+  for _, event in ipairs(touchEvents) do
+    if event.type ~= "hover" and event.type ~= "unhover" then
+      table.insert(filteredEvents, event)
+    end
+  end
+
   -- Should have received touchpress and touchmove events
-  lu.assertEquals(#touchEvents, 2)
-  lu.assertEquals(touchEvents[1].type, "touchpress")
-  lu.assertEquals(touchEvents[2].type, "touchmove")
-  lu.assertEquals(touchEvents[2].dx, 50)
-  lu.assertEquals(touchEvents[2].dy, 50)
+  lu.assertEquals(#filteredEvents, 2)
+  lu.assertEquals(filteredEvents[1].type, "touchpress")
+  lu.assertEquals(filteredEvents[2].type, "touchmove")
+  lu.assertEquals(filteredEvents[2].dx, 50)
+  lu.assertEquals(filteredEvents[2].dy, 50)
 end
 
 -- Test: EventHandler tracks touch ended
@@ -195,10 +211,18 @@ function TestTouchEvents:testEventHandler_TouchEnded()
   element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
+  -- Filter out hover/unhover events (from mouse processing)
+  local filteredEvents = {}
+  for _, event in ipairs(touchEvents) do
+    if event.type ~= "hover" and event.type ~= "unhover" then
+      table.insert(filteredEvents, event)
+    end
+  end
+
   -- Should have received touchpress and touchrelease events
-  lu.assertEquals(#touchEvents, 2)
-  lu.assertEquals(touchEvents[1].type, "touchpress")
-  lu.assertEquals(touchEvents[2].type, "touchrelease")
+  lu.assertEquals(#filteredEvents, 2)
+  lu.assertEquals(filteredEvents[1].type, "touchpress")
+  lu.assertEquals(filteredEvents[2].type, "touchrelease")
 end
 
 -- Test: EventHandler tracks multiple simultaneous touches
@@ -234,10 +258,18 @@ function TestTouchEvents:testEventHandler_MultiTouch()
   element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
-  -- Should have received two touchpress events
-  lu.assertEquals(#touchEvents, 2)
-  lu.assertEquals(touchEvents[1].type, "touchpress")
-  lu.assertEquals(touchEvents[2].type, "touchpress")
+  -- Filter out hover/unhover events (from mouse processing)
+  local filteredEvents = {}
+  for _, event in ipairs(touchEvents) do
+    if event.type ~= "hover" and event.type ~= "unhover" then
+      table.insert(filteredEvents, event)
+    end
+  end
+
+  -- Should have received two touchpress events (one for each touch)
+  lu.assertEquals(#filteredEvents, 2)
+  lu.assertEquals(filteredEvents[1].type, "touchpress")
+  lu.assertEquals(filteredEvents[2].type, "touchpress")
 
   -- Different touch IDs
   lu.assertNotEquals(touchEvents[1].touchId, touchEvents[2].touchId)

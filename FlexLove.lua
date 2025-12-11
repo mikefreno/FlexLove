@@ -440,7 +440,7 @@ function flexlove.endFrame()
       element:layoutChildren() -- Layout with all children present
     end
   end
-  
+
   -- Handle mixed-mode trees: if immediate-mode children were added to retained-mode parents,
   -- trigger layout on those parents so the children are properly positioned
   -- We check for parents with _childrenDirty flag OR parents with immediate-mode children
@@ -451,7 +451,7 @@ function flexlove.endFrame()
       retainedParentsToLayout[element.parent] = true
     end
   end
-  
+
   -- Layout all retained parents that had immediate children added
   for parent, _ in pairs(retainedParentsToLayout) do
     parent:layoutChildren()
@@ -466,7 +466,7 @@ function flexlove.endFrame()
       element:update(flexlove._accumulatedDt)
     end
   end
-  
+
   -- Also update immediate-mode children that have retained-mode parents
   -- These won't be updated by the loop above (since they have parents)
   -- And their retained parents won't auto-update (retained = manual lifecycle)

@@ -152,10 +152,63 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
         end
       end
     end
+    
+    -- Track hover state changes even when events can't be processed
+    -- Fire unhover event if we were hovering and now we're not
+    if self._hovered and not isHovering then
+      self._hovered = false
+      -- Fire unhover event if handler exists
+      if self.onEvent then
+        local modifiers = EventHandler._utils.getModifiers()
+        local unhoverEvent = EventHandler._InputEvent.new({
+          type = "unhover",
+          button = 0,
+          x = mx,
+          y = my,
+          modifiers = modifiers,
+          clickCount = 0,
+        })
+        self:_invokeCallback(element, unhoverEvent)
+      end
+    end
+    
     if EventHandler._Performance and EventHandler._Performance.enabled then
       EventHandler._Performance:stopTimer("event_mouse")
     end
     return
+  end
+
+  -- Track hover state changes and fire hover/unhover events BEFORE button processing
+  -- This ensures hover fires before press when mouse first enters element
+  local wasHovered = self._hovered
+  local isHoveringAndActive = isHovering and isActiveElement
+
+  if isHoveringAndActive and not wasHovered then
+    -- Just started hovering - fire hover event
+    self._hovered = true
+    local modifiers = EventHandler._utils.getModifiers()
+    local hoverEvent = EventHandler._InputEvent.new({
+      type = "hover",
+      button = 0,
+      x = mx,
+      y = my,
+      modifiers = modifiers,
+      clickCount = 0,
+    })
+    self:_invokeCallback(element, hoverEvent)
+  elseif not isHoveringAndActive and wasHovered then
+    -- Just stopped hovering - fire unhover event
+    self._hovered = false
+    local modifiers = EventHandler._utils.getModifiers()
+    local unhoverEvent = EventHandler._InputEvent.new({
+      type = "unhover",
+      button = 0,
+      x = mx,
+      y = my,
+      modifiers = modifiers,
+      clickCount = 0,
+    })
+    self:_invokeCallback(element, unhoverEvent)
   end
 
   -- Process all three mouse buttons

@@ -197,8 +197,46 @@ local button2 = FlexLove.new({
 
 ```
 
-You should be able to mix both modes in the same application - use retained mode for your main UI and immediate mode for debug overlays or dynamic elements,
-though this hasn't been tested.
+#### Per-Element Mode Override
+
+You can override the rendering mode on a per-element basis using the `mode` property. This allows you to mix immediate and retained mode elements in the same application:
+
+```lua
+-- Initialize in immediate mode globally
+FlexLove.init({ immediateMode = true })
+
+function love.draw()
+  FlexLove.beginFrame()
+  
+  -- This button uses immediate mode (follows global setting)
+  local dynamicButton = FlexLove.new({
+    text = "Frame: " .. love.timer.getTime(),
+    onEvent = function() print("Dynamic!") end
+  })
+  
+  -- This panel uses retained mode (override with mode prop)
+  -- It will persist and won't be recreated each frame
+  local staticPanel = FlexLove.new({
+    mode = "retained",  -- Explicit override
+    width = "30vw",
+    height = "40vh",
+    backgroundColor = Color.new(0.2, 0.2, 0.2, 1),
+    -- No ID auto-generation since it's in retained mode
+  })
+  
+  FlexLove.endFrame()
+end
+```
+
+**Key behaviors:**
+- `mode = "immediate"` - Element uses immediate-mode lifecycle (recreated each frame, auto-generates ID, uses StateManager)
+- `mode = "retained"` - Element uses retained-mode lifecycle (persists across frames, no auto-ID, no StateManager)
+- `mode = nil` - Element inherits from global mode setting (default behavior)
+- Mode does NOT inherit from parent to child - each element independently controls its own lifecycle
+- Common use cases:
+  - Performance-critical static UI in retained mode while using immediate mode globally
+  - Reactive debug overlays in immediate mode within a retained-mode application
+  - Mixed UI where some components are static (menus) and others are dynamic (HUD)
 
 ### Element Properties
 
@@ -261,6 +299,9 @@ Common properties for all elements:
   onEvent = function(element, event) end,
   disabled = false,
   disableHighlight = false, -- Disable pressed overlay (auto-true for themed elements)
+  
+  -- Rendering Mode
+  mode = nil,               -- "immediate", "retained", or nil (uses global setting)
   
   -- Hierarchy
   parent = nil,             -- Parent element

@@ -33,6 +33,7 @@ local AnimationProps = {}
 --=====================================--
 ---@class ElementProps
 ---@field id string? -- Unique identifier for the element (auto-generated in immediate mode if not provided)
+---@field mode "immediate"|"retained"|nil -- Lifecycle mode override: "immediate" (auto-managed state), "retained" (manual state), nil (use global mode from FlexLove.getMode(), default)
 ---@field parent Element? -- Parent element for hierarchical structure
 ---@field x number|string|CalcObject? -- X coordinate: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: 0)
 ---@field y number|string|CalcObject? -- Y coordinate: number (px), string ("50%", "10vh"), or CalcObject from FlexLove.calc() (default: 0)

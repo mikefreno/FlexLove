@@ -64,6 +64,7 @@
 ---@field _themeState string? -- Current theme state (normal, hover, pressed, active, disabled)
 ---@field _themeManager ThemeManager -- Internal: theme manager instance
 ---@field _stateId string? -- State manager ID for this element
+---@field _elementMode "immediate"|"retained" -- Lifecycle mode for this element (resolved from props.mode or global mode)
 ---@field disabled boolean? -- Whether the element is disabled (default: false)
 ---@field active boolean? -- Whether the element is active/focused (for inputs, default: false)
 ---@field disableHighlight boolean? -- Whether to disable the pressed state highlight overlay (default: false)
@@ -257,11 +258,22 @@ function Element.new(props)
     }
   end
 
+  -- Resolve element mode: props.mode takes precedence over global mode
+  -- This must happen BEFORE ID generation and state management
+  if props.mode == "immediate" then
+    self._elementMode = "immediate"
+  elseif props.mode == "retained" then
+    self._elementMode = "retained"
+  else
+    -- nil or invalid: use global mode
+    self._elementMode = Element._Context._immediateMode and "immediate" or "retained"
+  end
+
   self.children = {}
   self.onEvent = props.onEvent
 
   -- Auto-generate ID in immediate mode if not provided
-  if Element._Context._immediateMode and (not props.id or props.id == "") then
+  if self._elementMode == "immediate" and (not props.id or props.id == "") then
     self.id = Element._StateManager.generateID(props, props.parent)
   else
     self.id = props.id or ""
@@ -288,7 +300,7 @@ function Element.new(props)
     onEvent = self.onEvent,
     onEventDeferred = props.onEventDeferred,
   }
-  if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
+  if self._elementMode == "immediate" and self._stateId and self._stateId ~= "" then
     local state = Element._StateManager.getState(self._stateId)
     if state then
       -- Restore EventHandler state from StateManager (sparse storage - provide defaults)
@@ -419,7 +431,7 @@ function Element.new(props)
     }, textEditorDeps)
 
     -- Restore TextEditor state from StateManager in immediate mode
-    if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
+    if self._elementMode == "immediate" and self._stateId and self._stateId ~= "" then
       local state = Element._StateManager.getState(self._stateId)
       if state and state.textEditor then
         -- Restore from nested textEditor state (saved via saveState())
@@ -1659,7 +1671,7 @@ function Element.new(props)
     self._scrollbarDragOffset = 0
 
     -- Restore scrollbar state from StateManager in immediate mode (must happen before layout)
-    if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
+    if self._elementMode == "immediate" and self._stateId and self._stateId ~= "" then
       local state = Element._StateManager.getState(self._stateId)
       if state and state.scrollManager then
         -- Restore from nested scrollManager state (saved via saveState())
@@ -1688,7 +1700,7 @@ function Element.new(props)
   end
 
   -- Register element in z-index tracking for immediate mode
-  if Element._Context._immediateMode then
+  if self._elementMode == "immediate" then
     Element._Context.registerElement(self)
   end
 
@@ -2413,7 +2425,7 @@ function Element:update(dt)
   end
 
   -- Restore scrollbar state from StateManager in immediate mode
-  if self._stateId and Element._Context._immediateMode then
+  if self._stateId and self._elementMode == "immediate" then
     local state = Element._StateManager.getState(self._stateId)
     if state and state.scrollManager then
       -- Restore from nested scrollManager state (saved via saveState())
@@ -2560,7 +2572,7 @@ function Element:update(dt)
       self:_syncScrollManagerState()
     end
 
-    if self._stateId and Element._Context._immediateMode then
+    if self._stateId and self._elementMode == "immediate" then
       Element._StateManager.updateState(self._stateId, {
         scrollbarDragging = false,
       })
@@ -2642,7 +2654,7 @@ function Element:update(dt)
     self._eventHandler:processMouseEvents(self, mx, my, isHovering, isActiveElement)
 
     -- In immediate mode, save EventHandler state to StateManager after processing events
-    if self._stateId and Element._Context._immediateMode and self._stateId ~= "" then
+    if self._stateId and self._elementMode == "immediate" and self._stateId ~= "" then
       local eventHandlerState = self._eventHandler:getState()
       Element._StateManager.updateState(self._stateId, {
         _pressed = eventHandlerState._pressed,
@@ -2665,7 +2677,7 @@ function Element:update(dt)
       -- Update theme state via ThemeManager
       local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
-      if self._stateId and Element._Context._immediateMode then
+      if self._stateId and self._elementMode == "immediate" then
         local hover = newThemeState == "hover"
         local pressed = newThemeState == "pressed"
         local focused = newThemeState == "active" or self._focused

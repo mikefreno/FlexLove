@@ -434,17 +434,45 @@ function flexlove.endFrame()
 
   -- Layout all top-level elements now that all children have been added
   -- This ensures overflow detection happens with complete child lists
+  -- Only process immediate-mode elements (retained elements handle their own layout)
   for _, element in ipairs(flexlove._currentFrameElements) do
-    if not element.parent then
+    if not element.parent and element._elementMode == "immediate" then
       element:layoutChildren() -- Layout with all children present
     end
+  end
+  
+  -- Handle mixed-mode trees: if immediate-mode children were added to retained-mode parents,
+  -- trigger layout on those parents so the children are properly positioned
+  -- We check for parents with _childrenDirty flag OR parents with immediate-mode children
+  local retainedParentsToLayout = {}
+  for _, element in ipairs(flexlove._currentFrameElements) do
+    if element._elementMode == "immediate" and element.parent and element.parent._elementMode == "retained" then
+      -- Found immediate child with retained parent - mark parent for layout
+      retainedParentsToLayout[element.parent] = true
+    end
+  end
+  
+  -- Layout all retained parents that had immediate children added
+  for parent, _ in pairs(retainedParentsToLayout) do
+    parent:layoutChildren()
   end
 
   -- Auto-update all top-level elements created this frame
   -- This happens AFTER layout so positions are correct
   -- Use accumulated dt from FlexLove.update() calls to properly update animations and cursor blink
+  -- Process immediate-mode top-level elements (they recursively update their children)
   for _, element in ipairs(flexlove._currentFrameElements) do
-    if not element.parent then
+    if not element.parent and element._elementMode == "immediate" then
+      element:update(flexlove._accumulatedDt)
+    end
+  end
+  
+  -- Also update immediate-mode children that have retained-mode parents
+  -- These won't be updated by the loop above (since they have parents)
+  -- And their retained parents won't auto-update (retained = manual lifecycle)
+  -- So we need to explicitly update them here
+  for _, element in ipairs(flexlove._currentFrameElements) do
+    if element.parent and element.parent._elementMode == "retained" and element._elementMode == "immediate" then
       element:update(flexlove._accumulatedDt)
     end
   end
@@ -452,8 +480,9 @@ function flexlove.endFrame()
   -- Save state for all elements created this frame
   -- State is collected from element and all sub-modules via element:saveState()
   -- This is the ONLY place state is saved in immediate mode
+  -- Only process immediate-mode elements (retained elements don't use StateManager)
   for _, element in ipairs(flexlove._currentFrameElements) do
-    if element.id and element.id ~= "" then
+    if element._elementMode == "immediate" and element.id and element.id ~= "" then
       -- Collect state from element and all sub-modules
       local stateUpdate = element:saveState()
 
@@ -1010,11 +1039,15 @@ end
 function flexlove.new(props)
   props = props or {}
 
-  -- If not in immediate mode, use standard Element.new
-  if not flexlove._immediateMode then
+  -- Determine effective mode: props.mode takes precedence over global mode
+  local effectiveMode = props.mode or (flexlove._immediateMode and "immediate" or "retained")
+
+  -- If element is in retained mode, use standard Element.new
+  if effectiveMode == "retained" then
     return Element.new(props)
   end
 
+  -- Element is in immediate mode - proceed with immediate-mode logic
   -- Auto-begin frame if not manually started (convenience feature)
   if not flexlove._frameStarted then
     flexlove.beginFrame()

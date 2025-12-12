@@ -197,7 +197,7 @@ local function buildMenu()
       justifyContent = "center",
       alignItems = "center",
       alignSelf = "center",
-      --mode = "retained",
+      z = 100,
       padding = { horizontal = 15, vertical = 15 },
       onEvent = function(_, event)
         if event.type == "release" then

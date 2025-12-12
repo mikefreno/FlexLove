@@ -1181,7 +1181,7 @@ end
 --- Clear focus from any element
 --- Removes keyboard focus from the currently focused element
 function flexlove.clearFocus()
-  Context.clearFocus()
+  Context.setFocused(nil)
 end
 
 flexlove.Animation = Animation

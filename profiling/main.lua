@@ -158,10 +158,8 @@ local function buildMenu()
     alignItems = "center",
     height = "100%",
     width = "100%",
-    gap = 30,
   })
 
-  -- Subtitle
   FlexLove.new({
     parent = container,
     text = "Select a profile to run:",
@@ -169,17 +167,35 @@ local function buildMenu()
     textColor = FlexLove.Color.new(0.8, 0.8, 0.8, 1),
   })
 
-  -- Profile list
-  local profileList = FlexLove.new({
+  local centerContainer = FlexLove.new({
     parent = container,
-    width = "80%",
-    height = "80%",
+    height = "100%",
+    width = "100%",
+    positioning = "flex",
+    flexDirection = "horizontal",
+    justifyContent = "space-evenly",
+    alignItems = "flex-start",
+  })
+
+  FlexLove.new({
+    parent = centerContainer,
+    text = "Use arrow keys to select, ENTER to run, ESC to quit",
+    textSize = "lg",
+    textColor = FlexLove.Color.new(0.5, 0.5, 0.5, 1),
+    textWrap = "word",
+    width = "10%",
+  })
+
+  local profileList = FlexLove.new({
+    parent = centerContainer,
+    width = 500,
+    height = "100%",
     positioning = "flex",
     flexDirection = "vertical",
     gap = 10,
     padding = { vertical = 20, horizontal = 20 },
     overflowY = "scroll",
-    --mode = "retained",
+    flexShrink = 0,
   })
 
   for i, profile in ipairs(state.profiles) do
@@ -187,7 +203,8 @@ local function buildMenu()
     local isHovered = i == state.hoveredIndex
     local button = FlexLove.new({
       parent = profileList,
-      width = "50%",
+      width = "90%",
+      margin = { left = "5%" },
       height = 50,
       backgroundColor = isSelected and FlexLove.Color.new(0.2, 0.4, 0.8, 1)
         or isHovered and FlexLove.Color.new(0.2, 0.2, 0.35, 1)
@@ -196,7 +213,6 @@ local function buildMenu()
       positioning = "flex",
       justifyContent = "center",
       alignItems = "center",
-      alignSelf = "center",
       z = 100,
       padding = { horizontal = 15, vertical = 15 },
       onEvent = function(_, event)
@@ -220,17 +236,11 @@ local function buildMenu()
       textColor = isSelected and FlexLove.Color.new(1, 1, 1, 1) or FlexLove.Color.new(0.8, 0.8, 0.8, 1),
     })
   end
-
-  -- Instructions
   FlexLove.new({
-    parent = container,
-    text = "Use ↑/↓ to select, ENTER to run, ESC to quit",
-    textSize = "md",
-    textColor = FlexLove.Color.new(0.5, 0.5, 0.5, 1),
-    margin = { top = 20 },
+    parent = centerContainer,
+    width = "10%",
   })
 
-  -- Error display
   if state.error then
     local errorBox = FlexLove.new({
       parent = container,

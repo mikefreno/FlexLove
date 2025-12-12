@@ -64,6 +64,9 @@ local stateDefaults = {
   _cursorVisible = true,
   _cursorBlinkPaused = false,
   _cursorBlinkPauseTimer = 0,
+
+  -- Retained children references (for mixed-mode trees)
+  retainedChildren = nil,
 }
 
 --- Check if a value equals the default for a key
@@ -208,16 +211,24 @@ function StateManager.generateID(props, parent)
 
   -- If we have a parent, use tree-based ID generation for stability
   if parent and parent.id and parent.id ~= "" then
-    -- Count how many children the parent currently has
-    -- This gives us a stable sibling index
-    local siblingIndex = #(parent.children or {})
+    -- For child elements, use call-site (file + line) like top-level elements
+    -- This ensures the same call site always generates the same ID, even when
+    -- retained children persist in parent.children array
+    local baseID = parent.id .. "_" .. locationKey
+    
+    -- Count how many children have been created at THIS call site
+    local callSiteKey = parent.id .. "_" .. locationKey
+    callSiteCounters[callSiteKey] = (callSiteCounters[callSiteKey] or 0) + 1
+    local instanceNum = callSiteCounters[callSiteKey]
+    
+    if instanceNum > 1 then
+      baseID = baseID .. "_" .. instanceNum
+    end
 
-    -- Generate ID based on parent ID + sibling position (NO line number for stability)
-    -- This ensures the same position in the tree always gets the same ID
-    local baseID = parent.id .. "_child" .. siblingIndex
-
-    -- Add property hash if provided (for additional differentiation at same position)
-    if props then
+    -- Add property hash if provided (for additional differentiation)
+    -- IMPORTANT: Skip property hash for retained-mode elements to ensure ID stability
+    -- Retained elements should persist across frames even if props change slightly
+    if props and props.mode ~= "retained" then
       local propHash = hashProps(props)
       if propHash ~= "" then
         -- Use first 8 chars of a simple hash
@@ -245,7 +256,9 @@ function StateManager.generateID(props, parent)
   end
 
   -- Add property hash if provided (for additional differentiation)
-  if props then
+  -- IMPORTANT: Skip property hash for retained-mode elements to ensure ID stability
+  -- Retained elements should persist across frames even if props change slightly
+  if props and props.mode ~= "retained" then
     local propHash = hashProps(props)
     if propHash ~= "" then
       -- Use first 8 chars of a simple hash
@@ -653,6 +666,74 @@ end
 function StateManager.isActive(id)
   local state = StateManager.getState(id)
   return state.active or false
+end
+
+-- ====================
+-- Retained Children Management (for mixed-mode trees)
+-- ====================
+
+--- Save retained children for an element
+--- Only stores children that are in retained mode
+---@param id string Parent element ID
+---@param children table Array of child elements
+function StateManager.saveRetainedChildren(id, children)
+  if not id or not children then
+    return
+  end
+
+  -- Filter to only retained-mode children
+  local retainedChildren = {}
+  for _, child in ipairs(children) do
+    if child._elementMode == "retained" then
+      table.insert(retainedChildren, child)
+    end
+  end
+
+  -- Only save if we have retained children
+  if #retainedChildren > 0 then
+    local state = StateManager.getState(id)
+    state.retainedChildren = retainedChildren
+  end
+end
+
+--- Get retained children for an element
+--- Returns an array of retained-mode child elements
+---@param id string Parent element ID
+---@return table children Array of retained child elements (empty if none)
+function StateManager.getRetainedChildren(id)
+  if not id then
+    return {}
+  end
+
+  local state = StateManager.getCurrentState(id)
+  if state.retainedChildren then
+    -- Verify children still exist (weren't destroyed)
+    local validChildren = {}
+    for _, child in ipairs(state.retainedChildren) do
+      -- Children are element objects, check if they're still valid
+      -- A destroyed element would have nil references or be garbage collected
+      if child and type(child) == "table" and child.id then
+        table.insert(validChildren, child)
+      end
+    end
+    return validChildren
+  end
+
+  return {}
+end
+
+--- Clear retained children for an element
+--- Used when parent is destroyed or children are manually removed
+---@param id string Parent element ID
+function StateManager.clearRetainedChildren(id)
+  if not id then
+    return
+  end
+
+  local state = StateManager.getCurrentState(id)
+  if state.retainedChildren then
+    state.retainedChildren = nil
+  end
 end
 
 return StateManager

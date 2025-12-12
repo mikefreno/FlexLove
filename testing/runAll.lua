@@ -46,6 +46,9 @@ local testFiles = {
   "testing/__tests__/image_scaler_test.lua",
   "testing/__tests__/input_event_test.lua",
   "testing/__tests__/layout_engine_test.lua",
+  "testing/__tests__/mixed_mode_events_test.lua",
+  "testing/__tests__/mixed_mode_children_test.lua",
+  "testing/__tests__/retained_in_immediate_test.lua",
   "testing/__tests__/module_loader_test.lua",
   "testing/__tests__/ninepatch_test.lua",
   "testing/__tests__/performance_test.lua",
@@ -58,7 +61,7 @@ local testFiles = {
   "testing/__tests__/utils_test.lua",
   "testing/__tests__/calc_test.lua",
   -- Feature/Integration tests
-  --"testing/__tests__/critical_failures_test.lua",
+  "testing/__tests__/critical_failures_test.lua",
   "testing/__tests__/flexlove_test.lua",
   "testing/__tests__/touch_events_test.lua",
 }

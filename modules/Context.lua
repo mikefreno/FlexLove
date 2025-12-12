@@ -38,7 +38,18 @@ function Context.registerElement(element)
 end
 
 function Context.clearFrameElements()
-  Context._zIndexOrderedElements = {}
+  -- Preserve retained-mode elements
+  if Context._immediateMode then
+    local retainedElements = {}
+    for _, element in ipairs(Context._zIndexOrderedElements) do
+      if element._elementMode == "retained" then
+        table.insert(retainedElements, element)
+      end
+    end
+    Context._zIndexOrderedElements = retainedElements
+  else
+    Context._zIndexOrderedElements = {}
+  end
 end
 
 --- Sort elements by z-index (called after all elements are registered)

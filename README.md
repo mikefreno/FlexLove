@@ -221,7 +221,7 @@ function love.draw()
     width = "30vw",
     height = "40vh",
     backgroundColor = Color.new(0.2, 0.2, 0.2, 1),
-    -- No ID auto-generation since it's in retained mode
+    -- ID is auto-generated if not provided (works in both modes)
   })
   
   FlexLove.endFrame()
@@ -229,14 +229,50 @@ end
 ```
 
 **Key behaviors:**
-- `mode = "immediate"` - Element uses immediate-mode lifecycle (recreated each frame, auto-generates ID, uses StateManager)
-- `mode = "retained"` - Element uses retained-mode lifecycle (persists across frames, no auto-ID, no StateManager)
+- `mode = "immediate"` - Element uses immediate-mode lifecycle (recreated each frame, uses StateManager)
+- `mode = "retained"` - Element uses retained-mode lifecycle (persists across frames, uses StateManager for mixed-mode children)
 - `mode = nil` - Element inherits from global mode setting (default behavior)
+- **ID auto-generation** - All elements receive an auto-generated ID if not explicitly provided, enabling state management features
 - Mode does NOT inherit from parent to child - each element independently controls its own lifecycle
 - Common use cases:
   - Performance-critical static UI in retained mode while using immediate mode globally
   - Reactive debug overlays in immediate mode within a retained-mode application
   - Mixed UI where some components are static (menus) and others are dynamic (HUD)
+
+#### Automatic ID Generation
+
+All elements automatically receive a unique ID if not explicitly provided. This enables powerful state management features:
+
+```lua
+-- ID is automatically generated based on call site
+local button = FlexLove.new({
+  text = "Click Me",
+  -- id is auto-generated (e.g., "main_L42_child0_123456")
+})
+
+-- Or provide a custom ID for explicit control
+local namedButton = FlexLove.new({
+  id = "submit_button",
+  text = "Submit",
+})
+```
+
+**ID Generation Strategy:**
+- **Top-level elements**: ID based on source file and line number (e.g., `main_L42`)
+- **Child elements**: ID based on parent ID + sibling index (e.g., `parent_child0`, `parent_child1`)
+- **Multiple elements at same location**: Automatically numbered (e.g., `main_L42_1`, `main_L42_2`)
+- **Property differentiation**: Similar elements get unique hash suffixes based on their properties
+
+**Benefits of Auto-Generated IDs:**
+- Enables state persistence in immediate mode (scroll position, input text, animations)
+- Allows retained children in immediate parents (mixed-mode trees)
+- Supports state management features without manual ID tracking
+- Stable across frames when element structure is consistent
+
+**When to Use Custom IDs:**
+- When you need to reference elements programmatically
+- For debugging and logging (readable names)
+- When element creation order might change but identity should remain stable
 
 ### Element Properties
 
@@ -302,6 +338,9 @@ Common properties for all elements:
   
   -- Rendering Mode
   mode = nil,               -- "immediate", "retained", or nil (uses global setting)
+  
+  -- Element Identity
+  id = nil,                 -- Element ID (auto-generated if not provided)
   
   -- Hierarchy
   parent = nil,             -- Parent element

@@ -399,6 +399,7 @@ function flexlove.beginFrame()
   -- Cleanup elements from PREVIOUS frame (after they've been drawn)
   -- This breaks circular references and allows GC to collect memory
   -- Note: Cleanup is minimal to preserve functionality
+  -- IMPORTANT: Only cleanup immediate-mode elements, preserve retained-mode elements
   if flexlove._currentFrameElements then
     local function cleanupChildren(elem)
       for _, child in ipairs(elem.children) do
@@ -408,8 +409,20 @@ function flexlove.beginFrame()
     end
 
     for _, element in ipairs(flexlove._currentFrameElements) do
-      if not element.parent then
+      -- Only cleanup immediate-mode top-level elements
+      -- Retained-mode elements persist across frames
+      if not element.parent and element._elementMode == "immediate" then
         cleanupChildren(element)
+      end
+    end
+  end
+
+  -- Preserve top-level retained elements before resetting
+  local retainedTopElements = {}
+  if flexlove.topElements then
+    for _, element in ipairs(flexlove.topElements) do
+      if element._elementMode == "retained" then
+        table.insert(retainedTopElements, element)
       end
     end
   end
@@ -418,7 +431,9 @@ function flexlove.beginFrame()
   StateManager.incrementFrame()
   flexlove._currentFrameElements = {}
   flexlove._frameStarted = true
-  flexlove.topElements = {}
+  
+  -- Restore retained top-level elements
+  flexlove.topElements = retainedTopElements
 
   Context.clearFrameElements()
 end

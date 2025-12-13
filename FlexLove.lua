@@ -460,6 +460,10 @@ function flexlove.beginFrame()
   -- Restore retained top-level elements
   flexlove.topElements = retainedTopElements
 
+  -- Clear focused element at start of frame in immediate mode
+  -- Elements will restore their focus state during construction via setState()
+  Context._focusedElement = nil
+
   Context.clearFrameElements()
 end
 

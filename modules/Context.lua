@@ -20,6 +20,14 @@ local Context = {
   _zIndexOrderedElements = {}, -- Array of elements sorted by z-index (lowest to highest)
   -- Focus management guard
   _settingFocus = false,
+
+  initialized = false,
+  
+  -- Initialization state tracking
+  ---@type "uninitialized"|"initializing"|"ready"
+  _initState = "uninitialized",
+  ---@type table[] Queue of {props: ElementProps, callback: function(element)|nil}
+  _initQueue = {},
 }
 
 ---@return number, number -- scaleX, scaleY

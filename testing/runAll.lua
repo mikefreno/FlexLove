@@ -48,6 +48,7 @@ local testFiles = {
   "testing/__tests__/image_cache_test.lua",
   "testing/__tests__/image_renderer_test.lua",
   "testing/__tests__/image_scaler_test.lua",
+  "testing/__tests__/init_queue_test.lua",
   "testing/__tests__/input_event_test.lua",
   "testing/__tests__/layout_engine_test.lua",
   "testing/__tests__/mixed_mode_children_test.lua",

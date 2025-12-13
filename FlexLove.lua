@@ -112,10 +112,19 @@ flexlove._deferredCallbacks = {}
 -- Track accumulated delta time for immediate mode updates
 flexlove._accumulatedDt = 0
 
+--- Check if FlexLove initialization is complete and ready to create elements
+--- Use this before creating elements to avoid automatic queueing
+---@return boolean ready True if FlexLove is initialized and ready to use
+function flexlove.isReady()
+  return flexlove._initState == "ready"
+end
+
 --- Set up FlexLove for your application's specific needs - configure responsive scaling, theming, rendering mode, and debugging tools
 --- Use this to establish a consistent UI foundation that adapts to different screen sizes and provides performance insights
+--- After initialization, any queued element creation calls will be automatically processed
 ---@param config FlexLoveConfig?
 function flexlove.init(config)
+  flexlove._initState = "initializing"
   config = config or {}
 
   flexlove._ErrorHandler = ErrorHandler.init({
@@ -282,6 +291,22 @@ function flexlove.init(config)
       maxStateEntries = config.maxStateEntries,
     })
   end
+  flexlove.initialized = true
+  flexlove._initState = "ready"
+
+  -- Process all queued element creations
+  local queue = flexlove._initQueue
+  flexlove._initQueue = {} -- Clear queue before processing to prevent re-entry issues
+
+  for _, item in ipairs(queue) do
+    local element = Element.new(item.props)
+    if item.callback and type(item.callback) == "function" then
+      local success, err = pcall(item.callback, element)
+      if not success then
+        flexlove._ErrorHandler:warn("FlexLove", string.format("Failed to execute queued element callback: %s", tostring(err)))
+      end
+    end
+  end
 end
 
 --- Safely schedule operations that modify LÖVE's rendering state (like window mode changes) to execute after all canvas operations complete
@@ -431,7 +456,7 @@ function flexlove.beginFrame()
   StateManager.incrementFrame()
   flexlove._currentFrameElements = {}
   flexlove._frameStarted = true
-  
+
   -- Restore retained top-level elements
   flexlove.topElements = retainedTopElements
 
@@ -1051,10 +1076,31 @@ end
 
 --- Create a new UI element with flexbox layout, styling, and interaction capabilities
 --- This is your primary API for building interfaces - buttons, panels, text, images, and containers
+--- If called before FlexLove.init(), the element creation will be automatically queued and executed after initialization
 ---@param props ElementProps
----@return Element
-function flexlove.new(props)
+---@param callback? function Optional callback function(element) that will be called with the created element (useful when queued)
+---@return Element|nil element Returns element if initialized, nil if queued for later creation
+function flexlove.new(props, callback)
   props = props or {}
+
+  if not flexlove.initialized then
+    -- Queue element creation for after initialization
+    table.insert(flexlove._initQueue, {
+      props = props,
+      callback = callback,
+    })
+
+    if flexlove._initState == "uninitialized" then
+      if flexlove._ErrorHandler then
+        flexlove._ErrorHandler:warn(
+          "FlexLove",
+          "[FlexLove] Element creation queued - FlexLove.init() has not been called yet. Element will be created automatically after init() is called."
+        )
+      end
+    end
+
+    return nil -- Element will be created later
+  end
 
   -- Determine effective mode: props.mode takes precedence over global mode
   local effectiveMode = props.mode or (flexlove._immediateMode and "immediate" or "retained")

@@ -1059,7 +1059,7 @@ function TestScrollManagerEdgeCases:testScrollbarKnobOffsetDefault()
   -- When not provided, scrollbarKnobOffset should be nil (use theme default)
   local sm = createScrollManager({})
   luaunit.assertNil(sm.scrollbarKnobOffset)
-  
+
   -- When explicitly set to 0, it should be normalized
   local sm2 = createScrollManager({ scrollbarKnobOffset = 0 })
   luaunit.assertNotNil(sm2.scrollbarKnobOffset)
@@ -1073,7 +1073,7 @@ function TestScrollManagerEdgeCases:testScrollbarKnobOffsetStatePersistence()
   local sm = createScrollManager({ scrollbarKnobOffset = { x = 5, y = 10 } })
   local state = sm:getState()
   luaunit.assertNotNil(state.scrollbarKnobOffset)
-  
+
   local sm2 = createScrollManager({})
   sm2:setState(state)
   luaunit.assertEquals(sm2.scrollbarKnobOffset.x, 5)

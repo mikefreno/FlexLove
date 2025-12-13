@@ -373,9 +373,6 @@ function TestThemeValidation:test_validate_valid_colors()
   luaunit.assertEquals(#errors, 0)
 end
 
-
-
-
 function TestThemeValidation:test_validate_colors_non_table()
   local theme = {
     name = "Test Theme",
@@ -726,7 +723,6 @@ function TestThemeValidation:test_sanitize_nil_theme()
   luaunit.assertEquals(sanitized.name, "Invalid Theme")
 end
 
-
 function TestThemeValidation:test_sanitize_theme_with_non_string_name()
   local theme = {
     name = 123,
@@ -734,7 +730,6 @@ function TestThemeValidation:test_sanitize_theme_with_non_string_name()
   local sanitized = Theme.sanitizeTheme(theme)
   luaunit.assertEquals(type(sanitized.name), "string")
 end
-
 
 function TestThemeValidation:test_sanitize_removes_non_string_color_names()
   local theme = {
@@ -773,8 +768,6 @@ function TestThemeValidation:test_sanitize_preserves_components()
 end
 
 -- === Complex Theme Validation ===
-
-
 
 -- Run tests if this file is executed directly
 if not _G.RUNNING_ALL_TESTS then

@@ -54,12 +54,9 @@ end
 
 function TestModuleLoader:test_safeRequire_throws_error_for_missing_required_module()
   -- Test loading a non-existent required module should throw error
-  lu.assertErrorMsgContains(
-    "Required module",
-    function()
-      ModuleLoader.safeRequire(modulePath .. "modules.NonExistentModule", false)
-    end
-  )
+  lu.assertErrorMsgContains("Required module", function()
+    ModuleLoader.safeRequire(modulePath .. "modules.NonExistentModule", false)
+  end)
 end
 
 function TestModuleLoader:test_stub_has_safe_init_method()
@@ -116,7 +113,7 @@ function TestModuleLoader:test_stub_returns_function_for_unknown_properties()
   -- Unknown properties should return no-op functions for safe method calls
   lu.assertIsFunction(stub.unknownProperty)
   lu.assertIsFunction(stub.anotherUnknownProperty)
-  
+
   -- Calling unknown methods should not error
   stub:unknownMethod()
   stub:anotherUnknownMethod("arg1", "arg2")
@@ -197,5 +194,3 @@ end
 if not _G.RUNNING_ALL_TESTS then
   os.exit(lu.LuaUnit.run())
 end
-
-return TestModuleLoader

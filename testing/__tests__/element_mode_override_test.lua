@@ -16,7 +16,9 @@ local originalSearchers = package.searchers or package.loaders
 table.insert(originalSearchers, 2, function(modname)
   if modname:match("^FlexLove%.modules%.") then
     local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
+    return function()
+      return require("modules." .. moduleName)
+    end
   end
 end)
 
@@ -46,7 +48,7 @@ function TestElementModeOverride:test_modeResolution_explicitImmediate()
     mode = "immediate",
     text = "Test",
   })
-  
+
   luaunit.assertEquals(element._elementMode, "immediate")
 end
 
@@ -56,7 +58,7 @@ function TestElementModeOverride:test_modeResolution_explicitRetained()
     mode = "retained",
     text = "Test",
   })
-  
+
   luaunit.assertEquals(element._elementMode, "retained")
 end
 
@@ -64,22 +66,22 @@ end
 function TestElementModeOverride:test_modeResolution_nilUsesGlobalImmediate()
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   local element = FlexLove.new({
     text = "Test",
   })
-  
+
   luaunit.assertEquals(element._elementMode, "immediate")
 end
 
 -- Test 04: Mode resolution - nil uses global (retained)
 function TestElementModeOverride:test_modeResolution_nilUsesGlobalRetained()
   FlexLove.setMode("retained")
-  
+
   local element = FlexLove.new({
     text = "Test",
   })
-  
+
   luaunit.assertEquals(element._elementMode, "retained")
 end
 
@@ -92,7 +94,7 @@ function TestElementModeOverride:test_idGeneration_onlyForImmediate()
   })
   luaunit.assertNotNil(immediateEl.id)
   luaunit.assertNotEquals(immediateEl.id, "")
-  
+
   -- Retained element without ID should have empty ID
   local retainedEl = FlexLove.new({
     mode = "retained",
@@ -104,13 +106,13 @@ end
 -- Test 06: Immediate override in retained context
 function TestElementModeOverride:test_immediateOverrideInRetainedContext()
   FlexLove.setMode("retained")
-  
+
   local element = FlexLove.new({
     mode = "immediate",
     id = "test-immediate",
     text = "Immediate in retained context",
   })
-  
+
   luaunit.assertEquals(element._elementMode, "immediate")
   luaunit.assertEquals(element.id, "test-immediate")
 end
@@ -119,12 +121,12 @@ end
 function TestElementModeOverride:test_retainedOverrideInImmediateContext()
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   local element = FlexLove.new({
     mode = "retained",
     text = "Retained in immediate context",
   })
-  
+
   luaunit.assertEquals(element._elementMode, "retained")
   luaunit.assertEquals(element.id, "") -- Should not auto-generate ID
 end
@@ -133,19 +135,19 @@ end
 function TestElementModeOverride:test_mixedMode_immediateParent_retainedChild()
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   local parent = FlexLove.new({
     mode = "immediate",
     id = "parent",
     text = "Parent",
   })
-  
+
   local child = FlexLove.new({
     mode = "retained",
     parent = parent,
     text = "Child",
   })
-  
+
   luaunit.assertEquals(parent._elementMode, "immediate")
   luaunit.assertEquals(child._elementMode, "retained")
   -- Child should not inherit parent mode
@@ -155,19 +157,19 @@ end
 -- Test 09: Mixed-mode parent-child (retained parent, immediate child)
 function TestElementModeOverride:test_mixedMode_retainedParent_immediateChild()
   FlexLove.setMode("retained")
-  
+
   local parent = FlexLove.new({
     mode = "retained",
     text = "Parent",
   })
-  
+
   local child = FlexLove.new({
     mode = "immediate",
     id = "child",
     parent = parent,
     text = "Child",
   })
-  
+
   luaunit.assertEquals(parent._elementMode, "retained")
   luaunit.assertEquals(child._elementMode, "immediate")
   luaunit.assertEquals(child.id, "child")
@@ -177,24 +179,24 @@ end
 function TestElementModeOverride:test_frameRegistration_onlyImmediate()
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   local immediate1 = FlexLove.new({
     mode = "immediate",
     id = "imm1",
     text = "Immediate 1",
   })
-  
+
   local retained1 = FlexLove.new({
     mode = "retained",
     text = "Retained 1",
   })
-  
+
   local immediate2 = FlexLove.new({
     mode = "immediate",
     id = "imm2",
     text = "Immediate 2",
   })
-  
+
   -- Count immediate elements in _currentFrameElements
   local immediateCount = 0
   for _, element in ipairs(FlexLove._currentFrameElements) do
@@ -202,14 +204,14 @@ function TestElementModeOverride:test_frameRegistration_onlyImmediate()
       immediateCount = immediateCount + 1
     end
   end
-  
+
   luaunit.assertEquals(immediateCount, 2)
 end
 
 -- Test 11: Layout calculation for retained parent with immediate children
 function TestElementModeOverride:test_layoutRetainedParentWithImmediateChildren()
   FlexLove.setMode("retained")
-  
+
   -- Create retained parent with flex layout
   local parent = FlexLove.new({
     mode = "retained",
@@ -219,11 +221,11 @@ function TestElementModeOverride:test_layoutRetainedParentWithImmediateChildren(
     flexDirection = "horizontal",
     gap = 10,
   })
-  
+
   -- Switch to immediate mode and add children
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   local child1 = FlexLove.new({
     mode = "immediate",
     id = "child1",
@@ -231,7 +233,7 @@ function TestElementModeOverride:test_layoutRetainedParentWithImmediateChildren(
     width = 100,
     height = 50,
   })
-  
+
   local child2 = FlexLove.new({
     mode = "immediate",
     id = "child2",
@@ -239,9 +241,9 @@ function TestElementModeOverride:test_layoutRetainedParentWithImmediateChildren(
     width = 100,
     height = 50,
   })
-  
+
   FlexLove.endFrame()
-  
+
   -- Verify children are positioned correctly by flex layout
   luaunit.assertEquals(child1.x, 0)
   luaunit.assertEquals(child1.y, 0)
@@ -253,7 +255,7 @@ end
 function TestElementModeOverride:test_deeplyNestedMixedModes()
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   -- Level 1: Retained root
   local root = FlexLove.new({
     mode = "retained",
@@ -263,7 +265,7 @@ function TestElementModeOverride:test_deeplyNestedMixedModes()
     flexDirection = "vertical",
     gap = 5,
   })
-  
+
   -- Level 2: Immediate child of retained parent
   local middle = FlexLove.new({
     mode = "immediate",
@@ -275,7 +277,7 @@ function TestElementModeOverride:test_deeplyNestedMixedModes()
     flexDirection = "horizontal",
     gap = 10,
   })
-  
+
   -- Level 3: Retained grandchildren
   local leaf1 = FlexLove.new({
     mode = "retained",
@@ -283,16 +285,16 @@ function TestElementModeOverride:test_deeplyNestedMixedModes()
     width = 100,
     height = 50,
   })
-  
+
   local leaf2 = FlexLove.new({
     mode = "retained",
     parent = middle,
     width = 100,
     height = 50,
   })
-  
+
   FlexLove.endFrame()
-  
+
   -- Verify all levels are positioned correctly
   luaunit.assertEquals(root.x, 0)
   luaunit.assertEquals(root.y, 0)
@@ -307,20 +309,20 @@ end
 -- Test 13: Immediate children of retained parents receive updates
 function TestElementModeOverride:test_immediateChildrenOfRetainedParentsGetUpdated()
   FlexLove.setMode("retained")
-  
+
   local updateCount = 0
-  
+
   -- Create retained parent
   local parent = FlexLove.new({
     mode = "retained",
     width = 800,
     height = 600,
   })
-  
+
   -- Switch to immediate mode for child
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
-  
+
   -- Create immediate child that tracks updates
   local child = FlexLove.new({
     mode = "immediate",
@@ -329,15 +331,17 @@ function TestElementModeOverride:test_immediateChildrenOfRetainedParentsGetUpdat
     width = 100,
     height = 50,
   })
-  
+
   -- Manually call update on the child to simulate what endFrame should do
   -- In the real implementation, endFrame calls update on retained parents,
   -- which cascades to immediate children
   FlexLove.endFrame()
-  
+
   -- The child should be in the state manager
   local state = StateManager.getState("updateTest")
   luaunit.assertNotNil(state)
 end
 
-os.exit(luaunit.LuaUnit.run())
+if not _G.RUNNING_ALL_TESTS then
+  os.exit(luaunit.LuaUnit.run())
+end

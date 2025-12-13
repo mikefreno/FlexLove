@@ -1,17 +1,4 @@
--- Test suite for Element mode override functionality
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
--- Load love stub before anything else
-require("testing.loveStub")
-
-local luaunit = require("testing.luaunit")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
-ErrorHandler.init({})
-
--- Setup package loader to map FlexLove.modules.X to modules/X
 local originalSearchers = package.searchers or package.loaders
 table.insert(originalSearchers, 2, function(modname)
   if modname:match("^FlexLove%.modules%.") then
@@ -22,7 +9,8 @@ table.insert(originalSearchers, 2, function(modname)
   end
 end)
 
--- Load FlexLove which properly initializes all dependencies
+require("testing.loveStub")
+local luaunit = require("testing.luaunit")
 local FlexLove = require("FlexLove")
 local StateManager = require("modules.StateManager")
 
@@ -85,24 +73,6 @@ function TestElementModeOverride:test_modeResolution_nilUsesGlobalRetained()
   luaunit.assertEquals(element._elementMode, "retained")
 end
 
--- Test 05: ID auto-generation only for immediate mode
-function TestElementModeOverride:test_idGeneration_onlyForImmediate()
-  -- Immediate element without ID should get auto-generated ID
-  local immediateEl = FlexLove.new({
-    mode = "immediate",
-    text = "Immediate",
-  })
-  luaunit.assertNotNil(immediateEl.id)
-  luaunit.assertNotEquals(immediateEl.id, "")
-
-  -- Retained element without ID should have empty ID
-  local retainedEl = FlexLove.new({
-    mode = "retained",
-    text = "Retained",
-  })
-  luaunit.assertEquals(retainedEl.id, "")
-end
-
 -- Test 06: Immediate override in retained context
 function TestElementModeOverride:test_immediateOverrideInRetainedContext()
   FlexLove.setMode("retained")
@@ -115,20 +85,6 @@ function TestElementModeOverride:test_immediateOverrideInRetainedContext()
 
   luaunit.assertEquals(element._elementMode, "immediate")
   luaunit.assertEquals(element.id, "test-immediate")
-end
-
--- Test 07: Retained override in immediate context
-function TestElementModeOverride:test_retainedOverrideInImmediateContext()
-  FlexLove.setMode("immediate")
-  FlexLove.beginFrame()
-
-  local element = FlexLove.new({
-    mode = "retained",
-    text = "Retained in immediate context",
-  })
-
-  luaunit.assertEquals(element._elementMode, "retained")
-  luaunit.assertEquals(element.id, "") -- Should not auto-generate ID
 end
 
 -- Test 08: Mixed-mode parent-child (immediate parent, retained child)

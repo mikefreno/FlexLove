@@ -1,9 +1,13 @@
--- Test suite for Theme.lua core functionality
--- Tests theme creation, registration, and retrieval functions
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
--- Load love stub before anything else
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 require("testing.loveStub")
 
 local luaunit = require("testing.luaunit")
@@ -11,8 +15,6 @@ local Theme = require("modules.Theme")
 local Color = require("modules.Color")
 local ErrorHandler = require("modules.ErrorHandler")
 local utils = require("modules.utils")
-
--- Initialize ErrorHandler and Theme module
 ErrorHandler.init({})
 Theme.init({ ErrorHandler = ErrorHandler, Color = Color, utils = utils })
 

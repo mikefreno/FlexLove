@@ -1,15 +1,25 @@
+package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
+
 local luaunit = require("testing.luaunit")
-local ErrorHandler = require("modules.ErrorHandler")
 require("testing.loveStub")
 local FlexLove = require("FlexLove")
-local Color = require("modules.Color")
-local Theme = require("modules.Theme")
-ErrorHandler.init({})
+local Color = FlexLove.Color
+local Theme = FlexLove.Theme
 
 TestFlexLove = {}
 
 function TestFlexLove:setUp()
   FlexLove.destroy()
+  FlexLove.init()
   FlexLove.setMode("retained")
 end
 

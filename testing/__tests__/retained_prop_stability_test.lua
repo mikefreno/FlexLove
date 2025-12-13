@@ -1,14 +1,14 @@
---[[
-  Test: Retained Elements with Varying Props (ID Stability)
-
-  This test verifies that retained-mode elements return the same instance
-  across frames even when props vary slightly (e.g., different Color instances).
-]]
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 require("testing.loveStub")
-
 local luaunit = require("testing.luaunit")
 local FlexLove = require("FlexLove")
 local Color = require("modules.Color")

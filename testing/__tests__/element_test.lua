@@ -1,32 +1,17 @@
--- Comprehensive test suite for Element.lua
--- Tests element creation, size calculations, positioning, layout, scroll, styling, and edge cases
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
--- Load love stub before anything else
-require("testing.loveStub")
-
-local luaunit = require("testing.luaunit")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
-ErrorHandler.init({})
-
--- Setup package loader to map FlexLove.modules.X to modules/X
 local originalSearchers = package.searchers or package.loaders
 table.insert(originalSearchers, 2, function(modname)
   if modname:match("^FlexLove%.modules%.") then
     local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
+    return function()
+      return require("modules." .. moduleName)
+    end
   end
 end)
-
--- Load FlexLove which properly initializes all dependencies
+require("testing.loveStub")
+local luaunit = require("testing.luaunit")
 local FlexLove = require("FlexLove")
-local Element = require("modules.Element")
-local Color = require("modules.Color")
 
--- Initialize FlexLove
 FlexLove.init()
 
 -- ============================================================================
@@ -37,7 +22,7 @@ local function createBasicElement(props)
   props = props or {}
   props.width = props.width or 100
   props.height = props.height or 100
-  return Element.new(props)
+  return FlexLove.new(props)
 end
 
 -- ============================================================================
@@ -47,7 +32,7 @@ end
 TestElementCreation = {}
 
 function TestElementCreation:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 end
 
 function TestElementCreation:tearDown()
@@ -92,7 +77,7 @@ function TestElementCreation:test_element_with_backgroundColor()
     y = 0,
     width = 100,
     height = 100,
-    backgroundColor = { 1, 0, 0, 1 },
+    backgroundColor = FlexLove.Color.new(1, 0, 0, 1),
   })
 
   luaunit.assertNotNil(element)
@@ -195,7 +180,7 @@ end
 TestElementSizing = {}
 
 function TestElementSizing:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 end
 
 function TestElementSizing:tearDown()
@@ -607,7 +592,7 @@ end
 TestElementFlex = {}
 
 function TestElementFlex:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 end
 
 function TestElementFlex:tearDown()
@@ -761,12 +746,13 @@ end
 TestElementStyling = {}
 
 function TestElementStyling:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 end
 
 function TestElementStyling:tearDown()
   FlexLove.endFrame()
 end
+local Color = FlexLove.Color
 
 function TestElementStyling:test_element_with_border()
   local element = FlexLove.new({
@@ -886,7 +872,7 @@ function TestElementStyling:test_element_with_corner_radius_table()
   luaunit.assertNotNil(element.cornerRadius)
   luaunit.assertEquals(type(element.cornerRadius), "number")
   luaunit.assertEquals(element.cornerRadius, 10)
-  
+
   -- Test non-uniform radius (should be stored as table)
   local element2 = FlexLove.new({
     id = "test2",
@@ -896,7 +882,7 @@ function TestElementStyling:test_element_with_corner_radius_table()
     height = 100,
     cornerRadius = { topLeft = 5, topRight = 10, bottomLeft = 15, bottomRight = 20 },
   })
-  
+
   luaunit.assertNotNil(element2.cornerRadius)
   luaunit.assertEquals(type(element2.cornerRadius), "table")
   luaunit.assertEquals(element2.cornerRadius.topLeft, 5)
@@ -929,7 +915,7 @@ end
 TestElementMethods = {}
 
 function TestElementMethods:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 end
 
 function TestElementMethods:tearDown()

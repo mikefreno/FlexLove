@@ -1,25 +1,23 @@
--- Test suite for Grid layout functionality
--- Grid layout has 0% test coverage despite being integrated into the system
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
-require("testing.loveStub")
-local luaunit = require("testing.luaunit")
-
--- Setup package loader to map FlexLove.modules.X to modules/X
 local originalSearchers = package.searchers or package.loaders
 table.insert(originalSearchers, 2, function(modname)
   if modname:match("^FlexLove%.modules%.") then
     local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
+    return function()
+      return require("modules." .. moduleName)
+    end
   end
 end)
 
+require("testing.loveStub")
+local luaunit = require("testing.luaunit")
 local FlexLove = require("FlexLove")
 
 TestGridLayout = {}
 
 function TestGridLayout:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.init()
+  FlexLove.beginFrame()
 end
 
 function TestGridLayout:tearDown()
@@ -46,7 +44,7 @@ function TestGridLayout:test_default_grid_single_child()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Child should be stretched to fill the entire grid cell
   luaunit.assertEquals(child.x, 0, "Child should be at x=0")
@@ -79,7 +77,7 @@ function TestGridLayout:test_2x2_grid_four_children()
   end
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Each cell should be 200x200
   -- Child 1: top-left (0, 0)
@@ -127,7 +125,7 @@ function TestGridLayout:test_grid_with_gaps()
   end
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Cell size: (420 - 20) / 2 = 200, (320 - 20) / 2 = 150
   luaunit.assertEquals(children[1].width, 200, "Cell width should be 200")
@@ -167,7 +165,7 @@ function TestGridLayout:test_grid_overflow_children()
   end
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- First 4 children should be positioned
   luaunit.assertNotNil(children[1].x, "Child 1 should be positioned")
@@ -199,7 +197,7 @@ function TestGridLayout:test_grid_align_center()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Cell is 200x200, child is 100x100, should be centered
   -- Center position: (200 - 100) / 2 = 50
@@ -231,7 +229,7 @@ function TestGridLayout:test_grid_align_flex_start()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Child should be at top-left of cell
   luaunit.assertEquals(child.x, 0, "Child should be at left of cell")
@@ -262,7 +260,7 @@ function TestGridLayout:test_grid_align_flex_end()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Cell is 200x200, child is 100x100, should be at bottom-right
   luaunit.assertEquals(child.x, 100, "Child should be at right of cell (200 - 100)")
@@ -293,7 +291,7 @@ function TestGridLayout:test_grid_with_padding()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Available space: 500 - 50 - 50 = 400
   -- Cell size: 400 / 2 = 200
@@ -345,7 +343,7 @@ function TestGridLayout:test_grid_with_absolute_child()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- child1 should be in first grid cell (0, 0)
   luaunit.assertEquals(child1.x, 0, "Child 1 should be at x=0")
@@ -375,7 +373,7 @@ function TestGridLayout:test_empty_grid()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Should not crash
   luaunit.assertEquals(#container.children, 0, "Grid should have no children")
@@ -403,7 +401,7 @@ function TestGridLayout:test_grid_zero_dimensions()
 
   -- This might cause division by zero or other errors
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Test passes if it doesn't crash
   luaunit.assertTrue(true, "Grid with 0 dimensions should not crash")
@@ -444,7 +442,7 @@ function TestGridLayout:test_nested_grids()
   end
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Inner grid should be positioned in first cell of outer grid
   luaunit.assertEquals(innerGrid.x, 0, "Inner grid should be at x=0")
@@ -485,7 +483,7 @@ function TestGridLayout:test_grid_with_reserved_space()
   })
 
   FlexLove.endFrame()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.beginFrame()
 
   -- Grid should account for reserved space
   -- Available width: 400 - 50 (reserved left) = 350

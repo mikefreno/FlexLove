@@ -1,15 +1,22 @@
 package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 
 require("testing.loveStub")
 local luaunit = require("testing.luaunit")
-
+-- only going to load blur (and ErrorHandler as its a required dependency for blur to work properly)
 local Blur = require("modules.Blur")
 local ErrorHandler = require("modules.ErrorHandler")
 
--- Initialize ErrorHandler
 ErrorHandler.init({})
 Blur.init({ ErrorHandler = ErrorHandler })
-
 TestBlur = {}
 
 function TestBlur:setUp()
@@ -23,42 +30,42 @@ end
 
 function TestBlur:testNewWithNilQuality()
   -- Should default to quality 5
-  local blur = Blur.new({quality = nil})
+  local blur = Blur.new({ quality = nil })
   luaunit.assertNotNil(blur)
   luaunit.assertEquals(blur.quality, 5)
 end
 
 function TestBlur:testNewWithZeroQuality()
   -- Should clamp to minimum quality 1
-  local blur = Blur.new({quality = 0})
+  local blur = Blur.new({ quality = 0 })
   luaunit.assertNotNil(blur)
   luaunit.assertEquals(blur.quality, 1)
 end
 
 function TestBlur:testNewWithNegativeQuality()
   -- Should clamp to minimum quality 1
-  local blur = Blur.new({quality = -5})
+  local blur = Blur.new({ quality = -5 })
   luaunit.assertNotNil(blur)
   luaunit.assertEquals(blur.quality, 1)
 end
 
 function TestBlur:testNewWithVeryHighQuality()
   -- Should clamp to maximum quality 10
-  local blur = Blur.new({quality = 100})
+  local blur = Blur.new({ quality = 100 })
   luaunit.assertNotNil(blur)
   luaunit.assertEquals(blur.quality, 10)
 end
 
 function TestBlur:testNewWithQuality11()
   -- Should clamp to maximum quality 10
-  local blur = Blur.new({quality = 11})
+  local blur = Blur.new({ quality = 11 })
   luaunit.assertNotNil(blur)
   luaunit.assertEquals(blur.quality, 10)
 end
 
 function TestBlur:testNewWithFractionalQuality()
   -- Should work with fractional quality
-  local blur = Blur.new({quality = 5.5})
+  local blur = Blur.new({ quality = 5.5 })
   luaunit.assertNotNil(blur)
   luaunit.assertTrue(blur.quality >= 5 and blur.quality <= 6)
 end
@@ -66,7 +73,7 @@ end
 function TestBlur:testNewEnsuresOddTaps()
   -- Taps must be odd for shader
   for quality = 1, 10 do
-    local blur = Blur.new({quality = quality})
+    local blur = Blur.new({ quality = quality })
     luaunit.assertTrue(blur.taps % 2 == 1, string.format("Quality %d produced even taps: %d", quality, blur.taps))
   end
 end
@@ -87,16 +94,16 @@ end
 
 function TestBlur:testNewCreatesUniqueShaders()
   -- Blur instances with same quality should share cached shaders (optimization)
-  local blur1 = Blur.new({quality = 5})
-  local blur2 = Blur.new({quality = 5})
-  
+  local blur1 = Blur.new({ quality = 5 })
+  local blur2 = Blur.new({ quality = 5 })
+
   luaunit.assertNotNil(blur1.shader)
   luaunit.assertNotNil(blur2.shader)
   -- Shaders should be the same object when quality matches (cached)
   luaunit.assertEquals(blur1.shader, blur2.shader)
-  
+
   -- Different quality should result in different shaders
-  local blur3 = Blur.new({quality = 7})
+  local blur3 = Blur.new({ quality = 7 })
   luaunit.assertNotEquals(blur1.shader, blur3.shader)
 end
 
@@ -105,7 +112,7 @@ end
 -- ============================================================================
 
 function TestBlur:testApplyToRegionWithZeroRadius()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -117,7 +124,7 @@ function TestBlur:testApplyToRegionWithZeroRadius()
 end
 
 function TestBlur:testApplyToRegionWithNegativeRadius()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -129,7 +136,7 @@ function TestBlur:testApplyToRegionWithNegativeRadius()
 end
 
 function TestBlur:testApplyToRegionWithZeroWidth()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -141,7 +148,7 @@ function TestBlur:testApplyToRegionWithZeroWidth()
 end
 
 function TestBlur:testApplyToRegionWithZeroHeight()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -153,7 +160,7 @@ function TestBlur:testApplyToRegionWithZeroHeight()
 end
 
 function TestBlur:testApplyToRegionWithNegativeWidth()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -165,7 +172,7 @@ function TestBlur:testApplyToRegionWithNegativeWidth()
 end
 
 function TestBlur:testApplyToRegionWithNegativeHeight()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -177,7 +184,7 @@ function TestBlur:testApplyToRegionWithNegativeHeight()
 end
 
 function TestBlur:testApplyToRegionWithLargeRadius()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -189,7 +196,7 @@ function TestBlur:testApplyToRegionWithLargeRadius()
 end
 
 function TestBlur:testApplyToRegionWithNonFunctionDrawFunc()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
 
   -- Should not error but warn through ErrorHandler
   blur:applyToRegion(50, 0, 0, 100, 100, "not a function")
@@ -197,7 +204,7 @@ function TestBlur:testApplyToRegionWithNonFunctionDrawFunc()
 end
 
 function TestBlur:testApplyToRegionWithNilDrawFunc()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
 
   -- Should not error but warn through ErrorHandler
   blur:applyToRegion(50, 0, 0, 100, 100, nil)
@@ -205,7 +212,7 @@ function TestBlur:testApplyToRegionWithNilDrawFunc()
 end
 
 function TestBlur:testApplyToRegionWithNegativeCoordinates()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -217,7 +224,7 @@ function TestBlur:testApplyToRegionWithNegativeCoordinates()
 end
 
 function TestBlur:testApplyToRegionWithVerySmallDimensions()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -229,7 +236,7 @@ function TestBlur:testApplyToRegionWithVerySmallDimensions()
 end
 
 function TestBlur:testApplyToRegionWithVeryLargeDimensions()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -241,7 +248,7 @@ function TestBlur:testApplyToRegionWithVeryLargeDimensions()
 end
 
 function TestBlur:testApplyToRegionRadiusValues()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local called = false
   local drawFunc = function()
     called = true
@@ -251,22 +258,22 @@ function TestBlur:testApplyToRegionRadiusValues()
   -- Small radius
   blur:applyToRegion(5, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
-  
+
   called = false
   -- Medium radius
   blur:applyToRegion(10, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
-  
+
   called = false
   -- Large radius
   blur:applyToRegion(20, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
-  
+
   called = false
   -- Very large radius
   blur:applyToRegion(50, 0, 0, 100, 100, drawFunc)
   luaunit.assertTrue(called)
-  
+
   called = false
   -- Fractional radius
   blur:applyToRegion(2.5, 0, 0, 100, 100, drawFunc)
@@ -278,7 +285,7 @@ end
 -- ============================================================================
 
 function TestBlur:testApplyBackdropWithZeroRadius()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -291,7 +298,7 @@ function TestBlur:testApplyBackdropWithZeroRadius()
 end
 
 function TestBlur:testApplyBackdropWithNegativeRadius()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -304,7 +311,7 @@ function TestBlur:testApplyBackdropWithNegativeRadius()
 end
 
 function TestBlur:testApplyBackdropWithZeroWidth()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -317,7 +324,7 @@ function TestBlur:testApplyBackdropWithZeroWidth()
 end
 
 function TestBlur:testApplyBackdropWithZeroHeight()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -330,7 +337,7 @@ function TestBlur:testApplyBackdropWithZeroHeight()
 end
 
 function TestBlur:testApplyBackdropWithNilCanvas()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
 
   -- Should not error but warn through ErrorHandler
   blur:applyBackdrop(50, 0, 0, 100, 100, nil)
@@ -338,7 +345,7 @@ function TestBlur:testApplyBackdropWithNilCanvas()
 end
 
 function TestBlur:testApplyBackdropWithLargeRadius()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -351,7 +358,7 @@ function TestBlur:testApplyBackdropWithLargeRadius()
 end
 
 function TestBlur:testApplyBackdropWithInvalidCanvas()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local invalidCanvas = "not a canvas"
 
   -- Should error when trying to call getDimensions
@@ -361,7 +368,7 @@ function TestBlur:testApplyBackdropWithInvalidCanvas()
 end
 
 function TestBlur:testApplyBackdropRegionBeyondCanvas()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -374,7 +381,7 @@ function TestBlur:testApplyBackdropRegionBeyondCanvas()
 end
 
 function TestBlur:testApplyBackdropWithNegativeCoordinates()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   local mockCanvas = {
     getDimensions = function()
       return 100, 100
@@ -391,12 +398,12 @@ end
 -- ============================================================================
 
 function TestBlur:testGetQuality()
-  local blur = Blur.new({quality = 7})
+  local blur = Blur.new({ quality = 7 })
   luaunit.assertEquals(blur:getQuality(), 7)
 end
 
 function TestBlur:testGetTaps()
-  local blur = Blur.new({quality = 5})
+  local blur = Blur.new({ quality = 5 })
   luaunit.assertIsNumber(blur:getTaps())
   luaunit.assertTrue(blur:getTaps() > 0)
   luaunit.assertTrue(blur:getTaps() % 2 == 1) -- Must be odd
@@ -408,8 +415,8 @@ end
 
 function TestBlur:testClearCacheDoesNotError()
   -- Create some blur instances to populate cache
-  local blur1 = Blur.new({quality = 5})
-  local blur2 = Blur.new({quality = 8})
+  Blur.new({ quality = 5 })
+  Blur.new({ quality = 8 })
 
   -- Should not error
   Blur.clearCache()

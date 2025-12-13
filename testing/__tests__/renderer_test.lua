@@ -1,3 +1,14 @@
+package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
+
 local luaunit = require("testing.luaunit")
 require("testing.loveStub")
 
@@ -10,23 +21,8 @@ local ImageCache = require("modules.ImageCache")
 local Theme = require("modules.Theme")
 local Blur = require("modules.Blur")
 local utils = require("modules.utils")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Setup package loader to map FlexLove.modules.X to modules/X
-local originalSearchers = package.searchers or package.loaders
-table.insert(originalSearchers, 2, function(modname)
-  if modname:match("^FlexLove%.modules%.") then
-    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
-  end
-end)
-
 local FlexLove = require("FlexLove")
 
--- Initialize ErrorHandler
-ErrorHandler.init({})
-
--- Initialize FlexLove
 FlexLove.init()
 
 -- ============================================================================
@@ -502,7 +498,6 @@ function TestRendererMethods:testGetFont()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.fontSize = 16
-  
 
   local font = renderer:getFont(mockElement)
   luaunit.assertNotNil(font)
@@ -520,7 +515,6 @@ function TestRendererDrawing:testDrawBasic()
   }, createDeps())
 
   local mockElement = createMockElement()
-  
 
   -- Should not error when drawing
   renderer:draw(mockElement)
@@ -530,7 +524,6 @@ end
 function TestRendererDrawing:testDrawWithNilBackdrop()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
-  
 
   renderer:draw(mockElement, nil)
   luaunit.assertTrue(true)
@@ -539,7 +532,6 @@ end
 function TestRendererDrawing:testDrawPressedState()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
-  
 
   -- Should not error
   renderer:drawPressedState(0, 0, 100, 100)
@@ -553,7 +545,6 @@ function TestRendererDrawing:testDrawScrollbars()
   mockElement.scrollbarWidth = 8
   mockElement.scrollbarPadding = 2
   mockElement.scrollbarColor = Color.new(0.5, 0.5, 0.5, 1)
-  
 
   local dims = {
     scrollX = 0,
@@ -589,7 +580,6 @@ function TestRendererText:testDrawText()
   mockElement.text = "Hello World"
   mockElement.fontSize = 14
   mockElement.textAlign = "left"
-  
 
   -- Should not error
   renderer:drawText(mockElement)
@@ -600,7 +590,6 @@ function TestRendererText:testDrawTextWithNilText()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.text = nil
-  
 
   -- Should handle nil text gracefully
   renderer:drawText(mockElement)
@@ -611,7 +600,6 @@ function TestRendererText:testDrawTextWithEmptyString()
   local renderer = Renderer.new({}, createDeps())
   local mockElement = createMockElement()
   mockElement.text = ""
-  
 
   renderer:drawText(mockElement)
   luaunit.assertTrue(true)

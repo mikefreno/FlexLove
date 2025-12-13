@@ -1,6 +1,16 @@
+package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
+
 require("testing.loveStub")
 local luaunit = require("testing.luaunit")
-local ErrorHandler = require("modules.ErrorHandler") -- Load FlexLove
 local FlexLove = require("FlexLove")
 
 TestCriticalFailures = {}

@@ -1,13 +1,22 @@
+package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
+
 local luaunit = require("testing.luaunit")
 local ErrorHandler = require("modules.ErrorHandler")
 
--- Initialize ErrorHandler
 ErrorHandler.init({})
 require("testing.loveStub")
 
 local ImageScaler = require("modules.ImageScaler")
 
--- Initialize ImageScaler with ErrorHandler
 ImageScaler.init({ ErrorHandler = ErrorHandler })
 
 TestImageScaler = {}

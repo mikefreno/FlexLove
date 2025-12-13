@@ -1,11 +1,13 @@
---[[
-  Test: Retained Elements in Immediate Mode (No Duplication)
-
-  This test verifies that retained-mode elements don't get recreated
-  when the overall application is in immediate mode.
-]]
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 
 require("testing.loveStub")
 
@@ -21,7 +23,7 @@ function TestRetainedInImmediateMode:setUp()
 end
 
 function TestRetainedInImmediateMode:tearDown()
-  if FlexLove.getMode() == "immediate" then
+  if FlexLove.getMode() == "immediate" and FlexLove._frameStarted then
     FlexLove.endFrame()
   end
   FlexLove.init({ immediateMode = false })

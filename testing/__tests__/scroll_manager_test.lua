@@ -1,4 +1,3 @@
--- Edge case and unhappy path tests for ScrollManager module
 package.path = package.path .. ";./?.lua;./modules/?.lua"
 
 require("testing.loveStub")

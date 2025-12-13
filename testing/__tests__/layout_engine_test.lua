@@ -1,10 +1,14 @@
--- Comprehensive test suite for LayoutEngine.lua module
--- Consolidated from layout_engine_test.lua, layout_edge_cases_test.lua, 
--- overflow_test.lua, and transform_test.lua
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 
--- Load love stub before anything else
 require("testing.loveStub")
 
 local luaunit = require("testing.luaunit")
@@ -13,16 +17,6 @@ local Units = require("modules.Units")
 local utils = require("modules.utils")
 local ErrorHandler = require("modules.ErrorHandler")
 local Animation = require("modules.Animation")
-
--- Setup package loader to map FlexLove.modules.X to modules/X
-local originalSearchers = package.searchers or package.loaders
-table.insert(originalSearchers, 2, function(modname)
-  if modname:match("^FlexLove%.modules%.") then
-    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
-  end
-end)
-
 local FlexLove = require("FlexLove")
 local Transform = Animation.Transform
 
@@ -695,6 +689,7 @@ end
 TestLayoutEdgeCases = {}
 
 function TestLayoutEdgeCases:setUp()
+  FlexLove.init()
   FlexLove.setMode("immediate")
   FlexLove.beginFrame()
   -- Capture warnings
@@ -1067,7 +1062,8 @@ end
 TestOverflowDetection = {}
 
 function TestOverflowDetection:setUp()
-  FlexLove.beginFrame(1920, 1080)
+  FlexLove.init()
+  FlexLove.beginFrame()
 end
 
 function TestOverflowDetection:tearDown()

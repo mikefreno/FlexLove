@@ -1,5 +1,13 @@
--- Test suite for EventHandler module
 package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 
 require("testing.loveStub")
 local luaunit = require("testing.luaunit")
@@ -184,7 +192,7 @@ end
 -- Test: processMouseEvents() returns early if no element
 -- function TestEventHandler:test_processMouseEvents_no_element()
 --   local handler = createEventHandler()
--- 
+--
 --   -- Should not error
 --   handler:processMouseEvents(element, 50, 50, true, true)
 -- end
@@ -500,7 +508,7 @@ end
 -- Test: processTouchEvents() returns early if no element
 -- function TestEventHandler:test_processTouchEvents_no_element()
 --   local handler = createEventHandler()
--- 
+--
 --   -- Should not error
 --   handler:processTouchEvents(element)
 -- end

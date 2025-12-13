@@ -1,18 +1,21 @@
--- ImageRenderer Comprehensive Test Suite
--- Tests for ImageRenderer functionality including fit modes, positioning, tiling, and edge cases
+package.path = package.path .. ";./?.lua;./modules/?.lua"
+local originalSearchers = package.searchers or package.loaders
+table.insert(originalSearchers, 2, function(modname)
+  if modname:match("^FlexLove%.modules%.") then
+    local moduleName = modname:gsub("^FlexLove%.modules%.", "")
+    return function()
+      return require("modules." .. moduleName)
+    end
+  end
+end)
 
 local luaunit = require("testing.luaunit")
 local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
 ErrorHandler.init({})
 require("testing.loveStub")
-
 local ImageRenderer = require("modules.ImageRenderer")
 local Color = require("modules.Color")
 local utils = require("modules.utils")
-
--- Initialize ImageRenderer with dependencies
 ImageRenderer.init({ ErrorHandler = ErrorHandler, utils = utils })
 
 -- ============================================================================
@@ -512,72 +515,37 @@ end
 TestImageRendererElementIntegration = {}
 
 function TestImageRendererElementIntegration:setUp()
-  local Element = require("modules.Element")
-  local Units = require("modules.Units")
-  local LayoutEngine = require("modules.LayoutEngine")
-  local Renderer = require("modules.Renderer")
-  local EventHandler = require("modules.EventHandler")
-  local ImageCache = require("modules.ImageCache")
-  local Context = require("modules.Context")
-  local StateManager = require("modules.StateManager")
-  local InputEvent = require("modules.InputEvent")
-  local Theme = require("modules.Theme")
-  local TextEditor = require("modules.TextEditor")
-  local ScrollManager = require("modules.ScrollManager")
-  local RoundedRect = require("modules.RoundedRect")
-
-  self.deps = {
-    utils = utils,
-    Color = Color,
-    Units = Units,
-    LayoutEngine = LayoutEngine,
-    Renderer = Renderer,
-    EventHandler = EventHandler,
-    ImageCache = ImageCache,
-    ImageRenderer = ImageRenderer,
-    ErrorHandler = ErrorHandler,
-    Context = Context,
-    StateManager = StateManager,
-    InputEvent = InputEvent,
-    Theme = Theme,
-    TextEditor = TextEditor,
-    ScrollManager = ScrollManager,
-    RoundedRect = RoundedRect,
-  }
-  
-  -- Initialize Element with dependencies
-  Element.init(self.deps)
-  
-  self.Element = Element
+  self.Flexlove = require("FlexLove")
+  self.Flexlove.init({})
 end
 
 function TestImageRendererElementIntegration:testElementImageRepeatProperty()
   -- Test that Element accepts imageRepeat property
-  local element = self.Element.new({
+  local element = self.Flexlove.new({
     width = 200,
     height = 200,
     imageRepeat = "repeat",
-  }, self.deps)
+  })
 
   luaunit.assertEquals(element.imageRepeat, "repeat")
 end
 
 function TestImageRendererElementIntegration:testElementImageRepeatDefault()
   -- Test that imageRepeat defaults to "no-repeat"
-  local element = self.Element.new({
+  local element = self.Flexlove.new({
     width = 200,
     height = 200,
-  }, self.deps)
+  })
 
   luaunit.assertEquals(element.imageRepeat, "no-repeat")
 end
 
 function TestImageRendererElementIntegration:testElementSetImageRepeat()
   -- Test setImageRepeat method
-  local element = self.Element.new({
+  local element = self.Flexlove.new({
     width = 200,
     height = 200,
-  }, self.deps)
+  })
 
   element:setImageRepeat("repeat-x")
   luaunit.assertEquals(element.imageRepeat, "repeat-x")
@@ -587,21 +555,21 @@ function TestImageRendererElementIntegration:testElementImageTintProperty()
   -- Test that Element accepts imageTint property
   local redTint = Color.new(1, 0, 0, 1)
 
-  local element = self.Element.new({
+  local element = self.Flexlove.new({
     width = 200,
     height = 200,
     imageTint = redTint,
-  }, self.deps)
+  })
 
   luaunit.assertEquals(element.imageTint, redTint)
 end
 
 function TestImageRendererElementIntegration:testElementSetImageTint()
   -- Test setImageTint method
-  local element = self.Element.new({
+  local element = self.Flexlove.new({
     width = 200,
     height = 200,
-  }, self.deps)
+  })
 
   local blueTint = Color.new(0, 0, 1, 1)
   element:setImageTint(blueTint)
@@ -610,10 +578,10 @@ end
 
 function TestImageRendererElementIntegration:testElementSetImageOpacity()
   -- Test setImageOpacity method
-  local element = self.Element.new({
+  local element = self.Flexlove.new({
     width = 200,
     height = 200,
-  }, self.deps)
+  })
 
   element:setImageOpacity(0.7)
   luaunit.assertEquals(element.imageOpacity, 0.7)

@@ -1,29 +1,18 @@
--- Comprehensive test suite for Animation.lua
--- Consolidates all animation testing including core functionality, easing, properties, and keyframes
-
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
-require("testing.loveStub")
-
-local luaunit = require("testing.luaunit")
-local ErrorHandler = require("modules.ErrorHandler")
-
--- Initialize ErrorHandler
-ErrorHandler.init({})
-
--- Setup package loader to map FlexLove.modules.X to modules/X
 local originalSearchers = package.searchers or package.loaders
 table.insert(originalSearchers, 2, function(modname)
   if modname:match("^FlexLove%.modules%.") then
     local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
+    return function()
+      return require("modules." .. moduleName)
+    end
   end
 end)
 
--- Load FlexLove which properly initializes all dependencies
+require("testing.loveStub")
+local luaunit = require("testing.luaunit")
 local FlexLove = require("FlexLove")
 
--- Initialize FlexLove
 FlexLove.init()
 
 local Animation = FlexLove.Animation

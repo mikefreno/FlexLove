@@ -1,26 +1,20 @@
--- Test Performance Module (Consolidated)
 package.path = package.path .. ";./?.lua;./modules/?.lua"
-
-local luaunit = require("testing.luaunit")
-local loveStub = require("testing.loveStub")
-
--- Set up stub before requiring modules
-_G.love = loveStub
-
--- Setup package loader to map FlexLove.modules.X to modules/X
 local originalSearchers = package.searchers or package.loaders
 table.insert(originalSearchers, 2, function(modname)
   if modname:match("^FlexLove%.modules%.") then
     local moduleName = modname:gsub("^FlexLove%.modules%.", "")
-    return function() return require("modules." .. moduleName) end
+    return function()
+      return require("modules." .. moduleName)
+    end
   end
 end)
 
+local luaunit = require("testing.luaunit")
+require("testing.loveStub")
 local FlexLove = require("FlexLove")
 local Performance = require("modules.Performance")
-local Element = require('modules.Element')
+local Element = require("modules.Element")
 
--- Initialize FlexLove to ensure all modules are properly set up
 FlexLove.init()
 
 -- ============================================================================

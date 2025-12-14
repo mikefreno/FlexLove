@@ -123,8 +123,6 @@ end
 --- Apply CSS positioning offsets (top, right, bottom, left) to a child element
 ---@param child Element The element to apply offsets to
 function LayoutEngine:applyPositioningOffsets(child)
-
-  
   if not child then
     return
   end
@@ -178,15 +176,15 @@ end
 ---@return table positions Array of {x, y} positions
 function LayoutEngine:_batchCalculatePositions(children, startX, startY, spacing, isHorizontal)
   local count = #children
-  
+
   -- Use FFI for batch calculations if available and count is large enough
   if LayoutEngine._useFFI and LayoutEngine._FFI and count > 10 then
     local positions = LayoutEngine._FFI:allocateVec2Array(count)
     local currentPos = isHorizontal and startX or startY
-    
+
     for i = 0, count - 1 do
       local child = children[i + 1] -- Lua is 1-indexed
-      
+
       if isHorizontal then
         positions[i].x = currentPos + child.margin.left
         positions[i].y = startY + child.margin.top
@@ -197,36 +195,35 @@ function LayoutEngine:_batchCalculatePositions(children, startX, startY, spacing
         currentPos = currentPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + spacing
       end
     end
-    
+
     return positions
   end
-  
+
   -- Fallback to Lua table
   local positions = {}
   local currentPos = isHorizontal and startX or startY
-  
+
   for i, child in ipairs(children) do
     if isHorizontal then
       positions[i] = {
         x = currentPos + child.margin.left,
-        y = startY + child.margin.top
+        y = startY + child.margin.top,
       }
       currentPos = currentPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + spacing
     else
       positions[i] = {
         x = startX + child.margin.left,
-        y = currentPos + child.margin.top
+        y = currentPos + child.margin.top,
       }
       currentPos = currentPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + spacing
     end
   end
-  
+
   return positions
 end
 
 --- Layout children within this element according to positioning mode
 function LayoutEngine:layoutChildren()
-  
   -- Start performance timing first (before any early returns)
   local timerName = nil
   if LayoutEngine._Performance and LayoutEngine._Performance.enabled and self.element then
@@ -249,44 +246,6 @@ function LayoutEngine:layoutChildren()
 
   -- Track layout recalculations for performance warnings
   self:_trackLayoutRecalculation()
-
-  if self.positioning == self._Positioning.ABSOLUTE or self.positioning == self._Positioning.RELATIVE then
-    -- Absolute/Relative positioned containers don't layout their children according to flex rules,
-    -- but they should still apply CSS positioning offsets to their children
-    local baseX = (self.element.x or 0) + self.element.padding.left
-    local baseY = (self.element.y or 0) + self.element.padding.top
-    
-    for _, child in ipairs(self.element.children) do
-      -- Apply CSS positioning offsets to children with absolute positioning
-      if child.top or child.right or child.bottom or child.left then
-        self:applyPositioningOffsets(child)
-      elseif child.positioning == self._Positioning.RELATIVE then
-        -- Reposition relative children to match parent's new position
-        -- This is needed when the parent (absolute container) moves after children are created
-        -- Preserve any explicit x/y offsets that were set on the child
-        local offsetX = (child.units.x and child.units.x.value) or 0
-        local offsetY = (child.units.y and child.units.y.value) or 0
-        child.x = baseX + offsetX
-        child.y = baseY + offsetY
-        
-        -- If child has children, recursively layout them
-        if #child.children > 0 then
-          child:layoutChildren()
-        end
-      end
-    end
-
-    -- Detect overflow after children positioning
-    if self.element._detectOverflow then
-      self.element:_detectOverflow()
-    end
-
-    -- Stop performance timing
-    if timerName and LayoutEngine._Performance then
-      LayoutEngine._Performance:stopTimer(timerName)
-    end
-    return
-  end
 
   -- Handle grid layout
   if self.positioning == self._Positioning.GRID then
@@ -338,33 +297,33 @@ function LayoutEngine:layoutChildren()
 
   -- CSS-compliant behavior: absolutely positioned elements are completely removed from normal flow
   -- They do NOT reserve space or affect flex layout calculations at all
-  
+
   -- If no flex children, skip flex layout but still position absolute children
   if #flexChildren == 0 then
     -- Position absolutely positioned children even when there are no flex children
     for i, child in ipairs(self.element.children) do
       if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
         self:applyPositioningOffsets(child)
-        
+
         -- If child has children, layout them after position change
         if #child.children > 0 then
           child:layoutChildren()
         end
       end
     end
-    
+
     -- Detect overflow after children positioning
     if self.element._detectOverflow then
       self.element:_detectOverflow()
     end
-    
+
     -- Stop performance timing
     if timerName and LayoutEngine._Performance then
       LayoutEngine._Performance:stopTimer(timerName)
     end
     return
   end
-  
+
   -- Calculate available space (accounting for padding only, NOT absolute children)
   -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
   local availableMainSize = 0
@@ -387,7 +346,7 @@ function LayoutEngine:layoutChildren()
     -- Wrap children into multiple lines
     local currentLine = {}
     local currentLineSize = 0
-    
+
     -- Performance optimization: hoist enum comparisons outside loop
     local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
     local gapSize = self.gap
@@ -443,7 +402,7 @@ function LayoutEngine:layoutChildren()
   -- Performance optimization: preallocate array if possible
   local lineHeights = table.create and table.create(#lines) or {}
   local totalLinesHeight = 0
-  
+
   -- Performance optimization: hoist enum comparison outside loop
   local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
 
@@ -569,7 +528,7 @@ function LayoutEngine:layoutChildren()
 
     -- Position children in this line
     local currentMainPos = startPos
-    
+
     -- Performance optimization: hoist frequently accessed element properties
     local elementX = self.element.x
     local elementY = self.element.y
@@ -588,7 +547,7 @@ function LayoutEngine:layoutChildren()
       local childMargin = child.margin
       local childPadding = child.padding
       local childAutosizing = child.autosizing
-      
+
       -- Determine effective cross-axis alignment
       local effectiveAlign = child.alignSelf
       if effectiveAlign == nil or effectiveAlign == alignSelf_AUTO then
@@ -611,11 +570,7 @@ function LayoutEngine:layoutChildren()
         if effectiveAlign == alignItems_FLEX_START then
           child.y = elementY + elementPaddingTop + currentCrossPos + childMarginTop
         elseif effectiveAlign == alignItems_CENTER then
-          child.y = elementY
-            + elementPaddingTop
-            + currentCrossPos
-            + ((lineHeight - childTotalCrossSize) / 2)
-            + childMarginTop
+          child.y = elementY + elementPaddingTop + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + childMarginTop
         elseif effectiveAlign == alignItems_FLEX_END then
           child.y = elementY + elementPaddingTop + currentCrossPos + lineHeight - childTotalCrossSize + childMarginTop
         elseif effectiveAlign == alignItems_STRETCH then
@@ -656,11 +611,7 @@ function LayoutEngine:layoutChildren()
         if effectiveAlign == alignItems_FLEX_START then
           child.x = elementX + elementPaddingLeft + currentCrossPos + childMarginLeft
         elseif effectiveAlign == alignItems_CENTER then
-          child.x = elementX
-            + elementPaddingLeft
-            + currentCrossPos
-            + ((lineHeight - childTotalCrossSize) / 2)
-            + childMarginLeft
+          child.x = elementX + elementPaddingLeft + currentCrossPos + ((lineHeight - childTotalCrossSize) / 2) + childMarginLeft
         elseif effectiveAlign == alignItems_FLEX_END then
           child.x = elementX + elementPaddingLeft + currentCrossPos + lineHeight - childTotalCrossSize + childMarginLeft
         elseif effectiveAlign == alignItems_STRETCH then
@@ -790,14 +741,14 @@ function LayoutEngine:calculateAutoWidth()
   end
 
   local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
-  
+
   if isHorizontal then
     -- HORIZONTAL flex with potential wrapping
     if self.flexWrap ~= self._FlexWrap.NOWRAP and self.element.width and self.element.width > 0 then
       -- Container has explicit width and wrapping enabled - calculate based on wrapped lines
       local availableWidth = self.element.width
       local lines = self:_simulateWrap(flexChildren, availableWidth, true)
-      
+
       -- Find the widest line
       local maxLineWidth = contentWidth
       for _, line in ipairs(lines) do
@@ -871,14 +822,14 @@ function LayoutEngine:calculateAutoHeight()
   end
 
   local isVertical = self.flexDirection == self._FlexDirection.VERTICAL
-  
+
   if isVertical then
     -- VERTICAL flex with potential wrapping
     if self.flexWrap ~= self._FlexWrap.NOWRAP and self.element.height and self.element.height > 0 then
       -- Container has explicit height and wrapping enabled - calculate based on wrapped lines
       local availableHeight = self.element.height
       local lines = self:_simulateWrap(flexChildren, availableHeight, false)
-      
+
       -- Sum all line heights
       local totalLinesHeight = height
       for i, line in ipairs(lines) do
@@ -919,7 +870,7 @@ function LayoutEngine:calculateAutoHeight()
       -- Container has explicit width and wrapping enabled - calculate based on wrapped lines
       local availableWidth = self.element.width
       local lines = self:_simulateWrap(flexChildren, availableWidth, true)
-      
+
       -- Sum all line heights (cross-axis for horizontal flex)
       local totalLinesHeight = height
       for i, line in ipairs(lines) do

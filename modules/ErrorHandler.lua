@@ -105,6 +105,30 @@ local ErrorCodes = {
       description = "Grid layout error",
       suggestion = "Check grid template columns/rows and item placement",
     },
+    LAY_008 = {
+      code = "FLEXLOVE_LAY_008",
+      category = "LAY",
+      description = "Explicit position will be ignored by flex layout",
+      suggestion = "Remove x/y properties (flex layout controls position), OR set positioning='absolute' with left/top/right/bottom properties. Additionally, you can use margin/padding for positional offsets in flex layouts.",
+    },
+    LAY_009 = {
+      code = "FLEXLOVE_LAY_009",
+      category = "LAY",
+      description = "Flex layout properties ignored with grid positioning",
+      suggestion = "Remove flexDirection/justifyContent/alignItems properties, or change positioning to 'flex' or 'relative'",
+    },
+    LAY_010 = {
+      code = "FLEXLOVE_LAY_010",
+      category = "LAY",
+      description = "Grid layout properties ignored without grid positioning",
+      suggestion = "Set positioning='grid' to use grid layout properties, or remove grid properties",
+    },
+    LAY_011 = {
+      code = "FLEXLOVE_LAY_011",
+      category = "LAY",
+      description = "CSS positioning properties ignored",
+      suggestion = "Set positioning='absolute' to use top/bottom/left/right properties",
+    },
 
     -- Rendering Errors (REN_001 - REN_099)
     REN_001 = {

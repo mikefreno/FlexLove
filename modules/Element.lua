@@ -1310,6 +1310,20 @@ function Element.new(props)
     end
 
     -- Handle positioning properties for elements without parent
+    -- Warn if CSS positioning properties are used without absolute positioning
+    if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
+      local properties = {}
+      if props.top then table.insert(properties, "top") end
+      if props.bottom then table.insert(properties, "bottom") end
+      if props.left then table.insert(properties, "left") end
+      if props.right then table.insert(properties, "right") end
+      Element._ErrorHandler:warn("Element", "LAY_011", {
+        element = self.id or "unnamed",
+        positioning = self._originalPositioning or "relative",
+        properties = table.concat(properties, ", "),
+      })
+    end
+
     -- Handle top positioning with units
     if props.top then
       local isCalc = Element._Calc and Element._Calc.isCalc(props.top)
@@ -1484,6 +1498,18 @@ function Element.new(props)
       local baseX = self.parent.x + self.parent.padding.left
       local baseY = self.parent.y + self.parent.padding.top
 
+      -- Warn if explicit x/y is set on a child that will be positioned by flex layout
+      -- This position will be overridden unless the child has positioning="absolute"
+      local parentWillUseFlex = self.parent.positioning ~= "grid" 
+      local childIsRelative = self.positioning ~= "absolute" or not self._explicitlyAbsolute
+      if parentWillUseFlex and childIsRelative and (props.x or props.y) then
+        Element._ErrorHandler:warn("Element", "LAY_008", {
+          element = self.id or "unnamed",
+          parent = self.parent.id or "unnamed",
+          properties = (props.x and props.y) and "x, y" or (props.x and "x" or "y"),
+        })
+      end
+
       if props.x then
         local isCalc = Element._Calc and Element._Calc.isCalc(props.x)
         if type(props.x) == "string" or isCalc then
@@ -1554,6 +1580,20 @@ function Element.new(props)
     end
 
     -- Handle positioning properties BEFORE adding to parent (so they're available during layout)
+    -- Warn if CSS positioning properties are used without absolute positioning
+    if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
+      local properties = {}
+      if props.top then table.insert(properties, "top") end
+      if props.bottom then table.insert(properties, "bottom") end
+      if props.left then table.insert(properties, "left") end
+      if props.right then table.insert(properties, "right") end
+      Element._ErrorHandler:warn("Element", "LAY_011", {
+        element = self.id or "unnamed",
+        positioning = self._originalPositioning or "relative",
+        properties = table.concat(properties, ", "),
+      })
+    end
+
     -- Handle top positioning with units
     if props.top then
       local isCalc = Element._Calc and Element._Calc.isCalc(props.top)
@@ -1662,6 +1702,15 @@ function Element.new(props)
       Element._utils.validateEnum(props.justifySelf, Element._utils.enums.JustifySelf, "justifySelf")
     end
 
+    -- Warn if grid properties are set with flex positioning
+    if props.gridRows or props.gridColumns or props.gridTemplateRows or props.gridTemplateColumns then
+      Element._ErrorHandler:warn("Element", "LAY_010", {
+        element = self.id or "unnamed",
+        positioning = "flex",
+        properties = "gridRows/gridColumns/gridTemplate*",
+      })
+    end
+
     self.flexDirection = props.flexDirection or Element._utils.enums.FlexDirection.HORIZONTAL
     self.flexWrap = props.flexWrap or Element._utils.enums.FlexWrap.NOWRAP
     self.justifyContent = props.justifyContent or Element._utils.enums.JustifyContent.FLEX_START
@@ -1672,6 +1721,15 @@ function Element.new(props)
 
   -- Grid container properties
   if self.positioning == Element._utils.enums.Positioning.GRID then
+    -- Warn if flex properties are set with grid positioning
+    if props.flexDirection or props.flexWrap or props.justifyContent then
+      Element._ErrorHandler:warn("Element", "LAY_009", {
+        element = self.id or "unnamed",
+        positioning = "grid",
+        properties = "flexDirection/flexWrap/justifyContent",
+      })
+    end
+
     self.gridRows = props.gridRows or 1
     self.gridColumns = props.gridColumns or 1
     self.alignItems = props.alignItems or Element._utils.enums.AlignItems.STRETCH

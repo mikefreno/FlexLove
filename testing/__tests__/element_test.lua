@@ -490,10 +490,11 @@ function TestElementPositioning:test_nested_element_positions()
 
   luaunit.assertNotNil(parent)
   luaunit.assertNotNil(child)
-  -- Child positions are absolute in FlexLove, not relative to parent
-  -- So child.x = parent.x + relative_x = 100 + 20 = 120
-  luaunit.assertEquals(child.x, 120)
-  luaunit.assertEquals(child.y, 130)
+  -- Parent uses default flex layout (positioning="relative" is default)
+  -- Flex layout controls child position, ignoring explicit x/y offsets on relative children
+  -- Child is positioned at parent's content area (parent.x + padding.left)
+  luaunit.assertEquals(child.x, 100)
+  luaunit.assertEquals(child.y, 100)
 end
 
 function TestElementPositioning:test_absolute_positioning_with_top_left()

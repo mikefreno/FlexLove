@@ -263,8 +263,11 @@ function LayoutEngine:layoutChildren()
       elseif child.positioning == self._Positioning.RELATIVE then
         -- Reposition relative children to match parent's new position
         -- This is needed when the parent (absolute container) moves after children are created
-        child.x = baseX
-        child.y = baseY
+        -- Preserve any explicit x/y offsets that were set on the child
+        local offsetX = (child.units.x and child.units.x.value) or 0
+        local offsetY = (child.units.y and child.units.y.value) or 0
+        child.x = baseX + offsetX
+        child.y = baseY + offsetY
         
         -- If child has children, recursively layout them
         if #child.children > 0 then

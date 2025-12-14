@@ -16,4 +16,4 @@ releases/
 memory_scan*
 *_report*
 *.key
-*.src.rock
+*.rock

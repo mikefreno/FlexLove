@@ -36,6 +36,7 @@ end
 local luaunit = require("testing.luaunit")
 
 local testFiles = {
+  "testing/__tests__/absolute_positioning_test.lua",
   "testing/__tests__/animation_test.lua",
   "testing/__tests__/blur_test.lua",
   "testing/__tests__/calc_test.lua",

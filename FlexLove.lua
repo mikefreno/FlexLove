@@ -1083,7 +1083,7 @@ end
 --- If called before FlexLove.init(), the element creation will be automatically queued and executed after initialization
 ---@param props ElementProps
 ---@param callback? function Optional callback function(element) that will be called with the created element (useful when queued)
----@return Element|nil element Returns element if initialized, nil if queued for later creation
+---@return Element -- Returns element if initialized, nil if queued for later creation
 function flexlove.new(props, callback)
   props = props or {}
 
@@ -1102,8 +1102,7 @@ function flexlove.new(props, callback)
         )
       end
     end
-
-    return nil -- Element will be created later
+    return nil
   end
 
   -- Determine effective mode: props.mode takes precedence over global mode

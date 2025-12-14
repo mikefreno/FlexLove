@@ -123,6 +123,8 @@ end
 --- Apply CSS positioning offsets (top, right, bottom, left) to a child element
 ---@param child Element The element to apply offsets to
 function LayoutEngine:applyPositioningOffsets(child)
+
+  
   if not child then
     return
   end
@@ -139,7 +141,7 @@ function LayoutEngine:applyPositioningOffsets(child)
     or child.positioning == self._Positioning.GRID
     or (child.positioning == self._Positioning.ABSOLUTE and not child._explicitlyAbsolute)
 
-  if not isFlexChild then
+  if not isFlexChild and child._explicitlyAbsolute then
     -- Apply absolute positioning for explicitly absolute children
     -- Apply top offset (distance from parent's content box top edge)
     if child.top then
@@ -224,6 +226,7 @@ end
 
 --- Layout children within this element according to positioning mode
 function LayoutEngine:layoutChildren()
+  
   -- Start performance timing first (before any early returns)
   local timerName = nil
   if LayoutEngine._Performance and LayoutEngine._Performance.enabled and self.element then
@@ -250,9 +253,23 @@ function LayoutEngine:layoutChildren()
   if self.positioning == self._Positioning.ABSOLUTE or self.positioning == self._Positioning.RELATIVE then
     -- Absolute/Relative positioned containers don't layout their children according to flex rules,
     -- but they should still apply CSS positioning offsets to their children
+    local baseX = (self.element.x or 0) + self.element.padding.left
+    local baseY = (self.element.y or 0) + self.element.padding.top
+    
     for _, child in ipairs(self.element.children) do
+      -- Apply CSS positioning offsets to children with absolute positioning
       if child.top or child.right or child.bottom or child.left then
         self:applyPositioningOffsets(child)
+      elseif child.positioning == self._Positioning.RELATIVE then
+        -- Reposition relative children to match parent's new position
+        -- This is needed when the parent (absolute container) moves after children are created
+        child.x = baseX
+        child.y = baseY
+        
+        -- If child has children, recursively layout them
+        if #child.children > 0 then
+          child:layoutChildren()
+        end
       end
     end
 
@@ -316,81 +333,45 @@ function LayoutEngine:layoutChildren()
     end
   end
 
+  -- CSS-compliant behavior: absolutely positioned elements are completely removed from normal flow
+  -- They do NOT reserve space or affect flex layout calculations at all
+  
+  -- If no flex children, skip flex layout but still position absolute children
   if #flexChildren == 0 then
-    return
-  end
-
-  -- Calculate space reserved by absolutely positioned siblings with explicit positioning
-  local reservedMainStart = 0 -- Space reserved at the start of main axis (left for horizontal, top for vertical)
-  local reservedMainEnd = 0 -- Space reserved at the end of main axis (right for horizontal, bottom for vertical)
-  local reservedCrossStart = 0 -- Space reserved at the start of cross axis (top for horizontal, left for vertical)
-  local reservedCrossEnd = 0 -- Space reserved at the end of cross axis (bottom for horizontal, right for vertical)
-
-  for _, child in ipairs(self.element.children) do
-    -- Only consider absolutely positioned children with explicit positioning
-    if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
-      -- BORDER-BOX MODEL: Use border-box dimensions for space calculations
-      local childBorderBoxWidth = child:getBorderBoxWidth()
-      local childBorderBoxHeight = child:getBorderBoxHeight()
-
-      if self.flexDirection == self._FlexDirection.HORIZONTAL then
-        -- Horizontal layout: main axis is X, cross axis is Y
-        -- Check for left positioning (reserves space at main axis start)
-        if child.left then
-          local spaceNeeded = child.left + childBorderBoxWidth
-          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
-        end
-        -- Check for right positioning (reserves space at main axis end)
-        if child.right then
-          local spaceNeeded = child.right + childBorderBoxWidth
-          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
-        end
-        -- Check for top positioning (reserves space at cross axis start)
-        if child.top then
-          local spaceNeeded = child.top + childBorderBoxHeight
-          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
-        end
-        -- Check for bottom positioning (reserves space at cross axis end)
-        if child.bottom then
-          local spaceNeeded = child.bottom + childBorderBoxHeight
-          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
-        end
-      else
-        -- Vertical layout: main axis is Y, cross axis is X
-        -- Check for top positioning (reserves space at main axis start)
-        if child.top then
-          local spaceNeeded = child.top + childBorderBoxHeight
-          reservedMainStart = math.max(reservedMainStart, spaceNeeded)
-        end
-        -- Check for bottom positioning (reserves space at main axis end)
-        if child.bottom then
-          local spaceNeeded = child.bottom + childBorderBoxHeight
-          reservedMainEnd = math.max(reservedMainEnd, spaceNeeded)
-        end
-        -- Check for left positioning (reserves space at cross axis start)
-        if child.left then
-          local spaceNeeded = child.left + childBorderBoxWidth
-          reservedCrossStart = math.max(reservedCrossStart, spaceNeeded)
-        end
-        -- Check for right positioning (reserves space at cross axis end)
-        if child.right then
-          local spaceNeeded = child.right + childBorderBoxWidth
-          reservedCrossEnd = math.max(reservedCrossEnd, spaceNeeded)
+    -- Position absolutely positioned children even when there are no flex children
+    for i, child in ipairs(self.element.children) do
+      if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
+        self:applyPositioningOffsets(child)
+        
+        -- If child has children, layout them after position change
+        if #child.children > 0 then
+          child:layoutChildren()
         end
       end
     end
+    
+    -- Detect overflow after children positioning
+    if self.element._detectOverflow then
+      self.element:_detectOverflow()
+    end
+    
+    -- Stop performance timing
+    if timerName and LayoutEngine._Performance then
+      LayoutEngine._Performance:stopTimer(timerName)
+    end
+    return
   end
-
-  -- Calculate available space (accounting for padding and reserved space)
+  
+  -- Calculate available space (accounting for padding only, NOT absolute children)
   -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
   local availableMainSize = 0
   local availableCrossSize = 0
   if self.flexDirection == self._FlexDirection.HORIZONTAL then
-    availableMainSize = self.element.width - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.element.height - reservedCrossStart - reservedCrossEnd
+    availableMainSize = self.element.width
+    availableCrossSize = self.element.height
   else
-    availableMainSize = self.element.height - reservedMainStart - reservedMainEnd
-    availableCrossSize = self.element.width - reservedCrossStart - reservedCrossEnd
+    availableMainSize = self.element.height
+    availableCrossSize = self.element.width
   end
 
   -- Handle flex wrap: create lines of children
@@ -614,9 +595,9 @@ function LayoutEngine:layoutChildren()
       if self.flexDirection == self._FlexDirection.HORIZONTAL then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart and left margin to account for absolutely positioned siblings and margins
+        -- CSS-compliant: absolute children don't affect flex positioning, so no reserved space offset
         local childMarginLeft = childMargin.left
-        child.x = elementX + elementPaddingLeft + reservedMainStart + currentMainPos + childMarginLeft
+        child.x = elementX + elementPaddingLeft + currentMainPos + childMarginLeft
 
         -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
         local childBorderBoxHeight = child:getBorderBoxHeight()
@@ -625,16 +606,15 @@ function LayoutEngine:layoutChildren()
         local childTotalCrossSize = childBorderBoxHeight + childMarginTop + childMarginBottom
 
         if effectiveAlign == alignItems_FLEX_START then
-          child.y = elementY + elementPaddingTop + reservedCrossStart + currentCrossPos + childMarginTop
+          child.y = elementY + elementPaddingTop + currentCrossPos + childMarginTop
         elseif effectiveAlign == alignItems_CENTER then
           child.y = elementY
             + elementPaddingTop
-            + reservedCrossStart
             + currentCrossPos
             + ((lineHeight - childTotalCrossSize) / 2)
             + childMarginTop
         elseif effectiveAlign == alignItems_FLEX_END then
-          child.y = elementY + elementPaddingTop + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + childMarginTop
+          child.y = elementY + elementPaddingTop + currentCrossPos + lineHeight - childTotalCrossSize + childMarginTop
         elseif effectiveAlign == alignItems_STRETCH then
           -- STRETCH: Only apply if height was not explicitly set
           if childAutosizing and childAutosizing.height then
@@ -643,7 +623,7 @@ function LayoutEngine:layoutChildren()
             child._borderBoxHeight = availableHeight
             child.height = math.max(0, availableHeight - childPadding.top - childPadding.bottom)
           end
-          child.y = elementY + elementPaddingTop + reservedCrossStart + currentCrossPos + childMarginTop
+          child.y = elementY + elementPaddingTop + currentCrossPos + childMarginTop
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -659,9 +639,9 @@ function LayoutEngine:layoutChildren()
       else
         -- Vertical layout: main axis is Y, cross axis is X
         -- Position child at border box (x, y represents top-left including padding)
-        -- Add reservedMainStart and top margin to account for absolutely positioned siblings and margins
+        -- CSS-compliant: absolute children don't affect flex positioning, so no reserved space offset
         local childMarginTop = childMargin.top
-        child.y = elementY + elementPaddingTop + reservedMainStart + currentMainPos + childMarginTop
+        child.y = elementY + elementPaddingTop + currentMainPos + childMarginTop
 
         -- BORDER-BOX MODEL: Use border-box dimensions for alignment calculations
         local childBorderBoxWidth = child:getBorderBoxWidth()
@@ -671,16 +651,15 @@ function LayoutEngine:layoutChildren()
         local elementPaddingLeft = elementPadding.left
 
         if effectiveAlign == alignItems_FLEX_START then
-          child.x = elementX + elementPaddingLeft + reservedCrossStart + currentCrossPos + childMarginLeft
+          child.x = elementX + elementPaddingLeft + currentCrossPos + childMarginLeft
         elseif effectiveAlign == alignItems_CENTER then
           child.x = elementX
             + elementPaddingLeft
-            + reservedCrossStart
             + currentCrossPos
             + ((lineHeight - childTotalCrossSize) / 2)
             + childMarginLeft
         elseif effectiveAlign == alignItems_FLEX_END then
-          child.x = elementX + elementPaddingLeft + reservedCrossStart + currentCrossPos + lineHeight - childTotalCrossSize + childMarginLeft
+          child.x = elementX + elementPaddingLeft + currentCrossPos + lineHeight - childTotalCrossSize + childMarginLeft
         elseif effectiveAlign == alignItems_STRETCH then
           -- STRETCH: Only apply if width was not explicitly set
           if childAutosizing and childAutosizing.width then
@@ -689,7 +668,7 @@ function LayoutEngine:layoutChildren()
             child._borderBoxWidth = availableWidth
             child.width = math.max(0, availableWidth - childPadding.left - childPadding.right)
           end
-          child.x = elementX + elementPaddingLeft + reservedCrossStart + currentCrossPos + childMarginLeft
+          child.x = elementX + elementPaddingLeft + currentCrossPos + childMarginLeft
         end
 
         -- Apply positioning offsets (top, right, bottom, left)
@@ -710,7 +689,7 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Position explicitly absolute children after flex layout
-  for _, child in ipairs(self.element.children) do
+  for i, child in ipairs(self.element.children) do
     if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute then
       -- Apply positioning offsets (top, right, bottom, left)
       self:applyPositioningOffsets(child)

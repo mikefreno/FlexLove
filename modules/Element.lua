@@ -1308,6 +1308,91 @@ function Element.new(props)
       self._originalPositioning = nil -- No explicit positioning
       self._explicitlyAbsolute = false
     end
+
+    -- Handle positioning properties for elements without parent
+    -- Handle top positioning with units
+    if props.top then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.top)
+      if type(props.top) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.top)
+        self.units.top = { value = value, unit = unit }
+        local resolvedTop = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        if type(resolvedTop) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "top resolution returned non-number value",
+            type = type(resolvedTop),
+          })
+          resolvedTop = 0
+        end
+        self.top = resolvedTop
+      else
+        self.top = props.top
+        self.units.top = { value = props.top, unit = "px" }
+      end
+    end
+
+    -- Handle right positioning with units
+    if props.right then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.right)
+      if type(props.right) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.right)
+        self.units.right = { value = value, unit = unit }
+        local resolvedRight = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        if type(resolvedRight) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "right resolution returned non-number value",
+            type = type(resolvedRight),
+          })
+          resolvedRight = 0
+        end
+        self.right = resolvedRight
+      else
+        self.right = props.right
+        self.units.right = { value = props.right, unit = "px" }
+      end
+    end
+
+    -- Handle bottom positioning with units
+    if props.bottom then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.bottom)
+      if type(props.bottom) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.bottom)
+        self.units.bottom = { value = value, unit = unit }
+        local resolvedBottom = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        if type(resolvedBottom) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "bottom resolution returned non-number value",
+            type = type(resolvedBottom),
+          })
+          resolvedBottom = 0
+        end
+        self.bottom = resolvedBottom
+      else
+        self.bottom = props.bottom
+        self.units.bottom = { value = props.bottom, unit = "px" }
+      end
+    end
+
+    -- Handle left positioning with units
+    if props.left then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.left)
+      if type(props.left) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.left)
+        self.units.left = { value = value, unit = unit }
+        local resolvedLeft = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        if type(resolvedLeft) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "left resolution returned non-number value",
+            type = type(resolvedLeft),
+          })
+          resolvedLeft = 0
+        end
+        self.left = resolvedLeft
+      else
+        self.left = props.left
+        self.units.left = { value = props.left, unit = "px" }
+      end
+    end
   else
     -- Set positioning first and track if explicitly set
     self._originalPositioning = props.positioning -- Track original intent
@@ -1468,104 +1553,92 @@ function Element.new(props)
       end
     end
 
+    -- Handle positioning properties BEFORE adding to parent (so they're available during layout)
+    -- Handle top positioning with units
+    if props.top then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.top)
+      if type(props.top) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.top)
+        self.units.top = { value = value, unit = unit }
+        local resolvedTop = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        if type(resolvedTop) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "top resolution returned non-number value",
+            type = type(resolvedTop),
+          })
+          resolvedTop = 0
+        end
+        self.top = resolvedTop
+      else
+        self.top = props.top
+        self.units.top = { value = props.top, unit = "px" }
+      end
+    end
+
+    -- Handle right positioning with units
+    if props.right then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.right)
+      if type(props.right) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.right)
+        self.units.right = { value = value, unit = unit }
+        local resolvedRight = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        if type(resolvedRight) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "right resolution returned non-number value",
+            type = type(resolvedRight),
+          })
+          resolvedRight = 0
+        end
+        self.right = resolvedRight
+      else
+        self.right = props.right
+        self.units.right = { value = props.right, unit = "px" }
+      end
+    end
+
+    -- Handle bottom positioning with units
+    if props.bottom then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.bottom)
+      if type(props.bottom) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.bottom)
+        self.units.bottom = { value = value, unit = unit }
+        local resolvedBottom = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
+        if type(resolvedBottom) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "bottom resolution returned non-number value",
+            type = type(resolvedBottom),
+          })
+          resolvedBottom = 0
+        end
+        self.bottom = resolvedBottom
+      else
+        self.bottom = props.bottom
+        self.units.bottom = { value = props.bottom, unit = "px" }
+      end
+    end
+
+    -- Handle left positioning with units
+    if props.left then
+      local isCalc = Element._Calc and Element._Calc.isCalc(props.left)
+      if type(props.left) == "string" or isCalc then
+        local value, unit = Element._Units.parse(props.left)
+        self.units.left = { value = value, unit = unit }
+        local resolvedLeft = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
+        if type(resolvedLeft) ~= "number" then
+          Element._ErrorHandler:warn("Element", "LAY_003", {
+            issue = "left resolution returned non-number value",
+            type = type(resolvedLeft),
+          })
+          resolvedLeft = 0
+        end
+        self.left = resolvedLeft
+      else
+        self.left = props.left
+        self.units.left = { value = props.left, unit = "px" }
+      end
+    end
+
     props.parent:addChild(self)
-  end
-
-  -- Handle positioning properties for ALL elements (with or without parent)
-  -- Handle top positioning with units
-  if props.top then
-    local isCalc = Element._Calc and Element._Calc.isCalc(props.top)
-    if type(props.top) == "string" or isCalc then
-      local value, unit = Element._Units.parse(props.top)
-      self.units.top = { value = value, unit = unit }
-      local resolvedTop = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
-      if type(resolvedTop) ~= "number" then
-        Element._ErrorHandler:warn("Element", "LAY_003", {
-          issue = "top resolution returned non-number value",
-          type = type(resolvedTop),
-        })
-        resolvedTop = 0
-      end
-      self.top = resolvedTop
-    else
-      self.top = props.top
-      self.units.top = { value = props.top, unit = "px" }
-    end
-  else
-    self.top = nil
-    self.units.top = nil
-  end
-
-  -- Handle right positioning with units
-  if props.right then
-    local isCalc = Element._Calc and Element._Calc.isCalc(props.right)
-    if type(props.right) == "string" or isCalc then
-      local value, unit = Element._Units.parse(props.right)
-      self.units.right = { value = value, unit = unit }
-      local resolvedRight = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
-      if type(resolvedRight) ~= "number" then
-        Element._ErrorHandler:warn("Element", "LAY_003", {
-          issue = "right resolution returned non-number value",
-          type = type(resolvedRight),
-        })
-        resolvedRight = 0
-      end
-      self.right = resolvedRight
-    else
-      self.right = props.right
-      self.units.right = { value = props.right, unit = "px" }
-    end
-  else
-    self.right = nil
-    self.units.right = nil
-  end
-
-  -- Handle bottom positioning with units
-  if props.bottom then
-    local isCalc = Element._Calc and Element._Calc.isCalc(props.bottom)
-    if type(props.bottom) == "string" or isCalc then
-      local value, unit = Element._Units.parse(props.bottom)
-      self.units.bottom = { value = value, unit = unit }
-      local resolvedBottom = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportHeight)
-      if type(resolvedBottom) ~= "number" then
-        Element._ErrorHandler:warn("Element", "LAY_003", {
-          issue = "bottom resolution returned non-number value",
-          type = type(resolvedBottom),
-        })
-        resolvedBottom = 0
-      end
-      self.bottom = resolvedBottom
-    else
-      self.bottom = props.bottom
-      self.units.bottom = { value = props.bottom, unit = "px" }
-    end
-  else
-    self.bottom = nil
-    self.units.bottom = nil
-  end
-
-  -- Handle left positioning with units
-  if props.left then
-    local isCalc = Element._Calc and Element._Calc.isCalc(props.left)
-    if type(props.left) == "string" or isCalc then
-      local value, unit = Element._Units.parse(props.left)
-      self.units.left = { value = value, unit = unit }
-      local resolvedLeft = Element._Units.resolve(value, unit, viewportWidth, viewportHeight, viewportWidth)
-      if type(resolvedLeft) ~= "number" then
-        Element._ErrorHandler:warn("Element", "LAY_003", {
-          issue = "left resolution returned non-number value",
-          type = type(resolvedLeft),
-        })
-        resolvedLeft = 0
-      end
-      self.left = resolvedLeft
-    else
-      self.left = props.left
-      self.units.left = { value = props.left, unit = "px" }
-    end
-  else
-    self.left = nil
-    self.units.left = nil
   end
 
   if self.positioning == Element._utils.enums.Positioning.FLEX then
@@ -2134,6 +2207,9 @@ function Element:addChild(child)
   -- and _explicitlyAbsolute was already set correctly during construction
 
   table.insert(self.children, child)
+
+  -- Mark parent as having dirty children to trigger layout recalculation
+  self._childrenDirty = true
 
   -- Only recalculate auto-sizing if the child participates in layout
   -- (CSS: absolutely positioned children don't affect parent auto-sizing)

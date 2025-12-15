@@ -94,6 +94,8 @@ jobs:
               echo "Found previous version: v${OLD_VERSION}"
               mkdir -p "docs/versions/v${OLD_VERSION}"
               cp docs/api.html "docs/versions/v${OLD_VERSION}/api.html"
+              # Fix back link to use correct relative path for archived version
+              sed -i 's|href="index.html">← Back to Home|href="../../index.html">← Back to Home|g' "docs/versions/v${OLD_VERSION}/api.html"
               echo "✓ Archived previous documentation to docs/versions/v${OLD_VERSION}/"
             else
               echo "No previous version found, skipping archival"

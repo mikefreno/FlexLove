@@ -47,6 +47,11 @@ if [ ! -f "$VERSION_DIR/api.html" ]; then
   exit 1
 fi
 
+echo -e "${YELLOW}Fixing relative paths for archived version...${NC}"
+# Fix back link to use correct relative path from versions/vX.X.X/ to root
+sed -i.bak 's|href="index.html">← Back to Home|href="../../index.html">← Back to Home|g' "$VERSION_DIR/api.html"
+rm "$VERSION_DIR/api.html.bak"
+
 FILE_SIZE=$(du -h "$VERSION_DIR/api.html" | cut -f1)
 
 echo ""

@@ -2,6 +2,8 @@
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
+**[Documentation](https://mikefreno.github.io/FlexLove/) • [Quick Start](#quick-start) • [Releases](https://github.com/mikefreno/FlexLove/releases) • [Examples](https://mikefreno.github.io/FlexLove/examples.html) • [API Reference](https://mikefreno.github.io/FlexLove/api.html)**
+
 FlexLöve is a flexible GUI library for Löve2D that implements a flexbox-based layout system.
 The goals of this project are two-fold, first, to make a UI library that anyone with basic CSS knowledge can run with a minimal learning curve, and second, to have a single library take you from early prototyping to production easily and gradually.
 

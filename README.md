@@ -2,7 +2,9 @@
 
 **A comprehensive UI library providing flexbox/grid layouts, theming, animations, and event handling for LÖVE2D games.**
 
-**[Documentation](https://mikefreno.github.io/FlexLove/) • [Quick Start](#quick-start) • [Releases](https://github.com/mikefreno/FlexLove/releases) • [Examples](https://mikefreno.github.io/FlexLove/examples.html) • [API Reference](https://mikefreno.github.io/FlexLove/api.html)**
+<p align="center">
+  <strong><a href="https://mikefreno.github.io/FlexLove/">Documentation</a> • <a href="#quick-start">Quick Start</a> • <a href="https://github.com/mikefreno/FlexLove/releases">Releases</a> • <a href="https://mikefreno.github.io/FlexLove/examples.html">Examples</a> • <a href="https://mikefreno.github.io/FlexLove/api.html">API Reference</a></strong>
+</p>
 
 FlexLöve is a flexible GUI library for Löve2D that implements a flexbox-based layout system.
 The goals of this project are two-fold, first, to make a UI library that anyone with basic CSS knowledge can run with a minimal learning curve, and second, to have a single library take you from early prototyping to production easily and gradually.
@@ -229,79 +231,6 @@ function love.draw()
 end
 ```
 
-### Element Properties
-
-Common properties for all elements:
-
-```lua
-{
-  -- Positioning & Size
-  x = 0,                    -- X position (number or string with units)
-  y = 0,                    -- Y position
-  width = 100,              -- Width (number, string, or "auto")
-  height = 100,             -- Height
-  z = 0,                    -- Z-index for layering
-  
-  -- Visual Styling
-  backgroundColor = Color.new(0, 0, 0, 0),  -- Background color
-  cornerRadius = 0,         -- Uniform radius or {topLeft, topRight, bottomLeft, bottomRight}
-  border = {},              -- {top, right, bottom, left} boolean flags
-  borderColor = Color.new(0, 0, 0, 1),
-  opacity = 1,              -- 0 to 1
-  
-  -- Layout
-  positioning = "flex",     -- "absolute", "relative", "flex", or "grid"
-  padding = {},             -- {top, right, bottom, left} or shortcuts
-  margin = {},              -- {top, right, bottom, left} or shortcuts
-  gap = 10,                 -- Space between children
-  
-  -- Flexbox Properties
-  flexDirection = "horizontal",  -- "horizontal" or "vertical"
-  justifyContent = "flex-start", -- Main axis alignment
-  alignItems = "stretch",        -- Cross axis alignment
-  flexWrap = "nowrap",           -- "nowrap" or "wrap"
-  
-  -- Grid Properties
-  gridRows = 1,
-  gridColumns = 1,
-  rowGap = 10,
-  columnGap = 10,
-  
-  -- Text
-  text = "Hello",
-  textColor = Color.new(1, 1, 1, 1),
-  textAlign = "start",      -- "start", "center", "end"
-  textSize = "md",          -- Number or preset ("xs", "sm", "md", "lg", "xl", etc.)
-  
-  -- Images
-  imagePath = "path/to/image.png",  -- Path to image file (auto-loads)
-  image = imageObject,              -- Or provide love.Image directly
-  objectFit = "fill",               -- "fill", "contain", "cover", "scale-down", "none"
-  objectPosition = "center center", -- Image positioning (keywords or percentages)
-  imageRepeat = "no-repeat",        -- "no-repeat", "repeat", "repeat-x", "repeat-y", "space", "round"
-  imageTint = Color.new(1, 1, 1, 1), -- Color tint overlay (default: white/no tint)
-  imageOpacity = 1,                 -- Image opacity 0-1 (combines with element opacity)
-  
-  -- Theming
-  theme = "space",          -- Theme name
-  themeComponent = "button", -- Component type from theme
-  
-  -- Interaction
-  onEvent = function(element, event) end,
-  disabled = false,
-  disableHighlight = false, -- Disable pressed overlay (auto-true for themed elements)
-  
-  -- Rendering Mode
-  mode = nil,               -- "immediate", "retained", or nil (uses global setting)
-  
-  -- Element Identity
-  id = nil,                 -- Element ID (auto-generated if not provided)
-  
-  -- Hierarchy
-  parent = nil,             -- Parent element
-}
-```
-
 ### Layout Modes
 
 #### Absolute Positioning
@@ -363,9 +292,9 @@ local button = Flexlove.new({
 })
 ```
 
-#### Android 9-Patch Support
+#### 9-Patch Support
 
-FlexLove automatically parses Android 9-patch (*.9.png) files:
+FlexLove automatically parses Android-style 9-patch (*.9.png) files:
 
 ```lua
 -- Theme definition with auto-parsed 9-patch
@@ -736,30 +665,6 @@ local semiTransparent = Color.fromHex("#FF000080")
 - `Animation.new(props)` - Create custom animation
 - `Animation.fade(duration, from, to)` - Fade animation
 - `Animation.scale(duration, from, to)` - Scale animation
-
-## Examples
-
-The `examples/` directory contains comprehensive demos:
-
-- `EventSystemDemo.lua` - Event handling and callbacks
-- `CornerRadiusDemo.lua` - Rounded corners showcase
-- `ThemeLayeringDemo.lua` - Theme system with layering
-- `DisableHighlightDemo.lua` - Highlight control
-- `SimpleGrid.lua` - Grid layout examples
-- `TextSizePresets.lua` - Text sizing options
-- `OnClickAnimations.lua` - Animation examples
-- `ZIndexDemo.lua` - Layering demonstration
-- `touch_demo.lua` - Interactive multi-touch and gesture demo
-- `image_showcase.lua` - Image display and manipulation features
-
-## Testing
-
-Run tests with:
-```bash
-lua testing/runAll.lua
-# or a specific test:
-lua testing/__tests__/<specific_test>
-```
 
 ## Compatibility
 

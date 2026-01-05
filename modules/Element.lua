@@ -133,6 +133,7 @@
 ---@field scrollbarRadius number? -- Scrollbar corner radius
 ---@field scrollbarPadding number? -- Scrollbar padding from edges
 ---@field scrollSpeed number? -- Scroll speed multiplier
+---@field invertScroll boolean? -- Invert mouse wheel scroll direction (default: false)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
 ---@field scrollbarKnobOffset number|table? -- Scrollbar knob/handle offset (number or {x, y} or {horizontal, vertical})
 ---@field _overflowX boolean? -- Internal: whether content overflows horizontally
@@ -1845,6 +1846,7 @@ function Element.new(props)
       scrollbarRadius = props.scrollbarRadius,
       scrollbarPadding = props.scrollbarPadding,
       scrollSpeed = props.scrollSpeed,
+      invertScroll = props.invertScroll,
       smoothScrollEnabled = props.smoothScrollEnabled,
       scrollBarStyle = props.scrollBarStyle,
       scrollbarKnobOffset = props.scrollbarKnobOffset,
@@ -1863,6 +1865,7 @@ function Element.new(props)
     self.scrollbarRadius = self._scrollManager.scrollbarRadius
     self.scrollbarPadding = self._scrollManager.scrollbarPadding
     self.scrollSpeed = self._scrollManager.scrollSpeed
+    self.invertScroll = self._scrollManager.invertScroll
     self.scrollBarStyle = self._scrollManager.scrollBarStyle
     self.scrollbarKnobOffset = self._scrollManager.scrollbarKnobOffset
     self.hideScrollbars = self._scrollManager.hideScrollbars

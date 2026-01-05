@@ -8,6 +8,7 @@
 ---@field scrollbarRadius number -- Border radius for scrollbars
 ---@field scrollbarPadding number -- Padding around scrollbar
 ---@field scrollSpeed number -- Scroll speed for wheel events (pixels per wheel unit)
+---@field invertScroll boolean -- Invert mouse wheel scroll direction (default: false)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
 ---@field scrollbarKnobOffset table -- {x: number, y: number, horizontal: number, vertical: number} -- Offset for scrollbar knob/handle position
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
@@ -83,6 +84,7 @@ function ScrollManager.new(config, deps)
   self.scrollbarRadius = config.scrollbarRadius or 6
   self.scrollbarPadding = config.scrollbarPadding or 2
   self.scrollSpeed = config.scrollSpeed or 20
+  self.invertScroll = config.invertScroll or false
   self.scrollBarStyle = config.scrollBarStyle -- Theme scrollbar style name (nil = use default)
 
   -- scrollbarKnobOffset can be number or table {x, y} or {horizontal, vertical}
@@ -582,6 +584,9 @@ function ScrollManager:handleWheel(x, y)
   -- Vertical scrolling
   if y ~= 0 and hasVerticalOverflow then
     local delta = -y * self.scrollSpeed -- Negative because wheel up = scroll up
+    if self.invertScroll then
+      delta = -delta -- Invert scroll direction if enabled
+    end
     if self.smoothScrollEnabled then
       -- Set target for smooth scrolling instead of instant jump
       self._targetScrollY = self._utils.clamp((self._targetScrollY or self._scrollY) + delta, 0, self._maxScrollY)
@@ -596,6 +601,9 @@ function ScrollManager:handleWheel(x, y)
   -- Horizontal scrolling
   if x ~= 0 and hasHorizontalOverflow then
     local delta = -x * self.scrollSpeed
+    if self.invertScroll then
+      delta = -delta -- Invert scroll direction if enabled
+    end
     if self.smoothScrollEnabled then
       -- Set target for smooth scrolling instead of instant jump
       self._targetScrollX = self._utils.clamp((self._targetScrollX or self._scrollX) + delta, 0, self._maxScrollX)

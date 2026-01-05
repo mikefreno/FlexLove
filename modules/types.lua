@@ -122,6 +122,7 @@ local AnimationProps = {}
 ---@field scrollbarRadius number? -- Corner radius for scrollbar (default: 6)
 ---@field scrollbarPadding number? -- Padding between scrollbar and edge (default: 2)
 ---@field scrollSpeed number? -- Pixels per wheel notch (default: 20)
+---@field invertScroll boolean? -- Invert mouse wheel scroll direction (default: false)
 ---@field smoothScrollEnabled boolean? -- Enable smooth scrolling animation for wheel events (default: false)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars, default: uses first scrollbar or fallback rendering)
 ---@field scrollbarKnobOffset number|{x:number, y:number}|{horizontal:number, vertical:number}? -- Offset for scrollbar knob/handle position in pixels (number for both axes, or table for per-axis control, default: 0, adds to theme offset)

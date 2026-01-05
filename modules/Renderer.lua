@@ -353,11 +353,11 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
 
   -- Check if all borders are enabled with same width
   local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
-  local uniformWidth = allBorders and 
-    type(self.border.top) == "number" and 
-    self.border.top == self.border.right and 
-    self.border.top == self.border.bottom and 
-    self.border.top == self.border.left
+  local uniformWidth = allBorders
+    and type(self.border.top) == "number"
+    and self.border.top == self.border.right
+    and self.border.top == self.border.bottom
+    and self.border.top == self.border.left
 
   if uniformWidth then
     -- Draw complete rounded rectangle border with uniform width
@@ -927,7 +927,7 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
       -- Calculate knob offset (element overrides theme)
       local knobOffsetX = 0
       local knobOffsetY = 0
-      
+
       -- Use element offset if provided, otherwise use theme offset
       if element.scrollbarKnobOffset then
         knobOffsetX = element.scrollbarKnobOffset.x or 0
@@ -938,28 +938,30 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         knobOffsetY = themeOffset.vertical
       end
 
+      -- Extract contentPadding from frame for knob sizing
+      local framePaddingLeft = 0
+      local framePaddingTop = 0
+      local framePaddingRight = 0
+      local framePaddingBottom = 0
+      if frameComponent and frameComponent._ninePatchData and frameComponent._ninePatchData.contentPadding then
+        framePaddingLeft = frameComponent._ninePatchData.contentPadding.left or 0
+        framePaddingTop = frameComponent._ninePatchData.contentPadding.top or 0
+        framePaddingRight = frameComponent._ninePatchData.contentPadding.right or 0
+        framePaddingBottom = frameComponent._ninePatchData.contentPadding.bottom or 0
+      end
+
       -- Draw track (frame) if component exists
       if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
-        self._NinePatch.draw(
-          frameComponent,
-          frameComponent._loadedAtlas,
-          trackX,
-          trackY,
-          element.scrollbarWidth,
-          dims.vertical.trackHeight
-        )
+        self._NinePatch.draw(frameComponent, frameComponent._loadedAtlas, trackX, trackY, element.scrollbarWidth, dims.vertical.trackHeight)
       end
 
       -- Draw thumb (bar) if component exists
       if barComponent and barComponent._loadedAtlas and barComponent.regions then
-        self._NinePatch.draw(
-          barComponent,
-          barComponent._loadedAtlas,
-          trackX + knobOffsetX,
-          trackY + dims.vertical.thumbY + knobOffsetY,
-          element.scrollbarWidth,
-          dims.vertical.thumbHeight
-        )
+        -- Adjust knob dimensions to account for frame's contentPadding
+        -- Vertical scrollbar: width affected by left+right, height affected by top+bottom
+        local knobWidth = element.scrollbarWidth
+        local knobHeight = dims.vertical.thumbHeight - framePaddingTop / 2
+        self._NinePatch.draw(barComponent, barComponent._loadedAtlas, trackX + knobOffsetX, trackY + dims.vertical.thumbY + knobOffsetY, knobWidth, knobHeight)
       end
     else
       -- Fallback to color-based rendering
@@ -1002,7 +1004,7 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
       -- Calculate knob offset (element overrides theme)
       local knobOffsetX = 0
       local knobOffsetY = 0
-      
+
       -- Use element offset if provided, otherwise use theme offset
       if element.scrollbarKnobOffset then
         knobOffsetX = element.scrollbarKnobOffset.horizontal or 0
@@ -1013,27 +1015,36 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         knobOffsetY = themeOffset.y
       end
 
+      -- Extract contentPadding from frame for knob sizing
+      local framePaddingLeft = 0
+      local framePaddingTop = 0
+      local framePaddingRight = 0
+      local framePaddingBottom = 0
+      if frameComponent and frameComponent._ninePatchData and frameComponent._ninePatchData.contentPadding then
+        framePaddingLeft = frameComponent._ninePatchData.contentPadding.left or 0
+        framePaddingTop = frameComponent._ninePatchData.contentPadding.top or 0
+        framePaddingRight = frameComponent._ninePatchData.contentPadding.right or 0
+        framePaddingBottom = frameComponent._ninePatchData.contentPadding.bottom or 0
+      end
+
       -- Draw track (frame) if component exists
       if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
-        self._NinePatch.draw(
-          frameComponent,
-          frameComponent._loadedAtlas,
-          trackX,
-          trackY,
-          dims.horizontal.trackWidth,
-          element.scrollbarWidth
-        )
+        self._NinePatch.draw(frameComponent, frameComponent._loadedAtlas, trackX, trackY, dims.horizontal.trackWidth, element.scrollbarWidth)
       end
 
       -- Draw thumb (bar) if component exists
       if barComponent and barComponent._loadedAtlas and barComponent.regions then
+        -- Adjust knob dimensions to account for frame's contentPadding
+        -- Horizontal scrollbar: width affected by left+right, height affected by top+bottom
+        local knobWidth = dims.horizontal.thumbWidth - framePaddingLeft / 2
+        local knobHeight = element.scrollbarWidth - framePaddingTop - framePaddingBottom
         self._NinePatch.draw(
           barComponent,
           barComponent._loadedAtlas,
           trackX + dims.horizontal.thumbX + knobOffsetX,
           trackY + knobOffsetY,
-          dims.horizontal.thumbWidth,
-          element.scrollbarWidth
+          knobWidth,
+          knobHeight
         )
       end
     else

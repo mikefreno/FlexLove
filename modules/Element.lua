@@ -32,6 +32,10 @@
 ---@field flexWrap FlexWrap -- Whether children wrap to multiple lines (default: NOWRAP)
 ---@field justifySelf JustifySelf -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf -- Alignment of the item itself along cross axis (default: AUTO)
+---@field flex number|string? -- Shorthand for flexGrow, flexShrink, flexBasis (e.g., 1, "0 1 auto", "none")
+---@field flexGrow number -- How much the item will grow relative to siblings (default: 0)
+---@field flexShrink number -- How much the item will shrink relative to siblings (default: 1)
+---@field flexBasis string|number -- Initial main size before growing/shrinking (default: "auto")
 ---@field textSize number? -- Resolved font size for text content in pixels
 ---@field minTextSize number?
 ---@field maxTextSize number?
@@ -184,6 +188,75 @@ function Element.init(deps)
   Element._StateManager = deps.StateManager
   Element._GestureRecognizer = deps.GestureRecognizer
   Element._Performance = deps.Performance
+end
+
+--- Parse CSS flex shorthand into flexGrow, flexShrink, flexBasis
+--- Supports: number, "auto", "none", "grow shrink basis"
+---@param flexValue number|string The flex shorthand value
+---@return number flexGrow
+---@return number flexShrink
+---@return string|number flexBasis
+local function parseFlexShorthand(flexValue)
+  -- Single number: flex-grow
+  if type(flexValue) == "number" then
+    return flexValue, 1, 0
+  end
+
+  -- String values
+  if type(flexValue) == "string" then
+    -- "auto" = 1 1 auto
+    if flexValue == "auto" then
+      return 1, 1, "auto"
+    end
+
+    -- "none" = 0 0 auto
+    if flexValue == "none" then
+      return 0, 0, "auto"
+    end
+
+    -- Parse "grow shrink basis" format
+    local parts = {}
+    for part in flexValue:gmatch("%S+") do
+      table.insert(parts, part)
+    end
+
+    local grow = 0
+    local shrink = 1
+    local basis = "auto"
+
+    if #parts == 1 then
+      -- Single value: could be grow (number) or basis (with unit)
+      local num = tonumber(parts[1])
+      if num then
+        grow = num
+        basis = 0
+      else
+        basis = parts[1]
+      end
+    elseif #parts == 2 then
+      -- Two values: grow shrink (both numbers) or grow basis
+      local num1 = tonumber(parts[1])
+      local num2 = tonumber(parts[2])
+      if num1 and num2 then
+        grow = num1
+        shrink = num2
+        basis = 0
+      elseif num1 then
+        grow = num1
+        basis = parts[2]
+      end
+    elseif #parts >= 3 then
+      -- Three values: grow shrink basis
+      grow = tonumber(parts[1]) or 0
+      shrink = tonumber(parts[2]) or 1
+      basis = parts[3]
+    end
+
+    return grow, shrink, basis
+  end
+
+  -- Default fallback
+  return 0, 1, "auto"
 end
 
 ---@param props ElementProps
@@ -571,7 +644,10 @@ function Element.new(props)
       end
     else
       -- Store as table only if non-zero values exist
-      local hasNonZero = props.cornerRadius.topLeft or props.cornerRadius.topRight or props.cornerRadius.bottomLeft or props.cornerRadius.bottomRight
+      local hasNonZero = props.cornerRadius.topLeft
+        or props.cornerRadius.topRight
+        or props.cornerRadius.bottomLeft
+        or props.cornerRadius.bottomRight
       if hasNonZero then
         self.cornerRadius = {
           topLeft = props.cornerRadius.topLeft or 0,
@@ -612,7 +688,8 @@ function Element.new(props)
 
   -- Validate objectFit
   if props.objectFit then
-    local validObjectFit = { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
+    local validObjectFit =
+      { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
     Element._utils.validateEnum(props.objectFit, validObjectFit, "objectFit")
   end
   self.objectFit = props.objectFit or "fill"
@@ -784,6 +861,7 @@ function Element.new(props)
     y = { value = nil, unit = "px" },
     textSize = { value = nil, unit = "px" },
     gap = { value = nil, unit = "px" },
+    flexBasis = { value = nil, unit = "auto" },
     padding = {
       top = { value = nil, unit = "px" },
       right = { value = nil, unit = "px" },
@@ -1015,6 +1093,82 @@ function Element.new(props)
   else
     self.gap = 0
     self.units.gap = { value = 0, unit = "px" }
+  end
+
+  -- Handle flex shorthand property (sets flexGrow, flexShrink, flexBasis)
+  if props.flex ~= nil then
+    local grow, shrink, basis = parseFlexShorthand(props.flex)
+
+    -- Only set individual properties if they weren't explicitly provided
+    if props.flexGrow == nil then
+      props.flexGrow = grow
+    end
+    if props.flexShrink == nil then
+      props.flexShrink = shrink
+    end
+    if props.flexBasis == nil then
+      props.flexBasis = basis
+    end
+  end
+
+  -- Handle flexGrow property
+  if props.flexGrow ~= nil then
+    if type(props.flexGrow) == "number" and props.flexGrow >= 0 then
+      self.flexGrow = props.flexGrow
+    else
+      Element._ErrorHandler:warn("Element", "FLEX_001", {
+        element = self.id or "unnamed",
+        issue = "flexGrow must be a non-negative number",
+        value = tostring(props.flexGrow),
+      })
+      self.flexGrow = 0
+    end
+  else
+    self.flexGrow = 0
+  end
+
+  -- Handle flexShrink property
+  if props.flexShrink ~= nil then
+    if type(props.flexShrink) == "number" and props.flexShrink >= 0 then
+      self.flexShrink = props.flexShrink
+    else
+      Element._ErrorHandler:warn("Element", "FLEX_002", {
+        element = self.id or "unnamed",
+        issue = "flexShrink must be a non-negative number",
+        value = tostring(props.flexShrink),
+      })
+      self.flexShrink = 1
+    end
+  else
+    self.flexShrink = 1
+  end
+
+  -- Handle flexBasis property
+  if props.flexBasis ~= nil then
+    local isCalc = Element._Calc and Element._Calc.isCalc(props.flexBasis)
+    if props.flexBasis == "auto" then
+      self.flexBasis = "auto"
+      self.units.flexBasis = { value = nil, unit = "auto" }
+    elseif type(props.flexBasis) == "string" or isCalc then
+      local value, unit = Element._Units.parse(props.flexBasis)
+      self.units.flexBasis = { value = value, unit = unit }
+      -- Don't resolve yet - LayoutEngine will handle this during layout
+      self.flexBasis = props.flexBasis
+    elseif type(props.flexBasis) == "number" then
+      self.flexBasis = props.flexBasis
+      self.units.flexBasis = { value = props.flexBasis, unit = "px" }
+    else
+      Element._ErrorHandler:warn("Element", "FLEX_003", {
+        element = self.id or "unnamed",
+        issue = "flexBasis must be a number, string, or 'auto'",
+        value = tostring(props.flexBasis),
+      })
+      self.flexBasis = "auto"
+      self.units.flexBasis = { value = nil, unit = "auto" }
+    end
+  else
+    self.flexBasis = "auto"
+    self.units.flexBasis = { value = nil, unit = "auto" }
   end
 
   -- BORDER-BOX MODEL: For auto-sizing, we need to add padding to content dimensions
@@ -1433,7 +1587,10 @@ function Element.new(props)
     else
       -- Default: children in flex/grid containers participate in parent's layout
       -- children in relative/absolute containers default to relative
-      if self.parent.positioning == Element._utils.enums.Positioning.FLEX or self.parent.positioning == Element._utils.enums.Positioning.GRID then
+      if
+        self.parent.positioning == Element._utils.enums.Positioning.FLEX
+        or self.parent.positioning == Element._utils.enums.Positioning.GRID
+      then
         self.positioning = Element._utils.enums.Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
         self._explicitlyAbsolute = false -- Participate in parent's layout
       else
@@ -2239,7 +2396,8 @@ function Element:getAvailableContentWidth()
     -- Check if the element is using the scaled 9-patch contentPadding as its padding
     -- Allow small floating point differences (within 0.1 pixels)
     local usingContentPaddingAsPadding = (
-      math.abs(self.padding.left - scaledContentPadding.left) < 0.1 and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
+      math.abs(self.padding.left - scaledContentPadding.left) < 0.1
+      and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
     )
 
     if not usingContentPaddingAsPadding then
@@ -2263,7 +2421,8 @@ function Element:getAvailableContentHeight()
     -- Check if the element is using the scaled 9-patch contentPadding as its padding
     -- Allow small floating point differences (within 0.1 pixels)
     local usingContentPaddingAsPadding = (
-      math.abs(self.padding.top - scaledContentPadding.top) < 0.1 and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
+      math.abs(self.padding.top - scaledContentPadding.top) < 0.1
+      and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
     )
 
     if not usingContentPaddingAsPadding then
@@ -2286,7 +2445,10 @@ function Element:addChild(child)
   -- If child was created without explicit positioning, inherit from parent
   if child._originalPositioning == nil then
     -- No explicit positioning was set during construction
-    if self.positioning == Element._utils.enums.Positioning.FLEX or self.positioning == Element._utils.enums.Positioning.GRID then
+    if
+      self.positioning == Element._utils.enums.Positioning.FLEX
+      or self.positioning == Element._utils.enums.Positioning.GRID
+    then
       child.positioning = Element._utils.enums.Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
       child._explicitlyAbsolute = false -- Participate in parent's layout
     else
@@ -2496,7 +2658,8 @@ function Element:draw(backdropCanvas)
   if self.animation then
     local anim = self.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor = Element._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor =
+        Element._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
@@ -2565,7 +2728,8 @@ function Element:draw(backdropCanvas)
     -- Priority: axis-specific (overflowX/Y) > general (overflow) > default (hidden)
     local overflowX = self.overflowX or self.overflow
     local overflowY = self.overflowY or self.overflow
-    local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible") and (overflowX ~= nil or overflowY ~= nil)
+    local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible")
+      and (overflowX ~= nil or overflowY ~= nil)
 
     -- Apply scroll offset if overflow is not visible
     local hasScrollOffset = needsOverflowClipping and (self._scrollX ~= 0 or self._scrollY ~= 0)
@@ -2575,7 +2739,8 @@ function Element:draw(backdropCanvas)
       -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      local stencilFunc = Element._RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      local stencilFunc =
+        Element._RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
       -- Temporarily disable canvas for stencil operation (LÖVE 11.5 workaround)
       local currentCanvas = love.graphics.getCanvas()
@@ -2636,7 +2801,15 @@ function Element:draw(backdropCanvas)
   if self.contentBlur and self.contentBlur.radius > 0 and #sortedChildren > 0 then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Element._Blur.applyToRegion(blurInstance, self.contentBlur.radius, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
+      Element._Blur.applyToRegion(
+        blurInstance,
+        self.contentBlur.radius,
+        self.x,
+        self.y,
+        borderBoxWidth,
+        borderBoxHeight,
+        drawChildren
+      )
     else
       drawChildren()
     end
@@ -2826,7 +2999,12 @@ function Element:update(dt)
   -- Check if we should handle scrollbar press for elements with overflow
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
-  local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
+  local hasScrollableOverflow = (
+    overflowX == "scroll"
+    or overflowX == "auto"
+    or overflowY == "scroll"
+    or overflowY == "auto"
+  )
 
   if hasScrollableOverflow and not self._scrollbarDragging then
     -- Check for scrollbar press on left mouse button
@@ -2918,7 +3096,8 @@ function Element:update(dt)
       local anyPressed = self._eventHandler:isAnyButtonPressed()
 
       -- Update theme state via ThemeManager
-      local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
+      local newThemeState =
+        self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
       if self._stateId and self._elementMode == "immediate" then
         local hover = newThemeState == "hover"
@@ -2995,8 +3174,10 @@ function Element:resize(newGameWidth, newGameHeight)
       self.textSize = (value / 100) * self.width
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize
+        and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize
+        and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -3011,8 +3192,10 @@ function Element:resize(newGameWidth, newGameHeight)
       self.textSize = (value / 100) * self.height
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize
+        and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize
+        and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end

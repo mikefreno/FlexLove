@@ -44,6 +44,7 @@ local testFiles = {
   "testing/__tests__/element_test.lua",
   "testing/__tests__/element_mode_override_test.lua",
   "testing/__tests__/event_handler_test.lua",
+  "testing/__tests__/flex_grow_shrink_test.lua",
   "testing/__tests__/flexlove_test.lua",
   "testing/__tests__/grid_test.lua",
   "testing/__tests__/image_cache_test.lua",

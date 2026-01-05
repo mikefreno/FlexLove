@@ -265,4 +265,73 @@ function Units.isValid(unitStr)
   return validUnits[unit] == true
 end
 
+--- Parse CSS flex shorthand into flexGrow, flexShrink, flexBasis
+--- Supports: number, "auto", "none", "grow shrink basis"
+---@param flexValue number|string The flex shorthand value
+---@return number flexGrow
+---@return number flexShrink
+---@return string|number flexBasis
+function Units.parseFlexShorthand(flexValue)
+  -- Single number: flex-grow
+  if type(flexValue) == "number" then
+    return flexValue, 1, 0
+  end
+
+  -- String values
+  if type(flexValue) == "string" then
+    -- "auto" = 1 1 auto
+    if flexValue == "auto" then
+      return 1, 1, "auto"
+    end
+
+    -- "none" = 0 0 auto
+    if flexValue == "none" then
+      return 0, 0, "auto"
+    end
+
+    -- Parse "grow shrink basis" format
+    local parts = {}
+    for part in flexValue:gmatch("%S+") do
+      table.insert(parts, part)
+    end
+
+    local grow = 0
+    local shrink = 1
+    local basis = "auto"
+
+    if #parts == 1 then
+      -- Single value: could be grow (number) or basis (with unit)
+      local num = tonumber(parts[1])
+      if num then
+        grow = num
+        basis = 0
+      else
+        basis = parts[1]
+      end
+    elseif #parts == 2 then
+      -- Two values: grow shrink (both numbers) or grow basis
+      local num1 = tonumber(parts[1])
+      local num2 = tonumber(parts[2])
+      if num1 and num2 then
+        grow = num1
+        shrink = num2
+        basis = 0
+      elseif num1 then
+        grow = num1
+        basis = parts[2]
+      end
+    elseif #parts >= 3 then
+      -- Three values: grow shrink basis
+      grow = tonumber(parts[1]) or 0
+      shrink = tonumber(parts[2]) or 1
+      basis = parts[3]
+    end
+
+    return grow, shrink, basis
+  end
+
+  -- Default fallback
+  return 0, 1, "auto"
+end
+
 return Units

@@ -355,6 +355,8 @@ function Element.new(props)
   self.onEnter = props.onEnter
   self.onEnterDeferred = props.onEnterDeferred or false
 
+  self.customDraw = props.customDraw -- Custom rendering callback
+
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
@@ -1313,10 +1315,18 @@ function Element.new(props)
     -- Warn if CSS positioning properties are used without absolute positioning
     if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
       local properties = {}
-      if props.top then table.insert(properties, "top") end
-      if props.bottom then table.insert(properties, "bottom") end
-      if props.left then table.insert(properties, "left") end
-      if props.right then table.insert(properties, "right") end
+      if props.top then
+        table.insert(properties, "top")
+      end
+      if props.bottom then
+        table.insert(properties, "bottom")
+      end
+      if props.left then
+        table.insert(properties, "left")
+      end
+      if props.right then
+        table.insert(properties, "right")
+      end
       Element._ErrorHandler:warn("Element", "LAY_011", {
         element = self.id or "unnamed",
         positioning = self._originalPositioning or "relative",
@@ -1500,7 +1510,7 @@ function Element.new(props)
 
       -- Warn if explicit x/y is set on a child that will be positioned by flex layout
       -- This position will be overridden unless the child has positioning="absolute"
-      local parentWillUseFlex = self.parent.positioning ~= "grid" 
+      local parentWillUseFlex = self.parent.positioning ~= "grid"
       local childIsRelative = self.positioning ~= "absolute" or not self._explicitlyAbsolute
       if parentWillUseFlex and childIsRelative and (props.x or props.y) then
         Element._ErrorHandler:warn("Element", "LAY_008", {
@@ -1583,10 +1593,18 @@ function Element.new(props)
     -- Warn if CSS positioning properties are used without absolute positioning
     if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
       local properties = {}
-      if props.top then table.insert(properties, "top") end
-      if props.bottom then table.insert(properties, "bottom") end
-      if props.left then table.insert(properties, "left") end
-      if props.right then table.insert(properties, "right") end
+      if props.top then
+        table.insert(properties, "top")
+      end
+      if props.bottom then
+        table.insert(properties, "bottom")
+      end
+      if props.left then
+        table.insert(properties, "left")
+      end
+      if props.right then
+        table.insert(properties, "right")
+      end
       Element._ErrorHandler:warn("Element", "LAY_011", {
         element = self.id or "unnamed",
         positioning = self._originalPositioning or "relative",
@@ -1935,6 +1953,18 @@ end
 ---@return number
 function Element:getBorderBoxHeight()
   return self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+end
+
+--- Get computed box dimensions (content area position and size)
+--- Returns the position and size of the content area (inside padding)
+---@return {x: number, y: number, width: number, height: number}
+function Element:getComputedBox()
+  return {
+    x = self.x + self.padding.left,
+    y = self.y + self.padding.top,
+    width = self.width,
+    height = self.height,
+  }
 end
 
 --- Mark this element and its ancestors as dirty, requiring layout recalculation
@@ -2476,6 +2506,14 @@ function Element:draw(backdropCanvas)
 
   -- LAYER 4: Delegate text rendering (text, cursor, selection, placeholder, password masking) to Renderer module
   self._renderer:drawText(self)
+
+  -- LAYER 4.5: Custom draw callback (if provided)
+  if self.customDraw then
+    love.graphics.push()
+    love.graphics.setColor(1, 1, 1, 1) -- Reset color to white
+    self.customDraw(self)
+    love.graphics.pop()
+  end
 
   -- Draw visual feedback when element is pressed (if it has an onEvent handler and highlight is not disabled)
   if self.onEvent and not self.disableHighlight and self._eventHandler then

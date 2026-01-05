@@ -508,22 +508,26 @@ function LayoutEngine:layoutChildren()
     if self.justifyContent == self._JustifyContent.FLEX_START then
       startPos = 0
     elseif self.justifyContent == self._JustifyContent.CENTER then
-      startPos = freeSpace / 2
+      startPos = math.max(0, freeSpace / 2)
     elseif self.justifyContent == self._JustifyContent.FLEX_END then
-      startPos = freeSpace
+      startPos = math.max(0, freeSpace)
     elseif self.justifyContent == self._JustifyContent.SPACE_BETWEEN then
       startPos = 0
-      if #line > 1 then
+      if #line > 1 and freeSpace > 0 then
         itemSpacing = self.gap + (freeSpace / (#line - 1))
       end
     elseif self.justifyContent == self._JustifyContent.SPACE_AROUND then
-      local spaceAroundEach = freeSpace / #line
-      startPos = spaceAroundEach / 2
-      itemSpacing = self.gap + spaceAroundEach
+      if freeSpace > 0 then
+        local spaceAroundEach = freeSpace / #line
+        startPos = spaceAroundEach / 2
+        itemSpacing = self.gap + spaceAroundEach
+      end
     elseif self.justifyContent == self._JustifyContent.SPACE_EVENLY then
-      local spaceBetween = freeSpace / (#line + 1)
-      startPos = spaceBetween
-      itemSpacing = self.gap + spaceBetween
+      if freeSpace > 0 then
+        local spaceBetween = freeSpace / (#line + 1)
+        startPos = spaceBetween
+        itemSpacing = self.gap + spaceBetween
+      end
     end
 
     -- Position children in this line

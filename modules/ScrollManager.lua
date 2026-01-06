@@ -12,6 +12,7 @@
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
 ---@field scrollbarKnobOffset table -- {x: number, y: number, horizontal: number, vertical: number} -- Offset for scrollbar knob/handle position
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
+---@field scrollbarPlacement string -- "reserve-space"|"overlay" -- Whether scrollbar reserves space or overlays content (default: "reserve-space")
 ---@field touchScrollEnabled boolean -- Enable touch scrolling
 ---@field momentumScrollEnabled boolean -- Enable momentum scrolling
 ---@field bounceEnabled boolean -- Enable bounce effects at boundaries
@@ -98,6 +99,9 @@ function ScrollManager.new(config, deps)
   -- hideScrollbars can be boolean or table {vertical: boolean, horizontal: boolean}
   self.hideScrollbars = self._utils.normalizeBooleanTable(config.hideScrollbars, false)
 
+  -- Scrollbar placement: "reserve-space" (default) or "overlay"
+  self.scrollbarPlacement = config.scrollbarPlacement or "reserve-space"
+
   -- Touch scrolling configuration
   self.touchScrollEnabled = config.touchScrollEnabled ~= false -- Default true
   self.momentumScrollEnabled = config.momentumScrollEnabled ~= false -- Default true
@@ -144,6 +148,34 @@ function ScrollManager.new(config, deps)
   self._lastTouchY = 0
 
   return self
+end
+
+--- Get the space reserved for scrollbars (width and height reduction)
+--- This is called BEFORE layout to reduce available space for children
+---@param element Element The parent Element instance
+---@return number reservedWidth, number reservedHeight
+function ScrollManager:getReservedSpace(element)
+  if self.scrollbarPlacement ~= "reserve-space" then
+    return 0, 0
+  end
+
+  local overflowX = self.overflowX or self.overflow
+  local overflowY = self.overflowY or self.overflow
+  
+  local reservedWidth = 0
+  local reservedHeight = 0
+
+  -- Reserve space for vertical scrollbar if overflow mode requires it
+  if (overflowY == "scroll" or overflowY == "auto") and not self.hideScrollbars.vertical then
+    reservedWidth = self.scrollbarWidth + (self.scrollbarPadding * 2)
+  end
+
+  -- Reserve space for horizontal scrollbar if overflow mode requires it
+  if (overflowX == "scroll" or overflowX == "auto") and not self.hideScrollbars.horizontal then
+    reservedHeight = self.scrollbarWidth + (self.scrollbarPadding * 2)
+  end
+
+  return reservedWidth, reservedHeight
 end
 
 --- Detect if content overflows container bounds
@@ -198,6 +230,14 @@ function ScrollManager:detectOverflow(element)
   -- The content area excludes padding
   local containerWidth = element.width - element.padding.left - element.padding.right
   local containerHeight = element.height - element.padding.top - element.padding.bottom
+
+  -- If scrollbarPlacement is "reserve-space", we need to subtract the reserved space
+  -- because the layout already accounted for it, but element.width/height are still full size
+  if self.scrollbarPlacement == "reserve-space" then
+    local reservedWidth, reservedHeight = self:getReservedSpace()
+    containerWidth = containerWidth - reservedWidth
+    containerHeight = containerHeight - reservedHeight
+  end
 
   self._overflowX = self._contentWidth > containerWidth
   self._overflowY = self._contentHeight > containerHeight
@@ -674,6 +714,7 @@ function ScrollManager:getState()
     _scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal or false,
     scrollBarStyle = self.scrollBarStyle,
     scrollbarKnobOffset = self.scrollbarKnobOffset,
+    scrollbarPlacement = self.scrollbarPlacement,
     _overflowX = self._overflowX,
     _overflowY = self._overflowY,
     _contentWidth = self._contentWidth,
@@ -750,6 +791,10 @@ function ScrollManager:setState(state)
 
   if state.scrollbarKnobOffset ~= nil then
     self.scrollbarKnobOffset = self._utils.normalizeOffsetTable(state.scrollbarKnobOffset, 0)
+  end
+
+  if state.scrollbarPlacement ~= nil then
+    self.scrollbarPlacement = state.scrollbarPlacement
   end
 
   if state._overflowX ~= nil then

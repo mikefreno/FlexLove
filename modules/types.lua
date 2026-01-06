@@ -67,6 +67,10 @@ local AnimationProps = {}
 ---@field alignItems AlignItems? -- Alignment of items along cross axis (default: STRETCH)
 ---@field alignContent AlignContent? -- Alignment of lines in multi-line flex containers (default: STRETCH)
 ---@field flexWrap FlexWrap? -- Whether children wrap to multiple lines: "nowrap"|"wrap"|"wrap-reverse" (default: NOWRAP)
+---@field flex number|string? -- Shorthand for flexGrow, flexShrink, flexBasis: number (flex-grow only), string ("1 0 auto"), or nil (default: nil)
+---@field flexGrow number? -- How much the element should grow relative to siblings (default: 0)
+---@field flexShrink number? -- How much the element should shrink relative to siblings (default: 1)
+---@field flexBasis number|string|CalcObject? -- Initial size before growing/shrinking: number (px), string ("50%", "10vw", "auto"), or CalcObject (default: "auto")
 ---@field justifySelf JustifySelf? -- Alignment of the item itself along main axis (default: AUTO)
 ---@field alignSelf AlignSelf? -- Alignment of the item itself along cross axis (default: AUTO)
 ---@field onEvent fun(element:Element, event:InputEvent)? -- Callback function for interaction events
@@ -126,6 +130,7 @@ local AnimationProps = {}
 ---@field smoothScrollEnabled boolean? -- Enable smooth scrolling animation for wheel events (default: false)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars, default: uses first scrollbar or fallback rendering)
 ---@field scrollbarKnobOffset number|{x:number, y:number}|{horizontal:number, vertical:number}? -- Offset for scrollbar knob/handle position in pixels (number for both axes, or table for per-axis control, default: 0, adds to theme offset)
+---@field scrollbarPlacement "reserve-space"|"overlay"? -- Scrollbar rendering mode: "reserve-space" (reduces content area, default) or "overlay" (renders over content)
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control, default: false)
 ---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
 ---@field image love.Image? -- Image object to display

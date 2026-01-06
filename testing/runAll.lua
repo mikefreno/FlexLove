@@ -63,6 +63,7 @@ local testFiles = {
   "testing/__tests__/retained_prop_stability_test.lua",
   "testing/__tests__/roundedrect_test.lua",
   "testing/__tests__/scroll_manager_test.lua",
+  "testing/__tests__/scrollbar_placement_test.lua",
   "testing/__tests__/text_editor_test.lua",
   "testing/__tests__/theme_test.lua",
   "testing/__tests__/touch_events_test.lua",

@@ -445,12 +445,48 @@ function LayoutEngine:layoutChildren()
   -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
   local availableMainSize = 0
   local availableCrossSize = 0
+  
+  -- Reserve space for scrollbars if needed (reserve-space mode)
+  local scrollbarReservedWidth = 0
+  local scrollbarReservedHeight = 0
+  if self.element._scrollManager and self.element._scrollManager.scrollbarPlacement == "reserve-space" then
+    scrollbarReservedWidth, scrollbarReservedHeight = self.element._scrollManager:getReservedSpace(self.element)
+  end
+  
   if self.flexDirection == self._FlexDirection.HORIZONTAL then
-    availableMainSize = self.element.width
-    availableCrossSize = self.element.height
+    availableMainSize = self.element.width - scrollbarReservedWidth
+    availableCrossSize = self.element.height - scrollbarReservedHeight
   else
-    availableMainSize = self.element.height
-    availableCrossSize = self.element.width
+    availableMainSize = self.element.height - scrollbarReservedHeight
+    availableCrossSize = self.element.width - scrollbarReservedWidth
+  end
+
+  -- Adjust children with percentage-based cross-axis dimensions when scrollbar space is reserved
+  if (scrollbarReservedWidth > 0 or scrollbarReservedHeight > 0) then
+    local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+    for _, child in ipairs(flexChildren) do
+      if isHorizontal then
+        -- Horizontal flex: cross-axis is height
+        if child.units and child.units.height and child.units.height.unit == "%" then
+          -- Re-resolve percentage height against reduced cross-axis size
+          -- The percentage applies to border-box, so we need to subtract padding to get content height
+          local newBorderBoxHeight = (child.units.height.value / 100) * availableCrossSize
+          local newHeight = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
+          child.height = newHeight
+          child._borderBoxHeight = newBorderBoxHeight
+        end
+      else
+        -- Vertical flex: cross-axis is width
+        if child.units and child.units.width and child.units.width.unit == "%" then
+          -- Re-resolve percentage width against reduced cross-axis size
+          -- The percentage applies to border-box, so we need to subtract padding to get content width
+          local newBorderBoxWidth = (child.units.width.value / 100) * availableCrossSize
+          local newWidth = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
+          child.width = newWidth
+          child._borderBoxWidth = newBorderBoxWidth
+        end
+      end
+    end
   end
 
   -- Handle flex wrap: create lines of children

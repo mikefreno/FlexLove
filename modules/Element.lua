@@ -140,6 +140,7 @@
 ---@field invertScroll boolean? -- Invert mouse wheel scroll direction (default: false)
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars)
 ---@field scrollbarKnobOffset number|table? -- Scrollbar knob/handle offset (number or {x, y} or {horizontal, vertical})
+---@field scrollbarPlacement string? -- "reserve-space"|"overlay" -- Whether scrollbar reserves space or overlays content (default: "reserve-space")
 ---@field _overflowX boolean? -- Internal: whether content overflows horizontally
 ---@field _overflowY boolean? -- Internal: whether content overflows vertically
 ---@field _contentWidth number? -- Internal: total content width
@@ -1939,6 +1940,7 @@ function Element.new(props)
       scrollBarStyle = props.scrollBarStyle,
       scrollbarKnobOffset = props.scrollbarKnobOffset,
       hideScrollbars = props.hideScrollbars,
+      scrollbarPlacement = props.scrollbarPlacement,
       _scrollX = props._scrollX,
       _scrollY = props._scrollY,
     }, scrollManagerDeps)
@@ -1957,6 +1959,7 @@ function Element.new(props)
     self.scrollBarStyle = self._scrollManager.scrollBarStyle
     self.scrollbarKnobOffset = self._scrollManager.scrollbarKnobOffset
     self.hideScrollbars = self._scrollManager.hideScrollbars
+    self.scrollbarPlacement = self._scrollManager.scrollbarPlacement
 
     -- Initialize state properties (will be synced from ScrollManager)
     self._overflowX = false

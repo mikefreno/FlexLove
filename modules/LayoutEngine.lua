@@ -466,20 +466,32 @@ function LayoutEngine:layoutChildren()
     local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
     for _, child in ipairs(flexChildren) do
       if isHorizontal then
-        -- Horizontal flex: cross-axis is height
+        -- Horizontal flex: main-axis is width, cross-axis is height
+        -- Adjust main-axis width if percentage-based
+        if child.units and child.units.width and child.units.width.unit == "%" then
+          local newBorderBoxWidth = (child.units.width.value / 100) * availableMainSize
+          local newWidth = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
+          child.width = newWidth
+          child._borderBoxWidth = newBorderBoxWidth
+        end
+        -- Adjust cross-axis height if percentage-based
         if child.units and child.units.height and child.units.height.unit == "%" then
-          -- Re-resolve percentage height against reduced cross-axis size
-          -- The percentage applies to border-box, so we need to subtract padding to get content height
           local newBorderBoxHeight = (child.units.height.value / 100) * availableCrossSize
           local newHeight = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
           child.height = newHeight
           child._borderBoxHeight = newBorderBoxHeight
         end
       else
-        -- Vertical flex: cross-axis is width
+        -- Vertical flex: main-axis is height, cross-axis is width
+        -- Adjust main-axis height if percentage-based
+        if child.units and child.units.height and child.units.height.unit == "%" then
+          local newBorderBoxHeight = (child.units.height.value / 100) * availableMainSize
+          local newHeight = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
+          child.height = newHeight
+          child._borderBoxHeight = newBorderBoxHeight
+        end
+        -- Adjust cross-axis width if percentage-based
         if child.units and child.units.width and child.units.width.unit == "%" then
-          -- Re-resolve percentage width against reduced cross-axis size
-          -- The percentage applies to border-box, so we need to subtract padding to get content width
           local newBorderBoxWidth = (child.units.width.value / 100) * availableCrossSize
           local newWidth = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
           child.width = newWidth

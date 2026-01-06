@@ -13,6 +13,7 @@
 ---@field scrollbarKnobOffset table -- {x: number, y: number, horizontal: number, vertical: number} -- Offset for scrollbar knob/handle position
 ---@field hideScrollbars table -- {vertical: boolean, horizontal: boolean}
 ---@field scrollbarPlacement string -- "reserve-space"|"overlay" -- Whether scrollbar reserves space or overlays content (default: "reserve-space")
+---@field scrollbarBalance boolean -- When true, reserve space on both sides of content for visual balance (default: false)
 ---@field touchScrollEnabled boolean -- Enable touch scrolling
 ---@field momentumScrollEnabled boolean -- Enable momentum scrolling
 ---@field bounceEnabled boolean -- Enable bounce effects at boundaries
@@ -101,6 +102,9 @@ function ScrollManager.new(config, deps)
 
   -- Scrollbar placement: "reserve-space" (default) or "overlay"
   self.scrollbarPlacement = config.scrollbarPlacement or "reserve-space"
+  
+  -- Scrollbar balance: when true, reserve space on both sides for visual balance
+  self.scrollbarBalance = config.scrollbarBalance or false
 
   -- Touch scrolling configuration
   self.touchScrollEnabled = config.touchScrollEnabled ~= false -- Default true
@@ -167,12 +171,14 @@ function ScrollManager:getReservedSpace(element)
 
   -- Reserve space for vertical scrollbar if overflow mode requires it
   if (overflowY == "scroll" or overflowY == "auto") and not self.hideScrollbars.vertical then
-    reservedWidth = self.scrollbarWidth + (self.scrollbarPadding * 2)
+    local scrollbarSpace = self.scrollbarWidth + (self.scrollbarPadding * 2)
+    reservedWidth = self.scrollbarBalance and (scrollbarSpace * 2) or scrollbarSpace
   end
 
   -- Reserve space for horizontal scrollbar if overflow mode requires it
   if (overflowX == "scroll" or overflowX == "auto") and not self.hideScrollbars.horizontal then
-    reservedHeight = self.scrollbarWidth + (self.scrollbarPadding * 2)
+    local scrollbarSpace = self.scrollbarWidth + (self.scrollbarPadding * 2)
+    reservedHeight = self.scrollbarBalance and (scrollbarSpace * 2) or scrollbarSpace
   end
 
   return reservedWidth, reservedHeight
@@ -715,6 +721,7 @@ function ScrollManager:getState()
     scrollBarStyle = self.scrollBarStyle,
     scrollbarKnobOffset = self.scrollbarKnobOffset,
     scrollbarPlacement = self.scrollbarPlacement,
+    scrollbarBalance = self.scrollbarBalance,
     _overflowX = self._overflowX,
     _overflowY = self._overflowY,
     _contentWidth = self._contentWidth,
@@ -795,6 +802,10 @@ function ScrollManager:setState(state)
 
   if state.scrollbarPlacement ~= nil then
     self.scrollbarPlacement = state.scrollbarPlacement
+  end
+
+  if state.scrollbarBalance ~= nil then
+    self.scrollbarBalance = state.scrollbarBalance
   end
 
   if state._overflowX ~= nil then

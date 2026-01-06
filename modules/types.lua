@@ -131,6 +131,7 @@ local AnimationProps = {}
 ---@field scrollBarStyle string? -- Scrollbar style name from theme (selects from theme.scrollbars, default: uses first scrollbar or fallback rendering)
 ---@field scrollbarKnobOffset number|{x:number, y:number}|{horizontal:number, vertical:number}? -- Offset for scrollbar knob/handle position in pixels (number for both axes, or table for per-axis control, default: 0, adds to theme offset)
 ---@field scrollbarPlacement "reserve-space"|"overlay"? -- Scrollbar rendering mode: "reserve-space" (reduces content area, default) or "overlay" (renders over content)
+---@field scrollbarBalance boolean? -- When true, reserve scrollbar space on both sides of content for visual balance (default: false)
 ---@field hideScrollbars boolean|{vertical:boolean, horizontal:boolean}? -- Hide scrollbars (boolean for both, or table for individual control, default: false)
 ---@field imagePath string? -- Path to image file (auto-loads via ImageCache)
 ---@field image love.Image? -- Image object to display

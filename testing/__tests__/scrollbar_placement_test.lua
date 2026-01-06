@@ -171,6 +171,94 @@ function TestScrollbarPlacement:test_vertical_overflow_detected_with_reserved_sp
   luaunit.assertEquals(child1.width, 184, "Child width should be reduced for scrollbar")
 end
 
+function TestScrollbarPlacement:test_scrollbar_balance_vertical()
+  -- Test scrollbarBalance with vertical scrollbar
+  local container = FlexLove.new({
+    width = 200,
+    height = 200,
+    positioning = "flex",
+    flexDirection = "column",
+    overflow = "scroll",
+    scrollbarPlacement = "reserve-space",
+    scrollbarBalance = true,
+  })
+
+  local child1 = FlexLove.new({
+    width = "100%",
+    height = 100,
+    parent = container
+  })
+
+  container:layoutChildren()
+
+  local reservedW, reservedH = container._scrollManager:getReservedSpace(container)
+  
+  -- Should reserve double the space (16 * 2 = 32)
+  luaunit.assertEquals(reservedW, 32, "Should reserve doubled width for balance")
+  
+  -- Child width should account for balanced space
+  luaunit.assertEquals(child1.width, 168, "Child width should be 200 - 32")
+end
+
+function TestScrollbarPlacement:test_scrollbar_balance_horizontal()
+  -- Test scrollbarBalance with horizontal scrollbar
+  local container = FlexLove.new({
+    width = 200,
+    height = 200,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    overflow = "scroll",
+    scrollbarPlacement = "reserve-space",
+    scrollbarBalance = true,
+  })
+
+  local child1 = FlexLove.new({
+    width = 100,
+    height = "100%",
+    parent = container
+  })
+
+  container:layoutChildren()
+
+  local reservedW, reservedH = container._scrollManager:getReservedSpace(container)
+  
+  -- Should reserve double the space (16 * 2 = 32)
+  luaunit.assertEquals(reservedH, 32, "Should reserve doubled height for balance")
+  
+  -- Child height should account for balanced space
+  luaunit.assertEquals(child1.height, 168, "Child height should be 200 - 32")
+end
+
+function TestScrollbarPlacement:test_scrollbar_balance_both()
+  -- Test scrollbarBalance with both scrollbars
+  local container = FlexLove.new({
+    width = 200,
+    height = 200,
+    positioning = "flex",
+    overflow = "scroll",
+    scrollbarPlacement = "reserve-space",
+    scrollbarBalance = true,
+  })
+
+  local child1 = FlexLove.new({
+    width = "100%",
+    height = "100%",
+    parent = container
+  })
+
+  container:layoutChildren()
+
+  local reservedW, reservedH = container._scrollManager:getReservedSpace(container)
+  
+  -- Both should reserve double the space
+  luaunit.assertEquals(reservedW, 32, "Should reserve doubled width for balance")
+  luaunit.assertEquals(reservedH, 32, "Should reserve doubled height for balance")
+  
+  -- Child should be sized to balanced available space
+  luaunit.assertEquals(child1.width, 168, "Child width should be 200 - 32")
+  luaunit.assertEquals(child1.height, 168, "Child height should be 200 - 32")
+end
+
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())
 end

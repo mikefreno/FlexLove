@@ -198,6 +198,8 @@ local TransformProps
 ---@field gcInterval number? -- Frames between GC steps in periodic mode (default: 60)
 ---@field gcStepSize number? -- Work units per GC step, higher = more aggressive (default: 200)
 ---@field immediateModeBlurOptimizations boolean? -- Cache blur canvases in immediate mode to avoid re-rendering each frame (default: true)
+---@field debugDraw boolean? -- Enable debug draw overlay showing element boundaries with random colors (default: false)
+---@field debugDrawKey string? -- Key to toggle debug draw overlay at runtime (default: nil, no toggle key)
 local FlexLoveConfig = {}
 
 --=====================================--

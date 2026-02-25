@@ -2018,6 +2018,26 @@ function Element.new(props)
   self._dirty = false -- Element properties have changed, needs layout
   self._childrenDirty = false -- Children have changed, needs layout
 
+  -- Debug draw: assign a stable random color for element boundary visualization
+  -- Uses a vibrant HSL-based color to ensure good visibility against any background
+  local hue = math.random() * 360
+  local function hslToRgb(h)
+    local s, l = 0.9, 0.55
+    local c = (1 - math.abs(2 * l - 1)) * s
+    local x = c * (1 - math.abs((h / 60) % 2 - 1))
+    local m = l - c / 2
+    local r, g, b
+    if h < 60 then r, g, b = c, x, 0
+    elseif h < 120 then r, g, b = x, c, 0
+    elseif h < 180 then r, g, b = 0, c, x
+    elseif h < 240 then r, g, b = 0, x, c
+    elseif h < 300 then r, g, b = x, 0, c
+    else r, g, b = c, 0, x end
+    return r + m, g + m, b + m
+  end
+  local dr, dg, db = hslToRgb(hue)
+  self._debugColor = { dr, dg, db }
+
   return self
 end
 

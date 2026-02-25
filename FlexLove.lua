@@ -294,6 +294,10 @@ function flexlove.init(config)
   flexlove.initialized = true
   flexlove._initState = "ready"
 
+  -- Configure debug draw overlay
+  flexlove._debugDraw = config.debugDraw or false
+  flexlove._debugDrawKey = config.debugDrawKey or nil
+
   -- Process all queued element creations
   local queue = flexlove._initQueue
   flexlove._initQueue = {} -- Clear queue before processing to prevent re-entry issues
@@ -557,6 +561,49 @@ flexlove._backdropCanvas = nil
 ---@type {width: number, height: number}
 flexlove._canvasDimensions = { width = 0, height = 0 }
 
+--- Recursively draw debug boundaries for an element and all its children
+--- Draws regardless of visibility/opacity to reveal hidden or transparent elements
+---@param element Element
+local function drawDebugElement(element)
+  local color = element._debugColor
+  if color then
+    local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+    local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+
+    -- Fill with 0.5 opacity
+    love.graphics.setColor(color[1], color[2], color[3], 0.5)
+    love.graphics.rectangle("fill", element.x, element.y, bw, bh)
+
+    -- Border with full opacity, 1px line
+    love.graphics.setColor(color[1], color[2], color[3], 1)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", element.x, element.y, bw, bh)
+  end
+
+  for _, child in ipairs(element.children) do
+    drawDebugElement(child)
+  end
+end
+
+--- Render the debug draw overlay for all elements in the tree
+--- Traverses every element regardless of visibility or opacity
+function flexlove._renderDebugOverlay()
+  -- Save current graphics state
+  local prevR, prevG, prevB, prevA = love.graphics.getColor()
+  local prevLineWidth = love.graphics.getLineWidth()
+
+  -- Clear any active scissor so debug draws are always visible
+  love.graphics.setScissor()
+
+  for _, win in ipairs(flexlove.topElements) do
+    drawDebugElement(win)
+  end
+
+  -- Restore graphics state
+  love.graphics.setColor(prevR, prevG, prevB, prevA)
+  love.graphics.setLineWidth(prevLineWidth)
+end
+
 --- Render all UI elements with optional backdrop blur support for glassmorphic effects
 --- Place your game scene in gameDrawFunc to enable backdrop blur on UI elements; use postDrawFunc for overlays
 ---@param gameDrawFunc function|nil pass component draws that should be affected by a backdrop blur
@@ -666,6 +713,11 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
 
   -- Render performance HUD if enabled
   flexlove._Performance:renderHUD()
+
+  -- Render debug draw overlay if enabled
+  if flexlove._debugDraw then
+    flexlove._renderDebugOverlay()
+  end
 
   love.graphics.setCanvas(outerCanvas)
 
@@ -918,8 +970,10 @@ end
 ---@param scancode string
 ---@param isrepeat boolean
 function flexlove.keypressed(key, scancode, isrepeat)
-  -- Handle performance HUD toggle
   flexlove._Performance:keypressed(key)
+  if flexlove._debugDrawKey and key == flexlove._debugDrawKey then
+    flexlove._debugDraw = not flexlove._debugDraw
+  end
   local focusedElement = Context.getFocused()
   if focusedElement then
     focusedElement:keypressed(key, scancode, isrepeat)
@@ -1246,6 +1300,19 @@ end
 --- Removes keyboard focus from the currently focused element
 function flexlove.clearFocus()
   Context.setFocused(nil)
+end
+
+--- Enable or disable the debug draw overlay that renders element boundaries with random colors
+--- Each element gets a unique color: full opacity border and 0.5 opacity fill to identify collisions and overlaps
+---@param enabled boolean True to enable debug draw overlay, false to disable
+function flexlove.setDebugDraw(enabled)
+  flexlove._debugDraw = enabled
+end
+
+--- Check if the debug draw overlay is currently active
+---@return boolean enabled True if debug draw overlay is enabled
+function flexlove.getDebugDraw()
+  return flexlove._debugDraw
 end
 
 flexlove.Animation = Animation

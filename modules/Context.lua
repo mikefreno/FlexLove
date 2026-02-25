@@ -22,7 +22,11 @@ local Context = {
   _settingFocus = false,
 
   initialized = false,
-  
+
+  -- Debug draw overlay
+  _debugDraw = false,
+  _debugDrawKey = nil,
+
   -- Initialization state tracking
   ---@type "uninitialized"|"initializing"|"ready"
   _initState = "uninitialized",

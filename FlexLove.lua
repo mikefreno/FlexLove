@@ -112,6 +112,14 @@ flexlove._deferredCallbacks = {}
 -- Track accumulated delta time for immediate mode updates
 flexlove._accumulatedDt = 0
 
+-- Touch ownership tracking: maps touch ID (string) to the element that owns it
+---@type table<string, Element>
+flexlove._touchOwners = {}
+
+-- Shared GestureRecognizer instance for touch routing (initialized in init())
+---@type GestureRecognizer|nil
+flexlove._gestureRecognizer = nil
+
 --- Check if FlexLove initialization is complete and ready to create elements
 --- Use this before creating elements to avoid automatic queueing
 ---@return boolean ready True if FlexLove is initialized and ready to use
@@ -206,6 +214,11 @@ function flexlove.init(config)
 
   LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, FFI = flexlove._FFI })
   EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils })
+
+  -- Initialize shared GestureRecognizer for touch routing
+  if GestureRecognizer then
+    flexlove._gestureRecognizer = GestureRecognizer.new({}, { InputEvent = InputEvent, utils = utils })
+  end
 
   flexlove._defaultDependencies = {
     Context = Context,
@@ -1107,6 +1120,239 @@ function flexlove.wheelmoved(dx, dy)
   end
 end
 
+--- Find the touch-interactive element at a given position using z-index ordering
+--- Similar to getElementAtPosition but checks for touch-enabled elements
+---@param x number Touch X position
+---@param y number Touch Y position
+---@return Element|nil element The topmost touch-enabled element at position
+function flexlove._getTouchElementAtPosition(x, y)
+  local candidates = {}
+
+  local function collectTouchHits(element, scrollOffsetX, scrollOffsetY)
+    scrollOffsetX = scrollOffsetX or 0
+    scrollOffsetY = scrollOffsetY or 0
+
+    local bx = element.x
+    local by = element.y
+    local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+    local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+
+    -- Adjust touch position by accumulated scroll offset for hit testing
+    local adjustedX = x + scrollOffsetX
+    local adjustedY = y + scrollOffsetY
+
+    if adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh then
+      -- Check if element is touch-enabled and interactive
+      if element.touchEnabled and not element.disabled and (element.onEvent or element.onTouchEvent or element.onGesture) then
+        table.insert(candidates, element)
+      end
+
+      -- Check if this element has scrollable overflow (for touch scrolling)
+      local overflowX = element.overflowX or element.overflow
+      local overflowY = element.overflowY or element.overflow
+      local hasScrollableOverflow = (
+        overflowX == "scroll"
+        or overflowX == "auto"
+        or overflowY == "scroll"
+        or overflowY == "auto"
+        or overflowX == "hidden"
+        or overflowY == "hidden"
+      )
+
+      -- Accumulate scroll offset for children
+      local childScrollOffsetX = scrollOffsetX
+      local childScrollOffsetY = scrollOffsetY
+      if hasScrollableOverflow then
+        childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
+        childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
+      end
+
+      for _, child in ipairs(element.children) do
+        collectTouchHits(child, childScrollOffsetX, childScrollOffsetY)
+      end
+    end
+  end
+
+  for _, element in ipairs(flexlove.topElements) do
+    collectTouchHits(element)
+  end
+
+  -- Sort by z-index (highest first) — topmost element wins
+  table.sort(candidates, function(a, b)
+    return a.z > b.z
+  end)
+
+  return candidates[1]
+end
+
+--- Handle touch press events from LÖVE's touch input system
+--- Routes touch to the topmost element at the touch position and assigns touch ownership
+--- Hook this to love.touchpressed() to enable touch interaction
+---@param id lightuserdata Touch identifier from LÖVE
+---@param x number Touch X position in screen coordinates
+---@param y number Touch Y position in screen coordinates
+---@param dx number X distance moved (usually 0 on press)
+---@param dy number Y distance moved (usually 0 on press)
+---@param pressure number Touch pressure (0-1, if supported by device)
+function flexlove.touchpressed(id, x, y, dx, dy, pressure)
+  local touchId = tostring(id)
+  pressure = pressure or 1.0
+
+  -- Apply base scaling if configured
+  local touchX, touchY = x, y
+  if flexlove.baseScale then
+    touchX = x / flexlove.scaleFactors.x
+    touchY = y / flexlove.scaleFactors.y
+  end
+
+  -- Find the topmost touch-enabled element at this position
+  local element = flexlove._getTouchElementAtPosition(touchX, touchY)
+
+  if element then
+    -- Assign touch ownership: this element receives all subsequent events for this touch
+    flexlove._touchOwners[touchId] = element
+
+    -- Create and route touch event
+    local touchEvent = InputEvent.fromTouch(id, touchX, touchY, "began", pressure)
+    element:handleTouchEvent(touchEvent)
+
+    -- Feed to shared gesture recognizer
+    if flexlove._gestureRecognizer then
+      local gestures = flexlove._gestureRecognizer:processTouchEvent(touchEvent)
+      if gestures then
+        for _, gesture in ipairs(gestures) do
+          element:handleGesture(gesture)
+        end
+      end
+    end
+
+    -- Route to scroll manager for scrollable elements
+    if element._scrollManager then
+      local overflowX = element.overflowX or element.overflow
+      local overflowY = element.overflowY or element.overflow
+      if overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" then
+        element._scrollManager:handleTouchPress(touchX, touchY)
+      end
+    end
+  end
+end
+
+--- Handle touch move events from LÖVE's touch input system
+--- Routes touch to the element that owns this touch ID (from the original press), regardless of current position
+--- Hook this to love.touchmoved() to enable touch drag and gesture tracking
+---@param id lightuserdata Touch identifier from LÖVE
+---@param x number Touch X position in screen coordinates
+---@param y number Touch Y position in screen coordinates
+---@param dx number X distance moved since last event
+---@param dy number Y distance moved since last event
+---@param pressure number Touch pressure (0-1, if supported by device)
+function flexlove.touchmoved(id, x, y, dx, dy, pressure)
+  local touchId = tostring(id)
+  pressure = pressure or 1.0
+
+  -- Apply base scaling if configured
+  local touchX, touchY = x, y
+  if flexlove.baseScale then
+    touchX = x / flexlove.scaleFactors.x
+    touchY = y / flexlove.scaleFactors.y
+  end
+
+  -- Route to owning element (touch ownership persists from press to release)
+  local element = flexlove._touchOwners[touchId]
+  if element then
+    -- Create and route touch event
+    local touchEvent = InputEvent.fromTouch(id, touchX, touchY, "moved", pressure)
+    element:handleTouchEvent(touchEvent)
+
+    -- Feed to shared gesture recognizer
+    if flexlove._gestureRecognizer then
+      local gestures = flexlove._gestureRecognizer:processTouchEvent(touchEvent)
+      if gestures then
+        for _, gesture in ipairs(gestures) do
+          element:handleGesture(gesture)
+        end
+      end
+    end
+
+    -- Route to scroll manager for scrollable elements
+    if element._scrollManager then
+      local overflowX = element.overflowX or element.overflow
+      local overflowY = element.overflowY or element.overflow
+      if overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" then
+        element._scrollManager:handleTouchMove(touchX, touchY)
+      end
+    end
+  end
+end
+
+--- Handle touch release events from LÖVE's touch input system
+--- Routes touch to the owning element and cleans up touch ownership tracking
+--- Hook this to love.touchreleased() to properly end touch interactions
+---@param id lightuserdata Touch identifier from LÖVE
+---@param x number Touch X position in screen coordinates
+---@param y number Touch Y position in screen coordinates
+---@param dx number X distance moved since last event
+---@param dy number Y distance moved since last event
+---@param pressure number Touch pressure (0-1, if supported by device)
+function flexlove.touchreleased(id, x, y, dx, dy, pressure)
+  local touchId = tostring(id)
+  pressure = pressure or 1.0
+
+  -- Apply base scaling if configured
+  local touchX, touchY = x, y
+  if flexlove.baseScale then
+    touchX = x / flexlove.scaleFactors.x
+    touchY = y / flexlove.scaleFactors.y
+  end
+
+  -- Route to owning element
+  local element = flexlove._touchOwners[touchId]
+  if element then
+    -- Create and route touch event
+    local touchEvent = InputEvent.fromTouch(id, touchX, touchY, "ended", pressure)
+    element:handleTouchEvent(touchEvent)
+
+    -- Feed to shared gesture recognizer
+    if flexlove._gestureRecognizer then
+      local gestures = flexlove._gestureRecognizer:processTouchEvent(touchEvent)
+      if gestures then
+        for _, gesture in ipairs(gestures) do
+          element:handleGesture(gesture)
+        end
+      end
+    end
+
+    -- Route to scroll manager for scrollable elements
+    if element._scrollManager then
+      local overflowX = element.overflowX or element.overflow
+      local overflowY = element.overflowY or element.overflow
+      if overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" then
+        element._scrollManager:handleTouchRelease()
+      end
+    end
+  end
+
+  -- Clean up touch ownership (touch is complete)
+  flexlove._touchOwners[touchId] = nil
+end
+
+--- Get the number of currently active touches being tracked
+---@return number count Number of active touch points
+function flexlove.getActiveTouchCount()
+  local count = 0
+  for _ in pairs(flexlove._touchOwners) do
+    count = count + 1
+  end
+  return count
+end
+
+--- Get the element that currently owns a specific touch
+---@param touchId string|lightuserdata Touch identifier
+---@return Element|nil element The element owning this touch, or nil
+function flexlove.getTouchOwner(touchId)
+  return flexlove._touchOwners[tostring(touchId)]
+end
+
 --- Clean up all UI elements and reset FlexLove to initial state when changing scenes or shutting down
 --- Use this to prevent memory leaks when transitioning between game states or menus
 function flexlove.destroy()
@@ -1131,6 +1377,12 @@ function flexlove.destroy()
   flexlove._canvasDimensions = { width = 0, height = 0 }
   Context.clearFocus()
   StateManager:reset()
+
+  -- Clean up touch state
+  flexlove._touchOwners = {}
+  if flexlove._gestureRecognizer then
+    flexlove._gestureRecognizer:reset()
+  end
 end
 
 --- Create a new UI element with flexbox layout, styling, and interaction capabilities

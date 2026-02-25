@@ -85,6 +85,12 @@ local AnimationProps = {}
 ---@field onTextChangeDeferred boolean? -- Whether onTextChange callback should be deferred (default: false)
 ---@field onEnter fun(element:Element)? -- Callback when Enter key is pressed
 ---@field onEnterDeferred boolean? -- Whether onEnter callback should be deferred (default: false)
+---@field onTouchEvent fun(element:Element, touchEvent:InputEvent)? -- Callback for touch-specific events (touchpress, touchmove, touchrelease)
+---@field onTouchEventDeferred boolean? -- Whether onTouchEvent callback should be deferred (default: false)
+---@field onGesture fun(element:Element, gesture:table)? -- Callback for recognized gestures (tap, swipe, pinch, etc.)
+---@field onGestureDeferred boolean? -- Whether onGesture callback should be deferred (default: false)
+---@field touchEnabled boolean? -- Whether the element responds to touch events (default: true)
+---@field multiTouchEnabled boolean? -- Whether the element supports multiple simultaneous touches (default: false)
 ---@field transform TransformProps? -- Transform properties for animations and styling
 ---@field transition TransitionProps? -- Transition settings for animations
 ---@field customDraw fun(element:Element)? -- Custom rendering callback called after standard rendering but before visual feedback (default: nil)

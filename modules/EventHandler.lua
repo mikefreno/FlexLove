@@ -1,6 +1,12 @@
 ---@class EventHandler
 ---@field onEvent fun(element:Element, event:InputEvent)?
 ---@field onEventDeferred boolean?
+---@field onTouchEvent fun(element:Element, touchEvent:InputEvent)? -- Touch-specific callback
+---@field onTouchEventDeferred boolean? -- Whether onTouchEvent is deferred
+---@field onGesture fun(element:Element, gesture:table)? -- Gesture callback
+---@field onGestureDeferred boolean? -- Whether onGesture is deferred
+---@field touchEnabled boolean -- Whether touch events are processed (default: true)
+---@field multiTouchEnabled boolean -- Whether multi-touch is supported (default: false)
 ---@field _pressed table<number, boolean>
 ---@field _lastClickTime number?
 ---@field _lastClickButton number?
@@ -39,6 +45,12 @@ function EventHandler.new(config)
 
   self.onEvent = config.onEvent
   self.onEventDeferred = config.onEventDeferred
+  self.onTouchEvent = config.onTouchEvent
+  self.onTouchEventDeferred = config.onTouchEventDeferred or false
+  self.onGesture = config.onGesture
+  self.onGestureDeferred = config.onGestureDeferred or false
+  self.touchEnabled = config.touchEnabled ~= false -- Default true
+  self.multiTouchEnabled = config.multiTouchEnabled or false -- Default false
 
   self._pressed = config._pressed or {}
 
@@ -462,7 +474,7 @@ function EventHandler:processTouchEvents(element)
   local activeTouchIds = {}
 
   -- Check if element can process events
-  local canProcessEvents = (self.onEvent or element.editable) and not element.disabled
+  local canProcessEvents = (self.onEvent or self.onTouchEvent or element.editable) and not element.disabled and self.touchEnabled
 
   if not canProcessEvents then
     if EventHandler._Performance and EventHandler._Performance.enabled then
@@ -483,6 +495,12 @@ function EventHandler:processTouchEvents(element)
     activeTouches[tostring(id)] = true
   end
 
+  -- Count active tracked touches for multi-touch filtering
+  local trackedTouchCount = 0
+  for _ in pairs(self._touches) do
+    trackedTouchCount = trackedTouchCount + 1
+  end
+
   -- Process active touches
   for _, id in ipairs(touches) do
     local touchId = tostring(id)
@@ -494,8 +512,15 @@ function EventHandler:processTouchEvents(element)
 
     if isInside then
       if not self._touches[touchId] then
-        -- New touch began
-        self:_handleTouchBegan(element, touchId, tx, ty, pressure)
+        -- Multi-touch filtering: reject new touches when multiTouchEnabled=false
+        -- and we already have an active touch
+        if not self.multiTouchEnabled and trackedTouchCount > 0 then
+          -- Skip this new touch (single-touch mode, already tracking one)
+        else
+          -- New touch began
+          self:_handleTouchBegan(element, touchId, tx, ty, pressure)
+          trackedTouchCount = trackedTouchCount + 1
+        end
       else
         -- Touch moved
         self:_handleTouchMoved(element, touchId, tx, ty, pressure)
@@ -561,6 +586,7 @@ function EventHandler:_handleTouchBegan(element, touchId, x, y, pressure)
   touchEvent.dx = 0
   touchEvent.dy = 0
   self:_invokeCallback(element, touchEvent)
+  self:_invokeTouchCallback(element, touchEvent)
 end
 
 --- Handle touch moved event
@@ -607,6 +633,7 @@ function EventHandler:_handleTouchMoved(element, touchId, x, y, pressure)
     touchEvent.dx = dx
     touchEvent.dy = dy
     self:_invokeCallback(element, touchEvent)
+    self:_invokeTouchCallback(element, touchEvent)
   end
 end
 
@@ -634,6 +661,7 @@ function EventHandler:_handleTouchEnded(element, touchId, x, y, pressure)
   touchEvent.dx = dx
   touchEvent.dy = dy
   self:_invokeCallback(element, touchEvent)
+  self:_invokeTouchCallback(element, touchEvent)
 
   -- Cleanup touch state
   self:_cleanupTouch(touchId)
@@ -706,6 +734,54 @@ function EventHandler:_invokeCallback(element, event)
     end
   else
     self.onEvent(element, event)
+  end
+end
+
+--- Invoke the onTouchEvent callback, optionally deferring it
+---@param element Element The element that triggered the event
+---@param event InputEvent The touch event data
+function EventHandler:_invokeTouchCallback(element, event)
+  if not self.onTouchEvent then
+    return
+  end
+
+  if self.onTouchEventDeferred then
+    local FlexLove = package.loaded["FlexLove"] or package.loaded["libs.FlexLove"]
+    if FlexLove and FlexLove.deferCallback then
+      FlexLove.deferCallback(function()
+        self.onTouchEvent(element, event)
+      end)
+    else
+      EventHandler._ErrorHandler:error("EventHandler", "SYS_003", {
+        eventType = event.type,
+      })
+    end
+  else
+    self.onTouchEvent(element, event)
+  end
+end
+
+--- Invoke the onGesture callback, optionally deferring it
+---@param element Element The element that triggered the event
+---@param gesture table The gesture data from GestureRecognizer
+function EventHandler:_invokeGestureCallback(element, gesture)
+  if not self.onGesture then
+    return
+  end
+
+  if self.onGestureDeferred then
+    local FlexLove = package.loaded["FlexLove"] or package.loaded["libs.FlexLove"]
+    if FlexLove and FlexLove.deferCallback then
+      FlexLove.deferCallback(function()
+        self.onGesture(element, gesture)
+      end)
+    else
+      EventHandler._ErrorHandler:error("EventHandler", "SYS_003", {
+        gestureType = gesture.type,
+      })
+    end
+  else
+    self.onGesture(element, gesture)
   end
 end
 

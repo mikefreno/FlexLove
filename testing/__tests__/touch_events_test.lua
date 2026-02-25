@@ -230,6 +230,7 @@ function TestTouchEvents:testEventHandler_MultiTouch()
   local element = FlexLove.new({
     width = 200,
     height = 200,
+    multiTouchEnabled = true,
     onEvent = function(el, event)
       table.insert(touchEvents, event)
     end,

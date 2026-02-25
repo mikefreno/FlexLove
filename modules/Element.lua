@@ -160,6 +160,12 @@
 ---@field _mouseDownPosition number? -- Internal: mouse down position for drag tracking
 ---@field _textDragOccurred boolean? -- Internal: whether text drag occurred
 ---@field customDraw fun(element:Element)? -- Custom rendering callback called after standard rendering but before visual feedback (default: nil)
+---@field onTouchEvent fun(element:Element, touchEvent:InputEvent)? -- Callback for touch-specific events
+---@field onTouchEventDeferred boolean? -- Whether onTouchEvent callback should be deferred (default: false)
+---@field onGesture fun(element:Element, gesture:table)? -- Callback for recognized gestures
+---@field onGestureDeferred boolean? -- Whether onGesture callback should be deferred (default: false)
+---@field touchEnabled boolean -- Whether the element responds to touch events (default: true)
+---@field multiTouchEnabled boolean -- Whether the element supports multiple simultaneous touches (default: false)
 ---@field animation table? -- Animation instance for this element
 local Element = {}
 Element.__index = Element
@@ -366,6 +372,14 @@ function Element.new(props)
 
   self.customDraw = props.customDraw -- Custom rendering callback
 
+  -- Touch event properties
+  self.onTouchEvent = props.onTouchEvent
+  self.onTouchEventDeferred = props.onTouchEventDeferred or false
+  self.onGesture = props.onGesture
+  self.onGestureDeferred = props.onGestureDeferred or false
+  self.touchEnabled = props.touchEnabled ~= false -- Default true
+  self.multiTouchEnabled = props.multiTouchEnabled or false -- Default false
+
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
@@ -373,6 +387,12 @@ function Element.new(props)
   local eventHandlerConfig = {
     onEvent = self.onEvent,
     onEventDeferred = props.onEventDeferred,
+    onTouchEvent = self.onTouchEvent,
+    onTouchEventDeferred = self.onTouchEventDeferred,
+    onGesture = self.onGesture,
+    onGestureDeferred = self.onGestureDeferred,
+    touchEnabled = self.touchEnabled,
+    multiTouchEnabled = self.multiTouchEnabled,
   }
   if self._elementMode == "immediate" and self._stateId and self._stateId ~= "" then
     local state = Element._StateManager.getState(self._stateId)
@@ -2603,6 +2623,10 @@ function Element:destroy()
 
   -- Clear onEvent to prevent closure leaks
   self.onEvent = nil
+
+  -- Clear touch callbacks to prevent closure leaks
+  self.onTouchEvent = nil
+  self.onGesture = nil
 end
 
 --- Draw element and its children
@@ -3080,6 +3104,39 @@ function Element:update(dt)
     -- Process touch events through EventHandler
     self._eventHandler:processTouchEvents(self)
   end
+end
+
+--- Handle a touch event directly (for external touch routing)
+--- Invokes both onEvent and onTouchEvent callbacks if set
+---@param touchEvent InputEvent The touch event to handle
+function Element:handleTouchEvent(touchEvent)
+  if not self.touchEnabled or self.disabled then
+    return
+  end
+  if self._eventHandler then
+    self._eventHandler:_invokeCallback(self, touchEvent)
+    self._eventHandler:_invokeTouchCallback(self, touchEvent)
+  end
+end
+
+--- Handle a gesture event (from GestureRecognizer or external routing)
+---@param gesture table The gesture data (type, position, velocity, etc.)
+function Element:handleGesture(gesture)
+  if not self.touchEnabled or self.disabled then
+    return
+  end
+  if self._eventHandler then
+    self._eventHandler:_invokeGestureCallback(self, gesture)
+  end
+end
+
+--- Get active touches currently tracked on this element
+---@return table<string, table> Active touches keyed by touch ID
+function Element:getTouches()
+  if self._eventHandler then
+    return self._eventHandler:getActiveTouches()
+  end
+  return {}
 end
 
 ---@param newViewportWidth number
@@ -4066,6 +4123,8 @@ function Element:_cleanup()
   self.onEnter = nil
   self.onImageLoad = nil
   self.onImageError = nil
+  self.onTouchEvent = nil
+  self.onGesture = nil
 end
 
 return Element

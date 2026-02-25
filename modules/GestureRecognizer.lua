@@ -92,10 +92,11 @@ end
 ---@param event InputEvent Touch event
 function GestureRecognizer:processTouchEvent(event)
   if not event.touchId then
-    return
+    return nil
   end
   
   local touchId = event.touchId
+  local gestures = {}
   
   -- Update touch state
   if event.type == "touchpress" then
@@ -122,13 +123,17 @@ function GestureRecognizer:processTouchEvent(event)
       touch.phase = "moved"
       
       -- Update gesture detection
-      self:_detectPan(touchId, event)
-      self:_detectSwipe(touchId, event)
+      local panGesture = self:_detectPan(touchId, event)
+      if panGesture then table.insert(gestures, panGesture) end
+      local swipeGesture = self:_detectSwipe(touchId, event)
+      if swipeGesture then table.insert(gestures, swipeGesture) end
       
       -- Multi-touch gestures
       if self:_getTouchCount() >= 2 then
-        self:_detectPinch(event)
-        self:_detectRotate(event)
+        local pinchGesture = self:_detectPinch(event)
+        if pinchGesture then table.insert(gestures, pinchGesture) end
+        local rotateGesture = self:_detectRotate(event)
+        if rotateGesture then table.insert(gestures, rotateGesture) end
       end
     end
     
@@ -138,9 +143,12 @@ function GestureRecognizer:processTouchEvent(event)
       touch.phase = "ended"
       
       -- Finalize gesture detection
-      self:_detectTapEnded(touchId, event)
-      self:_detectSwipeEnded(touchId, event)
-      self:_detectPanEnded(touchId, event)
+      local tapGesture = self:_detectTapEnded(touchId, event)
+      if tapGesture then table.insert(gestures, tapGesture) end
+      local swipeGesture = self:_detectSwipeEnded(touchId, event)
+      if swipeGesture then table.insert(gestures, swipeGesture) end
+      local panGesture = self:_detectPanEnded(touchId, event)
+      if panGesture then table.insert(gestures, panGesture) end
       
       -- Cleanup touch
       self._touches[touchId] = nil
@@ -151,6 +159,8 @@ function GestureRecognizer:processTouchEvent(event)
     self._touches[touchId] = nil
     self:_cancelAllGestures()
   end
+  
+  return #gestures > 0 and gestures or nil
 end
 
 --- Get number of active touches

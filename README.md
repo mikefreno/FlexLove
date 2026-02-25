@@ -79,6 +79,15 @@ function love.draw()
         SomeMetaComponent:draw()
     end)
 end
+
+function love.load()
+    FlexLove.init({
+        theme = "space",
+        immediateMode = true,
+        debugDraw = true,  -- Enable debug view
+        debugDrawKey = "F3"  -- Toggle debug view with F3 key
+    })
+end
 ```
 
 ## Quick Demos
@@ -376,6 +385,76 @@ FlexLöve provides comprehensive multi-touch event tracking and gesture recognit
 - 7 gesture types (tap, double-tap, long-press, swipe, pan, pinch, rotate)
 - Touch scrolling with momentum and bounce effects
 - Complete API reference and examples
+
+### Custom Rendering
+
+Each element supports a `customDraw` callback function that executes after the element's standard rendering but before visual feedback. This is useful for:
+- Adding custom graphics on top of elements
+- Creating complex visual effects
+- Utilize flex love positioning to place whatever you need
+
+```lua
+local panel = FlexLove.new({
+    width = 300,
+    height = 200,
+    backgroundColor = Color.new(0.1, 0.1, 0.1, 1),
+    customDraw = function(element)
+        -- Draw a custom border around the element
+        love.graphics.setLineWidth(3)
+        love.graphics.setColor(1, 1, 0, 1)  -- Yellow
+        love.graphics.rectangle("line",
+            element.x - 5,
+            element.y - 5,
+            element.width + 10,
+            element.height + 10
+        )
+
+        -- Draw a cross in the center
+        love.graphics.setColor(1, 0, 0, 1)  -- Red
+        local cx = element.x + element.width / 2
+        local cy = element.y + element.height / 2
+        love.graphics.line(cx - 20, cy, cx + 20, cy)
+        love.graphics.line(cx, cy - 20, cx, cy + 20)
+    end
+})
+```
+
+**Note:** The custom draw context is pushed with a fresh graphics state, so it won't affect parent elements or subsequent rendering.
+
+### Debug View
+
+Enable the debug draw overlay to visualize element boundaries, hit areas, and layout structure during development. This helps identify:
+- Element positioning and sizing
+- Overlapping elements
+- Hidden or transparent elements
+- Layout flow issues
+
+**Enable via initialization:**
+
+```lua
+FlexLove.init({
+    debugDraw = true,           -- Always enable debug overlay
+    debugDrawKey = "F3"         -- Press F3 to toggle (optional)
+})
+```
+
+**Programmatic control:**
+
+```lua
+-- Toggle debug view at runtime
+flexlove.setDebugDraw(true)    -- Enable
+flexlove.setDebugDraw(false)   -- Disable
+
+-- Check if debug view is active
+local isEnabled = flexlove.getDebugDraw()
+```
+
+**Features:**
+- Each element displays with a unique random color
+- Full opacity border (1px) and 0.5 opacity fill
+- Renders regardless of element visibility or opacity
+- Press `F3` (or your configured key) to toggle on/off
+- Essential for debugging click targets and layout issues
 
 ### Deferred Callbacks
 

@@ -159,6 +159,7 @@
 ---@field _pressed table? -- Internal: button press state tracking
 ---@field _mouseDownPosition number? -- Internal: mouse down position for drag tracking
 ---@field _textDragOccurred boolean? -- Internal: whether text drag occurred
+---@field customDraw fun(element:Element)? -- Custom rendering callback called after standard rendering but before visual feedback (default: nil)
 ---@field animation table? -- Animation instance for this element
 local Element = {}
 Element.__index = Element

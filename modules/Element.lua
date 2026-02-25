@@ -191,6 +191,7 @@ function Element.init(deps)
   Element._StateManager = deps.StateManager
   Element._GestureRecognizer = deps.GestureRecognizer
   Element._Performance = deps.Performance
+  Element._Animation = deps.Animation
 end
 
 ---@param props ElementProps
@@ -3714,6 +3715,100 @@ function Element:setTransformOrigin(originX, originY)
   end
   self.transform.originX = originX
   self.transform.originY = originY
+end
+
+--- Animate element to new property values with automatic transition
+--- Captures current values as start, uses provided values as final, and applies the animation
+---@param props table Target property values
+---@param duration number? Animation duration in seconds (default: 0.3)
+---@param easing string? Easing function name (default: "linear")
+---@return Element self For method chaining
+function Element:animateTo(props, duration, easing)
+  if not Element._Animation then
+    Element._ErrorHandler:warn("Element", "ELEM_003")
+    return self
+  end
+
+  if type(props) ~= "table" then
+    Element._ErrorHandler:warn("Element", "ELEM_003")
+    return self
+  end
+
+  duration = duration or 0.3
+  easing = easing or "linear"
+
+  -- Collect current values as start
+  local startValues = {}
+  for key, _ in pairs(props) do
+    startValues[key] = self[key]
+  end
+
+  -- Create and apply animation
+  local anim = Element._Animation.new({
+    duration = duration,
+    start = startValues,
+    final = props,
+    easing = easing,
+  })
+
+  anim:apply(self)
+  return self
+end
+
+--- Fade element to full opacity
+---@param duration number? Duration in seconds (default: 0.3)
+---@param easing string? Easing function name
+---@return Element self For method chaining
+function Element:fadeIn(duration, easing)
+  return self:animateTo({ opacity = 1 }, duration or 0.3, easing)
+end
+
+--- Fade element to zero opacity
+---@param duration number? Duration in seconds (default: 0.3)
+---@param easing string? Easing function name
+---@return Element self For method chaining
+function Element:fadeOut(duration, easing)
+  return self:animateTo({ opacity = 0 }, duration or 0.3, easing)
+end
+
+--- Scale element to target scale value using transforms
+---@param targetScale number Target scale multiplier
+---@param duration number? Duration in seconds (default: 0.3)
+---@param easing string? Easing function name
+---@return Element self For method chaining
+function Element:scaleTo(targetScale, duration, easing)
+  if not Element._Animation or not Element._Transform then
+    Element._ErrorHandler:warn("Element", "ELEM_003")
+    return self
+  end
+
+  -- Ensure element has a transform
+  if not self.transform then
+    self.transform = Element._Transform.new({})
+  end
+
+  local currentScaleX = self.transform.scaleX or 1
+  local currentScaleY = self.transform.scaleY or 1
+
+  local anim = Element._Animation.new({
+    duration = duration or 0.3,
+    start = { scaleX = currentScaleX, scaleY = currentScaleY },
+    final = { scaleX = targetScale, scaleY = targetScale },
+    easing = easing or "linear",
+  })
+
+  anim:apply(self)
+  return self
+end
+
+--- Move element to target position
+---@param x number Target x position
+---@param y number Target y position
+---@param duration number? Duration in seconds (default: 0.3)
+---@param easing string? Easing function name
+---@return Element self For method chaining
+function Element:moveTo(x, y, duration, easing)
+  return self:animateTo({ x = x, y = y }, duration or 0.3, easing)
 end
 
 --- Set transition configuration for a property

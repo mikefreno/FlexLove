@@ -232,6 +232,7 @@ function flexlove.init(config)
     ErrorHandler = flexlove._ErrorHandler,
     Performance = flexlove._Performance,
     Transform = Transform,
+    Animation = Animation,
   }
 
   -- Initialize Element module with dependencies

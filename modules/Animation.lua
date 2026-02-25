@@ -1232,6 +1232,25 @@ function Animation.keyframes(props)
   })
 end
 
+--- Link an array of animations into a chain (static helper)
+--- Each animation's completion triggers the next in sequence
+---@param animations Animation[] Array of animations to chain
+---@return Animation first The first animation in the chain
+function Animation.chainSequence(animations)
+  if type(animations) ~= "table" or #animations == 0 then
+    if Animation._ErrorHandler then
+      Animation._ErrorHandler:warn("Animation", "ANIM_004")
+    end
+    return Animation.new({ duration = 0, start = {}, final = {} })
+  end
+
+  for i = 1, #animations - 1 do
+    animations[i]:chain(animations[i + 1])
+  end
+
+  return animations[1]
+end
+
 -- ============================================================================
 -- ANIMATION GROUP (Utility)
 -- ============================================================================

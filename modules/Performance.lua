@@ -139,9 +139,9 @@ function Performance:stopTimer(name)
 
   -- Check for warnings
   if elapsed > self.criticalThresholdMs then
-    self:addWarning(name, elapsed, "critical")
+    self:_addWarning(name, elapsed, "critical")
   elseif elapsed > self.warningThresholdMs then
-    self:addWarning(name, elapsed, "warning")
+    self:_addWarning(name, elapsed, "warning")
   end
 
   if self.logToConsole then

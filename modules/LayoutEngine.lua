@@ -108,6 +108,8 @@ function LayoutEngine.new(props, deps)
     childrenCount = 0,
     containerWidth = 0,
     containerHeight = 0,
+    containerX = 0,
+    containerY = 0,
     childrenHash = "",
   }
 
@@ -1180,51 +1182,56 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
   end
 
   -- Recalculate position if using viewport or percentage units
-  if self.element.units.x.unit ~= "px" then
-    local parentWidth = self.element.parent and self.element.parent.width or newViewportWidth
-    local baseX = self.element.parent and self.element.parent.x or 0
-    local offsetX = Units.resolve(
-      self.element.units.x.value,
-      self.element.units.x.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentWidth
-    )
-    self.element.x = baseX + offsetX
-  else
-    -- For pixel units, update position relative to parent's new position (with base scaling)
-    if self.element.parent then
-      local baseX = self.element.parent.x
-      local scaledOffset = self._Context.baseScale and (self.element.units.x.value * scaleX)
-        or self.element.units.x.value
-      self.element.x = baseX + scaledOffset
-    elseif self._Context.baseScale then
-      -- Top-level element with pixel position - apply base scaling
-      self.element.x = self.element.units.x.value * scaleX
+  -- Skip position recalculation for flex children (non-explicitly-absolute children with a parent)
+  -- Their x/y is entirely controlled by the parent's layoutChildren() call
+  local isFlexChild = self.element.parent and not self.element._explicitlyAbsolute
+  if not isFlexChild then
+    if self.element.units.x.unit ~= "px" then
+      local parentWidth = self.element.parent and self.element.parent.width or newViewportWidth
+      local baseX = self.element.parent and self.element.parent.x or 0
+      local offsetX = Units.resolve(
+        self.element.units.x.value,
+        self.element.units.x.unit,
+        newViewportWidth,
+        newViewportHeight,
+        parentWidth
+      )
+      self.element.x = baseX + offsetX
+    else
+      -- For pixel units, update position relative to parent's new position (with base scaling)
+      if self.element.parent then
+        local baseX = self.element.parent.x
+        local scaledOffset = self._Context.baseScale and (self.element.units.x.value * scaleX)
+          or self.element.units.x.value
+        self.element.x = baseX + scaledOffset
+      elseif self._Context.baseScale then
+        -- Top-level element with pixel position - apply base scaling
+        self.element.x = self.element.units.x.value * scaleX
+      end
     end
-  end
 
-  if self.element.units.y.unit ~= "px" then
-    local parentHeight = self.element.parent and self.element.parent.height or newViewportHeight
-    local baseY = self.element.parent and self.element.parent.y or 0
-    local offsetY = Units.resolve(
-      self.element.units.y.value,
-      self.element.units.y.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentHeight
-    )
-    self.element.y = baseY + offsetY
-  else
-    -- For pixel units, update position relative to parent's new position (with base scaling)
-    if self.element.parent then
-      local baseY = self.element.parent.y
-      local scaledOffset = self._Context.baseScale and (self.element.units.y.value * scaleY)
-        or self.element.units.y.value
-      self.element.y = baseY + scaledOffset
-    elseif self._Context.baseScale then
-      -- Top-level element with pixel position - apply base scaling
-      self.element.y = self.element.units.y.value * scaleY
+    if self.element.units.y.unit ~= "px" then
+      local parentHeight = self.element.parent and self.element.parent.height or newViewportHeight
+      local baseY = self.element.parent and self.element.parent.y or 0
+      local offsetY = Units.resolve(
+        self.element.units.y.value,
+        self.element.units.y.unit,
+        newViewportWidth,
+        newViewportHeight,
+        parentHeight
+      )
+      self.element.y = baseY + offsetY
+    else
+      -- For pixel units, update position relative to parent's new position (with base scaling)
+      if self.element.parent then
+        local baseY = self.element.parent.y
+        local scaledOffset = self._Context.baseScale and (self.element.units.y.value * scaleY)
+          or self.element.units.y.value
+        self.element.y = baseY + scaledOffset
+      elseif self._Context.baseScale then
+        -- Top-level element with pixel position - apply base scaling
+        self.element.y = self.element.units.y.value * scaleY
+      end
     end
   end
 
@@ -1504,6 +1511,8 @@ function LayoutEngine:_canSkipLayout()
   local childrenCount = #self.element.children
   local containerWidth = self.element.width
   local containerHeight = self.element.height
+  local containerX = self.element.x
+  local containerY = self.element.y
 
   -- Generate simple hash of children dimensions
   local childrenHash = ""
@@ -1520,6 +1529,8 @@ function LayoutEngine:_canSkipLayout()
     cache.childrenCount == childrenCount
     and cache.containerWidth == containerWidth
     and cache.containerHeight == containerHeight
+    and cache.containerX == containerX
+    and cache.containerY == containerY
     and cache.childrenHash == childrenHash
   then
     return true -- Layout hasn't changed, can skip
@@ -1529,6 +1540,8 @@ function LayoutEngine:_canSkipLayout()
   cache.childrenCount = childrenCount
   cache.containerWidth = containerWidth
   cache.containerHeight = containerHeight
+  cache.containerX = containerX
+  cache.containerY = containerY
   cache.childrenHash = childrenHash
 
   return false -- Layout has changed, must recalculate

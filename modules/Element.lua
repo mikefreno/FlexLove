@@ -3926,6 +3926,53 @@ function Element:removeTransition(property)
   end
 end
 
+--- Resolve a unit-based dimension property (width/height) from a string or CalcObject
+--- Parses the value, updates self.units, resolves to pixels, and updates border-box dimensions
+---@param property string "width" or "height"
+---@param value string|table The unit string (e.g., "50%", "10vw") or CalcObject
+---@return number resolvedValue The resolved pixel value
+function Element:_resolveDimensionProperty(property, value)
+  local viewportWidth, viewportHeight = Element._Units.getViewport()
+  local parsedValue, parsedUnit = Element._Units.parse(value)
+  self.units[property] = { value = parsedValue, unit = parsedUnit }
+
+  local parentDimension
+  if property == "width" then
+    parentDimension = self.parent and self.parent.width or viewportWidth
+  else
+    parentDimension = self.parent and self.parent.height or viewportHeight
+  end
+
+  local resolved = Element._Units.resolve(parsedValue, parsedUnit, viewportWidth, viewportHeight, parentDimension)
+
+  if type(resolved) ~= "number" then
+    Element._ErrorHandler:warn("Element", "LAY_003", {
+      issue = string.format("%s resolution returned non-number value", property),
+      type = type(resolved),
+      value = tostring(resolved),
+    })
+    resolved = 0
+  end
+
+  self[property] = resolved
+
+  if property == "width" then
+    if self.autosizing and self.autosizing.width then
+      self._borderBoxWidth = resolved + self.padding.left + self.padding.right
+    else
+      self._borderBoxWidth = resolved
+    end
+  else
+    if self.autosizing and self.autosizing.height then
+      self._borderBoxHeight = resolved + self.padding.top + self.padding.bottom
+    else
+      self._borderBoxHeight = resolved
+    end
+  end
+
+  return resolved
+end
+
 --- Set property with automatic transition
 ---@param property string Property name
 ---@param value any New value
@@ -3937,11 +3984,6 @@ function Element:setProperty(property, value)
   if self.transitions then
     transitionConfig = self.transitions[property] or self.transitions["all"]
     shouldTransition = transitionConfig ~= nil
-  end
-
-  -- Don't transition if value is the same
-  if self[property] == value then
-    return
   end
 
   -- Properties that affect layout and require invalidation
@@ -3964,6 +4006,50 @@ function Element:setProperty(property, value)
     bottom = true,
     left = true,
   }
+
+  -- Dimension properties that accept unit strings and need resolution
+  local dimensionProperties = { width = true, height = true }
+
+  -- For dimension properties with unit strings, resolve to pixels
+  local isUnitValue = type(value) == "string" or (Element._Calc and Element._Calc.isCalc(value))
+  if dimensionProperties[property] and isUnitValue then
+    -- Check if the unit specification is the same (compare against stored units)
+    local currentUnits = self.units[property]
+    local newValue, newUnit = Element._Units.parse(value)
+    if currentUnits and currentUnits.value == newValue and currentUnits.unit == newUnit then
+      return
+    end
+
+    if shouldTransition and transitionConfig then
+      -- For transitions, resolve the target value and transition the pixel value
+      local currentPixelValue = self[property]
+      local resolvedTarget = self:_resolveDimensionProperty(property, value)
+
+      if currentPixelValue ~= nil and currentPixelValue ~= resolvedTarget then
+        -- Reset to current value before animating
+        self[property] = currentPixelValue
+        local Animation = require("modules.Animation")
+        local anim = Animation.new({
+          duration = transitionConfig.duration,
+          start = { [property] = currentPixelValue },
+          final = { [property] = resolvedTarget },
+          easing = transitionConfig.easing,
+          onComplete = transitionConfig.onComplete,
+        })
+        anim:apply(self)
+      end
+    else
+      self:_resolveDimensionProperty(property, value)
+    end
+
+    self:invalidateLayout()
+    return
+  end
+
+  -- Don't transition if value is the same
+  if self[property] == value then
+    return
+  end
 
   if shouldTransition and transitionConfig then
     local currentValue = self[property]

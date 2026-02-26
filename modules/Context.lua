@@ -64,6 +64,19 @@ function Context.clearFrameElements()
   end
 end
 
+--- Calculate the depth (nesting level) of an element
+---@param elem Element
+---@return number
+local function getElementDepth(elem)
+  local depth = 0
+  local current = elem.parent
+  while current do
+    depth = depth + 1
+    current = current.parent
+  end
+  return depth
+end
+
 --- Sort elements by z-index (called after all elements are registered)
 function Context.sortElementsByZIndex()
   -- Sort elements by z-index (lowest to highest)
@@ -80,7 +93,13 @@ function Context.sortElementsByZIndex()
       return z
     end
 
-    return getEffectiveZIndex(a) < getEffectiveZIndex(b)
+    local za = getEffectiveZIndex(a)
+    local zb = getEffectiveZIndex(b)
+    if za ~= zb then
+      return za < zb
+    end
+    -- Tiebreaker: deeper elements (children) sort higher
+    return getElementDepth(a) < getElementDepth(b)
   end)
 end
 
@@ -153,6 +172,7 @@ function Context.getTopElementAt(x, y)
     return nil
   end
 
+  local fallback = nil
   for i = #Context._zIndexOrderedElements, 1, -1 do
     local element = Context._zIndexOrderedElements[i]
 
@@ -161,11 +181,15 @@ function Context.getTopElementAt(x, y)
       if interactive then
         return interactive
       end
-      return element
+      -- Non-interactive element hit: remember as fallback but keep looking
+      -- for interactive children/siblings at same or lower z-index
+      if not fallback then
+        fallback = element
+      end
     end
   end
 
-  return nil
+  return fallback
 end
 
 --- Set the focused element (centralizes focus management)

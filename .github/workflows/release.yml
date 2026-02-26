@@ -212,8 +212,8 @@ jobs:
 
           | Profile | Size | Description | Package |
           |---------|------|-------------|---------|
-          | **Minimal** | ~70% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
-          | **Slim** | ~80% | + Animation and Image support | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
+          | **Minimal** | ~55% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
+          | **Slim** | ~62.5% | + Animation and Image support | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
           | **Default** | ~95% | + Theme, Calc, Blur effects | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
           | **Full** | 100% | All modules including debugging tools | `flexlove-full-v${{ steps.version.outputs.version }}.zip` |
 

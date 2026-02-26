@@ -1,3 +1,4 @@
+-- The pngs are intentionally not being included, but this can still be used as a reference for how to set up a theme.
 local Color = require("libs.FlexLove").Color
 
 return {

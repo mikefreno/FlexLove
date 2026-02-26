@@ -2040,9 +2040,16 @@ function Element.new(props)
   self._dirty = false -- Element properties have changed, needs layout
   self._childrenDirty = false -- Children have changed, needs layout
 
-  -- Debug draw: assign a stable random color for element boundary visualization
-  -- Uses a vibrant HSL-based color to ensure good visibility against any background
-  local hue = math.random() * 360
+  -- Debug draw: assign a deterministic color for element boundary visualization
+  -- Uses a hash of the element ID to produce a stable hue, so colors don't flash each frame
+  local function hashStringToHue(str)
+    local hash = 5381
+    for i = 1, #str do
+      hash = ((hash * 33) + string.byte(str, i)) % 360
+    end
+    return hash
+  end
+  local hue = hashStringToHue(self.id or tostring(self))
   local function hslToRgb(h)
     local s, l = 0.9, 0.55
     local c = (1 - math.abs(2 * l - 1)) * s

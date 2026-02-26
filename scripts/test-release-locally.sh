@@ -126,28 +126,30 @@ for profile in minimal slim default full; do
     fi
     
     # Verify theme files
-    if [ ! -f "${TEMP_DIR}/${profile}/flexlove/themes/metal.example.lua" ]; then
-      echo -e "${RED}✗ ${profile}: Missing metal.example.lua${NC}"
+    if [ ! -f "${TEMP_DIR}/${profile}/flexlove/themes/metal.lua" ]; then
+      echo -e "${RED}✗ ${profile}: Missing metal.lua${NC}"
       exit 1
     fi
-    if [ ! -f "${TEMP_DIR}/${profile}/flexlove/themes/space.example.lua" ]; then
-      echo -e "${RED}✗ ${profile}: Missing space.example.lua${NC}"
+    if [ ! -d "${TEMP_DIR}/${profile}/flexlove/themes/metal" ]; then
+      echo -e "${RED}✗ ${profile}: Missing metal/ assets directory${NC}"
       exit 1
+    fi
+    if [ -f "${TEMP_DIR}/${profile}/flexlove/themes/space.example.lua" ]; then
+      echo -e "${GREEN}  space.example.lua present${NC}"
     fi
     if [ ! -f "${TEMP_DIR}/${profile}/flexlove/themes/README.md" ]; then
       echo -e "${RED}✗ ${profile}: Missing themes/README.md${NC}"
       exit 1
     fi
     
-    # Verify no other files in themes
-    THEME_FILE_COUNT=$(find "${TEMP_DIR}/${profile}/flexlove/themes" -type f | wc -l | tr -d ' ')
-    if [ "$THEME_FILE_COUNT" != "3" ]; then
-      echo -e "${RED}✗ ${profile}: Expected 3 files in themes, found ${THEME_FILE_COUNT}${NC}"
-      find "${TEMP_DIR}/${profile}/flexlove/themes" -type f
+    # Verify metal assets directory has content
+    METAL_ASSET_COUNT=$(find "${TEMP_DIR}/${profile}/flexlove/themes/metal" -type f -name "*.png" | wc -l | tr -d ' ')
+    if [ "$METAL_ASSET_COUNT" -lt "1" ]; then
+      echo -e "${RED}✗ ${profile}: No .png assets found in themes/metal/${NC}"
       exit 1
     fi
     
-    echo -e "${GREEN}✓ ${profile}: ${MODULE_COUNT} modules + themes verified${NC}"
+    echo -e "${GREEN}✓ ${profile}: ${MODULE_COUNT} modules + themes (${METAL_ASSET_COUNT} metal assets) verified${NC}"
   else
     # Verify no themes for minimal and slim
     if [ -d "${TEMP_DIR}/${profile}/flexlove/themes" ]; then

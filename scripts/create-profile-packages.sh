@@ -180,9 +180,14 @@ EOF
       cp "themes/README.md" "$BUILD_DIR/themes/"
     fi
 
-    # Copy theme files as .example.lua
+    # Copy metal theme as-is
     if [ -f "themes/metal.lua" ]; then
-      cp "themes/metal.lua" "$BUILD_DIR/themes/metal.example.lua"
+      cp "themes/metal.lua" "$BUILD_DIR/themes/metal.lua"
+    fi
+    if [ -d "themes/metal" ]; then
+      cp -r "themes/metal" "$BUILD_DIR/themes/metal"
+      # Remove .DS_Store files from copied assets
+      find "$BUILD_DIR/themes/metal" -name ".DS_Store" -delete 2>/dev/null || true
     fi
     if [ -f "themes/space.lua" ]; then
       cp "themes/space.lua" "$BUILD_DIR/themes/space.example.lua"

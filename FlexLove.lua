@@ -1353,6 +1353,58 @@ function flexlove.getTouchOwner(touchId)
   return flexlove._touchOwners[tostring(touchId)]
 end
 
+--- Retrieve an element by its ID from the UI tree
+--- Works in both immediate and retained modes; searches all known elements including top-level and nested children
+---@param id string The element ID to search for
+---@return Element|nil element The found element, or nil if not found
+function flexlove.getById(id)
+  if not id or id == "" then
+    return nil
+  end
+
+  local function findElementById(element, targetId)
+    if element.id == targetId then
+      return element
+    end
+
+    for _, child in ipairs(element.children) do
+      local result = findElementById(child, targetId)
+      if result then
+        return result
+      end
+    end
+
+    return nil
+  end
+
+  for _, win in ipairs(flexlove.topElements) do
+    local result = findElementById(win, id)
+    if result then
+      return result
+    end
+  end
+
+  if flexlove._currentFrameElements then
+    for _, element in ipairs(flexlove._currentFrameElements) do
+      local result = findElementById(element, id)
+      if result then
+        return result
+      end
+    end
+  end
+
+  if Context._zIndexOrderedElements then
+    for _, element in ipairs(Context._zIndexOrderedElements) do
+      local result = findElementById(element, id)
+      if result then
+        return result
+      end
+    end
+  end
+
+  return nil
+end
+
 --- Clean up all UI elements and reset FlexLove to initial state when changing scenes or shutting down
 --- Use this to prevent memory leaks when transitioning between game states or menus
 function flexlove.destroy()

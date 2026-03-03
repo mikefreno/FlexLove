@@ -4053,6 +4053,15 @@ function Element:setProperty(property, value)
     return
   end
 
+  -- Handle themeComponent specially - need to update renderer too
+  if property == "themeComponent" then
+    self.themeComponent = value
+    if self._renderer then
+      self._renderer.themeComponent = value
+    end
+    return
+  end
+
   -- Don't transition if value is the same
   if self[property] == value then
     return

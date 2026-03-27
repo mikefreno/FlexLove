@@ -4249,4 +4249,129 @@ function Element:_cleanup()
   self.onGesture = nil
 end
 
+-- ====================
+-- Keyboard Navigation
+-- ====================
+
+--- Check if this element can receive keyboard focus
+---@return boolean
+function Element:isFocusable()
+  if self.disabled then
+    return false
+  end
+
+  -- Editable elements are always focusable
+  if self.editable then
+    return true
+  end
+
+  -- Elements with onEvent handlers are focusable
+  if self.onEvent then
+    return true
+  end
+
+  -- Themed components that are interactive
+  if self.themeComponent then
+    return true
+  end
+
+  -- Touch-enabled interactive elements
+  if self.touchEnabled and (self.onTouchEvent or self.onGesture) then
+    return true
+  end
+
+  return false
+end
+
+--- Get all focusable children in tab order (depth-first, left-to-right)
+---@return Element[]
+function Element:getFocusableChildren()
+  local focusable = {}
+
+  local function collectFocusable(elem)
+    for _, child in ipairs(elem.children) do
+      -- Check self first
+      if child:isFocusable() then
+        table.insert(focusable, child)
+      end
+
+      -- Then recurse (depth-first)
+      collectFocusable(child)
+    end
+  end
+
+  collectFocusable(self)
+  return focusable
+end
+
+--- Get next focusable element in sequence
+---@param container Element The container element
+---@param currentElement Element? Current focused element
+---@param wrap boolean? Whether to wrap around
+---@return Element?
+function Element.getNextFocusable(container, currentElement, wrap)
+  local focusable = container:getFocusableChildren()
+  if #focusable == 0 then
+    return nil
+  end
+
+  -- Find current index
+  local currentIndex = 0
+  if currentElement then
+    for i, elem in ipairs(focusable) do
+      if elem == currentElement then
+        currentIndex = i
+        break
+      end
+    end
+  end
+
+  -- Find next
+  local nextIndex = currentIndex + 1
+  if nextIndex > #focusable then
+    if wrap then
+      nextIndex = 1
+    else
+      return nil
+    end
+  end
+
+  return focusable[nextIndex]
+end
+
+--- Get previous focusable element in sequence
+---@param container Element The container element
+---@param currentElement Element? Current focused element
+---@param wrap boolean? Whether to wrap around
+---@return Element?
+function Element.getPreviousFocusable(container, currentElement, wrap)
+  local focusable = container:getFocusableChildren()
+  if #focusable == 0 then
+    return nil
+  end
+
+  -- Find current index
+  local currentIndex = #focusable + 1
+  if currentElement then
+    for i, elem in ipairs(focusable) do
+      if elem == currentElement then
+        currentIndex = i
+        break
+      end
+    end
+  end
+
+  -- Find previous
+  local prevIndex = currentIndex - 1
+  if prevIndex < 1 then
+    if wrap then
+      prevIndex = #focusable
+    else
+      return nil
+    end
+  end
+
+  return focusable[prevIndex]
+end
+
 return Element

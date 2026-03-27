@@ -599,10 +599,7 @@ function Element.new(props)
       end
     else
       -- Store as table only if non-zero values exist
-      local hasNonZero = props.cornerRadius.topLeft
-        or props.cornerRadius.topRight
-        or props.cornerRadius.bottomLeft
-        or props.cornerRadius.bottomRight
+      local hasNonZero = props.cornerRadius.topLeft or props.cornerRadius.topRight or props.cornerRadius.bottomLeft or props.cornerRadius.bottomRight
       if hasNonZero then
         self.cornerRadius = {
           topLeft = props.cornerRadius.topLeft or 0,
@@ -643,8 +640,7 @@ function Element.new(props)
 
   -- Validate objectFit
   if props.objectFit then
-    local validObjectFit =
-      { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
+    local validObjectFit = { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
     Element._utils.validateEnum(props.objectFit, validObjectFit, "objectFit")
   end
   self.objectFit = props.objectFit or "fill"
@@ -1542,10 +1538,7 @@ function Element.new(props)
     else
       -- Default: children in flex/grid containers participate in parent's layout
       -- children in relative/absolute containers default to relative
-      if
-        self.parent.positioning == Element._utils.enums.Positioning.FLEX
-        or self.parent.positioning == Element._utils.enums.Positioning.GRID
-      then
+      if self.parent.positioning == Element._utils.enums.Positioning.FLEX or self.parent.positioning == Element._utils.enums.Positioning.GRID then
         self.positioning = Element._utils.enums.Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
         self._explicitlyAbsolute = false -- Participate in parent's layout
       else
@@ -2056,12 +2049,19 @@ function Element.new(props)
     local x = c * (1 - math.abs((h / 60) % 2 - 1))
     local m = l - c / 2
     local r, g, b
-    if h < 60 then r, g, b = c, x, 0
-    elseif h < 120 then r, g, b = x, c, 0
-    elseif h < 180 then r, g, b = 0, c, x
-    elseif h < 240 then r, g, b = 0, x, c
-    elseif h < 300 then r, g, b = x, 0, c
-    else r, g, b = c, 0, x end
+    if h < 60 then
+      r, g, b = c, x, 0
+    elseif h < 120 then
+      r, g, b = x, c, 0
+    elseif h < 180 then
+      r, g, b = 0, c, x
+    elseif h < 240 then
+      r, g, b = 0, x, c
+    elseif h < 300 then
+      r, g, b = x, 0, c
+    else
+      r, g, b = c, 0, x
+    end
     return r + m, g + m, b + m
   end
   local dr, dg, db = hslToRgb(hue)
@@ -2382,8 +2382,7 @@ function Element:getAvailableContentWidth()
     -- Check if the element is using the scaled 9-patch contentPadding as its padding
     -- Allow small floating point differences (within 0.1 pixels)
     local usingContentPaddingAsPadding = (
-      math.abs(self.padding.left - scaledContentPadding.left) < 0.1
-      and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
+      math.abs(self.padding.left - scaledContentPadding.left) < 0.1 and math.abs(self.padding.right - scaledContentPadding.right) < 0.1
     )
 
     if not usingContentPaddingAsPadding then
@@ -2407,8 +2406,7 @@ function Element:getAvailableContentHeight()
     -- Check if the element is using the scaled 9-patch contentPadding as its padding
     -- Allow small floating point differences (within 0.1 pixels)
     local usingContentPaddingAsPadding = (
-      math.abs(self.padding.top - scaledContentPadding.top) < 0.1
-      and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
+      math.abs(self.padding.top - scaledContentPadding.top) < 0.1 and math.abs(self.padding.bottom - scaledContentPadding.bottom) < 0.1
     )
 
     if not usingContentPaddingAsPadding then
@@ -2431,10 +2429,7 @@ function Element:addChild(child)
   -- If child was created without explicit positioning, inherit from parent
   if child._originalPositioning == nil then
     -- No explicit positioning was set during construction
-    if
-      self.positioning == Element._utils.enums.Positioning.FLEX
-      or self.positioning == Element._utils.enums.Positioning.GRID
-    then
+    if self.positioning == Element._utils.enums.Positioning.FLEX or self.positioning == Element._utils.enums.Positioning.GRID then
       child.positioning = Element._utils.enums.Positioning.ABSOLUTE -- They are positioned BY flex/grid, not AS flex/grid
       child._explicitlyAbsolute = false -- Participate in parent's layout
     else
@@ -2648,8 +2643,7 @@ function Element:draw(backdropCanvas)
   if self.animation then
     local anim = self.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor =
-        Element._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor = Element._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
@@ -2718,8 +2712,7 @@ function Element:draw(backdropCanvas)
     -- Priority: axis-specific (overflowX/Y) > general (overflow) > default (hidden)
     local overflowX = self.overflowX or self.overflow
     local overflowY = self.overflowY or self.overflow
-    local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible")
-      and (overflowX ~= nil or overflowY ~= nil)
+    local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible") and (overflowX ~= nil or overflowY ~= nil)
 
     -- Apply scroll offset if overflow is not visible
     local hasScrollOffset = needsOverflowClipping and (self._scrollX ~= 0 or self._scrollY ~= 0)
@@ -2729,8 +2722,7 @@ function Element:draw(backdropCanvas)
       -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      local stencilFunc =
-        Element._RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+      local stencilFunc = Element._RoundedRect.stencilFunction(self.x, self.y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
 
       -- Temporarily disable canvas for stencil operation (LÖVE 11.5 workaround)
       local currentCanvas = love.graphics.getCanvas()
@@ -2791,15 +2783,7 @@ function Element:draw(backdropCanvas)
   if self.contentBlur and self.contentBlur.radius > 0 and #sortedChildren > 0 then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
-      Element._Blur.applyToRegion(
-        blurInstance,
-        self.contentBlur.radius,
-        self.x,
-        self.y,
-        borderBoxWidth,
-        borderBoxHeight,
-        drawChildren
-      )
+      Element._Blur.applyToRegion(blurInstance, self.contentBlur.radius, self.x, self.y, borderBoxWidth, borderBoxHeight, drawChildren)
     else
       drawChildren()
     end
@@ -2989,12 +2973,7 @@ function Element:update(dt)
   -- Check if we should handle scrollbar press for elements with overflow
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
-  local hasScrollableOverflow = (
-    overflowX == "scroll"
-    or overflowX == "auto"
-    or overflowY == "scroll"
-    or overflowY == "auto"
-  )
+  local hasScrollableOverflow = (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
 
   if hasScrollableOverflow and not self._scrollbarDragging then
     -- Check for scrollbar press on left mouse button
@@ -3086,8 +3065,7 @@ function Element:update(dt)
       local anyPressed = self._eventHandler:isAnyButtonPressed()
 
       -- Update theme state via ThemeManager
-      local newThemeState =
-        self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
+      local newThemeState = self._themeManager:updateState(isHovering and isActiveElement, anyPressed, self._focused, self.disabled)
 
       if self._stateId and self._elementMode == "immediate" then
         local hover = newThemeState == "hover"
@@ -3197,10 +3175,8 @@ function Element:resize(newGameWidth, newGameHeight)
       self.textSize = (value / 100) * self.width
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize
-        and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize
-        and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -3215,10 +3191,8 @@ function Element:resize(newGameWidth, newGameHeight)
       self.textSize = (value / 100) * self.height
 
       -- Apply min/max constraints
-      local minSize = self.minTextSize
-        and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-      local maxSize = self.maxTextSize
-        and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+      local minSize = self.minTextSize and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+      local maxSize = self.maxTextSize and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
       if minSize and self.textSize < minSize then
         self.textSize = minSize
       end
@@ -4053,17 +4027,16 @@ function Element:setProperty(property, value)
     return
   end
 
-  -- Handle themeComponent specially - need to update renderer too
+  -- Handle themeComponent - sync with ThemeManager and Renderer
   if property == "themeComponent" then
     self.themeComponent = value
-    if self._renderer then
-      self._renderer.themeComponent = value
-    end
+    self:_syncThemeAndRenderer(property, value)
     return
   end
 
   -- Don't transition if value is the same
   if self[property] == value then
+    print(property, " read as the same: ", value)
     return
   end
 
@@ -4093,6 +4066,53 @@ function Element:setProperty(property, value)
   -- Invalidate layout if this property affects layout
   if layoutProperties[property] then
     self:invalidateLayout()
+  end
+
+  -- Sync ThemeManager and Renderer for properties that affect rendering
+  self:_syncThemeAndRenderer(property, value)
+end
+
+---Sync ThemeManager and Renderer when properties change that affect rendering
+---@param property string The property name that changed
+---@param value any The new value
+function Element:_syncThemeAndRenderer(property, value)
+  if property == "disabled" then
+    if self._themeManager then
+      self._themeManager.disabled = value
+    end
+    if self._renderer then
+      self._renderer:setThemeState(value and "disabled" or "normal")
+    end
+  elseif property == "active" then
+    if self._themeManager then
+      self._themeManager.active = value
+    end
+    if self._renderer then
+      self._renderer:setThemeState(value and "active" or "normal")
+    end
+  elseif property == "themeComponent" then
+    if self._themeManager then
+      self._themeManager.themeComponent = value
+    end
+    if self._renderer then
+      self._renderer.themeComponent = value
+    end
+  elseif property == "opacity" then
+    if self._renderer then
+      self._renderer.opacity = value
+    end
+  elseif property == "backgroundColor" then
+    if self._renderer then
+      self._renderer.backgroundColor = value
+    end
+  elseif property == "borderColor" then
+    if self._renderer then
+      self._renderer.borderColor = value
+    end
+  elseif property == "cornerRadius" then
+    if self._renderer then
+      self._renderer.cornerRadius = value
+    end
   end
 end
 

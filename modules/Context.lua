@@ -21,6 +21,13 @@ local Context = {
   -- Focus management guard
   _settingFocus = false,
 
+  -- Navigation state
+  _navigationContext = {
+    lastFocusedElement = nil,     -- For returning from modals
+    navigationMode = "sequential", -- "sequential" or "directional"
+    containerElement = nil,        -- Current navigation container
+  },
+
   initialized = false,
 
   -- Debug draw overlay
@@ -233,6 +240,46 @@ end
 --- Clear focus from any element
 function Context.clearFocus()
   Context.setFocused(nil)
+end
+
+-- ====================
+-- Navigation Context
+-- ====================
+
+--- Get the navigation context
+---@return table
+function Context.getNavigationContext()
+  return Context._navigationContext
+end
+
+--- Push current focus onto stack (for modals/dialogs)
+---@param element Element?
+function Context.pushFocusStack(element)
+  Context._navigationContext.lastFocusedElement = Context._focusedElement
+  if element then
+    Context.setFocused(element)
+  end
+end
+
+--- Pop focus from stack (return from modal)
+---@return Element?
+function Context.popFocusStack()
+  local previous = Context._navigationContext.lastFocusedElement
+  Context._navigationContext.lastFocusedElement = nil
+  Context.setFocused(previous)
+  return previous
+end
+
+--- Set navigation container (scope for tab navigation)
+---@param element Element?
+function Context.setNavigationContainer(element)
+  Context._navigationContext.containerElement = element
+end
+
+--- Get navigation container
+---@return Element?
+function Context.getNavigationContainer()
+  return Context._navigationContext.containerElement
 end
 
 return Context

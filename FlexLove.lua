@@ -46,6 +46,8 @@ local FFI = req("FFI")
 local Blur = safeReq("Blur", true)
 ---@type Performance
 local Performance = safeReq("Performance", true)
+---@type KeyboardNavigation
+local KeyboardNavigation = safeReq("KeyboardNavigation", true)
 local ImageRenderer = safeReq("ImageRenderer", true)
 local ImageScaler = safeReq("ImageScaler", true)
 local NinePatch = safeReq("NinePatch", true)
@@ -854,14 +856,19 @@ function flexlove.getElementAtPosition(x, y)
 end
 
 --- Update all UI animations, interactions, and state changes each frame
---- Hook this to love.update() to enable hover effects, animations, text cursors, and scrolling
----@param dt number
-function flexlove.update(dt)
-  -- Update Performance module with actual delta time for accurate FPS
-  flexlove._Performance:updateDeltaTime(dt)
+ --- Hook this to love.update() to enable hover effects, animations, text cursors, and scrolling
+ ---@param dt number
+ function flexlove.update(dt)
+   -- Update Performance module with actual delta time for accurate FPS
+   flexlove._Performance:updateDeltaTime(dt)
 
-  -- Garbage collection management
-  flexlove._manageGC()
+   -- Update keyboard navigation (animations, etc.)
+   if KeyboardNavigation then
+     KeyboardNavigation:update(dt)
+   end
+
+   -- Garbage collection management
+   flexlove._manageGC()
 
   local mx, my = love.mouse.getPosition()
   local topElement = flexlove.getElementAtPosition(mx, my)
@@ -988,6 +995,26 @@ function flexlove.keypressed(key, scancode, isrepeat)
   if flexlove._debugDrawKey and key == flexlove._debugDrawKey then
     flexlove._debugDraw = not flexlove._debugDraw
   end
+
+  -- Handle keyboard navigation (if module is available and enabled)
+  if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled then
+    -- Check if we're in text input mode (editable element focused)
+    local focusedElement = Context.getFocused()
+    local isTextInputMode = focusedElement and (focusedElement.editable or focusedElement._textEditor)
+
+    -- Only handle navigation if not in text input mode, or if in text input mode without modifiers
+    local shouldHandleNav = not isTextInputMode or
+      (isTextInputMode and not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") or love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt")))
+
+    if shouldHandleNav then
+      local handled = KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
+      if handled then
+        return -- Navigation handled the key, don't forward to element
+      end
+    end
+  end
+
+  -- Forward to focused element for text input
   local focusedElement = Context.getFocused()
   if focusedElement then
     focusedElement:keypressed(key, scancode, isrepeat)

@@ -48,6 +48,8 @@ local Blur = safeReq("Blur", true)
 local Performance = safeReq("Performance", true)
 ---@type KeyboardNavigation
 local KeyboardNavigation = safeReq("KeyboardNavigation", true)
+---@type FocusIndicator
+local FocusIndicator = safeReq("FocusIndicator", true)
 local ImageRenderer = safeReq("ImageRenderer", true)
 local ImageScaler = safeReq("ImageScaler", true)
 local NinePatch = safeReq("NinePatch", true)
@@ -222,6 +224,58 @@ function flexlove.init(config)
     flexlove._gestureRecognizer = GestureRecognizer.new({}, { InputEvent = InputEvent, utils = utils })
   end
 
+  -- Initialize KeyboardNavigation and FocusIndicator if enabled
+  local keyboardConfig = config.keyboardNavigation
+  if KeyboardNavigation and (keyboardConfig == true or (type(keyboardConfig) == "table" and keyboardConfig.enabled ~= false)) then
+    KeyboardNavigation.init({
+      Context = Context,
+      Element = Element,
+      ErrorHandler = flexlove._ErrorHandler,
+      utils = utils,
+      InputEvent = InputEvent,
+    })
+
+    if FocusIndicator then
+      FocusIndicator.init({ Context = Context, Color = Color })
+      KeyboardNavigation.FocusIndicator = FocusIndicator
+    end
+
+    -- Apply configuration if provided
+    if type(keyboardConfig) == "table" then
+      if keyboardConfig.enabled ~= nil then
+        KeyboardNavigation.config.enabled = keyboardConfig.enabled
+      end
+      if keyboardConfig.directionalNavigation ~= nil then
+        KeyboardNavigation.config.directionalNavigation = keyboardConfig.directionalNavigation
+      end
+      if keyboardConfig.wrapAround ~= nil then
+        KeyboardNavigation.config.wrapAround = keyboardConfig.wrapAround
+      end
+
+      -- Focus indicator config
+      if keyboardConfig.focusIndicator then
+        local fiConfig = keyboardConfig.focusIndicator
+        if fiConfig.enabled ~= nil then
+          FocusIndicator.config.enabled = fiConfig.enabled
+        end
+        if fiConfig.color then
+          FocusIndicator.setColor(
+            fiConfig.color[1] or 0.2,
+            fiConfig.color[2] or 0.6,
+            fiConfig.color[3] or 1.0,
+            fiConfig.color[4] or 0.8
+          )
+        end
+        if fiConfig.lineWidth ~= nil then
+          FocusIndicator.config.lineWidth = fiConfig.lineWidth
+        end
+        if fiConfig.pulseEnabled ~= nil then
+          FocusIndicator.config.pulseEnabled = fiConfig.pulseEnabled
+        end
+      end
+    end
+  end
+
   flexlove._defaultDependencies = {
     Context = Context,
     Theme = Theme,
@@ -324,6 +378,117 @@ function flexlove.init(config)
       local success, err = pcall(item.callback, element)
       if not success then
         flexlove._ErrorHandler:warn("FlexLove", string.format("Failed to execute queued element callback: %s", tostring(err)))
+      end
+    end
+  end
+end
+
+--- Enable keyboard navigation after initialization (for deferred or conditional setup)
+--- Useful when you need to conditionally enable keyboard navigation based on runtime conditions
+--- Automatically initializes KeyboardNavigation and FocusIndicator modules if not already initialized
+---@param config KeyboardNavigationConfig? Optional configuration table
+--- @usage
+--- -- Enable with defaults
+--- FlexLove.enableKeyboardNavigation()
+---
+--- -- Enable with custom configuration
+--- FlexLove.enableKeyboardNavigation({
+---   directionalNavigation = true,
+---   wrapAround = false,
+---   focusIndicator = {
+---     enabled = true,
+---     color = {1, 0.8, 0, 0.8},
+---     lineWidth = 3,
+---   },
+--- })
+function flexlove.enableKeyboardNavigation(config)
+  config = config or {}
+
+  -- Check if already initialized
+  if KeyboardNavigation.config and KeyboardNavigation._deps then
+    -- Already initialized, just apply config if provided
+    if next(config) then
+      if config.enabled ~= nil then
+        KeyboardNavigation.config.enabled = config.enabled
+      end
+      if config.directionalNavigation ~= nil then
+        KeyboardNavigation.config.directionalNavigation = config.directionalNavigation
+      end
+      if config.wrapAround ~= nil then
+        KeyboardNavigation.config.wrapAround = config.wrapAround
+      end
+      if config.focusIndicator then
+        if FocusIndicator then
+          local fiConfig = config.focusIndicator
+          if fiConfig.enabled ~= nil then
+            FocusIndicator.config.enabled = fiConfig.enabled
+          end
+          if fiConfig.color then
+            FocusIndicator.setColor(
+              fiConfig.color[1] or 0.2,
+              fiConfig.color[2] or 0.6,
+              fiConfig.color[3] or 1.0,
+              fiConfig.color[4] or 0.8
+            )
+          end
+          if fiConfig.lineWidth ~= nil then
+            FocusIndicator.config.lineWidth = fiConfig.lineWidth
+          end
+          if fiConfig.pulseEnabled ~= nil then
+            FocusIndicator.config.pulseEnabled = fiConfig.pulseEnabled
+          end
+        end
+      end
+    end
+    return
+  end
+
+  -- Initialize KeyboardNavigation
+  KeyboardNavigation.init({
+    Context = Context,
+    Element = Element,
+    ErrorHandler = flexlove._ErrorHandler,
+    utils = utils,
+    InputEvent = InputEvent,
+  })
+
+  -- Initialize FocusIndicator if available
+  if FocusIndicator then
+    FocusIndicator.init({ Context = Context, Color = Color })
+    KeyboardNavigation.FocusIndicator = FocusIndicator
+  end
+
+  -- Apply configuration
+  if next(config) then
+    if config.enabled ~= nil then
+      KeyboardNavigation.config.enabled = config.enabled
+    end
+    if config.directionalNavigation ~= nil then
+      KeyboardNavigation.config.directionalNavigation = config.directionalNavigation
+    end
+    if config.wrapAround ~= nil then
+      KeyboardNavigation.config.wrapAround = config.wrapAround
+    end
+
+    -- Focus indicator config
+    if config.focusIndicator then
+      local fiConfig = config.focusIndicator
+      if fiConfig.enabled ~= nil then
+        FocusIndicator.config.enabled = fiConfig.enabled
+      end
+      if fiConfig.color then
+        FocusIndicator.setColor(
+          fiConfig.color[1] or 0.2,
+          fiConfig.color[2] or 0.6,
+          fiConfig.color[3] or 1.0,
+          fiConfig.color[4] or 0.8
+        )
+      end
+      if fiConfig.lineWidth ~= nil then
+        FocusIndicator.config.lineWidth = fiConfig.lineWidth
+      end
+      if fiConfig.pulseEnabled ~= nil then
+        FocusIndicator.config.pulseEnabled = fiConfig.pulseEnabled
       end
     end
   end

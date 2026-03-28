@@ -255,6 +255,9 @@ function flexlove.init(config)
       if keyboardConfig.wrapAround ~= nil then
         KeyboardNavigation.config.wrapAround = keyboardConfig.wrapAround
       end
+      if keyboardConfig.dropFocusOnSelection ~= nil then
+        KeyboardNavigation.config.dropFocusOnSelection = keyboardConfig.dropFocusOnSelection
+      end
 
       -- Focus indicator config
       if keyboardConfig.focusIndicator then
@@ -413,8 +416,7 @@ end
 --- Enable keyboard navigation after initialization (for deferred or conditional setup)
 --- Useful when you need to conditionally enable keyboard navigation based on runtime conditions
 --- Automatically initializes KeyboardNavigation and FocusIndicator modules if not already initialized
----@param config KeyboardNavigationConfig? Optional configuration table
---- @usage
+---@usage
 --- -- Enable with defaults
 --- FlexLove.enableKeyboardNavigation()
 ---
@@ -422,12 +424,15 @@ end
 --- FlexLove.enableKeyboardNavigation({
 ---   directionalNavigation = true,
 ---   wrapAround = false,
+---   dropFocusOnSelection = false,
 ---   focusIndicator = {
 ---     enabled = true,
 ---     color = {1, 0.8, 0, 0.8},
 ---     lineWidth = 3,
+---     draw = function(element, bounds, style) end,
 ---   },
 --- })
+---@param config KeyboardNavigationConfig
 function flexlove.enableKeyboardNavigation(config)
   config = config or {}
 
@@ -443,6 +448,9 @@ function flexlove.enableKeyboardNavigation(config)
       end
       if config.wrapAround ~= nil then
         KeyboardNavigation.config.wrapAround = config.wrapAround
+      end
+      if config.dropFocusOnSelection ~= nil then
+        KeyboardNavigation.config.dropFocusOnSelection = config.dropFocusOnSelection
       end
       if config.focusIndicator then
         if FocusIndicator then

@@ -5,19 +5,31 @@ local function req(name)
   return require(modulePath .. name)
 end
 
---- FocusIndicator Module
---- Renders a visual indicator around the focused element
+---@class FocusIndicator
+---@field config FocusIndicatorConfig
 local FocusIndicator = {}
 
+---@class FocusIndicatorConfig
+---@field enabled boolean Whether the focus indicator is rendered
+---@field draw function|nil Custom draw function: function(element, bounds, style)
+---@field color number[] RGBA color values (0-1 range)
+---@field lineWidth number Stroke width in pixels
+---@field inset number Offset from element bounds (negative extends beyond)
+---@field borderRadius number Corner radius for rounded rectangle
+---@field animationDuration number Seconds for focus entrance animation
+---@field pulseEnabled boolean Enable pulsing animation
+---@field pulseDuration number Seconds per pulse cycle
+---@field pulseScaleMin number Minimum scale during pulse
+---@field pulseScaleMax number Maximum scale during pulse
+
 --- Configuration
+---@type FocusIndicatorConfig
 FocusIndicator.config = {
   enabled = true,
 
-  -- Custom draw function: function(element, bounds, style)
-  -- element: the focused Element (may be nil in immediate mode)
-  -- bounds: {x, y, width, height} of the indicator
-  -- style: {color, lineWidth, borderRadius, scale, opacity}
-  -- Return true to skip default drawing, or nil/false to use default
+  --- Custom draw function to override default rendering
+  ---@type function|nil
+  --- Called with: element, bounds, style - return true to skip default drawing
   draw = nil,
 
   -- Appearance
@@ -42,15 +54,17 @@ FocusIndicator._hidden = true
 FocusIndicator._deps = nil
 
 --- Initialize FocusIndicator module
----@param deps table {Context, Color}
+---@param deps table Dependencies table containing Context and Color modules
+---@field deps.Context table Context module for getting focused element
+---@field deps.Color table Color module for color manipulation
 function FocusIndicator.init(deps)
   FocusIndicator._deps = deps
   FocusIndicator._Context = deps.Context
   FocusIndicator._Color = deps.Color
 end
 
---- Update animation state
----@param dt number Delta time in seconds
+--- Update animation state for entrance and pulse effects
+---@param dt number Delta time in seconds since last frame
 function FocusIndicator:update(dt)
   if not FocusIndicator.config.enabled then
     return
@@ -67,8 +81,8 @@ function FocusIndicator:update(dt)
   end
 end
 
---- Set the focused element
----@param element Element?
+--- Set the focused element to render indicator around
+---@param element Element? The element to show focus indicator around, or nil to hide
 function FocusIndicator.setFocused(element)
   FocusIndicator._focusedElement = element
   FocusIndicator._hidden = element == nil
@@ -78,8 +92,9 @@ function FocusIndicator.setFocused(element)
   end
 end
 
---- Get the current scale factor (for animation)
----@return number
+--- Get the current scale factor for animations
+--- Combines entrance scale (0.8 to 1.0) with optional pulse scale
+---@return number Scale factor (typically 0.8-1.05 range)
 function FocusIndicator:getScale()
   local scale = 1
 
@@ -99,15 +114,17 @@ function FocusIndicator:getScale()
   return scale
 end
 
---- Get the current opacity (for animation)
----@return number
+--- Get the current opacity for the indicator
+--- Applies entrance animation fade-in to the configured alpha
+---@return number Alpha value (0-1 range)
 function FocusIndicator:getOpacity()
   -- Fade in on focus
   return FocusIndicator.config.color[4] * FocusIndicator._animationProgress
 end
 
---- Draw the focus indicator
---- Should be called from within love.draw() or a custom draw function
+--- Draw the focus indicator around the focused element
+--- Renders a rounded rectangle border, or calls custom draw function if configured
+--- Should be called from within love.draw() after all elements are drawn
 function FocusIndicator:draw()
   if not FocusIndicator.config.enabled then
     return
@@ -208,29 +225,29 @@ function FocusIndicator:draw()
   love.graphics.setLineWidth(prevLineWidth)
 end
 
---- Enable/disable focus indicator
----@param enabled boolean
+--- Enable or disable the focus indicator rendering
+---@param enabled boolean True to render indicator, false to hide it
 function FocusIndicator.setEnabled(enabled)
   FocusIndicator.config.enabled = enabled
 end
 
---- Set focus indicator color
----@param r number Red component (0-1)
----@param g number Green component (0-1)
----@param b number Blue component (0-1)
----@param a number Alpha component (0-1, optional)
+--- Set the indicator color
+---@param r number Red component (0-1 range)
+---@param g number Green component (0-1 range)
+---@param b number Blue component (0-1 range)
+---@param a number|nil Alpha component (0-1 range), defaults to current alpha if omitted
 function FocusIndicator.setColor(r, g, b, a)
   FocusIndicator.config.color = { r, g, b, a or FocusIndicator.config.color[4] }
 end
 
---- Set focus indicator line width
----@param width number
+--- Set the stroke width for the indicator border
+---@param width number Line width in pixels
 function FocusIndicator.setLineWidth(width)
   FocusIndicator.config.lineWidth = width
 end
 
---- Enable/disable pulse animation
----@param enabled boolean
+--- Enable or disable the pulsing animation
+---@param enabled boolean True to enable pulse effect, false to disable
 function FocusIndicator.setPulseEnabled(enabled)
   FocusIndicator.config.pulseEnabled = enabled
 end

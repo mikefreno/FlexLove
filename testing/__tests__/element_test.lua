@@ -2241,6 +2241,169 @@ function TestElementTheme:test_getAvailableContentHeight_with_padding()
   luaunit.assertEquals(availableHeight, 80) -- 100 - 10*2
 end
 
+function TestElementTheme:test_children_shift_with_pressed_theme_state()
+  local atlas = love.graphics.newImage(love.image.newImageData(100, 100))
+  local previousTheme = FlexLove.Theme.getActive()
+  local preloadKey = "modules.themes.state_shift_test"
+
+  local definition = {
+    name = "state_shift_test",
+    components = {
+      button = {
+        atlas = atlas,
+        _ninePatchData = {
+          contentPadding = { left = 10, top = 10, right = 10, bottom = 10 },
+        },
+        states = {
+          pressed = {
+            atlas = atlas,
+            _ninePatchData = {
+              contentPadding = { left = 10, top = 16, right = 10, bottom = 4 },
+            },
+          },
+        },
+      },
+    },
+  }
+
+  package.preload[preloadKey] = function()
+    return definition
+  end
+
+  local theme = FlexLove.Theme.load("state_shift_test")
+
+  FlexLove.Theme.setActive(theme)
+
+  local parent = FlexLove.new({
+    id = "state_shift_parent",
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 60,
+    theme = "state_shift_test",
+    themeComponent = "button",
+  })
+
+  local child = FlexLove.new({
+    id = "state_shift_child",
+    parent = parent,
+    width = 20,
+    height = 20,
+  })
+
+  parent._themeManager:setState("pressed")
+  if parent._renderer then
+    parent._renderer:setThemeState("pressed")
+  end
+
+  local childDrawCalls = 0
+  child.draw = function()
+    childDrawCalls = childDrawCalls + 1
+  end
+
+  local borderBoxWidth = parent._borderBoxWidth or (parent.width + parent.padding.left + parent.padding.right)
+  local borderBoxHeight = parent._borderBoxHeight or (parent.height + parent.padding.top + parent.padding.bottom)
+  local normalPadding = parent._themeManager:getScaledContentPaddingForState("normal", borderBoxWidth, borderBoxHeight)
+  local pressedPadding = parent._themeManager:getScaledContentPaddingForState("pressed", borderBoxWidth, borderBoxHeight)
+  local expectedShiftX = pressedPadding.left - normalPadding.left
+  local expectedShiftY = pressedPadding.top - normalPadding.top
+
+  local translateCalls = {}
+  local originalTranslate = love.graphics.translate
+  love.graphics.translate = function(x, y)
+    table.insert(translateCalls, { x = x, y = y })
+  end
+
+  parent:draw()
+
+  love.graphics.translate = originalTranslate
+  package.preload[preloadKey] = nil
+  if previousTheme then
+    FlexLove.Theme.setActive(previousTheme)
+  end
+
+  luaunit.assertEquals(childDrawCalls, 1)
+
+  local foundExpectedShift = false
+  for _, call in ipairs(translateCalls) do
+    if math.abs(call.x - expectedShiftX) < 0.001 and math.abs(call.y - expectedShiftY) < 0.001 then
+      foundExpectedShift = true
+      break
+    end
+  end
+
+  luaunit.assertTrue(foundExpectedShift)
+end
+
+function TestElementTheme:test_children_shift_uses_corner_scaling_not_full_stretch()
+  local atlas = love.graphics.newImage(love.image.newImageData(100, 100))
+  local previousTheme = FlexLove.Theme.getActive()
+  local preloadKey = "modules.themes.state_shift_corner_scale_test"
+
+  local definition = {
+    name = "state_shift_corner_scale_test",
+    components = {
+      button = {
+        atlas = atlas,
+        insets = { left = 10, top = 10, right = 10, bottom = 10 },
+        _ninePatchData = {
+          contentPadding = { left = 10, top = 5, right = 10, bottom = 5 },
+        },
+        states = {
+          pressed = {
+            atlas = atlas,
+            insets = { left = 10, top = 10, right = 10, bottom = 10 },
+            _ninePatchData = {
+              contentPadding = { left = 10, top = 6, right = 10, bottom = 4 },
+            },
+          },
+        },
+      },
+    },
+  }
+
+  package.preload[preloadKey] = function()
+    return definition
+  end
+
+  local theme = FlexLove.Theme.load("state_shift_corner_scale_test")
+  FlexLove.Theme.setActive(theme)
+
+  local parent = FlexLove.new({
+    id = "state_shift_corner_scale_parent",
+    x = 0,
+    y = 0,
+    width = 400,
+    height = 400,
+    theme = "state_shift_corner_scale_test",
+    themeComponent = "button",
+    scaleCorners = 2,
+  })
+
+  local child = FlexLove.new({
+    id = "state_shift_corner_scale_child",
+    parent = parent,
+    width = 20,
+    height = 20,
+  })
+
+  parent._themeManager:setState("pressed")
+  if parent._renderer then
+    parent._renderer:setThemeState("pressed")
+  end
+
+  local offsetX, offsetY = parent:getContentStateOffset()
+
+  child:destroy()
+  package.preload[preloadKey] = nil
+  if previousTheme then
+    FlexLove.Theme.setActive(previousTheme)
+  end
+
+  luaunit.assertTrue(math.abs(offsetX) < 0.001)
+  luaunit.assertTrue(math.abs(offsetY - 2) < 0.001)
+end
+
 -- ============================================================================
 -- Element Convenience API Tests
 -- ============================================================================

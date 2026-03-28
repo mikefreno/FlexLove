@@ -38,6 +38,7 @@ local AnimationProps = {}
 ---@field x number|string|CalcObject? -- X coordinate: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: 0)
 ---@field y number|string|CalcObject? -- Y coordinate: number (px), string ("50%", "10vh"), or CalcObject from FlexLove.calc() (default: 0)
 ---@field z number? -- Z-index for layering (default: 0)
+---@field tabIndex number? -- Tab navigation order: >0 (explicit order, visited first), 0 or nil (natural document order), -1 (excluded from keyboard navigation)
 ---@field width number|string|CalcObject? -- Width of the element: number (px), string ("50%", "10vw"), or CalcObject from FlexLove.calc() (default: calculated automatically)
 ---@field height number|string|CalcObject? -- Height of the element: number (px), string ("50%", "10vh"), or CalcObject from FlexLove.calc() (default: calculated automatically)
 ---@field top number|string|CalcObject? -- Offset from top edge: number (px), string ("50%", "10vh"), or CalcObject (CSS-style positioning)
@@ -154,7 +155,156 @@ local AnimationProps = {}
 ---@field _scrollX number? -- Internal: scroll X position (restored in immediate mode)
 ---@field _scrollY number? -- Internal: scroll Y position (restored in immediate mode)
 ---@field userdata table? -- User-defined data storage for custom properties
+---@field ariaRole ARIA? -- ARIA role for screen readers (e.g., "button", "link", "dialog")
+---@field ariaLabel string? -- Accessible name for screen readers (overrides text content)
+---@field ariaDescribedBy string? -- ID of element that describes this element
+---@field ariaExpanded boolean? -- Whether element is expanded/collapsed (for containers)
+---@field ariaPressed boolean? -- Whether element is pressed (for toggle buttons)
+---@field ariaChecked boolean? -- Whether element is checked (for checkboxes/radios)
+---@field ariaDisabled boolean? -- Whether element is disabled (overrides disabled property)
+---@field ariaBusy boolean? -- Whether element is processing (for live regions)
+---@field ariaLive "off"|"polite"|"assertive"? -- Live region priority for announcements
 local ElementProps = {}
+
+--=====================================--
+-- Enum Types
+--=====================================--
+---@enum Positioning
+local Positioning = {
+  ABSOLUTE = "absolute",
+  RELATIVE = "relative",
+  FLEX = "flex",
+  GRID = "grid",
+}
+
+---@enum FlexDirection
+local FlexDirection = {
+  HORIZONTAL = "horizontal",
+  VERTICAL = "vertical",
+}
+
+---@enum JustifyContent
+local JustifyContent = {
+  FLEX_START = "flex-start",
+  FLEX_END = "flex-end",
+  CENTER = "center",
+  SPACE_BETWEEN = "space-between",
+  SPACE_AROUND = "space-around",
+  SPACE_EVENLY = "space-evenly",
+}
+
+---@enum AlignItems
+local AlignItems = {
+  STRETCH = "stretch",
+  FLEX_START = "flex-start",
+  FLEX_END = "flex-end",
+  CENTER = "center",
+  BASELINE = "baseline",
+}
+
+---@enum AlignContent
+local AlignContent = {
+  STRETCH = "stretch",
+  FLEX_START = "flex-start",
+  FLEX_END = "flex-end",
+  CENTER = "center",
+  SPACE_BETWEEN = "space-between",
+  SPACE_AROUND = "space-around",
+}
+
+---@enum FlexWrap
+local FlexWrap = {
+  NOWRAP = "nowrap",
+  WRAP = "wrap",
+  WRAP_REVERSE = "wrap-reverse",
+}
+
+---@enum JustifySelf
+local JustifySelf = {
+  AUTO = "auto",
+  FLEX_START = "flex-start",
+  FLEX_END = "flex-end",
+  CENTER = "center",
+  STRETCH = "stretch",
+}
+
+---@enum AlignSelf
+local AlignSelf = {
+  AUTO = "auto",
+  FLEX_START = "flex-start",
+  FLEX_END = "flex-end",
+  CENTER = "center",
+  STRETCH = "stretch",
+  BASELINE = "baseline",
+}
+
+---@enum TextAlign
+local TextAlign = {
+  START = "start",
+  CENTER = "center",
+  END = "end",
+  LEFT = "left",
+  RIGHT = "right",
+}
+
+---@enum ARIA
+local ARIA = {
+  BUTTON = "button",
+  LINK = "link",
+  Dialog = "dialog",
+  MENU = "menu",
+  MENUBAR = "menubar",
+  MENUITEM = "menuitem",
+  LISTBOX = "listbox",
+  OPTION = "option",
+  COMBOBOX = "combobox",
+  GRID = "grid",
+  TREE = "tree",
+  TREEGRID = "treegrid",
+  TABLIST = "tablist",
+  TAB = "tab",
+  TABPANEL = "tabpanel",
+  SLIDER = "slider",
+  PROGRESSBAR = "progressbar",
+  SCROLLBAR = "scrollbar",
+  CHECKBOX = "checkbox",
+  RADIO = "radio",
+  SPINBUTTON = "spinbutton",
+  METER = "meter",
+  ALERT = "alert",
+  ALERTDIALOG = "alertdialog",
+  LOG = "log",
+  MARQUEE = "marquee",
+  STATUS = "status",
+  TOOLTIP = "tooltip",
+  FORM = "form",
+  DIALOG = "dialog",
+  SEARCHBOX = "searchbox",
+  SWITCH = "switch",
+  GROUP = "group",
+  SEPARATOR = "separator",
+  REGION = "region",
+  ARTICLE = "article",
+  BANNER = "banner",
+  COMPLEMENTARY = "complementary",
+  CONTENTINFO = "contentinfo",
+  MAIN = "main",
+  NAVIGATION = "navigation",
+  APPLICATION = "application",
+  DEFINITION = "definition",
+  DIRECTORY = "directory",
+  DOCUMENT = "document",
+  FEED = "feed",
+  FIGURE = "figure",
+  HEADING = "heading",
+  IMG = "img",
+  LIST = "list",
+  LISTITEM = "listitem",
+  MARKER = "marker",
+  MATH = "math",
+  NONE = "none",
+  PRESENTATION = "presentation",
+}
 
 ---@class Border
 ---@field top boolean|number -- true sets width to 1px, number sets width to specified pixels (default: 0)

@@ -7,6 +7,7 @@ local Context = {
   scaleFactors = { x = 1.0, y = 1.0 },
   defaultTheme = nil,
   _focusedElement = nil,
+  _focusedElementId = nil, -- Stable id used to rehydrate focus across immediate-mode frames
   _activeEventElement = nil,
   _cachedViewport = { width = 0, height = 0 },
   -- Immediate mode state
@@ -20,12 +21,14 @@ local Context = {
   _zIndexOrderedElements = {}, -- Array of elements sorted by z-index (lowest to highest)
   -- Focus management guard
   _settingFocus = false,
+  -- Hook called whenever focus changes: function(element) or nil
+  _onFocusChanged = nil,
 
   -- Navigation state
   _navigationContext = {
-    lastFocusedElement = nil,     -- For returning from modals
+    lastFocusedElement = nil, -- For returning from modals
     navigationMode = "sequential", -- "sequential" or "directional"
-    containerElement = nil,        -- Current navigation container
+    containerElement = nil, -- Current navigation container
   },
 
   initialized = false,
@@ -220,8 +223,14 @@ function Context.setFocused(element)
     end
   end
 
-  -- Set new focused element
+  -- Set new focused element and persist its id for immediate-mode rehydration
   Context._focusedElement = element
+  Context._focusedElementId = element and (element.id ~= "" and element.id or nil) or nil
+
+  -- Notify any registered focus change hook (e.g. FocusIndicator)
+  if Context._onFocusChanged then
+    Context._onFocusChanged(element)
+  end
 
   -- Focus the new element's text editor if it has one
   if element and element._textEditor then
@@ -231,14 +240,39 @@ function Context.setFocused(element)
   Context._settingFocus = false
 end
 
+--- Rehydrate _focusedElement from _focusedElementId by scanning live elements.
+--- Called at the start of getFocused() in immediate mode so stale references
+--- are always replaced with the current-frame object before use.
+function Context._rehydrateFocus()
+  if not Context._focusedElementId then
+    Context._focusedElement = nil
+    return
+  end
+
+  -- Search the live z-index ordered elements for a matching id
+  for _, elem in ipairs(Context._zIndexOrderedElements) do
+    if elem.id == Context._focusedElementId then
+      Context._focusedElement = elem
+      return
+    end
+  end
+
+  -- Element with that id is not present this frame (e.g. screen changed)
+  Context._focusedElement = nil
+end
+
 --- Get the currently focused element
 ---@return Element|nil The focused element, or nil if none
 function Context.getFocused()
+  if Context._immediateMode then
+    Context._rehydrateFocus()
+  end
   return Context._focusedElement
 end
 
 --- Clear focus from any element
 function Context.clearFocus()
+  Context._focusedElementId = nil
   Context.setFocused(nil)
 end
 

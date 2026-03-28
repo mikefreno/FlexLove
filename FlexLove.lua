@@ -217,7 +217,7 @@ function flexlove.init(config)
   end
 
   LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, FFI = flexlove._FFI })
-  EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils })
+  EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils, Context = Context })
 
   -- Initialize shared GestureRecognizer for touch routing
   if GestureRecognizer then
@@ -238,6 +238,10 @@ function flexlove.init(config)
     if FocusIndicator then
       FocusIndicator.init({ Context = Context, Color = Color })
       KeyboardNavigation.FocusIndicator = FocusIndicator
+      -- Wire FocusIndicator so it updates on ANY focus change (including mouse clicks)
+      Context._onFocusChanged = function(element)
+        FocusIndicator.setFocused(element)
+      end
     end
 
     -- Apply configuration if provided
@@ -259,12 +263,7 @@ function flexlove.init(config)
           FocusIndicator.config.enabled = fiConfig.enabled
         end
         if fiConfig.color then
-          FocusIndicator.setColor(
-            fiConfig.color[1] or 0.2,
-            fiConfig.color[2] or 0.6,
-            fiConfig.color[3] or 1.0,
-            fiConfig.color[4] or 0.8
-          )
+          FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
         end
         if fiConfig.lineWidth ~= nil then
           FocusIndicator.config.lineWidth = fiConfig.lineWidth
@@ -401,6 +400,34 @@ end
 ---     lineWidth = 3,
 ---   },
 --- })
+--- Enable debug mode for keyboard navigation
+--- Use this to troubleshoot keyboard navigation issues
+---@param enabled boolean
+function flexlove.setKeyboardNavigationDebug(enabled)
+  if KeyboardNavigation and KeyboardNavigation.config then
+    KeyboardNavigation.config.debugMode = enabled
+    print(string.format("[FlexLove] Keyboard navigation debug mode: %s", tostring(enabled)))
+  end
+end
+
+--- Enable keyboard navigation after initialization (for deferred or conditional setup)
+--- Useful when you need to conditionally enable keyboard navigation based on runtime conditions
+--- Automatically initializes KeyboardNavigation and FocusIndicator modules if not already initialized
+---@param config KeyboardNavigationConfig? Optional configuration table
+--- @usage
+--- -- Enable with defaults
+--- FlexLove.enableKeyboardNavigation()
+---
+--- -- Enable with custom configuration
+--- FlexLove.enableKeyboardNavigation({
+---   directionalNavigation = true,
+---   wrapAround = false,
+---   focusIndicator = {
+---     enabled = true,
+---     color = {1, 0.8, 0, 0.8},
+---     lineWidth = 3,
+---   },
+--- })
 function flexlove.enableKeyboardNavigation(config)
   config = config or {}
 
@@ -424,12 +451,7 @@ function flexlove.enableKeyboardNavigation(config)
             FocusIndicator.config.enabled = fiConfig.enabled
           end
           if fiConfig.color then
-            FocusIndicator.setColor(
-              fiConfig.color[1] or 0.2,
-              fiConfig.color[2] or 0.6,
-              fiConfig.color[3] or 1.0,
-              fiConfig.color[4] or 0.8
-            )
+            FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
           end
           if fiConfig.lineWidth ~= nil then
             FocusIndicator.config.lineWidth = fiConfig.lineWidth
@@ -456,6 +478,10 @@ function flexlove.enableKeyboardNavigation(config)
   if FocusIndicator then
     FocusIndicator.init({ Context = Context, Color = Color })
     KeyboardNavigation.FocusIndicator = FocusIndicator
+    -- Wire FocusIndicator so it updates on ANY focus change (including mouse clicks)
+    Context._onFocusChanged = function(element)
+      FocusIndicator.setFocused(element)
+    end
   end
 
   -- Apply configuration
@@ -477,12 +503,7 @@ function flexlove.enableKeyboardNavigation(config)
         FocusIndicator.config.enabled = fiConfig.enabled
       end
       if fiConfig.color then
-        FocusIndicator.setColor(
-          fiConfig.color[1] or 0.2,
-          fiConfig.color[2] or 0.6,
-          fiConfig.color[3] or 1.0,
-          fiConfig.color[4] or 0.8
-        )
+        FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
       end
       if fiConfig.lineWidth ~= nil then
         FocusIndicator.config.lineWidth = fiConfig.lineWidth
@@ -644,10 +665,6 @@ function flexlove.beginFrame()
 
   -- Restore retained top-level elements
   flexlove.topElements = retainedTopElements
-
-  -- Clear focused element at start of frame in immediate mode
-  -- Elements will restore their focus state during construction via setState()
-  Context._focusedElement = nil
 
   Context.clearFrameElements()
 end
@@ -895,6 +912,11 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   -- Render performance HUD if enabled
   flexlove._Performance:renderHUD()
 
+  -- Render focus indicator if keyboard navigation is enabled
+  if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled and FocusIndicator then
+    FocusIndicator:draw()
+  end
+
   -- Render debug draw overlay if enabled
   if flexlove._debugDraw then
     flexlove._renderDebugOverlay()
@@ -1021,19 +1043,19 @@ function flexlove.getElementAtPosition(x, y)
 end
 
 --- Update all UI animations, interactions, and state changes each frame
- --- Hook this to love.update() to enable hover effects, animations, text cursors, and scrolling
- ---@param dt number
- function flexlove.update(dt)
-   -- Update Performance module with actual delta time for accurate FPS
-   flexlove._Performance:updateDeltaTime(dt)
+--- Hook this to love.update() to enable hover effects, animations, text cursors, and scrolling
+---@param dt number
+function flexlove.update(dt)
+  -- Update Performance module with actual delta time for accurate FPS
+  flexlove._Performance:updateDeltaTime(dt)
 
-   -- Update keyboard navigation (animations, etc.)
-   if KeyboardNavigation then
-     KeyboardNavigation:update(dt)
-   end
+  -- Update keyboard navigation (animations, etc.)
+  if KeyboardNavigation then
+    KeyboardNavigation:update(dt)
+  end
 
-   -- Garbage collection management
-   flexlove._manageGC()
+  -- Garbage collection management
+  flexlove._manageGC()
 
   local mx, my = love.mouse.getPosition()
   local topElement = flexlove.getElementAtPosition(mx, my)
@@ -1163,16 +1185,26 @@ function flexlove.keypressed(key, scancode, isrepeat)
 
   -- Handle keyboard navigation (if module is available and enabled)
   if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled then
+    -- Debug logging for keyboard navigation entry point
+    if KeyboardNavigation.config.debugMode then
+      print(string.format("[FlexLove.keypressed] Keyboard nav enabled, handling key: %s", key))
+    end
+
     -- Check if we're in text input mode (editable element focused)
     local focusedElement = Context.getFocused()
     local isTextInputMode = focusedElement and (focusedElement.editable or focusedElement._textEditor)
 
     -- Only handle navigation if not in text input mode, or if in text input mode without modifiers
-    local shouldHandleNav = not isTextInputMode or
-      (isTextInputMode and not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") or love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt")))
+    local shouldHandleNav = not isTextInputMode
+      or (
+        isTextInputMode and not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") or love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt"))
+      )
 
     if shouldHandleNav then
       local handled = KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
+      if KeyboardNavigation.config.debugMode and not handled then
+        print(string.format("[FlexLove.keypressed] Key %s was NOT handled by keyboard navigation", key))
+      end
       if handled then
         return -- Navigation handled the key, don't forward to element
       end

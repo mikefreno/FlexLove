@@ -4,6 +4,7 @@
 ---@field x number|string -- X coordinate of the element
 ---@field y number|string -- Y coordinate of the element
 ---@field z number -- Z-index for layering (default: 0)
+---@field tabIndex number? -- Tab navigation order override. Lower values are visited first. nil = use document order.
 ---@field width number|string -- Width of the element
 ---@field height number|string -- Height of the element
 ---@field top number? -- Offset from top edge (CSS-style positioning)
@@ -1401,6 +1402,7 @@ function Element.new(props)
     end
 
     self.z = props.z or 0
+    self.tabIndex = props.tabIndex -- nil = document order, number = explicit order
 
     -- Set textColor with priority: props > theme text color > black
     if props.textColor then
@@ -1619,6 +1621,7 @@ function Element.new(props)
       end
 
       self.z = props.z or 0
+      self.tabIndex = props.tabIndex
     else
       -- Children in flex containers start at parent position but will be repositioned by layoutChildren
       -- Children in absolute/relative containers start at parent's content area (accounting for padding)
@@ -1690,6 +1693,7 @@ function Element.new(props)
       end
 
       self.z = props.z or self.parent.z or 0
+      self.tabIndex = props.tabIndex
     end
 
     if props.textColor then

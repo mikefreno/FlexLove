@@ -9,17 +9,17 @@ end
 ---@field config KeyboardNavigationConfig
 local KeyboardNavigation = {
 
----@class KeyboardNavigationConfig
----@field enabled boolean Enable/disable keyboard navigation
----@field debugMode boolean Enable debug logging
----@field keys table Key bindings configuration
----@field wrapAround boolean Allow wrapping from last to first focusable
----@field directionalNavigation boolean Enable arrow key navigation
----@field focusVisible boolean Show focus indicator
----@field autofocusOnCreate boolean Auto-focus first element on creation
----@field dropFocusOnSelection boolean Drop focus after activating an element
----@field developerTools table Developer tool settings
----@field focusIndicator table Focus indicator style
+  ---@class KeyboardNavigationConfig
+  ---@field enabled boolean Enable/disable keyboard navigation
+  ---@field debugMode boolean Enable debug logging
+  ---@field keys table Key bindings configuration
+  ---@field wrapAround boolean Allow wrapping from last to first focusable
+  ---@field directionalNavigation boolean Enable arrow key navigation
+  ---@field focusVisible boolean Show focus indicator
+  ---@field autofocusOnCreate boolean Auto-focus first element on creation
+  ---@field dropFocusOnSelection boolean Drop focus after activating an element
+  ---@field developerTools table Developer tool settings
+  ---@field focusIndicator table Focus indicator style
 
   config = {
     -- Global settings
@@ -255,40 +255,51 @@ function KeyboardNavigation:_getNavigationRoot()
 end
 
 --- Collect focusable elements in document/flex-flow order from a root element.
---- Respects tabIndex: elements with tabIndex are sorted by that value first,
---- elements without tabIndex follow in natural document order after those with tabIndex.
+--- Follows web-standard tabIndex behavior:
+---   tabIndex > 0: Element is focusable and appears in tab order BEFORE tabIndex=0 elements (sorted by value)
+---   tabIndex = 0 or nil: Element is focusable and appears in natural document order
+---   tabIndex = -1: Element is excluded from keyboard navigation (but can be focused programmatically)
 ---@param root Element
 ---@return Element[]
 function KeyboardNavigation:_collectFocusablesInOrder(root)
-  local withTabIndex = {}
-  local withoutTabIndex = {}
+  local withPositiveTabIndex = {}  -- tabIndex > 0
+  local withZeroTabIndex = {}      -- tabIndex = 0 or nil (natural order)
 
   local function collect(elem)
-    if elem:isFocusable() then
-      if elem.tabIndex ~= nil then
-        table.insert(withTabIndex, elem)
-      else
-        table.insert(withoutTabIndex, elem)
-      end
-    end
     for _, child in ipairs(elem.children) do
+      if child:isFocusable() then
+        local tabIndex = child.tabIndex
+        -- Exclude elements with tabIndex = -1 from keyboard navigation
+        if tabIndex == -1 then
+          goto continue
+        end
+        
+        if tabIndex and tabIndex > 0 then
+          -- Positive tabIndex: explicit order, visited first
+          table.insert(withPositiveTabIndex, child)
+        else
+          -- tabIndex = 0 or nil: natural document order
+          table.insert(withZeroTabIndex, child)
+        end
+      end
+      ::continue::
       collect(child)
     end
   end
 
   collect(root)
 
-  -- Sort elements with explicit tabIndex by their tabIndex value
-  table.sort(withTabIndex, function(a, b)
+  -- Sort elements with positive tabIndex by their value
+  table.sort(withPositiveTabIndex, function(a, b)
     return (a.tabIndex or 0) < (b.tabIndex or 0)
   end)
 
-  -- Merge: tabIndex elements first, then document-order elements
+  -- Merge: positive tabIndex elements first (explicit order), then document-order elements
   local result = {}
-  for _, elem in ipairs(withTabIndex) do
+  for _, elem in ipairs(withPositiveTabIndex) do
     table.insert(result, elem)
   end
-  for _, elem in ipairs(withoutTabIndex) do
+  for _, elem in ipairs(withZeroTabIndex) do
     table.insert(result, elem)
   end
 

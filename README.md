@@ -23,7 +23,226 @@ Built for developers who know CSS and want that same power (and more) in their g
 - **Text Rendering**: Flexible text display with alignment and auto-scaling
 - **Corner Radius**: Rounded corners with individual corner control
 - **Advanced Positioning**: Absolute, relative, flex, and grid positioning modes
+- **Keyboard Navigation**: Full keyboard accessibility with Tab/Shift+Tab sequential navigation, arrow key directional navigation, and ARIA-like roles for screen readers
 - **(Warning - Alpha-stages - Not yet tested) Multi-Touch & Gestures**: Touch event tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), and touch scrolling with momentum/bounce
+
+## Keyboard Navigation
+
+FlexLöve provides comprehensive keyboard navigation for accessible UI interactions. The navigation system is opt-in and backward compatible.
+
+### Quick Start (Recommended)
+
+Keyboard navigation is automatically initialized when enabled in `FlexLove.init()`:
+
+```lua
+local FlexLove = require("FlexLove")
+
+function love.load()
+  -- Enable keyboard navigation with one line!
+  FlexLove.init({
+    theme = "space",
+    keyboardNavigation = true  -- Auto-initializes everything
+  })
+end
+
+function love.update(dt)
+  FlexLove.update(dt)
+end
+
+function love.draw()
+  FlexLove.draw(function()
+    -- Your UI elements here
+  end)
+end
+```
+
+### Configuration
+
+Customize keyboard navigation behavior:
+
+```lua
+FlexLove.init({
+  keyboardNavigation = {
+    enabled = true,
+    directionalNavigation = true,  -- Arrow key navigation
+    wrapAround = true,             -- Tab wraps to first element
+    
+    -- Focus indicator (visual feedback)
+    focusIndicator = {
+      enabled = true,
+      color = {0.2, 0.6, 1.0, 0.8},  -- Blue with 80% opacity
+      lineWidth = 2,
+      pulseEnabled = true,           -- Pulsing animation
+    },
+  },
+})
+```
+
+### Deferred Initialization
+
+Enable keyboard navigation after `FlexLove.init()`: 
+
+```lua
+function love.load()
+  FlexLove.init({ theme = "space" })
+  
+  -- Enable later with custom config
+  FlexLove.enableKeyboardNavigation({
+    directionalNavigation = true,
+    focusIndicator = {
+      color = {1, 0.8, 0, 0.8},  -- Orange
+      lineWidth = 3,
+    },
+  })
+end
+```
+
+### Key Bindings
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Move focus to next focusable element |
+| `Shift + Tab` | Move focus to previous focusable element |
+| `Arrow Keys` | Navigate directionally (spatial awareness) |
+| `Enter` / `Space` | Activate focused element (button click) |
+| `Escape` | Dismiss/close focused element |
+| `F12` | Toggle developer tools |
+
+### Runtime Configuration
+
+Access modules after auto-initialization:
+
+```lua
+local KeyboardNavigation = require("modules.KeyboardNavigation")
+local FocusIndicator = require("modules.FocusIndicator")
+
+-- Customize key bindings
+KeyboardNavigation.setKeyBinding("next", "f1")  -- Use F1 instead of Tab
+KeyboardNavigation.setKeyBinding("activate", {"return", "space", "f2"})
+
+-- Toggle directional navigation
+KeyboardNavigation.setDirectionalNavigation(true)  -- Default: true
+
+-- Toggle wrap-around behavior
+KeyboardNavigation.setWrapAround(true)  -- Default: true
+
+-- Configure focus indicator appearance
+FocusIndicator.setColor(0.2, 0.6, 1.0, 0.8)  -- Blue with 80% opacity
+FocusIndicator.setLineWidth(2)
+FocusIndicator.setPulseEnabled(true)  -- Add pulsing animation
+```
+
+### Focusable Elements
+
+Elements are automatically focusable if they have:
+- `editable = true` (input fields)
+- `onEvent` handler (buttons, links)
+- `themeComponent` set (themed interactive components)
+- `touchEnabled` with event handlers
+
+```lua
+-- Focusable button
+local button = FlexLove.new({
+  text = "Click Me",
+  onEvent = function() print("Clicked!") end
+})
+
+-- Focusable input field
+local input = FlexLove.new({
+  editable = true,
+  placeholder = "Enter text..."
+})
+
+-- Non-focusable container (no interaction)
+local container = FlexLove.new({
+  text = "Just text"
+})
+```
+
+### Navigation Containers
+
+Scope tab navigation to specific containers (useful for modals/dialogs):
+
+```lua
+local modal = FlexLove.new({
+  width = 400, height = 300,
+  positioning = utils.enums.Positioning.ABSOLUTE,
+  x = "50%", y = "50%",
+})
+
+-- Set navigation container to modal
+Context.setNavigationContainer(modal)
+
+-- When modal closes, restore previous container
+Context.setNavigationContainer(nil)  -- Returns to global scope
+```
+
+### Focus Stack (for Modals)
+
+Preserve focus when opening/closing modals:
+
+```lua
+-- Opening modal
+KeyboardNavigation:pushFocus(modalElement)  -- Saves current focus, focuses modal
+
+-- Closing modal
+KeyboardNavigation:popFocus()  -- Restores previous focus
+```
+
+### ARIA Roles (Accessibility)
+
+Add ARIA-like roles for screen reader support:
+
+```lua
+local button = FlexLove.new({
+  text = "Submit",
+  ariaRole = utils.enums.ARIA.BUTTON,
+  ariaLabel = "Submit form",      -- Accessible name
+  ariaDescribedBy = "helpText",   -- Reference to helper text element
+  onEvent = function() end
+})
+
+local dialog = FlexLove.new({
+  ariaRole = utils.enums.ARIA.DIALOG,
+  ariaLabel = "Confirmation",
+  ariaModal = true,
+})
+
+-- Available roles:
+-- Widgets: button, checkbox, link, menuitem, progressbar, radio, slider, tab, textbox, etc.
+-- Landmarks: banner, complementary, contentinfo, form, main, navigation, region, search
+-- Live regions: alert, log, marquee, status, timer
+-- Document: article, heading, paragraph, list, etc.
+```
+
+### Performance
+
+For UIs with many focusable elements, enable the spatial index for faster directional navigation:
+
+```lua
+-- Enable spatial index (recommended for >50 focusable elements)
+KeyboardNavigation.enableSpatialIndex(true)
+
+-- Adjust cell size (larger = faster but less precise)
+KeyboardNavigation.setSpatialCellSize(100)  -- Default: 100 pixels
+```
+
+### Focus Indicator Customization
+
+```lua
+FocusIndicator.config = {
+  enabled = true,
+  color = {0.2, 0.6, 1.0, 0.8},  -- RGBA (0-1)
+  lineWidth = 2,
+  inset = -3,                    -- Negative extends beyond element
+  borderRadius = 4,
+  animationDuration = 0.15,       -- Focus entrance animation
+  pulseEnabled = false,          -- Pulsing animation
+  pulseDuration = 1.0,           -- Seconds per pulse
+  pulseScaleMin = 0.95,
+  pulseScaleMax = 1.05,
+}
+```
 
 ## Quick Start
 

@@ -98,6 +98,17 @@
 ---@field _cursorColumn number? -- Internal: cursor column within line
 ---@field _cursorBlinkTimer number? -- Internal: cursor blink timer
 ---@field _cursorVisible boolean? -- Internal: cursor visibility state
+
+-- Accessibility (ARIA) fields
+---@field ariaRole ARIA? -- ARIA role for screen readers (e.g., "button", "link", "dialog")
+---@field ariaLabel string? -- Accessible name for screen readers (overrides text content)
+---@field ariaDescribedBy string? -- ID of element that describes this element
+---@field ariaExpanded boolean? -- Whether element is expanded/collapsed (for containers)
+---@field ariaPressed boolean? -- Whether element is pressed (for toggle buttons)
+---@field ariaChecked boolean? -- Whether element is checked (for checkboxes/radios)
+---@field ariaDisabled boolean? -- Whether element is disabled (overrides disabled property)
+---@field ariaBusy boolean? -- Whether element is processing (for live regions)
+---@field ariaLive "off"|"polite"|"assertive"? -- Live region priority for announcements
 ---@field _cursorBlinkPaused boolean? -- Internal: whether cursor blink is paused (e.g., while typing)
 ---@field _cursorBlinkPauseTimer number? -- Internal: timer for how long cursor blink has been paused
 ---@field _selectionStart number? -- Internal: selection start position
@@ -4283,7 +4294,10 @@ function Element:isFocusable()
   return false
 end
 
---- Get all focusable children in tab order (depth-first, left-to-right)
+--- Get all focusable children in DOM/document order (depth-first traversal)
+--- Elements are collected in the order they appear in the children array,
+--- with nested children collected after their parent. This matches standard
+--- browser tab order behavior where elements are ordered by document position.
 ---@return Element[]
 function Element:getFocusableChildren()
   local focusable = {}

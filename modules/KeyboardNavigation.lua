@@ -55,11 +55,28 @@ local KeyboardNavigation = {
   _lastNavigationTime = 0,
   _inspectMode = false,
   _deps = nil,
+
+  -- Spatial index for directional navigation (performance optimization)
+  _spatialIndex = {
+    enabled = false,
+    cellSize = 100, -- Grid cell size in pixels
+    grid = {},      -- Grid storing element references
+    elementPositions = {}, -- Cache of element positions {element = {x, y, w, h}}
+    lastUpdateFrame = 0,
+  },
 }
 
 --- Initialize KeyboardNavigation module
 ---@param deps table {Context, Element, ErrorHandler, utils, InputEvent}
 function KeyboardNavigation.init(deps)
+  -- Validate required dependencies
+  local required = {Context = true, Element = true, ErrorHandler = true, utils = true, InputEvent = true}
+  for depName, _ in pairs(required) do
+    if not deps[depName] then
+      error(string.format("KeyboardNavigation.init: Missing required dependency: %s", depName))
+    end
+  end
+
   KeyboardNavigation._deps = deps
   KeyboardNavigation._ErrorHandler = deps.ErrorHandler
   KeyboardNavigation._InputEvent = deps.InputEvent
@@ -309,6 +326,15 @@ end
 ---@param direction "up"|"down"|"left"|"right"
 ---@return Element?
 function KeyboardNavigation:_findDirectionalNeighbor(current, direction)
+  -- Try spatial index first if enabled
+  if KeyboardNavigation._spatialIndex.enabled then
+    local spatialResult = self:_findDirectionalNeighborSpatial(current, direction)
+    if spatialResult then
+      return spatialResult
+    end
+  end
+
+  -- Fallback to linear search
   local Context = KeyboardNavigation._Context
   local container = Context.getNavigationContainer() or current.parent
 
@@ -459,6 +485,11 @@ function KeyboardNavigation:_focusElement(element)
   if element and element:isFocusable() then
     Context.setFocused(element)
 
+    -- Update focus indicator
+    if KeyboardNavigation.FocusIndicator then
+      KeyboardNavigation.FocusIndicator.setFocused(element)
+    end
+
     -- Call onFocus callback if it exists
     if element.onFocus then
       local success, err = pcall(function()
@@ -559,10 +590,10 @@ function KeyboardNavigation:dismissElement()
       })
     end
 
-    return true
+    return true -- Handler took care of dismissal
   end
 
-  -- Default behavior: blur the element
+  -- Default behavior: blur the element (only if no onDismiss handler)
   Context.clearFocus()
   return true
 end
@@ -615,6 +646,177 @@ end
 ---@param enabled boolean
 function KeyboardNavigation.setWrapAround(enabled)
   KeyboardNavigation.config.wrapAround = enabled
+end
+
+-- ====================
+-- Spatial Index (Performance Optimization)
+-- ====================
+
+--- Enable spatial index for faster directional navigation
+---@param enabled boolean
+function KeyboardNavigation.enableSpatialIndex(enabled)
+  KeyboardNavigation._spatialIndex.enabled = enabled
+  if not enabled then
+    KeyboardNavigation:_clearSpatialIndex()
+  end
+end
+
+--- Set spatial index cell size (larger = fewer cells, faster lookup but less precision)
+---@param cellSize number
+function KeyboardNavigation.setSpatialCellSize(cellSize)
+  KeyboardNavigation._spatialIndex.cellSize = cellSize
+  KeyboardNavigation:_clearSpatialIndex()
+end
+
+--- Update spatial index (call when layout changes)
+function KeyboardNavigation:updateSpatialIndex()
+  local Context = KeyboardNavigation._Context
+  if not Context then return end
+
+  local index = KeyboardNavigation._spatialIndex
+  local cellSize = index.cellSize
+
+  -- Clear old index
+  KeyboardNavigation:_clearSpatialIndex()
+
+  -- Collect all focusable elements and their positions
+  local function collectElements(elem)
+    if elem and elem:isFocusable() then
+      local w = elem.width or 0
+      local h = elem.height or 0
+      index.elementPositions[elem] = {x = elem.x, y = elem.y, w = w, h = h}
+
+      -- Add to grid cells (element can span multiple cells)
+      local leftCell = math.floor(elem.x / cellSize)
+      local rightCell = math.floor((elem.x + w - 1) / cellSize)
+      local topCell = math.floor(elem.y / cellSize)
+      local bottomCell = math.floor((elem.y + h - 1) / cellSize)
+
+      for gx = leftCell, rightCell do
+        for gy = topCell, bottomCell do
+          local cellKey = string.format("%d,%d", gx, gy)
+          if not index.grid[cellKey] then
+            index.grid[cellKey] = {}
+          end
+          table.insert(index.grid[cellKey], elem)
+        end
+      end
+    end
+
+    -- Recurse into children
+    if elem and elem.children then
+      for _, child in ipairs(elem.children) do
+        collectElements(child)
+      end
+    end
+  end
+
+  -- Collect from top-level elements
+  if Context._immediateMode and Context._zIndexOrderedElements then
+    for _, elem in ipairs(Context._zIndexOrderedElements) do
+      collectElements(elem)
+    end
+  elseif Context.topElements then
+    for _, elem in ipairs(Context.topElements) do
+      collectElements(elem)
+    end
+  end
+end
+
+--- Clear spatial index
+function KeyboardNavigation:_clearSpatialIndex()
+  KeyboardNavigation._spatialIndex.grid = {}
+  KeyboardNavigation._spatialIndex.elementPositions = {}
+end
+
+--- Find directional neighbor using spatial index
+---@param current Element
+---@param direction "up"|"down"|"left"|"right"
+---@return Element?
+function KeyboardNavigation:_findDirectionalNeighborSpatial(current, direction)
+  local index = KeyboardNavigation._spatialIndex
+  local cellSize = index.cellSize
+
+  -- Get current element's grid position
+  local currentPos = index.elementPositions[current]
+  if not currentPos then return nil end
+
+  local centerX = currentPos.x + currentPos.w / 2
+  local centerY = currentPos.y + currentPos.h / 2
+  local currentCellX = math.floor(centerX / cellSize)
+  local currentCellY = math.floor(centerY / cellSize)
+
+  -- Search in direction, expanding outward
+  local maxSearchRadius = 20 -- Maximum cells to search
+  local visited = {}
+
+  for radius = 1, maxSearchRadius do
+    local candidates = {}
+
+    -- Get cells in the search ring
+    if direction == "up" then
+      table.insert(candidates, {currentCellX, currentCellY - radius})
+      if radius > 1 then
+        table.insert(candidates, {currentCellX - 1, currentCellY - radius})
+        table.insert(candidates, {currentCellX + 1, currentCellY - radius})
+      end
+    elseif direction == "down" then
+      table.insert(candidates, {currentCellX, currentCellY + radius})
+      if radius > 1 then
+        table.insert(candidates, {currentCellX - 1, currentCellY + radius})
+        table.insert(candidates, {currentCellX + 1, currentCellY + radius})
+      end
+    elseif direction == "left" then
+      table.insert(candidates, {currentCellX - radius, currentCellY})
+      if radius > 1 then
+        table.insert(candidates, {currentCellX - radius, currentCellY - 1})
+        table.insert(candidates, {currentCellX - radius, currentCellY + 1})
+      end
+    elseif direction == "right" then
+      table.insert(candidates, {currentCellX + radius, currentCellY})
+      if radius > 1 then
+        table.insert(candidates, {currentCellX + radius, currentCellY - 1})
+        table.insert(candidates, {currentCellX + radius, currentCellY + 1})
+      end
+    end
+
+    -- Check each candidate cell
+    for _, cell in ipairs(candidates) do
+      local cellKey = string.format("%d,%d", cell[1], cell[2])
+      local cellElements = index.grid[cellKey]
+
+      if cellElements then
+        for _, elem in ipairs(cellElements) do
+          if elem ~= current and not visited[elem] then
+            visited[elem] = true
+            local elemPos = index.elementPositions[elem]
+            if elemPos then
+              local elemCenterX = elemPos.x + elemPos.w / 2
+              local elemCenterY = elemPos.y + elemPos.h / 2
+
+              -- Check if element is in the correct direction
+              local isInDirection = false
+              if direction == "up" and elemCenterY < centerY then
+                isInDirection = true
+              elseif direction == "down" and elemCenterY > centerY then
+                isInDirection = true
+              elseif direction == "left" and elemCenterX < centerX then
+                isInDirection = true
+              elseif direction == "right" and elemCenterX > centerX then
+                isInDirection = true
+              end
+
+              if isInDirection then
+                return elem
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return nil
 end
 
 return KeyboardNavigation

@@ -113,7 +113,11 @@ function KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
   end
 
   -- Check for next/previous navigation
+  -- Tab with shift held = previous; Tab without shift = next
   if key == keys.next then
+    if love.keyboard.isDown("lshift") or love.keyboard.isDown("rshift") then
+      return self:previousFocusable()
+    end
     return self:nextFocusable()
   end
 

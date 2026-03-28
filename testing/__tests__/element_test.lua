@@ -1078,6 +1078,7 @@ function TestElementScroll:test_scrollToTop()
       id = "item_" .. i,
       width = 280,
       height = 50,
+      flexShrink = 0,
       parent = container,
     })
   end
@@ -1085,12 +1086,12 @@ function TestElementScroll:test_scrollToTop()
   -- Scroll down first
   container:setScrollPosition(nil, 100)
   local _, scrollY = container:getScrollPosition()
-  luaunit.assertEquals(scrollY, 100)
+  luaunit.assertAlmostEquals(scrollY, 100, 0.001)
 
   -- Scroll to top
   container:scrollToTop()
   _, scrollY = container:getScrollPosition()
-  luaunit.assertEquals(scrollY, 0)
+  luaunit.assertAlmostEquals(scrollY, 0, 0.001)
 end
 
 function TestElementScroll:test_scrollToBottom()

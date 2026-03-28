@@ -91,6 +91,10 @@ end
 ---@param isrepeat boolean
 ---@return boolean handled
 function KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
+  if not KeyboardNavigation._Context then
+    return false
+  end
+
   -- Debug logging
   if KeyboardNavigation.config.debugMode then
     print(string.format("[KeyboardNavigation] Key pressed: %s (scancode: %s, repeat: %s)", key, scancode, tostring(isrepeat)))
@@ -651,6 +655,11 @@ function KeyboardNavigation:activateElement()
         elementId = focused.id or "unknown",
         error = tostring(err),
       })
+    end
+
+    -- Hide focus indicator - it's only for keyboard navigation, not activation
+    if KeyboardNavigation.FocusIndicator then
+      KeyboardNavigation.FocusIndicator.setFocused(nil)
     end
 
     return true

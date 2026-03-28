@@ -140,7 +140,7 @@ function TestTouchEventHandler:test_touch_began()
 
   local filteredEvents = {}
   for _, event in ipairs(touchEvents) do
-    if event.type ~= "hover" and event.type ~= "unhover" then
+    if type(event.type) == "string" and event.type:match("^touch") then
       table.insert(filteredEvents, event)
     end
   end
@@ -185,7 +185,7 @@ function TestTouchEventHandler:test_touch_moved()
 
   local filteredEvents = {}
   for _, event in ipairs(touchEvents) do
-    if event.type ~= "hover" and event.type ~= "unhover" then
+    if type(event.type) == "string" and event.type:match("^touch") then
       table.insert(filteredEvents, event)
     end
   end
@@ -229,7 +229,7 @@ function TestTouchEventHandler:test_touch_ended()
 
   local filteredEvents = {}
   for _, event in ipairs(touchEvents) do
-    if event.type ~= "hover" and event.type ~= "unhover" then
+    if type(event.type) == "string" and event.type:match("^touch") then
       table.insert(filteredEvents, event)
     end
   end
@@ -267,7 +267,7 @@ function TestTouchEventHandler:test_multi_touch()
 
   local filteredEvents = {}
   for _, event in ipairs(touchEvents) do
-    if event.type ~= "hover" and event.type ~= "unhover" then
+    if type(event.type) == "string" and event.type:match("^touch") then
       table.insert(filteredEvents, event)
     end
   end

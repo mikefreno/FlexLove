@@ -1118,6 +1118,7 @@ function TestOverflowDetection:test_horizontal_overflow_detected()
     y = 0,
     width = 300, -- Wider than container (100)
     height = 50,
+    flexShrink = 0,
   })
 
   FlexLove.endFrame()
@@ -1146,6 +1147,7 @@ function TestOverflowDetection:test_both_axes_overflow()
     y = 0,
     width = 200,
     height = 200,
+    flexShrink = 0,
   })
 
   FlexLove.endFrame()
@@ -1203,6 +1205,7 @@ function TestOverflowDetection:test_overflow_with_multiple_children()
       parent = container,
       width = 150,
       height = 60, -- 5 * 60 = 300, exceeds container height of 200
+      flexShrink = 0,
     })
   end
 
@@ -1260,6 +1263,7 @@ function TestOverflowDetection:test_overflow_with_margins()
     parent = container,
     width = 180,
     height = 180,
+    flexShrink = 0,
     margin = { top = 5, right = 20, bottom = 5, left = 5 }, -- Total width: 5+180+20=205, overflows 200px container
   })
 

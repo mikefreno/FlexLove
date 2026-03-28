@@ -209,12 +209,53 @@ local tests = {
     -- Focus first button
     Context.setFocused(container.children[1])
 
+    -- Simulate keyboard navigation focus indicator visibility
+    FocusIndicator.setFocused(container.children[1])
+    assert(FocusIndicator._hidden == false, "Focus indicator should be visible before activation")
+
     -- Activate with Enter
     local success = KeyboardNavigation:activateElement()
     assert(success == true, "Activation should succeed")
     assert(activated == true, "onEvent should have been called")
+    assert(FocusIndicator._hidden == true, "Focus indicator should be hidden after activation")
 
     print("[PASS] testActivation")
+  end,
+
+  testFocusIndicatorHiddenViaHandleKeyPress = function()
+    local container = createTestUI()
+    Context.setNavigationContainer(container)
+
+    -- Focus via keyboard navigation so indicator is shown
+    local success = KeyboardNavigation:nextFocusable()
+    assert(success == true, "Keyboard navigation should focus first element")
+    assert(FocusIndicator._hidden == false, "Focus indicator should be visible after keyboard focus")
+
+    -- Activate via key handling path
+    success = KeyboardNavigation:handleKeyPress("return", "return", false)
+    assert(success == true, "Enter key should activate focused element")
+    assert(FocusIndicator._hidden == true, "Focus indicator should hide after keyboard activation")
+
+    print("[PASS] testFocusIndicatorHiddenViaHandleKeyPress")
+  end,
+
+  testFocusIndicatorReappearsAfterNextKeyboardNavigation = function()
+    local container = createTestUI()
+    Context.setNavigationContainer(container)
+
+    local success = KeyboardNavigation:nextFocusable()
+    assert(success == true, "First keyboard navigation should succeed")
+    assert(FocusIndicator._hidden == false, "Focus indicator should be visible after keyboard focus")
+
+    success = KeyboardNavigation:activateElement()
+    assert(success == true, "Activation should succeed")
+    assert(FocusIndicator._hidden == true, "Focus indicator should hide after activation")
+
+    success = KeyboardNavigation:nextFocusable()
+    assert(success == true, "Second keyboard navigation should succeed")
+    assert(FocusIndicator._hidden == false, "Focus indicator should reappear on next keyboard navigation")
+
+    print("[PASS] testFocusIndicatorReappearsAfterNextKeyboardNavigation")
   end,
 
   testDismiss = function()

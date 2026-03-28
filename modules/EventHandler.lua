@@ -59,6 +59,9 @@ function EventHandler.new(config)
   self._lastClickButton = config._lastClickButton
   self._clickCount = config._clickCount or 0
 
+  -- FocusIndicator reference (set after initialization)
+  self._FocusIndicator = nil
+
   self._dragStartX = config._dragStartX or {}
   self._dragStartY = config._dragStartY or {}
   self._lastMouseX = config._lastMouseX or {}
@@ -309,9 +312,20 @@ function EventHandler:_handleMousePress(element, mx, my, button)
   self._pressed[button] = true
 
   -- On left click, set keyboard focus to any focusable element (not just editable).
-  -- This ensures the focus indicator follows mouse selection.
-  if button == 1 and EventHandler._Context and element:isFocusable() then
+  -- Clear the focus indicator since mouse navigation doesn't use it.
+  local isFocusable = false
+  if type(element.isFocusable) == "function" then
+    isFocusable = element:isFocusable()
+  else
+    isFocusable = (element.editable == true) or (type(element.onEvent) == "function")
+  end
+
+  if button == 1 and EventHandler._Context and isFocusable then
     EventHandler._Context.setFocused(element)
+    -- Hide focus indicator - it's only for keyboard navigation
+    if EventHandler._FocusIndicator then
+      EventHandler._FocusIndicator.setFocused(nil)
+    end
   end
   -- Set mouse down position for text selection on left click
   if button == 1 and element._textEditor then

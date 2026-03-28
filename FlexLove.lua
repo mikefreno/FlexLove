@@ -238,10 +238,10 @@ function flexlove.init(config)
     if FocusIndicator then
       FocusIndicator.init({ Context = Context, Color = Color })
       KeyboardNavigation.FocusIndicator = FocusIndicator
-      -- Wire FocusIndicator so it updates on ANY focus change (including mouse clicks)
-      Context._onFocusChanged = function(element)
-        FocusIndicator.setFocused(element)
-      end
+      -- Also set FocusIndicator reference in EventHandler for clearing on mouse click
+      EventHandler._FocusIndicator = FocusIndicator
+      -- Note: FocusIndicator is only updated from keyboard navigation (_focusElement)
+      -- Mouse clicks and activation clear the indicator
     end
 
     -- Apply configuration if provided
@@ -450,6 +450,9 @@ function flexlove.enableKeyboardNavigation(config)
           if fiConfig.enabled ~= nil then
             FocusIndicator.config.enabled = fiConfig.enabled
           end
+          if fiConfig.draw ~= nil then
+            FocusIndicator.config.draw = fiConfig.draw
+          end
           if fiConfig.color then
             FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
           end
@@ -478,10 +481,10 @@ function flexlove.enableKeyboardNavigation(config)
   if FocusIndicator then
     FocusIndicator.init({ Context = Context, Color = Color })
     KeyboardNavigation.FocusIndicator = FocusIndicator
-    -- Wire FocusIndicator so it updates on ANY focus change (including mouse clicks)
-    Context._onFocusChanged = function(element)
-      FocusIndicator.setFocused(element)
-    end
+    -- Also set FocusIndicator reference in EventHandler for clearing on mouse click
+    EventHandler._FocusIndicator = FocusIndicator
+    -- Note: FocusIndicator is only updated from keyboard navigation (_focusElement)
+    -- Mouse clicks and activation clear the indicator
   end
 
   -- Apply configuration

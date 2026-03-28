@@ -1067,7 +1067,89 @@ end
 ---@param borderBoxWidth number The border box width
 ---@param borderBoxHeight number The border box height
 ---@return table? padding Table with {left, top, right, bottom}, or nil if no contentPadding
-function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
+function ThemeManager:_getScaledContentPaddingForComponent(component, borderBoxWidth, borderBoxHeight)
+  if not component or not component._ninePatchData or not component._ninePatchData.contentPadding then
+    return nil
+  end
+
+  local contentPadding = component._ninePatchData.contentPadding
+  local themeToUse = self:getTheme()
+  local atlasImage = component._loadedAtlas or (themeToUse and themeToUse.atlas)
+
+  if atlasImage and type(atlasImage) ~= "string" then
+    local originalWidth, originalHeight = atlasImage:getDimensions()
+
+    local insets = component.insets
+    if insets and type(insets) == "table" then
+      local cornerScale = self.scaleCorners
+      if cornerScale == nil then
+        cornerScale = component.scaleCorners
+      end
+      if type(cornerScale) ~= "number" or cornerScale <= 0 then
+        cornerScale = 1
+      end
+
+      local function mapDistanceFromStart(sourceDistance, sourceSize, targetSize, sourceStartInset, sourceEndInset)
+        local sourceStart = sourceStartInset or 0
+        local sourceEnd = sourceEndInset or 0
+
+        local sourceCenter = math.max(0, sourceSize - sourceStart - sourceEnd)
+        local targetStart = sourceStart * cornerScale
+        local targetEnd = sourceEnd * cornerScale
+        local targetCenter = math.max(0, targetSize - targetStart - targetEnd)
+
+        if sourceDistance <= sourceStart then
+          return sourceDistance * cornerScale
+        end
+
+        if sourceDistance >= (sourceSize - sourceEnd) then
+          local distanceFromEnd = sourceSize - sourceDistance
+          return targetSize - (distanceFromEnd * cornerScale)
+        end
+
+        if sourceCenter <= 0 then
+          return targetStart
+        end
+
+        local t = (sourceDistance - sourceStart) / sourceCenter
+        return targetStart + (t * targetCenter)
+      end
+
+      local left = mapDistanceFromStart(contentPadding.left, originalWidth, borderBoxWidth, insets.left, insets.right)
+      local rightBoundary = mapDistanceFromStart(originalWidth - contentPadding.right, originalWidth, borderBoxWidth, insets.left, insets.right)
+      local right = borderBoxWidth - rightBoundary
+
+      local top = mapDistanceFromStart(contentPadding.top, originalHeight, borderBoxHeight, insets.top, insets.bottom)
+      local bottomBoundary = mapDistanceFromStart(originalHeight - contentPadding.bottom, originalHeight, borderBoxHeight, insets.top, insets.bottom)
+      local bottom = borderBoxHeight - bottomBoundary
+
+      return {
+        left = math.max(0, left),
+        top = math.max(0, top),
+        right = math.max(0, right),
+        bottom = math.max(0, bottom),
+      }
+    end
+
+    local scaleX = borderBoxWidth / originalWidth
+    local scaleY = borderBoxHeight / originalHeight
+    return {
+      left = contentPadding.left * scaleX,
+      top = contentPadding.top * scaleY,
+      right = contentPadding.right * scaleX,
+      bottom = contentPadding.bottom * scaleY,
+    }
+  end
+
+  return nil
+end
+
+---Get scaled content padding for a specific theme state
+---@param state string The theme state to resolve (e.g. "normal", "pressed")
+---@param borderBoxWidth number The border box width
+---@param borderBoxHeight number The border box height
+---@return table? padding Table with {left, top, right, bottom}, or nil if no contentPadding
+function ThemeManager:getScaledContentPaddingForState(state, borderBoxWidth, borderBoxHeight)
   if not self.themeComponent then
     return nil
   end
@@ -1079,32 +1161,21 @@ function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
 
   local component = themeToUse.components[self.themeComponent]
 
+  local stateToUse = state or "normal"
+  if stateToUse ~= "normal" and component.states and component.states[stateToUse] then
+    component = component.states[stateToUse]
+  end
+
+  return self:_getScaledContentPaddingForComponent(component, borderBoxWidth, borderBoxHeight)
+end
+
+---Get scaled content padding based on current theme state and border box dimensions
+---@param borderBoxWidth number The border box width
+---@param borderBoxHeight number The border box height
+---@return table? padding Table with {left, top, right, bottom}, or nil if no contentPadding
+function ThemeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
   local state = self._themeState or "normal"
-  if state and state ~= "normal" and component.states and component.states[state] then
-    component = component.states[state]
-  end
-
-  if not component._ninePatchData or not component._ninePatchData.contentPadding then
-    return nil
-  end
-
-  local contentPadding = component._ninePatchData.contentPadding
-
-  local atlasImage = component._loadedAtlas or themeToUse.atlas
-  if atlasImage and type(atlasImage) ~= "string" then
-    local originalWidth, originalHeight = atlasImage:getDimensions()
-    local scaleX = borderBoxWidth / originalWidth
-    local scaleY = borderBoxHeight / originalHeight
-
-    return {
-      left = contentPadding.left * scaleX,
-      top = contentPadding.top * scaleY,
-      right = contentPadding.right * scaleX,
-      bottom = contentPadding.bottom * scaleY,
-    }
-  end
-
-  return nil
+  return self:getScaledContentPaddingForState(state, borderBoxWidth, borderBoxHeight)
 end
 
 ---Get content auto-sizing multiplier from theme or component

@@ -2367,6 +2367,32 @@ function Element:getScaledContentPadding()
   return self._themeManager:getScaledContentPadding(borderBoxWidth, borderBoxHeight)
 end
 
+--- Get draw-time content offset from state-specific theme padding changes
+---@return number offsetX, number offsetY
+function Element:getContentStateOffset()
+  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
+
+  local currentPadding = self:getScaledContentPadding()
+  local basePadding = self._themeManager:getScaledContentPaddingForState("normal", borderBoxWidth, borderBoxHeight)
+
+  if not currentPadding or not basePadding then
+    return 0, 0
+  end
+
+  local offsetX = currentPadding.left - basePadding.left
+  local offsetY = currentPadding.top - basePadding.top
+
+  if math.abs(offsetX) < 0.001 then
+    offsetX = 0
+  end
+  if math.abs(offsetY) < 0.001 then
+    offsetY = 0
+  end
+
+  return offsetX, offsetY
+end
+
 --- Get or create blur instance for this element
 ---@return table? -- Blur instance or nil if no blur configured
 function Element:getBlurInstance()
@@ -2723,6 +2749,8 @@ function Element:draw(backdropCanvas)
 
   -- Helper function to draw children (with or without clipping)
   local function drawChildren()
+    local contentOffsetX, contentOffsetY = self:getContentStateOffset()
+
     -- Determine overflow behavior per axis (matches HTML/CSS behavior)
     -- Priority: axis-specific (overflowX/Y) > general (overflow) > default (hidden)
     local overflowX = self.overflowX or self.overflow
@@ -2731,6 +2759,7 @@ function Element:draw(backdropCanvas)
 
     -- Apply scroll offset if overflow is not visible
     local hasScrollOffset = needsOverflowClipping and (self._scrollX ~= 0 or self._scrollY ~= 0)
+    local hasContentOffset = contentOffsetX ~= 0 or contentOffsetY ~= 0
 
     if hasRoundedCorners and #sortedChildren > 0 then
       -- Use stencil to clip children to rounded rectangle
@@ -2747,17 +2776,19 @@ function Element:draw(backdropCanvas)
 
       love.graphics.setStencilTest("greater", 0)
 
-      -- Apply scroll offset AFTER clipping is set
-      if hasScrollOffset then
+      -- Apply scroll/content offset AFTER clipping is set
+      if hasScrollOffset or hasContentOffset then
         love.graphics.push()
-        love.graphics.translate(-self._scrollX, -self._scrollY)
+        local translateX = (hasScrollOffset and -self._scrollX or 0) + contentOffsetX
+        local translateY = (hasScrollOffset and -self._scrollY or 0) + contentOffsetY
+        love.graphics.translate(translateX, translateY)
       end
 
       for _, child in ipairs(sortedChildren) do
         child:draw(backdropCanvas)
       end
 
-      if hasScrollOffset then
+      if hasScrollOffset or hasContentOffset then
         love.graphics.pop()
       end
 
@@ -2771,25 +2802,36 @@ function Element:draw(backdropCanvas)
 
       love.graphics.setScissor(contentX, contentY, contentWidth, contentHeight)
 
-      -- Apply scroll offset AFTER clipping is set
-      if hasScrollOffset then
+      -- Apply scroll/content offset AFTER clipping is set
+      if hasScrollOffset or hasContentOffset then
         love.graphics.push()
-        love.graphics.translate(-self._scrollX, -self._scrollY)
+        local translateX = (hasScrollOffset and -self._scrollX or 0) + contentOffsetX
+        local translateY = (hasScrollOffset and -self._scrollY or 0) + contentOffsetY
+        love.graphics.translate(translateX, translateY)
       end
 
       for _, child in ipairs(sortedChildren) do
         child:draw(backdropCanvas)
       end
 
-      if hasScrollOffset then
+      if hasScrollOffset or hasContentOffset then
         love.graphics.pop()
       end
 
       love.graphics.setScissor()
     else
       -- No clipping needed
+      if hasContentOffset then
+        love.graphics.push()
+        love.graphics.translate(contentOffsetX, contentOffsetY)
+      end
+
       for _, child in ipairs(sortedChildren) do
         child:draw(backdropCanvas)
+      end
+
+      if hasContentOffset then
+        love.graphics.pop()
       end
     end
   end

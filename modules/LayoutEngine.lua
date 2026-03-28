@@ -235,6 +235,7 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
   local childCount = #children
   local totalGaps = math.max(0, childCount - 1) * gap
   local availableForContent = availableMainSize - totalGaps
+  local viewportWidth, viewportHeight = self._Units.getViewport()
 
   -- Step 1: Calculate hypothetical main sizes (flex basis resolution)
   local hypotheticalSizes = {}
@@ -254,8 +255,8 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
     local resolved = self._Units.resolve(
       axisUnits.value,
       axisUnits.unit,
-      self._Context.viewportWidth,
-      self._Context.viewportHeight,
+      viewportWidth,
+      viewportHeight,
       availableMainSize
     )
 
@@ -286,8 +287,7 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
     elseif type(flexBasis) == "string" and child.units.flexBasis then
       -- Parse and resolve flex-basis with units
       local value, unit = child.units.flexBasis.value, child.units.flexBasis.unit
-      hypotheticalSize =
-        self._Units.resolve(value, unit, self._Context.viewportWidth, self._Context.viewportHeight, availableMainSize)
+      hypotheticalSize = self._Units.resolve(value, unit, viewportWidth, viewportHeight, availableMainSize)
     else
       -- Fallback to element's natural size
       if isHorizontal then
@@ -545,6 +545,7 @@ function LayoutEngine:layoutChildren()
     -- Performance optimization: hoist enum comparisons outside loop
     local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
     local gapSize = self.gap
+    local viewportWidth, viewportHeight = self._Units.getViewport()
 
     local function resolveDeclaredMainSizeForWrap(child)
       local axisUnits = nil
@@ -559,8 +560,8 @@ function LayoutEngine:layoutChildren()
       local resolved = self._Units.resolve(
         axisUnits.value,
         axisUnits.unit,
-        self._Context.viewportWidth,
-        self._Context.viewportHeight,
+        viewportWidth,
+        viewportHeight,
         availableMainSize
       )
 
@@ -624,11 +625,16 @@ function LayoutEngine:layoutChildren()
   local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
 
   for lineIndex, line in ipairs(lines) do
-    -- Check if any child in this line needs flex sizing
+    -- Check if any child in this line needs flex sizing.
+    -- CSS default is flex-shrink: 1, so nil flexShrink still participates in shrink.
     local needsFlexSizing = false
     for _, child in ipairs(line) do
-      local hasExplicitShrink = child.flexShrink ~= nil
-      if (child.flexGrow and child.flexGrow > 0) or (child.flexBasis and child.flexBasis ~= "auto") or hasExplicitShrink then
+      local flexGrow = child.flexGrow or 0
+      local flexBasis = child.flexBasis
+      local flexShrink = child.flexShrink
+      local resolvedFlexShrink = (flexShrink == nil) and 1 or flexShrink
+
+      if flexGrow > 0 or (flexBasis and flexBasis ~= "auto") or resolvedFlexShrink > 0 then
         needsFlexSizing = true
         break
       end
@@ -645,14 +651,14 @@ function LayoutEngine:layoutChildren()
 
         if isHorizontal then
           -- Update width for horizontal flex
-          child.width = mainSize
           child._borderBoxWidth = mainSize
+          child.width = math.max(0, mainSize - child.padding.left - child.padding.right)
           -- Invalidate width cache
           child._borderBoxWidthCache = nil
         else
           -- Update height for vertical flex
-          child.height = mainSize
           child._borderBoxHeight = mainSize
+          child.height = math.max(0, mainSize - child.padding.top - child.padding.bottom)
           -- Invalidate height cache
           child._borderBoxHeightCache = nil
         end
@@ -1370,8 +1376,19 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     and self.element.units.flexBasis.unit ~= "px"
   then
     local value, unit = self.element.units.flexBasis.value, self.element.units.flexBasis.unit
-    -- flexBasis uses parent dimensions for % (main axis determines which dimension)
-    local parentSize = self.element.parent and self.element.parent.width or newViewportWidth
+    -- flexBasis uses parent main-axis size for percentage resolution.
+    local parentMainIsHorizontal = true
+    if self.element.parent and self.element.parent.flexDirection then
+      parentMainIsHorizontal = self.element.parent.flexDirection == self._FlexDirection.HORIZONTAL
+    end
+    local parentSize = newViewportWidth
+    if self.element.parent then
+      if parentMainIsHorizontal then
+        parentSize = self.element.parent.width
+      else
+        parentSize = self.element.parent.height
+      end
+    end
     local resolvedBasis = Units.resolve(value, unit, newViewportWidth, newViewportHeight, parentSize)
     if type(resolvedBasis) == "number" then
       self.element.flexBasis = resolvedBasis

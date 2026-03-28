@@ -518,6 +518,33 @@ function TestFlexShrink:test_items_shrink_equally()
   luaunit.assertEquals(child2.width, 150)
 end
 
+function TestFlexShrink:test_default_flex_shrink_applies_when_unspecified()
+  local container = FlexLove.new({
+    width = 300,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    gap = 0,
+  })
+
+  local child1 = FlexLove.new({
+    width = 200,
+    height = 50,
+    parent = container,
+  })
+
+  local child2 = FlexLove.new({
+    width = 200,
+    height = 50,
+    parent = container,
+  })
+
+  container:layoutChildren()
+
+  luaunit.assertEquals(child1.width, 150)
+  luaunit.assertEquals(child2.width, 150)
+end
+
 function TestFlexShrink:test_proportional_shrink()
   local container = FlexLove.new({
     width = 300,
@@ -999,6 +1026,41 @@ function TestFlexComplexScenarios:test_flex_with_padding()
   -- Free space: 560 - 200 = 360, divided equally = 180 each
   luaunit.assertEquals(child1.width, 280)
   luaunit.assertEquals(child2.width, 280)
+end
+
+function TestFlexComplexScenarios:test_flex_main_size_keeps_border_box_model()
+  local container = FlexLove.new({
+    width = 300,
+    height = 120,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    gap = 0,
+  })
+
+  local child1 = FlexLove.new({
+    width = 100,
+    height = 60,
+    flexGrow = 1,
+    padding = { left = 20, right = 20, top = 0, bottom = 0 },
+    parent = container,
+  })
+
+  local child2 = FlexLove.new({
+    width = 100,
+    height = 60,
+    flexGrow = 1,
+    parent = container,
+  })
+
+  container:layoutChildren()
+
+  -- Border-box sizes grow equally from 100 to 150.
+  luaunit.assertEquals(child1:getBorderBoxWidth(), 150)
+  luaunit.assertEquals(child2:getBorderBoxWidth(), 150)
+
+  -- Content width remains border-box minus padding.
+  luaunit.assertEquals(child1.width, 110)
+  luaunit.assertEquals(child2.width, 150)
 end
 
 -- Run tests only if not part of runAll.lua

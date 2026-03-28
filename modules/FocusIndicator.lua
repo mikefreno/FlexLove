@@ -104,7 +104,15 @@ function FocusIndicator:draw()
     return
   end
 
-  local element = FocusIndicator._focusedElement
+  -- In immediate mode the stored element reference is stale (recreated every frame).
+  -- Always resolve through Context so we get the live object with up-to-date positions.
+  local element
+  if FocusIndicator._Context then
+    element = FocusIndicator._Context.getFocused()
+  else
+    element = FocusIndicator._focusedElement
+  end
+
   if not element then
     return
   end

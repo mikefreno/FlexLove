@@ -12,19 +12,19 @@ local FocusIndicator = {}
 --- Configuration
 FocusIndicator.config = {
   enabled = true,
-  
+
   -- Appearance
-  color = {0.2, 0.6, 1.0, 0.8},  -- Blue with 80% opacity
+  color = { 0.2, 0.6, 1.0, 0.8 }, -- Blue with 80% opacity
   lineWidth = 2,
-  inset = -3,                    -- Negative value extends beyond element
+  inset = -3, -- Negative value extends beyond element
   borderRadius = 4,
-  
+
   -- Animation
-  animationDuration = 0.15,       -- Seconds for focus animation
-  pulseEnabled = false,          -- Enable pulsing animation
-  pulseDuration = 1.0,           -- Seconds per pulse cycle
-  pulseScaleMin = 0.95,          -- Minimum scale during pulse
-  pulseScaleMax = 1.05,          -- Maximum scale during pulse
+  animationDuration = 0.15, -- Seconds for focus animation
+  pulseEnabled = false, -- Enable pulsing animation
+  pulseDuration = 1.0, -- Seconds per pulse cycle
+  pulseScaleMin = 0.95, -- Minimum scale during pulse
+  pulseScaleMax = 1.05, -- Maximum scale during pulse
 }
 
 --- State
@@ -50,17 +50,12 @@ function FocusIndicator:update(dt)
 
   -- Update focus entrance animation
   if FocusIndicator._animationProgress < 1 then
-    FocusIndicator._animationProgress = math.min(
-      1,
-      FocusIndicator._animationProgress + (dt / FocusIndicator.config.animationDuration)
-    )
+    FocusIndicator._animationProgress = math.min(1, FocusIndicator._animationProgress + (dt / FocusIndicator.config.animationDuration))
   end
 
   -- Update pulse animation
   if FocusIndicator.config.pulseEnabled then
-    FocusIndicator._pulsePhase = (
-      FocusIndicator._pulsePhase + dt
-    ) % FocusIndicator.config.pulseDuration
+    FocusIndicator._pulsePhase = (FocusIndicator._pulsePhase + dt) % FocusIndicator.config.pulseDuration
   end
 end
 
@@ -87,9 +82,8 @@ function FocusIndicator:getScale()
   if FocusIndicator.config.pulseEnabled then
     local pulseProgress = FocusIndicator._pulsePhase / FocusIndicator.config.pulseDuration
     -- Smooth sine wave pulse
-    local pulseScale = FocusIndicator.config.pulseScaleMin +
-      (FocusIndicator.config.pulseScaleMax - FocusIndicator.config.pulseScaleMin) *
-      (0.5 + 0.5 * math.sin(2 * math.pi * pulseProgress))
+    local pulseScale = FocusIndicator.config.pulseScaleMin
+      + (FocusIndicator.config.pulseScaleMax - FocusIndicator.config.pulseScaleMin) * (0.5 + 0.5 * math.sin(2 * math.pi * pulseProgress))
     scale = scale * pulseScale
   end
 
@@ -115,11 +109,11 @@ function FocusIndicator:draw()
     return
   end
 
-  -- Get element dimensions
+  -- Get element dimensions (use border-box size which includes padding)
   local x = element.x or 0
   local y = element.y or 0
-  local w = element.width or 0
-  local h = element.height or 0
+  local w = element._borderBoxWidth or (element.width + (element.padding and (element.padding.left + element.padding.right) or 0))
+  local h = element._borderBoxHeight or (element.height + (element.padding and (element.padding.top + element.padding.bottom) or 0))
 
   if w == 0 or h == 0 then
     return
@@ -128,7 +122,7 @@ function FocusIndicator:draw()
   -- Calculate indicator dimensions with inset and scale
   local inset = FocusIndicator.config.inset
   local scale = self:getScale()
-  
+
   local indicatorX = x + inset
   local indicatorY = y + inset
   local indicatorW = w - 2 * inset
@@ -137,7 +131,7 @@ function FocusIndicator:draw()
   -- Center the scale around the element
   local offsetX = (indicatorW * (1 - scale)) / 2
   local offsetY = (indicatorH * (1 - scale)) / 2
-  
+
   indicatorX = indicatorX + offsetX
   indicatorY = indicatorY + offsetY
   indicatorW = indicatorW * scale
@@ -148,8 +142,9 @@ function FocusIndicator:draw()
   local a = self:getOpacity()
 
   -- Save current love.graphics state
-  local previousLove = love.graphics.getScissor()
-  local previousBlend = love.graphics.getBlendMode()
+  local prevBlend, prevAlphaMode = love.graphics.getBlendMode()
+  local prevR, prevG, prevB, prevA = love.graphics.getColor()
+  local prevLineWidth = love.graphics.getLineWidth()
 
   -- Set blend mode for transparency
   love.graphics.setBlendMode("alpha")
@@ -157,26 +152,15 @@ function FocusIndicator:draw()
   -- Draw rounded rectangle border
   love.graphics.setColor(r, g, b, a)
   love.graphics.setLineWidth(FocusIndicator.config.lineWidth)
-  
-  -- Draw the border (filled rectangle with hole)
+
+  -- Draw the rounded rectangle border
   local borderRadius = FocusIndicator.config.borderRadius
-  
-  -- Outer rectangle (filled)
-  love.graphics.rectangle("fill", indicatorX, indicatorY, indicatorW, indicatorH, borderRadius)
-  
-  -- Inner rectangle (cutout) - draw with background color or use stencil
-  -- For simplicity, we'll just draw the border using line
-  love.graphics.setLineWidth(FocusIndicator.config.lineWidth)
-  love.graphics.setLineJoin("round")
-  love.graphics.setLineCap("round")
   love.graphics.rectangle("line", indicatorX, indicatorY, indicatorW, indicatorH, borderRadius)
 
   -- Restore love.graphics state
-  love.graphics.setBlendMode(previousBlend)
-  if previousLove then
-    love.graphics.setScissor(previousLove)
-  end
-  love.graphics.setColor(1, 1, 1, 1) -- Reset color
+  love.graphics.setBlendMode(prevBlend, prevAlphaMode)
+  love.graphics.setColor(prevR, prevG, prevB, prevA)
+  love.graphics.setLineWidth(prevLineWidth)
 end
 
 --- Enable/disable focus indicator
@@ -191,7 +175,7 @@ end
 ---@param b number Blue component (0-1)
 ---@param a number Alpha component (0-1, optional)
 function FocusIndicator.setColor(r, g, b, a)
-  FocusIndicator.config.color = {r, g, b, a or FocusIndicator.config.color[4]}
+  FocusIndicator.config.color = { r, g, b, a or FocusIndicator.config.color[4] }
 end
 
 --- Set focus indicator line width

@@ -21,7 +21,7 @@ local KeyboardNavigation = {
       down = "down",
       left = "left",
       right = "right",
-      activate = {"return", "space"},
+      activate = { "return", "space" },
       dismiss = "escape",
       toggleDebug = "f12",
       inspect = "i",
@@ -37,12 +37,12 @@ local KeyboardNavigation = {
     developerTools = {
       enabled = true,
       showProperties = true,
-      highlightColor = {1, 0.8, 0, 0.5},
+      highlightColor = { 1, 0.8, 0, 0.5 },
     },
 
     -- Focus indicator style
     focusIndicator = {
-      color = {0.2, 0.6, 1.0, 0.8},
+      color = { 0.2, 0.6, 1.0, 0.8 },
       lineWidth = 2,
       inset = -3,
       borderRadius = 4,
@@ -60,7 +60,7 @@ local KeyboardNavigation = {
   _spatialIndex = {
     enabled = false,
     cellSize = 100, -- Grid cell size in pixels
-    grid = {},      -- Grid storing element references
+    grid = {}, -- Grid storing element references
     elementPositions = {}, -- Cache of element positions {element = {x, y, w, h}}
     lastUpdateFrame = 0,
   },
@@ -70,7 +70,7 @@ local KeyboardNavigation = {
 ---@param deps table {Context, Element, ErrorHandler, utils, InputEvent}
 function KeyboardNavigation.init(deps)
   -- Validate required dependencies
-  local required = {Context = true, Element = true, ErrorHandler = true, utils = true, InputEvent = true}
+  local required = { Context = true, Element = true, ErrorHandler = true, utils = true, InputEvent = true }
   for depName, _ in pairs(required) do
     if not deps[depName] then
       error(string.format("KeyboardNavigation.init: Missing required dependency: %s", depName))
@@ -91,6 +91,12 @@ end
 ---@param isrepeat boolean
 ---@return boolean handled
 function KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
+  -- Debug logging
+  if KeyboardNavigation.config.debugMode then
+    print(string.format("[KeyboardNavigation] Key pressed: %s (scancode: %s, repeat: %s)", key, scancode, tostring(isrepeat)))
+    print(string.format("[KeyboardNavigation] Enabled: %s", tostring(KeyboardNavigation.config.enabled)))
+  end
+
   local config = KeyboardNavigation.config
   local keys = config.keys
 
@@ -138,26 +144,18 @@ function KeyboardNavigation:nextFocusable()
   local Element = KeyboardNavigation._Element
 
   local current = Context.getFocused()
-  local container = Context.getNavigationContainer()
-
-  -- Fallback to top-level elements
-  if not container then
-    if Context._immediateMode then
-      container = Context._zIndexOrderedElements[1]
-    else
-      container = Context.topElements[1]
-    end
+  if KeyboardNavigation.config.debugMode then
+    print(string.format("[KeyboardNavigation] Tab pressed - Current focus: %s", tostring(current and current.id or "nil")))
   end
 
-  if not container then
-    return false
-  end
-
-  -- Find next focusable element
   local nextElem
   if Context._immediateMode then
-    nextElem = self:_findNextInZIndexOrder(current, container)
+    nextElem = self:_findNextInZIndexOrder(current)
   else
+    local container = Context.getNavigationContainer() or Context.topElements[1]
+    if not container then
+      return false
+    end
     nextElem = Element.getNextFocusable(container, current, KeyboardNavigation.config.wrapAround)
   end
 
@@ -176,26 +174,15 @@ function KeyboardNavigation:previousFocusable()
   local Element = KeyboardNavigation._Element
 
   local current = Context.getFocused()
-  local container = Context.getNavigationContainer()
 
-  -- Fallback to top-level elements
-  if not container then
-    if Context._immediateMode then
-      container = Context._zIndexOrderedElements[1]
-    else
-      container = Context.topElements[1]
-    end
-  end
-
-  if not container then
-    return false
-  end
-
-  -- Find previous focusable element
   local prevElem
   if Context._immediateMode then
-    prevElem = self:_findPreviousInZIndexOrder(current, container)
+    prevElem = self:_findPreviousInZIndexOrder(current)
   else
+    local container = Context.getNavigationContainer() or Context.topElements[1]
+    if not container then
+      return false
+    end
     prevElem = Element.getPreviousFocusable(container, current, KeyboardNavigation.config.wrapAround)
   end
 
@@ -207,18 +194,97 @@ function KeyboardNavigation:previousFocusable()
   return false
 end
 
---- Find next focusable in z-index order (immediate mode)
----@param current Element?
----@param container Element
+--- Get the highest z-index top-level root element (no parent) for navigation scoping.
+--- Keyboard navigation is restricted to the topmost visible screen.
 ---@return Element?
-function KeyboardNavigation:_findNextInZIndexOrder(current, container)
+function KeyboardNavigation:_getNavigationRoot()
   local Context = KeyboardNavigation._Context
-  local elements = Context._zIndexOrderedElements
+
+  -- Gather all top-level elements (no parent) from the z-index ordered list
+  local topRoots = {}
+  local seen = {}
+  for _, elem in ipairs(Context._zIndexOrderedElements) do
+    -- Walk to the true root
+    local root = elem
+    while root.parent do
+      root = root.parent
+    end
+    if not seen[root] then
+      seen[root] = true
+      table.insert(topRoots, root)
+    end
+  end
+
+  if #topRoots == 0 then
+    return nil
+  end
+
+  -- Return the root with the highest z-index (last one when sorted ascending)
+  local best = topRoots[1]
+  for i = 2, #topRoots do
+    if (topRoots[i].z or 0) >= (best.z or 0) then
+      best = topRoots[i]
+    end
+  end
+  return best
+end
+
+--- Collect focusable elements in document/flex-flow order from a root element.
+--- Respects tabIndex: elements with tabIndex are sorted by that value first,
+--- elements without tabIndex follow in natural document order after those with tabIndex.
+---@param root Element
+---@return Element[]
+function KeyboardNavigation:_collectFocusablesInOrder(root)
+  local withTabIndex = {}
+  local withoutTabIndex = {}
+
+  local function collect(elem)
+    if elem:isFocusable() then
+      if elem.tabIndex ~= nil then
+        table.insert(withTabIndex, elem)
+      else
+        table.insert(withoutTabIndex, elem)
+      end
+    end
+    for _, child in ipairs(elem.children) do
+      collect(child)
+    end
+  end
+
+  collect(root)
+
+  -- Sort elements with explicit tabIndex by their tabIndex value
+  table.sort(withTabIndex, function(a, b)
+    return (a.tabIndex or 0) < (b.tabIndex or 0)
+  end)
+
+  -- Merge: tabIndex elements first, then document-order elements
+  local result = {}
+  for _, elem in ipairs(withTabIndex) do
+    table.insert(result, elem)
+  end
+  for _, elem in ipairs(withoutTabIndex) do
+    table.insert(result, elem)
+  end
+
+  return result
+end
+
+--- Find next focusable in document/flex-flow order (immediate mode)
+---@param current Element?
+---@return Element?
+function KeyboardNavigation:_findNextInZIndexOrder(current)
+  local root = self:_getNavigationRoot()
+  if not root then
+    return nil
+  end
+
+  local elements = self:_collectFocusablesInOrder(root)
   local startIndex = 0
 
   if current then
     for i, elem in ipairs(elements) do
-      if elem == current then
+      if elem.id == current.id then
         startIndex = i
         break
       end
@@ -227,37 +293,38 @@ function KeyboardNavigation:_findNextInZIndexOrder(current, container)
 
   -- Search forward
   for i = startIndex + 1, #elements do
-    local elem = elements[i]
-    if self:_isInContainer(elem, container) and elem:isFocusable() then
-      return elem
-    end
+    return elements[i]
   end
 
   -- Wrap around
-  if KeyboardNavigation.config.wrapAround then
-    for i = 1, startIndex do
-      local elem = elements[i]
-      if self:_isInContainer(elem, container) and elem:isFocusable() then
-        return elem
-      end
+  if KeyboardNavigation.config.wrapAround and startIndex > 0 then
+    if #elements > 0 then
+      return elements[1]
+    end
+  elseif KeyboardNavigation.config.wrapAround and startIndex == 0 then
+    if #elements > 0 then
+      return elements[1]
     end
   end
 
   return nil
 end
 
---- Find previous focusable in z-index order (immediate mode)
+--- Find previous focusable in document/flex-flow order (immediate mode)
 ---@param current Element?
----@param container Element
 ---@return Element?
-function KeyboardNavigation:_findPreviousInZIndexOrder(current, container)
-  local Context = KeyboardNavigation._Context
-  local elements = Context._zIndexOrderedElements
+function KeyboardNavigation:_findPreviousInZIndexOrder(current)
+  local root = self:_getNavigationRoot()
+  if not root then
+    return nil
+  end
+
+  local elements = self:_collectFocusablesInOrder(root)
   local startIndex = #elements + 1
 
   if current then
     for i, elem in ipairs(elements) do
-      if elem == current then
+      if elem.id == current.id then
         startIndex = i
         break
       end
@@ -265,21 +332,13 @@ function KeyboardNavigation:_findPreviousInZIndexOrder(current, container)
   end
 
   -- Search backward
-  for i = startIndex - 1, 1, -1 do
-    local elem = elements[i]
-    if self:_isInContainer(elem, container) and elem:isFocusable() then
-      return elem
-    end
+  if startIndex - 1 >= 1 then
+    return elements[startIndex - 1]
   end
 
   -- Wrap around
-  if KeyboardNavigation.config.wrapAround then
-    for i = #elements, startIndex, -1 do
-      local elem = elements[i]
-      if self:_isInContainer(elem, container) and elem:isFocusable() then
-        return elem
-      end
-    end
+  if KeyboardNavigation.config.wrapAround and #elements > 0 then
+    return elements[#elements]
   end
 
   return nil
@@ -290,6 +349,7 @@ end
 ---@param container Element
 ---@return boolean
 function KeyboardNavigation:_isInContainer(element, container)
+  -- Direct match: element IS the container's child at some depth
   local current = element.parent
   while current do
     if current == container then
@@ -297,7 +357,16 @@ function KeyboardNavigation:_isInContainer(element, container)
     end
     current = current.parent
   end
-  return false
+  -- Also accept elements that share the same top-level ancestor as container
+  -- (handles immediate mode where container is a top-level element)
+  local function getRoot(elem)
+    local e = elem
+    while e.parent do
+      e = e.parent
+    end
+    return e
+  end
+  return getRoot(element) == getRoot(container)
 end
 
 --- Navigate using arrow keys
@@ -334,16 +403,42 @@ function KeyboardNavigation:_findDirectionalNeighbor(current, direction)
     end
   end
 
-  -- Fallback to linear search
+  -- Collect all focusable elements visible this frame
   local Context = KeyboardNavigation._Context
-  local container = Context.getNavigationContainer() or current.parent
+  local focusable = {}
 
-  if not container then
-    return nil
+  local function collectFocusable(elem)
+    if elem:isFocusable() and elem ~= current then
+      table.insert(focusable, elem)
+    end
+    for _, child in ipairs(elem.children) do
+      collectFocusable(child)
+    end
   end
 
-  -- Get all focusable elements in container
-  local focusable = container:getFocusableChildren()
+  if Context._immediateMode and Context._zIndexOrderedElements then
+    -- In immediate mode: only consider focusables within the highest-z-index root
+    local root = self:_getNavigationRoot()
+    if root then
+      local function collectFocusable(elem)
+        if elem ~= current and elem:isFocusable() then
+          table.insert(focusable, elem)
+        end
+        for _, child in ipairs(elem.children) do
+          collectFocusable(child)
+        end
+      end
+      collectFocusable(root)
+    end
+  else
+    -- Retained mode: walk element trees
+    local container = Context.getNavigationContainer()
+    local roots = container and { container } or Context.topElements
+    for _, root in ipairs(roots) do
+      collectFocusable(root)
+    end
+  end
+
   if #focusable == 0 then
     return nil
   end
@@ -359,22 +454,18 @@ function KeyboardNavigation:_findDirectionalNeighbor(current, direction)
   local closestDistance = math.huge
 
   for _, elem in ipairs(focusable) do
-    if elem ~= current then
-      local elemRect = {
-        x = elem.x,
-        y = elem.y,
-        width = elem.width or 0,
-        height = elem.height or 0,
-      }
+    local elemRect = {
+      x = elem.x,
+      y = elem.y,
+      width = elem.width or 0,
+      height = elem.height or 0,
+    }
 
-      local distance, isInDirection = self:_calculateDirectionalDistance(
-        currentRect, elemRect, direction
-      )
+    local distance, isInDirection = self:_calculateDirectionalDistance(currentRect, elemRect, direction)
 
-      if isInDirection and distance < closestDistance then
-        closest = elem
-        closestDistance = distance
-      end
+    if isInDirection and distance < closestDistance then
+      closest = elem
+      closestDistance = distance
     end
   end
 
@@ -483,6 +574,9 @@ function KeyboardNavigation:_focusElement(element)
   local Context = KeyboardNavigation._Context
 
   if element and element:isFocusable() then
+    if KeyboardNavigation.config.debugMode then
+      print(string.format("[KeyboardNavigation] Focusing element: %s (id: %s)", element.themeComponent or "unknown", tostring(element.id)))
+    end
     Context.setFocused(element)
 
     -- Update focus indicator
@@ -671,7 +765,9 @@ end
 --- Update spatial index (call when layout changes)
 function KeyboardNavigation:updateSpatialIndex()
   local Context = KeyboardNavigation._Context
-  if not Context then return end
+  if not Context then
+    return
+  end
 
   local index = KeyboardNavigation._spatialIndex
   local cellSize = index.cellSize
@@ -684,7 +780,7 @@ function KeyboardNavigation:updateSpatialIndex()
     if elem and elem:isFocusable() then
       local w = elem.width or 0
       local h = elem.height or 0
-      index.elementPositions[elem] = {x = elem.x, y = elem.y, w = w, h = h}
+      index.elementPositions[elem] = { x = elem.x, y = elem.y, w = w, h = h }
 
       -- Add to grid cells (element can span multiple cells)
       local leftCell = math.floor(elem.x / cellSize)
@@ -739,7 +835,9 @@ function KeyboardNavigation:_findDirectionalNeighborSpatial(current, direction)
 
   -- Get current element's grid position
   local currentPos = index.elementPositions[current]
-  if not currentPos then return nil end
+  if not currentPos then
+    return nil
+  end
 
   local centerX = currentPos.x + currentPos.w / 2
   local centerY = currentPos.y + currentPos.h / 2
@@ -755,28 +853,28 @@ function KeyboardNavigation:_findDirectionalNeighborSpatial(current, direction)
 
     -- Get cells in the search ring
     if direction == "up" then
-      table.insert(candidates, {currentCellX, currentCellY - radius})
+      table.insert(candidates, { currentCellX, currentCellY - radius })
       if radius > 1 then
-        table.insert(candidates, {currentCellX - 1, currentCellY - radius})
-        table.insert(candidates, {currentCellX + 1, currentCellY - radius})
+        table.insert(candidates, { currentCellX - 1, currentCellY - radius })
+        table.insert(candidates, { currentCellX + 1, currentCellY - radius })
       end
     elseif direction == "down" then
-      table.insert(candidates, {currentCellX, currentCellY + radius})
+      table.insert(candidates, { currentCellX, currentCellY + radius })
       if radius > 1 then
-        table.insert(candidates, {currentCellX - 1, currentCellY + radius})
-        table.insert(candidates, {currentCellX + 1, currentCellY + radius})
+        table.insert(candidates, { currentCellX - 1, currentCellY + radius })
+        table.insert(candidates, { currentCellX + 1, currentCellY + radius })
       end
     elseif direction == "left" then
-      table.insert(candidates, {currentCellX - radius, currentCellY})
+      table.insert(candidates, { currentCellX - radius, currentCellY })
       if radius > 1 then
-        table.insert(candidates, {currentCellX - radius, currentCellY - 1})
-        table.insert(candidates, {currentCellX - radius, currentCellY + 1})
+        table.insert(candidates, { currentCellX - radius, currentCellY - 1 })
+        table.insert(candidates, { currentCellX - radius, currentCellY + 1 })
       end
     elseif direction == "right" then
-      table.insert(candidates, {currentCellX + radius, currentCellY})
+      table.insert(candidates, { currentCellX + radius, currentCellY })
       if radius > 1 then
-        table.insert(candidates, {currentCellX + radius, currentCellY - 1})
-        table.insert(candidates, {currentCellX + radius, currentCellY + 1})
+        table.insert(candidates, { currentCellX + radius, currentCellY - 1 })
+        table.insert(candidates, { currentCellX + radius, currentCellY + 1 })
       end
     end
 

@@ -35,6 +35,7 @@ function EventHandler.init(deps)
   EventHandler._ErrorHandler = deps.ErrorHandler
   EventHandler._InputEvent = deps.InputEvent
   EventHandler._utils = deps.utils
+  EventHandler._Context = deps.Context
 end
 
 ---@param config table Configuration options
@@ -307,6 +308,11 @@ function EventHandler:_handleMousePress(element, mx, my, button)
 
   self._pressed[button] = true
 
+  -- On left click, set keyboard focus to any focusable element (not just editable).
+  -- This ensures the focus indicator follows mouse selection.
+  if button == 1 and EventHandler._Context and element:isFocusable() then
+    EventHandler._Context.setFocused(element)
+  end
   -- Set mouse down position for text selection on left click
   if button == 1 and element._textEditor then
     element._mouseDownPosition = element._textEditor:mouseToTextPosition(element, mx, my)

@@ -8,6 +8,19 @@ end
 ---@class KeyboardNavigation
 ---@field config KeyboardNavigationConfig
 local KeyboardNavigation = {
+
+---@class KeyboardNavigationConfig
+---@field enabled boolean Enable/disable keyboard navigation
+---@field debugMode boolean Enable debug logging
+---@field keys table Key bindings configuration
+---@field wrapAround boolean Allow wrapping from last to first focusable
+---@field directionalNavigation boolean Enable arrow key navigation
+---@field focusVisible boolean Show focus indicator
+---@field autofocusOnCreate boolean Auto-focus first element on creation
+---@field dropFocusOnSelection boolean Drop focus after activating an element
+---@field developerTools table Developer tool settings
+---@field focusIndicator table Focus indicator style
+
   config = {
     -- Global settings
     enabled = true,
@@ -32,6 +45,10 @@ local KeyboardNavigation = {
     directionalNavigation = true,
     focusVisible = true,
     autofocusOnCreate = false,
+
+    --- Drop focus after pressing Enter/Space to activate an element
+    --- When false, focus remains on the element after activation
+    dropFocusOnSelection = true,
 
     -- Developer tools
     developerTools = {
@@ -657,9 +674,12 @@ function KeyboardNavigation:activateElement()
       })
     end
 
-    -- Hide focus indicator - it's only for keyboard navigation, not activation
-    if KeyboardNavigation.FocusIndicator then
-      KeyboardNavigation.FocusIndicator.setFocused(nil)
+    -- Drop focus indicator - configurable, defaults to dropping focus after selection
+    if KeyboardNavigation.config.dropFocusOnSelection then
+      Context.clearFocus()
+      if KeyboardNavigation.FocusIndicator then
+        KeyboardNavigation.FocusIndicator.setFocused(nil)
+      end
     end
 
     return true
@@ -715,7 +735,8 @@ function KeyboardNavigation:update(dt)
 end
 
 --- Push current focus onto stack (for modals/dialogs)
----@param element Element?
+--- Saves current focus and sets new focus to the given element
+---@param element Element? The element to focus (e.g., modal dialog)
 function KeyboardNavigation:pushFocus(element)
   local Context = KeyboardNavigation._Context
 
@@ -724,7 +745,8 @@ function KeyboardNavigation:pushFocus(element)
 end
 
 --- Pop focus from stack (return from modal)
----@return Element?
+--- Restores previously focused element from the stack
+---@return Element? The previously focused element, or nil if stack was empty
 function KeyboardNavigation:popFocus()
   local Context = KeyboardNavigation._Context
 
@@ -736,21 +758,21 @@ function KeyboardNavigation:popFocus()
   return previous
 end
 
---- Set key binding
----@param keyName string
----@param keyBinding string|table
+--- Set a custom key binding for navigation
+---@param keyName string The binding name (e.g., "next", "previous", "up", "down", "activate")
+---@param keyBinding string|table Key scancode or table of scancodes
 function KeyboardNavigation.setKeyBinding(keyName, keyBinding)
   KeyboardNavigation.config.keys[keyName] = keyBinding
 end
 
---- Enable/disable directional navigation
----@param enabled boolean
+--- Enable or disable arrow key directional navigation
+---@param enabled boolean True to enable arrow key navigation, false to restrict to Tab only
 function KeyboardNavigation.setDirectionalNavigation(enabled)
   KeyboardNavigation.config.directionalNavigation = enabled
 end
 
---- Enable/disable tab wrapping
----@param enabled boolean
+--- Enable or disable Tab wrapping at document boundaries
+---@param enabled boolean True to wrap from last to first focusable, false to stop at boundaries
 function KeyboardNavigation.setWrapAround(enabled)
   KeyboardNavigation.config.wrapAround = enabled
 end

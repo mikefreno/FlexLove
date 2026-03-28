@@ -241,17 +241,45 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
   local flexBases = {}
   local totalFlexBasis = 0
 
+  local function resolveDeclaredMainSize(child)
+    local axisUnits = nil
+    if child.units then
+      axisUnits = isHorizontal and child.units.width or child.units.height
+    end
+
+    if not axisUnits or axisUnits.unit == "auto" or axisUnits.value == nil then
+      return nil
+    end
+
+    local resolved = self._Units.resolve(
+      axisUnits.value,
+      axisUnits.unit,
+      self._Context.viewportWidth,
+      self._Context.viewportHeight,
+      availableMainSize
+    )
+
+    if type(resolved) == "number" then
+      return math.max(0, resolved)
+    end
+
+    return nil
+  end
+
   for i, child in ipairs(children) do
     local flexBasis = child.flexBasis
     local hypotheticalSize
 
     -- Resolve flex-basis
     if flexBasis == "auto" then
-      -- Use element's main size (width for horizontal, height for vertical)
-      if isHorizontal then
-        hypotheticalSize = child:getBorderBoxWidth()
-      else
-        hypotheticalSize = child:getBorderBoxHeight()
+      -- Use declared main size to avoid reusing a previously flexed runtime size
+      hypotheticalSize = resolveDeclaredMainSize(child)
+      if hypotheticalSize == nil then
+        if isHorizontal then
+          hypotheticalSize = child:getBorderBoxWidth()
+        else
+          hypotheticalSize = child:getBorderBoxHeight()
+        end
       end
     elseif type(flexBasis) == "number" then
       hypotheticalSize = flexBasis
@@ -518,6 +546,31 @@ function LayoutEngine:layoutChildren()
     local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
     local gapSize = self.gap
 
+    local function resolveDeclaredMainSizeForWrap(child)
+      local axisUnits = nil
+      if child.units then
+        axisUnits = isHorizontal and child.units.width or child.units.height
+      end
+
+      if not axisUnits or axisUnits.unit == "auto" or axisUnits.value == nil then
+        return nil
+      end
+
+      local resolved = self._Units.resolve(
+        axisUnits.value,
+        axisUnits.unit,
+        self._Context.viewportWidth,
+        self._Context.viewportHeight,
+        availableMainSize
+      )
+
+      if type(resolved) == "number" then
+        return math.max(0, resolved)
+      end
+
+      return nil
+    end
+
     for _, child in ipairs(flexChildren) do
       -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
       -- Include margins in size calculations
@@ -525,11 +578,12 @@ function LayoutEngine:layoutChildren()
       local childMargin = child.margin
       local childMainSize = 0
       local childMainMargin = 0
+      local declaredMainSize = resolveDeclaredMainSizeForWrap(child)
       if isHorizontal then
-        childMainSize = child:getBorderBoxWidth()
+        childMainSize = declaredMainSize or child:getBorderBoxWidth()
         childMainMargin = childMargin.left + childMargin.right
       else
-        childMainSize = child:getBorderBoxHeight()
+        childMainSize = declaredMainSize or child:getBorderBoxHeight()
         childMainMargin = childMargin.top + childMargin.bottom
       end
       local childTotalMainSize = childMainSize + childMainMargin
@@ -573,7 +627,8 @@ function LayoutEngine:layoutChildren()
     -- Check if any child in this line needs flex sizing
     local needsFlexSizing = false
     for _, child in ipairs(line) do
-      if (child.flexGrow and child.flexGrow > 0) or (child.flexBasis and child.flexBasis ~= "auto") then
+      local hasExplicitShrink = child.flexShrink ~= nil
+      if (child.flexGrow and child.flexGrow > 0) or (child.flexBasis and child.flexBasis ~= "auto") or hasExplicitShrink then
         needsFlexSizing = true
         break
       end

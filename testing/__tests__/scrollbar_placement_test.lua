@@ -155,6 +155,7 @@ function TestScrollbarPlacement:test_vertical_overflow_detected_with_reserved_sp
   local child1 = FlexLove.new({
     width = "100%",
     height = 300,
+    flexShrink = 0,
     parent = container,
   })
 

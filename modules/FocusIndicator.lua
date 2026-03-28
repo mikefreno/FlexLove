@@ -13,6 +13,13 @@ local FocusIndicator = {}
 FocusIndicator.config = {
   enabled = true,
 
+  -- Custom draw function: function(element, bounds, style)
+  -- element: the focused Element (may be nil in immediate mode)
+  -- bounds: {x, y, width, height} of the indicator
+  -- style: {color, lineWidth, borderRadius, scale, opacity}
+  -- Return true to skip default drawing, or nil/false to use default
+  draw = nil,
+
   -- Appearance
   color = { 0.2, 0.6, 1.0, 0.8 }, -- Blue with 80% opacity
   lineWidth = 2,
@@ -31,6 +38,7 @@ FocusIndicator.config = {
 FocusIndicator._focusedElement = nil
 FocusIndicator._animationProgress = 0
 FocusIndicator._pulsePhase = 0
+FocusIndicator._hidden = true
 FocusIndicator._deps = nil
 
 --- Initialize FocusIndicator module
@@ -63,6 +71,7 @@ end
 ---@param element Element?
 function FocusIndicator.setFocused(element)
   FocusIndicator._focusedElement = element
+  FocusIndicator._hidden = element == nil
   -- Reset animation when focus changes
   if element then
     FocusIndicator._animationProgress = 0
@@ -101,6 +110,10 @@ end
 --- Should be called from within love.draw() or a custom draw function
 function FocusIndicator:draw()
   if not FocusIndicator.config.enabled then
+    return
+  end
+
+  if FocusIndicator._hidden then
     return
   end
 
@@ -148,6 +161,30 @@ function FocusIndicator:draw()
   -- Get color with animated opacity
   local r, g, b = FocusIndicator.config.color[1], FocusIndicator.config.color[2], FocusIndicator.config.color[3]
   local a = self:getOpacity()
+
+  -- Build style table for custom draw callback
+  local bounds = {
+    x = indicatorX,
+    y = indicatorY,
+    width = indicatorW,
+    height = indicatorH,
+  }
+
+  local style = {
+    color = { r = r, g = g, b = b, a = a },
+    lineWidth = FocusIndicator.config.lineWidth,
+    borderRadius = FocusIndicator.config.borderRadius,
+    scale = scale,
+    opacity = a,
+  }
+
+  -- Check for custom draw callback
+  if FocusIndicator.config.draw then
+    local skipDefault = FocusIndicator.config.draw(element, bounds, style)
+    if skipDefault then
+      return
+    end
+  end
 
   -- Save current love.graphics state
   local prevBlend, prevAlphaMode = love.graphics.getBlendMode()

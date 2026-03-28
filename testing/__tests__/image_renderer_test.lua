@@ -16,6 +16,7 @@ require("testing.loveStub")
 local ImageRenderer = require("modules.ImageRenderer")
 local Color = require("modules.Color")
 local utils = require("modules.utils")
+local FlexLove = require("FlexLove")
 ImageRenderer.init({ ErrorHandler = ErrorHandler, utils = utils })
 
 -- ============================================================================
@@ -515,8 +516,9 @@ end
 TestImageRendererElementIntegration = {}
 
 function TestImageRendererElementIntegration:setUp()
-  self.Flexlove = require("FlexLove")
-  self.Flexlove.init({})
+  FlexLove.destroy()
+  FlexLove.init({})
+  self.Flexlove = FlexLove
 end
 
 function TestImageRendererElementIntegration:testElementImageRepeatProperty()

@@ -1074,6 +1074,9 @@ function Element.new(props)
     end
   end
 
+  -- Track whether flex-shrink was explicitly provided (directly or via flex shorthand)
+  self._hasExplicitFlexShrink = props.flexShrink ~= nil
+
   -- Handle flexGrow property
   if props.flexGrow ~= nil then
     if type(props.flexGrow) == "number" and props.flexGrow >= 0 then
@@ -4322,17 +4325,17 @@ function Element:isFocusable()
     return true
   end
 
-  -- Elements with onEvent handlers are focusable
+  -- Elements with onEvent handlers are focusable (buttons, sliders, inputs, etc.)
   if self.onEvent then
     return true
   end
 
-  -- Themed components that are interactive
-  if self.themeComponent then
+  -- Elements with onTextInput are focusable (inputs)
+  if self.onTextInput then
     return true
   end
 
-  -- Touch-enabled interactive elements
+  -- Touch-enabled interactive elements with callbacks
   if self.touchEnabled and (self.onTouchEvent or self.onGesture) then
     return true
   end

@@ -230,8 +230,21 @@ end
 ---@param availableMainSize number Available space in main axis
 ---@param gap number Gap between items
 ---@param isHorizontal boolean Whether main axis is horizontal
+---@param defaultFlexShrink number? Default flex-shrink to use when child.flexShrink is nil
 ---@return table mainSizes Array of calculated main sizes for each child
-function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHorizontal)
+function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHorizontal, defaultFlexShrink)
+  local implicitFlexShrink = defaultFlexShrink
+  if implicitFlexShrink == nil then
+    implicitFlexShrink = 1
+  end
+
+  local function getResolvedFlexShrink(child)
+    if child._hasExplicitFlexShrink then
+      return child.flexShrink
+    end
+    return implicitFlexShrink
+  end
+
   local childCount = #children
   local totalGaps = math.max(0, childCount - 1) * gap
   local availableForContent = availableMainSize - totalGaps
@@ -336,7 +349,7 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
     local totalScaledShrinkFactor = 0
 
     for i, child in ipairs(children) do
-      local flexShrink = child.flexShrink or 1
+      local flexShrink = getResolvedFlexShrink(child)
       totalFlexShrink = totalFlexShrink + flexShrink
       -- Scaled shrink factor = flex-shrink × flex-basis
       totalScaledShrinkFactor = totalScaledShrinkFactor + (flexShrink * flexBases[i])
@@ -345,7 +358,7 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
     if totalScaledShrinkFactor > 0 then
       -- Distribute shrinkage proportionally to (flex-shrink × flex-basis)
       for i, child in ipairs(children) do
-        local flexShrink = child.flexShrink or 1
+        local flexShrink = getResolvedFlexShrink(child)
         if flexShrink > 0 then
           local scaledShrinkFactor = flexShrink * flexBases[i]
           local shrinkAmount = (scaledShrinkFactor / totalScaledShrinkFactor) * math.abs(freeSpace)
@@ -623,16 +636,26 @@ function LayoutEngine:layoutChildren()
   -- Apply flex sizing to each line BEFORE calculating line heights
   -- Performance optimization: hoist enum comparison outside loop
   local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+  local mainAxisOverflow = nil
+  if isHorizontal then
+    mainAxisOverflow = self.element.overflowX or self.element.overflow
+  else
+    mainAxisOverflow = self.element.overflowY or self.element.overflow
+  end
+  local preserveMainAxisOverflow = (mainAxisOverflow == "scroll" or mainAxisOverflow == "auto")
+  local defaultFlexShrink = preserveMainAxisOverflow and 0 or 1
 
   for lineIndex, line in ipairs(lines) do
     -- Check if any child in this line needs flex sizing.
-    -- CSS default is flex-shrink: 1, so nil flexShrink still participates in shrink.
+    -- For scroll/auto in the main axis, keep implicit shrink at 0 so overflow can scroll.
     local needsFlexSizing = false
     for _, child in ipairs(line) do
       local flexGrow = child.flexGrow or 0
       local flexBasis = child.flexBasis
-      local flexShrink = child.flexShrink
-      local resolvedFlexShrink = (flexShrink == nil) and 1 or flexShrink
+      local resolvedFlexShrink = defaultFlexShrink
+      if child._hasExplicitFlexShrink then
+        resolvedFlexShrink = child.flexShrink
+      end
 
       if flexGrow > 0 or (flexBasis and flexBasis ~= "auto") or resolvedFlexShrink > 0 then
         needsFlexSizing = true
@@ -643,7 +666,7 @@ function LayoutEngine:layoutChildren()
     -- Only apply flex sizing if needed
     if needsFlexSizing then
       -- Calculate flex sizes for this line
-      local mainSizes = self:_calculateFlexSizes(line, availableMainSize, self.gap, isHorizontal)
+      local mainSizes = self:_calculateFlexSizes(line, availableMainSize, self.gap, isHorizontal, defaultFlexShrink)
 
       -- Apply calculated sizes to children
       for i, child in ipairs(line) do

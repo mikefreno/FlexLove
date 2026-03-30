@@ -1129,6 +1129,74 @@ function TestOverflowDetection:test_horizontal_overflow_detected()
   luaunit.assertEquals(maxScrollY, 0, "Should not have vertical overflow")
 end
 
+function TestOverflowDetection:test_main_axis_scroll_keeps_default_items_unshrunk_horizontal()
+  local container = FlexLove.new({
+    id = "container",
+    width = 100,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    overflowX = "scroll",
+    overflowY = "hidden",
+  })
+
+  local child1 = FlexLove.new({
+    id = "child1",
+    parent = container,
+    width = 80,
+    height = 40,
+  })
+
+  local child2 = FlexLove.new({
+    id = "child2",
+    parent = container,
+    width = 80,
+    height = 40,
+  })
+
+  FlexLove.endFrame()
+  FlexLove.beginFrame(1920, 1080)
+
+  local maxScrollX = container:getMaxScroll()
+  luaunit.assertTrue(maxScrollX > 0, "Default flex-shrink should not collapse scrollable row content")
+  luaunit.assertEquals(child1.width, 80)
+  luaunit.assertEquals(child2.width, 80)
+end
+
+function TestOverflowDetection:test_main_axis_scroll_keeps_default_items_unshrunk_vertical()
+  local container = FlexLove.new({
+    id = "container",
+    width = 120,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "vertical",
+    overflowY = "scroll",
+    overflowX = "hidden",
+  })
+
+  local child1 = FlexLove.new({
+    id = "child1",
+    parent = container,
+    width = 80,
+    height = 60,
+  })
+
+  local child2 = FlexLove.new({
+    id = "child2",
+    parent = container,
+    width = 80,
+    height = 60,
+  })
+
+  FlexLove.endFrame()
+  FlexLove.beginFrame(1920, 1080)
+
+  local _, maxScrollY = container:getMaxScroll()
+  luaunit.assertTrue(maxScrollY > 0, "Default flex-shrink should not collapse scrollable column content")
+  luaunit.assertEquals(child1.height, 60)
+  luaunit.assertEquals(child2.height, 60)
+end
+
 function TestOverflowDetection:test_both_axes_overflow()
   local container = FlexLove.new({
     id = "container",

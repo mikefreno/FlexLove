@@ -232,10 +232,14 @@ function ScrollManager:detectOverflow(element)
   self._contentWidth = maxX
   self._contentHeight = maxY
 
-  -- Detect overflow (compare against content area, not total element size)
-  -- The content area excludes padding
-  local containerWidth = element.width - element.padding.left - element.padding.right
-  local containerHeight = element.height - element.padding.top - element.padding.bottom
+  -- Detect overflow (compare against content area, not total element size).
+  -- element.width/height semantics depend on unit type:
+  --   px units  → border-box size (padding NOT yet subtracted)
+  --   %, vh, vw → content size (padding already subtracted by LayoutEngine)
+  --   auto      → content size
+  -- Using getBorderBoxWidth/Height() normalises both cases: border-box - padding = content.
+  local containerWidth = element:getBorderBoxWidth() - element.padding.left - element.padding.right
+  local containerHeight = element:getBorderBoxHeight() - element.padding.top - element.padding.bottom
 
   -- If scrollbarPlacement is "reserve-space", we need to subtract the reserved space
   -- because the layout already accounted for it, but element.width/height are still full size
@@ -628,7 +632,7 @@ function ScrollManager:handleWheel(x, y)
   local scrolled = false
 
   -- Vertical scrolling
-  if y ~= 0 and hasVerticalOverflow then
+  if y ~= 0 and (overflowY == "scroll" or overflowY == "auto") and hasVerticalOverflow then
     local delta = -y * self.scrollSpeed -- Negative because wheel up = scroll up
     if self.invertScroll then
       delta = -delta -- Invert scroll direction if enabled
@@ -645,7 +649,7 @@ function ScrollManager:handleWheel(x, y)
   end
 
   -- Horizontal scrolling
-  if x ~= 0 and hasHorizontalOverflow then
+  if x ~= 0 and (overflowX == "scroll" or overflowX == "auto") and hasHorizontalOverflow then
     local delta = -x * self.scrollSpeed
     if self.invertScroll then
       delta = -delta -- Invert scroll direction if enabled

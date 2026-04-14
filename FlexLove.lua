@@ -15,7 +15,11 @@ local ModuleLoader = req("ModuleLoader")
 ModuleLoader.init({ ErrorHandler = ErrorHandler })
 
 local function safeReq(name, isOptional)
-  return ModuleLoader.safeRequire(modulePath .. "modules." .. name, isOptional)
+  local module = ModuleLoader.safeRequire(modulePath .. "modules." .. name, isOptional)
+  if isOptional and module and module._isStub then
+    return nil
+  end
+  return module
 end
 
 -- Required core modules
@@ -61,7 +65,7 @@ local Animation = safeReq("Animation", true)
 local Theme = safeReq("Theme", true)
 
 -- Handle Animation.Transform safely
-local Transform = Animation.Transform or nil
+local Transform = Animation and Animation.Transform or nil
 
 local enums = utils.enums
 
@@ -153,7 +157,7 @@ function flexlove.init(config)
   flexlove._FFI = FFI.init({ ErrorHandler = flexlove._ErrorHandler })
 
   -- Initialize Performance if available
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Performance") then
+  if Performance then
     flexlove._Performance = Performance.init({
       enabled = config.performanceMonitoring or true,
       hudEnabled = false, -- Start with HUD disabled
@@ -277,10 +281,10 @@ function flexlove.init(config)
       -- Focus indicator config
       if keyboardConfig.focusIndicator then
         local fiConfig = keyboardConfig.focusIndicator
-        if fiConfig.enabled ~= nil then
+        if FocusIndicator and fiConfig.enabled ~= nil then
           FocusIndicator.config.enabled = fiConfig.enabled
         end
-        if fiConfig.color then
+        if FocusIndicator and fiConfig.color then
           FocusIndicator.setColor(
             fiConfig.color[1] or 0.2,
             fiConfig.color[2] or 0.6,
@@ -288,10 +292,10 @@ function flexlove.init(config)
             fiConfig.color[4] or 0.8
           )
         end
-        if fiConfig.lineWidth ~= nil then
+        if FocusIndicator and fiConfig.lineWidth ~= nil then
           FocusIndicator.config.lineWidth = fiConfig.lineWidth
         end
-        if fiConfig.pulseEnabled ~= nil then
+        if FocusIndicator and fiConfig.pulseEnabled ~= nil then
           FocusIndicator.config.pulseEnabled = fiConfig.pulseEnabled
         end
       end
@@ -300,7 +304,7 @@ function flexlove.init(config)
 
   flexlove._defaultDependencies = {
     Context = Context,
-    Theme = not Theme._isStub and Theme or nil,
+    Theme = Theme,
     Color = Color,
     Calc = Calc,
     Units = Units,
@@ -541,10 +545,10 @@ function flexlove.enableKeyboardNavigation(config)
     -- Focus indicator config
     if config.focusIndicator then
       local fiConfig = config.focusIndicator
-      if fiConfig.enabled ~= nil then
+      if FocusIndicator and fiConfig.enabled ~= nil then
         FocusIndicator.config.enabled = fiConfig.enabled
       end
-      if fiConfig.color then
+      if FocusIndicator and fiConfig.color then
         FocusIndicator.setColor(
           fiConfig.color[1] or 0.2,
           fiConfig.color[2] or 0.6,
@@ -552,10 +556,10 @@ function flexlove.enableKeyboardNavigation(config)
           fiConfig.color[4] or 0.8
         )
       end
-      if fiConfig.lineWidth ~= nil then
+      if FocusIndicator and fiConfig.lineWidth ~= nil then
         FocusIndicator.config.lineWidth = fiConfig.lineWidth
       end
-      if fiConfig.pulseEnabled ~= nil then
+      if FocusIndicator and fiConfig.pulseEnabled ~= nil then
         FocusIndicator.config.pulseEnabled = fiConfig.pulseEnabled
       end
     end
@@ -672,7 +676,9 @@ function flexlove.beginFrame()
   flexlove._accumulatedDt = 0
 
   -- Start performance frame timing
-  flexlove._Performance:startFrame()
+  if flexlove._Performance then
+    flexlove._Performance:startFrame()
+  end
 
   -- Cleanup elements from PREVIOUS frame (after they've been drawn)
   -- This breaks circular references and allows GC to collect memory
@@ -795,8 +801,10 @@ function flexlove.endFrame()
   flexlove._frameStarted = false
 
   -- End performance frame timing
-  flexlove._Performance:endFrame()
-  flexlove._Performance:resetFrameCounters()
+  if flexlove._Performance then
+    flexlove._Performance:endFrame()
+    flexlove._Performance:resetFrameCounters()
+  end
 end
 
 ---@type love.Canvas?
@@ -961,17 +969,12 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   end
 
   -- Render performance HUD if enabled
-  flexlove._Performance:renderHUD()
+  if flexlove._Performance then
+    flexlove._Performance:renderHUD()
+  end
 
   -- Render focus indicator if keyboard navigation is enabled
-  if
-    KeyboardNavigation
-    and not KeyboardNavigation._isStub
-    and KeyboardNavigation.config
-    and KeyboardNavigation.config.enabled
-    and FocusIndicator
-    and not FocusIndicator._isStub
-  then
+  if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled and FocusIndicator then
     FocusIndicator:draw()
   end
 
@@ -1105,7 +1108,9 @@ end
 ---@param dt number
 function flexlove.update(dt)
   -- Update Performance module with actual delta time for accurate FPS
-  flexlove._Performance:updateDeltaTime(dt)
+  if flexlove._Performance then
+    flexlove._Performance:updateDeltaTime(dt)
+  end
 
   -- Update keyboard navigation (animations, etc.)
   if KeyboardNavigation then
@@ -1236,18 +1241,15 @@ end
 ---@param scancode string
 ---@param isrepeat boolean
 function flexlove.keypressed(key, scancode, isrepeat)
-  flexlove._Performance:keypressed(key)
+  if flexlove._Performance then
+    flexlove._Performance:keypressed(key)
+  end
   if flexlove._debugDrawKey and key == flexlove._debugDrawKey then
     flexlove._debugDraw = not flexlove._debugDraw
   end
 
   -- Handle keyboard navigation (if module is available and enabled)
-  if
-    KeyboardNavigation
-    and not KeyboardNavigation._isStub
-    and KeyboardNavigation.config
-    and KeyboardNavigation.config.enabled
-  then
+  if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled then
     -- Debug logging for keyboard navigation entry point
     if KeyboardNavigation.config.debugMode then
       print(string.format("[FlexLove.keypressed] Keyboard nav enabled, handling key: %s", key))

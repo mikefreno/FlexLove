@@ -250,7 +250,7 @@ love_helper.keyboard = {}
 local mockKeyboardKeys = {} -- Table to track key states
 
 function love_helper.keyboard.isDown(...)
-  local keys = {...}
+  local keys = { ... }
   for _, key in ipairs(keys) do
     if mockKeyboardKeys[key] then
       return true
@@ -289,7 +289,7 @@ function ImageData.new(width, height)
   for y = 0, height - 1 do
     self.pixels[y] = {}
     for x = 0, width - 1 do
-      self.pixels[y][x] = {0, 0, 0, 0} -- Default to transparent black
+      self.pixels[y][x] = { 0, 0, 0, 0 } -- Default to transparent black
     end
   end
   return self
@@ -305,7 +305,7 @@ end
 
 function ImageData:setPixel(x, y, r, g, b, a)
   if x >= 0 and x < self.width and y >= 0 and y < self.height then
-    self.pixels[y][x] = {r, g, b, a or 1}
+    self.pixels[y][x] = { r, g, b, a or 1 }
   end
 end
 

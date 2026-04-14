@@ -168,8 +168,14 @@ function flexlove.init(config)
     }, { ErrorHandler = flexlove._ErrorHandler, FFI = flexlove._FFI })
 
     if config.immediateMode then
-      flexlove._Performance:registerTableForMonitoring("StateManager.stateStore", StateManager._getInternalState().stateStore)
-      flexlove._Performance:registerTableForMonitoring("StateManager.stateMetadata", StateManager._getInternalState().stateMetadata)
+      flexlove._Performance:registerTableForMonitoring(
+        "StateManager.stateStore",
+        StateManager._getInternalState().stateStore
+      )
+      flexlove._Performance:registerTableForMonitoring(
+        "StateManager.stateMetadata",
+        StateManager._getInternalState().stateMetadata
+      )
     end
   else
     flexlove._Performance = Performance
@@ -217,7 +223,13 @@ function flexlove.init(config)
   end
 
   LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, FFI = flexlove._FFI })
-  EventHandler.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, InputEvent = InputEvent, utils = utils, Context = Context })
+  EventHandler.init({
+    ErrorHandler = flexlove._ErrorHandler,
+    Performance = flexlove._Performance,
+    InputEvent = InputEvent,
+    utils = utils,
+    Context = Context,
+  })
 
   -- Initialize shared GestureRecognizer for touch routing
   if GestureRecognizer then
@@ -226,7 +238,10 @@ function flexlove.init(config)
 
   -- Initialize KeyboardNavigation and FocusIndicator if enabled
   local keyboardConfig = config.keyboardNavigation
-  if KeyboardNavigation and (keyboardConfig == true or (type(keyboardConfig) == "table" and keyboardConfig.enabled ~= false)) then
+  if
+    KeyboardNavigation
+    and (keyboardConfig == true or (type(keyboardConfig) == "table" and keyboardConfig.enabled ~= false))
+  then
     KeyboardNavigation.init({
       Context = Context,
       Element = Element,
@@ -266,7 +281,12 @@ function flexlove.init(config)
           FocusIndicator.config.enabled = fiConfig.enabled
         end
         if fiConfig.color then
-          FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
+          FocusIndicator.setColor(
+            fiConfig.color[1] or 0.2,
+            fiConfig.color[2] or 0.6,
+            fiConfig.color[3] or 1.0,
+            fiConfig.color[4] or 0.8
+          )
         end
         if fiConfig.lineWidth ~= nil then
           FocusIndicator.config.lineWidth = fiConfig.lineWidth
@@ -280,7 +300,7 @@ function flexlove.init(config)
 
   flexlove._defaultDependencies = {
     Context = Context,
-    Theme = Theme,
+    Theme = not Theme._isStub and Theme or nil,
     Color = Color,
     Calc = Calc,
     Units = Units,
@@ -379,7 +399,10 @@ function flexlove.init(config)
     if item.callback and type(item.callback) == "function" then
       local success, err = pcall(item.callback, element)
       if not success then
-        flexlove._ErrorHandler:warn("FlexLove", string.format("Failed to execute queued element callback: %s", tostring(err)))
+        flexlove._ErrorHandler:warn(
+          "FlexLove",
+          string.format("Failed to execute queued element callback: %s", tostring(err))
+        )
       end
     end
   end
@@ -434,6 +457,9 @@ end
 --- })
 ---@param config KeyboardNavigationConfig
 function flexlove.enableKeyboardNavigation(config)
+  if not KeyboardNavigation then
+    return
+  end
   config = config or {}
 
   -- Check if already initialized
@@ -462,7 +488,12 @@ function flexlove.enableKeyboardNavigation(config)
             FocusIndicator.config.draw = fiConfig.draw
           end
           if fiConfig.color then
-            FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
+            FocusIndicator.setColor(
+              fiConfig.color[1] or 0.2,
+              fiConfig.color[2] or 0.6,
+              fiConfig.color[3] or 1.0,
+              fiConfig.color[4] or 0.8
+            )
           end
           if fiConfig.lineWidth ~= nil then
             FocusIndicator.config.lineWidth = fiConfig.lineWidth
@@ -514,7 +545,12 @@ function flexlove.enableKeyboardNavigation(config)
         FocusIndicator.config.enabled = fiConfig.enabled
       end
       if fiConfig.color then
-        FocusIndicator.setColor(fiConfig.color[1] or 0.2, fiConfig.color[2] or 0.6, fiConfig.color[3] or 1.0, fiConfig.color[4] or 0.8)
+        FocusIndicator.setColor(
+          fiConfig.color[1] or 0.2,
+          fiConfig.color[2] or 0.6,
+          fiConfig.color[3] or 1.0,
+          fiConfig.color[4] or 0.8
+        )
       end
       if fiConfig.lineWidth ~= nil then
         FocusIndicator.config.lineWidth = fiConfig.lineWidth
@@ -829,7 +865,11 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   if type(gameDrawFunc) == "function" then
     local width, height = love.graphics.getDimensions()
 
-    if not flexlove._gameCanvas or flexlove._canvasDimensions.width ~= width or flexlove._canvasDimensions.height ~= height then
+    if
+      not flexlove._gameCanvas
+      or flexlove._canvasDimensions.width ~= width
+      or flexlove._canvasDimensions.height ~= height
+    then
       -- Release old canvases before creating new ones
       if flexlove._gameCanvas then
         flexlove._gameCanvas:release()
@@ -924,7 +964,14 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
   flexlove._Performance:renderHUD()
 
   -- Render focus indicator if keyboard navigation is enabled
-  if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled and FocusIndicator then
+  if
+    KeyboardNavigation
+    and not KeyboardNavigation._isStub
+    and KeyboardNavigation.config
+    and KeyboardNavigation.config.enabled
+    and FocusIndicator
+    and not FocusIndicator._isStub
+  then
     FocusIndicator:draw()
   end
 
@@ -1195,7 +1242,12 @@ function flexlove.keypressed(key, scancode, isrepeat)
   end
 
   -- Handle keyboard navigation (if module is available and enabled)
-  if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled then
+  if
+    KeyboardNavigation
+    and not KeyboardNavigation._isStub
+    and KeyboardNavigation.config
+    and KeyboardNavigation.config.enabled
+  then
     -- Debug logging for keyboard navigation entry point
     if KeyboardNavigation.config.debugMode then
       print(string.format("[FlexLove.keypressed] Keyboard nav enabled, handling key: %s", key))
@@ -1208,7 +1260,13 @@ function flexlove.keypressed(key, scancode, isrepeat)
     -- Only handle navigation if not in text input mode, or if in text input mode without modifiers
     local shouldHandleNav = not isTextInputMode
       or (
-        isTextInputMode and not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl") or love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt"))
+        isTextInputMode
+        and not (
+          love.keyboard.isDown("lctrl")
+          or love.keyboard.isDown("rctrl")
+          or love.keyboard.isDown("lalt")
+          or love.keyboard.isDown("ralt")
+        )
       )
 
     if shouldHandleNav then
@@ -1254,7 +1312,10 @@ function flexlove.wheelmoved(dx, dy)
 
         local overflowX = element.overflowX or element.overflow
         local overflowY = element.overflowY or element.overflow
-        if (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto") and (element._overflowX or element._overflowY) then
+        if
+          (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
+          and (element._overflowX or element._overflowY)
+        then
           return element
         end
       end
@@ -1378,7 +1439,11 @@ function flexlove._getTouchElementAtPosition(x, y)
 
     if adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh then
       -- Check if element is touch-enabled and interactive
-      if element.touchEnabled and not element.disabled and (element.onEvent or element.onTouchEvent or element.onGesture) then
+      if
+        element.touchEnabled
+        and not element.disabled
+        and (element.onEvent or element.onTouchEvent or element.onGesture)
+      then
         table.insert(candidates, element)
       end
 

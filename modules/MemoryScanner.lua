@@ -334,7 +334,7 @@ local function isIntentionalCircularReference(path, originalPath)
   -- These start with _ and are typically modules
   local pathModuleName = path:match("%.(_[%w]+)%.")
   local originalModuleName = originalPath:match("%.(_[%w]+)%.")
-  
+
   if pathModuleName and originalModuleName then
     -- If both paths reference the same internal module (starting with _), it's intentional
     if pathModuleName == originalModuleName then
@@ -445,18 +445,23 @@ function MemoryScanner.scanCircularReferences()
 
   if MemoryScanner._StateManager then
     local internal = MemoryScanner._StateManager._getInternalState()
-    report.stateStoreCircularRefs, report.stateStoreIntentionalRefs = detectCircularReferences(internal.stateStore, "stateStore")
+    report.stateStoreCircularRefs, report.stateStoreIntentionalRefs =
+      detectCircularReferences(internal.stateStore, "stateStore")
   end
 
   if MemoryScanner._Context then
-    report.contextCircularRefs, report.contextIntentionalRefs = detectCircularReferences(MemoryScanner._Context.topElements, "topElements")
+    report.contextCircularRefs, report.contextIntentionalRefs =
+      detectCircularReferences(MemoryScanner._Context.topElements, "topElements")
   end
 
   -- Report issues only for cross-module circular references
   if #report.stateStoreCircularRefs > 0 then
     table.insert(report.issues, {
       severity = "info",
-      message = string.format("Found %d cross-module circular references in StateManager", #report.stateStoreCircularRefs),
+      message = string.format(
+        "Found %d cross-module circular references in StateManager",
+        #report.stateStoreCircularRefs
+      ),
       suggestion = "These are typically architectural dependencies between modules, not memory leaks",
     })
   end
@@ -618,9 +623,21 @@ function MemoryScanner.formatReport(report)
   -- Circular References
   table.insert(lines, "--- Circular References ---")
   table.insert(lines, string.format("StateStore (Cross-module refs): %d", #report.circularRefs.stateStoreCircularRefs))
-  table.insert(lines, string.format("StateStore (Intentional - parent-child, modules, metatables): %d", #report.circularRefs.stateStoreIntentionalRefs))
+  table.insert(
+    lines,
+    string.format(
+      "StateStore (Intentional - parent-child, modules, metatables): %d",
+      #report.circularRefs.stateStoreIntentionalRefs
+    )
+  )
   table.insert(lines, string.format("Context (Cross-module refs): %d", #report.circularRefs.contextCircularRefs))
-  table.insert(lines, string.format("Context (Intentional - parent-child, modules, metatables): %d", #report.circularRefs.contextIntentionalRefs))
+  table.insert(
+    lines,
+    string.format(
+      "Context (Intentional - parent-child, modules, metatables): %d",
+      #report.circularRefs.contextIntentionalRefs
+    )
+  )
 
   if #report.circularRefs.issues > 0 then
     table.insert(lines, "Issues:")

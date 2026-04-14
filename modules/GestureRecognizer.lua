@@ -33,25 +33,25 @@ local defaultConfig = {
   -- Tap gesture
   tapMaxDuration = 0.3, -- seconds
   tapMaxMovement = 10, -- pixels
-  
+
   -- Double-tap gesture
   doubleTapInterval = 0.3, -- seconds between taps
-  
+
   -- Long-press gesture
   longPressMinDuration = 0.5, -- seconds
   longPressMaxMovement = 10, -- pixels
-  
+
   -- Swipe gesture
   swipeMinDistance = 50, -- pixels
   swipeMaxDuration = 0.2, -- seconds
   swipeMinVelocity = 200, -- pixels per second
-  
+
   -- Pan gesture
   panMinMovement = 5, -- pixels to start pan
-  
+
   -- Pinch gesture
   pinchMinScaleChange = 0.1, -- 10% scale change
-  
+
   -- Rotate gesture
   rotateMinAngleChange = 5, -- degrees
 }
@@ -62,18 +62,18 @@ local defaultConfig = {
 ---@return GestureRecognizer
 function GestureRecognizer.new(config, deps)
   config = config or {}
-  
+
   local self = setmetatable({}, GestureRecognizer)
-  
+
   self._InputEvent = deps.InputEvent
   self._utils = deps.utils
-  
+
   -- Merge configuration with defaults
   self._config = {}
   for key, value in pairs(defaultConfig) do
     self._config[key] = config[key] or value
   end
-  
+
   self._touches = {}
   self._gestureStates = {
     tap = nil,
@@ -84,7 +84,7 @@ function GestureRecognizer.new(config, deps)
     pinch = {},
     rotate = {},
   }
-  
+
   return self
 end
 
@@ -94,10 +94,10 @@ function GestureRecognizer:processTouchEvent(event)
   if not event.touchId then
     return nil
   end
-  
+
   local touchId = event.touchId
   local gestures = {}
-  
+
   -- Update touch state
   if event.type == "touchpress" then
     self._touches[touchId] = {
@@ -109,11 +109,10 @@ function GestureRecognizer:processTouchEvent(event)
       lastTime = event.timestamp,
       phase = "began",
     }
-    
+
     -- Initialize gesture detection
     self:_detectTapBegan(touchId, event)
     self:_detectLongPressBegan(touchId, event)
-    
   elseif event.type == "touchmove" then
     local touch = self._touches[touchId]
     if touch then
@@ -121,45 +120,57 @@ function GestureRecognizer:processTouchEvent(event)
       touch.y = event.y
       touch.lastTime = event.timestamp
       touch.phase = "moved"
-      
+
       -- Update gesture detection
       local panGesture = self:_detectPan(touchId, event)
-      if panGesture then table.insert(gestures, panGesture) end
+      if panGesture then
+        table.insert(gestures, panGesture)
+      end
       local swipeGesture = self:_detectSwipe(touchId, event)
-      if swipeGesture then table.insert(gestures, swipeGesture) end
-      
+      if swipeGesture then
+        table.insert(gestures, swipeGesture)
+      end
+
       -- Multi-touch gestures
       if self:_getTouchCount() >= 2 then
         local pinchGesture = self:_detectPinch(event)
-        if pinchGesture then table.insert(gestures, pinchGesture) end
+        if pinchGesture then
+          table.insert(gestures, pinchGesture)
+        end
         local rotateGesture = self:_detectRotate(event)
-        if rotateGesture then table.insert(gestures, rotateGesture) end
+        if rotateGesture then
+          table.insert(gestures, rotateGesture)
+        end
       end
     end
-    
   elseif event.type == "touchrelease" then
     local touch = self._touches[touchId]
     if touch then
       touch.phase = "ended"
-      
+
       -- Finalize gesture detection
       local tapGesture = self:_detectTapEnded(touchId, event)
-      if tapGesture then table.insert(gestures, tapGesture) end
+      if tapGesture then
+        table.insert(gestures, tapGesture)
+      end
       local swipeGesture = self:_detectSwipeEnded(touchId, event)
-      if swipeGesture then table.insert(gestures, swipeGesture) end
+      if swipeGesture then
+        table.insert(gestures, swipeGesture)
+      end
       local panGesture = self:_detectPanEnded(touchId, event)
-      if panGesture then table.insert(gestures, panGesture) end
-      
+      if panGesture then
+        table.insert(gestures, panGesture)
+      end
+
       -- Cleanup touch
       self._touches[touchId] = nil
     end
-    
   elseif event.type == "touchcancel" then
     -- Cancel all active gestures for this touch
     self._touches[touchId] = nil
     self:_cancelAllGestures()
   end
-  
+
   return #gestures > 0 and gestures or nil
 end
 
@@ -189,21 +200,21 @@ function GestureRecognizer:_detectTapEnded(touchId, event)
   if not touch then
     return
   end
-  
+
   local duration = event.timestamp - touch.startTime
   local dx = event.x - touch.startX
   local dy = event.y - touch.startY
   local distance = math.sqrt(dx * dx + dy * dy)
-  
+
   -- Check if it's a valid tap
   if duration < self._config.tapMaxDuration and distance < self._config.tapMaxMovement then
     local currentTime = event.timestamp
     local doubleTapState = self._gestureStates.doubleTap
-    
+
     -- Check for double-tap
     if currentTime - doubleTapState.lastTapTime < self._config.doubleTapInterval then
       doubleTapState.tapCount = doubleTapState.tapCount + 1
-      
+
       if doubleTapState.tapCount >= 2 then
         -- Fire double-tap gesture
         return {
@@ -217,9 +228,9 @@ function GestureRecognizer:_detectTapEnded(touchId, event)
     else
       doubleTapState.tapCount = 1
     end
-    
+
     doubleTapState.lastTapTime = currentTime
-    
+
     -- Fire tap gesture
     return {
       type = GestureType.TAP,
@@ -253,16 +264,16 @@ function GestureRecognizer:_updateLongPress(touchId, event)
   if not lpState or lpState.triggered then
     return nil
   end
-  
+
   local duration = event.timestamp - lpState.startTime
   local dx = event.x - lpState.startX
   local dy = event.y - lpState.startY
   local distance = math.sqrt(dx * dx + dy * dy)
-  
+
   -- Check if long-press duration reached and movement within threshold
   if duration >= self._config.longPressMinDuration and distance < self._config.longPressMaxMovement then
     lpState.triggered = true
-    
+
     return {
       type = GestureType.LONG_PRESS,
       state = GestureState.BEGAN,
@@ -272,7 +283,7 @@ function GestureRecognizer:_updateLongPress(touchId, event)
       duration = duration,
     }
   end
-  
+
   return nil
 end
 
@@ -285,13 +296,13 @@ function GestureRecognizer:_detectPan(touchId, event)
   if not touch then
     return nil
   end
-  
+
   local dx = event.x - touch.startX
   local dy = event.y - touch.startY
   local distance = math.sqrt(dx * dx + dy * dy)
-  
+
   local panState = self._gestureStates.pan[touchId]
-  
+
   if not panState then
     -- Check if pan should begin
     if distance >= self._config.panMinMovement then
@@ -301,7 +312,7 @@ function GestureRecognizer:_detectPan(touchId, event)
         lastY = touch.startY,
       }
       panState = self._gestureStates.pan[touchId]
-      
+
       return {
         type = GestureType.PAN,
         state = GestureState.BEGAN,
@@ -316,10 +327,10 @@ function GestureRecognizer:_detectPan(touchId, event)
     -- Pan is active, fire changed event
     local panDx = event.x - panState.lastX
     local panDy = event.y - panState.lastY
-    
+
     panState.lastX = event.x
     panState.lastY = event.y
-    
+
     return {
       type = GestureType.PAN,
       state = GestureState.CHANGED,
@@ -332,7 +343,7 @@ function GestureRecognizer:_detectPan(touchId, event)
       timestamp = event.timestamp,
     }
   end
-  
+
   return nil
 end
 
@@ -344,11 +355,11 @@ function GestureRecognizer:_detectPanEnded(touchId, event)
   local panState = self._gestureStates.pan[touchId]
   if panState and panState.active then
     self._gestureStates.pan[touchId] = nil
-    
+
     local touch = self._touches[touchId]
     local dx = event.x - touch.startX
     local dy = event.y - touch.startY
-    
+
     return {
       type = GestureType.PAN,
       state = GestureState.ENDED,
@@ -359,7 +370,7 @@ function GestureRecognizer:_detectPanEnded(touchId, event)
       timestamp = event.timestamp,
     }
   end
-  
+
   return nil
 end
 
@@ -379,21 +390,21 @@ function GestureRecognizer:_detectSwipeEnded(touchId, event)
   if not touch then
     return nil
   end
-  
+
   local duration = event.timestamp - touch.startTime
   local dx = event.x - touch.startX
   local dy = event.y - touch.startY
   local distance = math.sqrt(dx * dx + dy * dy)
-  
+
   -- Check if it's a valid swipe
   if distance >= self._config.swipeMinDistance and duration <= self._config.swipeMaxDuration then
     local velocity = distance / duration
-    
+
     if velocity >= self._config.swipeMinVelocity then
       -- Determine swipe direction
       local angle = math.atan2(dy, dx)
       local direction = "right"
-      
+
       if angle >= -math.pi / 4 and angle < math.pi / 4 then
         direction = "right"
       elseif angle >= math.pi / 4 and angle < 3 * math.pi / 4 then
@@ -403,7 +414,7 @@ function GestureRecognizer:_detectSwipeEnded(touchId, event)
       else
         direction = "left"
       end
-      
+
       return {
         type = GestureType.SWIPE,
         state = GestureState.ENDED,
@@ -417,7 +428,7 @@ function GestureRecognizer:_detectSwipeEnded(touchId, event)
       }
     end
   end
-  
+
   return nil
 end
 
@@ -433,43 +444,43 @@ function GestureRecognizer:_detectPinch(event)
       break
     end
   end
-  
+
   if #touches < 2 then
     return nil
   end
-  
+
   local t1 = touches[1].touch
   local t2 = touches[2].touch
-  
+
   -- Calculate current distance
   local currentDx = t2.x - t1.x
   local currentDy = t2.y - t1.y
   local currentDistance = math.sqrt(currentDx * currentDx + currentDy * currentDy)
-  
+
   -- Calculate initial distance
   local initialDx = t2.startX - t1.startX
   local initialDy = t2.startY - t1.startY
   local initialDistance = math.sqrt(initialDx * initialDx + initialDy * initialDy)
-  
+
   if initialDistance == 0 then
     return nil
   end
-  
+
   -- Calculate scale
   local scale = currentDistance / initialDistance
   local pinchState = self._gestureStates.pinch
-  
+
   if not pinchState.active then
     -- Check if pinch should begin
     if math.abs(scale - 1.0) >= self._config.pinchMinScaleChange then
       pinchState.active = true
       pinchState.initialScale = scale
       pinchState.lastScale = scale
-      
+
       -- Calculate center point
       local centerX = (t1.x + t2.x) / 2
       local centerY = (t1.y + t2.y) / 2
-      
+
       return {
         type = GestureType.PINCH,
         state = GestureState.BEGAN,
@@ -483,10 +494,10 @@ function GestureRecognizer:_detectPinch(event)
     -- Pinch is active, fire changed event
     local centerX = (t1.x + t2.x) / 2
     local centerY = (t1.y + t2.y) / 2
-    
+
     local scaleChange = scale - pinchState.lastScale
     pinchState.lastScale = scale
-    
+
     return {
       type = GestureType.PINCH,
       state = GestureState.CHANGED,
@@ -497,7 +508,7 @@ function GestureRecognizer:_detectPinch(event)
       timestamp = event.timestamp,
     }
   end
-  
+
   return nil
 end
 
@@ -513,36 +524,36 @@ function GestureRecognizer:_detectRotate(event)
       break
     end
   end
-  
+
   if #touches < 2 then
     return nil
   end
-  
+
   local t1 = touches[1].touch
   local t2 = touches[2].touch
-  
+
   -- Calculate current angle
   local currentAngle = math.atan2(t2.y - t1.y, t2.x - t1.x)
-  
+
   -- Calculate initial angle
   local initialAngle = math.atan2(t2.startY - t1.startY, t2.startX - t1.startX)
-  
+
   -- Calculate rotation (in degrees)
   local rotation = (currentAngle - initialAngle) * 180 / math.pi
-  
+
   local rotateState = self._gestureStates.rotate
-  
+
   if not rotateState.active then
     -- Check if rotation should begin
     if math.abs(rotation) >= self._config.rotateMinAngleChange then
       rotateState.active = true
       rotateState.initialRotation = rotation
       rotateState.lastRotation = rotation
-      
+
       -- Calculate center point
       local centerX = (t1.x + t2.x) / 2
       local centerY = (t1.y + t2.y) / 2
-      
+
       return {
         type = GestureType.ROTATE,
         state = GestureState.BEGAN,
@@ -556,10 +567,10 @@ function GestureRecognizer:_detectRotate(event)
     -- Rotation is active, fire changed event
     local centerX = (t1.x + t2.x) / 2
     local centerY = (t1.y + t2.y) / 2
-    
+
     local rotationChange = rotation - rotateState.lastRotation
     rotateState.lastRotation = rotation
-    
+
     return {
       type = GestureType.ROTATE,
       state = GestureState.CHANGED,
@@ -570,7 +581,7 @@ function GestureRecognizer:_detectRotate(event)
       timestamp = event.timestamp,
     }
   end
-  
+
   return nil
 end
 

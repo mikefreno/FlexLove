@@ -78,12 +78,13 @@ function Renderer.new(config, deps)
   }
 
   -- Corner radius
-  self.cornerRadius = config.cornerRadius or {
-    topLeft = 0,
-    topRight = 0,
-    bottomLeft = 0,
-    bottomRight = 0,
-  }
+  self.cornerRadius = config.cornerRadius
+    or {
+      topLeft = 0,
+      topRight = 0,
+      bottomLeft = 0,
+      bottomRight = 0,
+    }
 
   -- Theme properties
   self.theme = config.theme
@@ -168,7 +169,12 @@ end
 ---@param height number Height
 ---@param drawBackgroundColor table Background color (may have animation applied)
 function Renderer:_drawBackground(x, y, width, height, drawBackgroundColor)
-  local backgroundWithOpacity = self._Color.new(drawBackgroundColor.r, drawBackgroundColor.g, drawBackgroundColor.b, drawBackgroundColor.a * self.opacity)
+  local backgroundWithOpacity = self._Color.new(
+    drawBackgroundColor.r,
+    drawBackgroundColor.g,
+    drawBackgroundColor.b,
+    drawBackgroundColor.a * self.opacity
+  )
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
   self._RoundedRect.draw("fill", x, y, width, height, self.cornerRadius)
 end
@@ -182,7 +188,16 @@ end
 ---@param contentHeight number Content height
 ---@param borderBoxWidth number Border box width
 ---@param borderBoxHeight number Border box height
-function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, contentHeight, borderBoxWidth, borderBoxHeight)
+function Renderer:_drawImage(
+  x,
+  y,
+  paddingLeft,
+  paddingTop,
+  contentWidth,
+  contentHeight,
+  borderBoxWidth,
+  borderBoxHeight
+)
   if not self._loadedImage then
     return
   end
@@ -202,7 +217,10 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
     if type(self.cornerRadius) == "number" then
       hasCornerRadius = self.cornerRadius > 0
     else
-      hasCornerRadius = self.cornerRadius.topLeft > 0 or self.cornerRadius.topRight > 0 or self.cornerRadius.bottomLeft > 0 or self.cornerRadius.bottomRight > 0
+      hasCornerRadius = self.cornerRadius.topLeft > 0
+        or self.cornerRadius.topRight > 0
+        or self.cornerRadius.bottomLeft > 0
+        or self.cornerRadius.bottomRight > 0
     end
   end
 
@@ -247,10 +265,29 @@ function Renderer:_drawImage(x, y, paddingLeft, paddingTop, contentWidth, conten
   -- Draw the image based on repeat mode
   if self.imageRepeat and self.imageRepeat ~= "no-repeat" then
     -- Use tiled rendering
-    self._ImageRenderer.drawTiled(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.imageRepeat, finalOpacity, self.imageTint)
+    self._ImageRenderer.drawTiled(
+      self._loadedImage,
+      imageX,
+      imageY,
+      imageWidth,
+      imageHeight,
+      self.imageRepeat,
+      finalOpacity,
+      self.imageTint
+    )
   else
     -- Use standard fit-based rendering
-    self._ImageRenderer.draw(self._loadedImage, imageX, imageY, imageWidth, imageHeight, self.objectFit, self.objectPosition, finalOpacity, self.imageTint)
+    self._ImageRenderer.draw(
+      self._loadedImage,
+      imageX,
+      imageY,
+      imageWidth,
+      imageHeight,
+      self.objectFit,
+      self.objectPosition,
+      finalOpacity,
+      self.imageTint
+    )
   end
 
   -- Clear stencil if it was used
@@ -322,7 +359,17 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
 
     if hasAllRegions then
       -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-      self._NinePatch.draw(component, atlasToUse, x, y, borderBoxWidth, borderBoxHeight, self.opacity, scaleCorners, scalingAlgorithm)
+      self._NinePatch.draw(
+        component,
+        atlasToUse,
+        x,
+        y,
+        borderBoxWidth,
+        borderBoxHeight,
+        self.opacity,
+        scaleCorners,
+        scalingAlgorithm
+      )
     end
   end
 end
@@ -340,7 +387,8 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
 
   -- Handle border as number (uniform border width)
   if type(self.border) == "number" then
-    local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+    local borderColorWithOpacity =
+      self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
     love.graphics.setColor(borderColorWithOpacity:toRGBA())
     love.graphics.setLineWidth(self.border)
     self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
@@ -348,7 +396,8 @@ function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
     return
   end
 
-  local borderColorWithOpacity = self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  local borderColorWithOpacity =
+    self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
 
   -- Check if all borders are enabled with same width
@@ -422,7 +471,8 @@ function Renderer:draw(element, backdropCanvas)
   if element.animation then
     local anim = element.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor = self._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor =
+        self._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
     end
   end
 
@@ -442,7 +492,15 @@ function Renderer:draw(element, backdropCanvas)
     if blurInstance then
       -- Use cached blur in immediate mode if element has an ID
       local elementId = element.id and element.id ~= "" and element.id or nil
-      blurInstance:applyBackdropCached(self.backdropBlur.radius, element.x, element.y, borderBoxWidth, borderBoxHeight, backdropCanvas, elementId)
+      blurInstance:applyBackdropCached(
+        self.backdropBlur.radius,
+        element.x,
+        element.y,
+        borderBoxWidth,
+        borderBoxHeight,
+        backdropCanvas,
+        elementId
+      )
     end
   end
 
@@ -450,7 +508,16 @@ function Renderer:draw(element, backdropCanvas)
   self:_drawBackground(element.x, element.y, borderBoxWidth, borderBoxHeight, drawBackgroundColor)
 
   -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
-  self:_drawImage(element.x, element.y, element.padding.left, element.padding.top, element.width, element.height, borderBoxWidth, borderBoxHeight)
+  self:_drawImage(
+    element.x,
+    element.y,
+    element.padding.left,
+    element.padding.top,
+    element.width,
+    element.height,
+    borderBoxWidth,
+    borderBoxHeight
+  )
 
   -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
   self:_drawTheme(element.x, element.y, borderBoxWidth, borderBoxHeight, element.scaleCorners, element.scalingAlgorithm)
@@ -699,7 +766,12 @@ function Renderer:drawText(element)
 
   if displayText and displayText ~= "" then
     local textColor = isPlaceholder
-        and self._Color.new(element.textColor.r * 0.5, element.textColor.g * 0.5, element.textColor.b * 0.5, element.textColor.a * 0.5)
+        and self._Color.new(
+          element.textColor.r * 0.5,
+          element.textColor.g * 0.5,
+          element.textColor.b * 0.5,
+          element.textColor.a * 0.5
+        )
       or element.textColor
     local textColorWithOpacity = self._Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
@@ -707,7 +779,8 @@ function Renderer:drawText(element)
     local origFont = love.graphics.getFont()
     if element.textSize then
       -- Use cached font instead of creating new one every frame
-      local font = self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
+      local font =
+        self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
       love.graphics.setFont(font)
     end
     local font = love.graphics.getFont()
@@ -726,7 +799,8 @@ function Renderer:drawText(element)
     local scaledContentPadding = element:getScaledContentPadding()
     if scaledContentPadding then
       local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
-      local borderBoxHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+      local borderBoxHeight = element._borderBoxHeight
+        or (element.height + element.padding.top + element.padding.bottom)
 
       textPaddingLeft = scaledContentPadding.left
       textPaddingTop = scaledContentPadding.top
@@ -792,7 +866,8 @@ function Renderer:drawText(element)
     -- Draw cursor for focused editable elements (even if text is empty)
     if element._textEditor and element._textEditor:isFocused() and element._textEditor._cursorVisible then
       local cursorColor = element.cursorColor or element.textColor
-      local cursorWithOpacity = self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+      local cursorWithOpacity =
+        self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
 
       -- Calculate cursor position using TextEditor method
@@ -827,7 +902,8 @@ function Renderer:drawText(element)
       if textBuffer and textBuffer ~= "" then
         local selStart, selEnd = element._textEditor:getSelection()
         local selectionColor = element.selectionColor or self._Color.new(0.3, 0.5, 0.8, 0.5)
-        local selectionWithOpacity = self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
+        local selectionWithOpacity =
+          self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
 
         -- Get selection rectangles from TextEditor
         local selectionRects = element._textEditor:_getSelectionRects(element, selStart, selEnd)
@@ -861,11 +937,17 @@ function Renderer:drawText(element)
   end
 
   -- Draw cursor for focused editable elements even when empty
-  if element._textEditor and element._textEditor:isFocused() and element._textEditor._cursorVisible and (not displayText or displayText == "") then
+  if
+    element._textEditor
+    and element._textEditor:isFocused()
+    and element._textEditor._cursorVisible
+    and (not displayText or displayText == "")
+  then
     -- Set up font for cursor rendering
     local origFont = love.graphics.getFont()
     if element.textSize then
-      local font = self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
+      local font =
+        self._utils.getFont(element.textSize, element.fontFamily, element.themeComponent, element._themeManager)
       love.graphics.setFont(font)
     end
 
@@ -952,7 +1034,14 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
 
       -- Draw track (frame) if component exists
       if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
-        self._NinePatch.draw(frameComponent, frameComponent._loadedAtlas, trackX, trackY, element.scrollbarWidth, dims.vertical.trackHeight)
+        self._NinePatch.draw(
+          frameComponent,
+          frameComponent._loadedAtlas,
+          trackX,
+          trackY,
+          element.scrollbarWidth,
+          dims.vertical.trackHeight
+        )
       end
 
       -- Draw thumb (bar) if component exists
@@ -961,7 +1050,14 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         -- Vertical scrollbar: width affected by left+right, height affected by top+bottom
         local knobWidth = element.scrollbarWidth
         local knobHeight = dims.vertical.thumbHeight - framePaddingTop / 2
-        self._NinePatch.draw(barComponent, barComponent._loadedAtlas, trackX + knobOffsetX, trackY + dims.vertical.thumbY + knobOffsetY, knobWidth, knobHeight)
+        self._NinePatch.draw(
+          barComponent,
+          barComponent._loadedAtlas,
+          trackX + knobOffsetX,
+          trackY + dims.vertical.thumbY + knobOffsetY,
+          knobWidth,
+          knobHeight
+        )
       end
     else
       -- Fallback to color-based rendering
@@ -979,11 +1075,25 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
 
       -- Draw track
       love.graphics.setColor(element.scrollbarTrackColor:toRGBA())
-      love.graphics.rectangle("fill", trackX, trackY, element.scrollbarWidth, dims.vertical.trackHeight, element.scrollbarRadius)
+      love.graphics.rectangle(
+        "fill",
+        trackX,
+        trackY,
+        element.scrollbarWidth,
+        dims.vertical.trackHeight,
+        element.scrollbarRadius
+      )
 
       -- Draw thumb with state-based color
       love.graphics.setColor(thumbColor:toRGBA())
-      love.graphics.rectangle("fill", trackX, trackY + dims.vertical.thumbY, element.scrollbarWidth, dims.vertical.thumbHeight, element.scrollbarRadius)
+      love.graphics.rectangle(
+        "fill",
+        trackX,
+        trackY + dims.vertical.thumbY,
+        element.scrollbarWidth,
+        dims.vertical.thumbHeight,
+        element.scrollbarRadius
+      )
     end
   end
 
@@ -1029,7 +1139,14 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
 
       -- Draw track (frame) if component exists
       if frameComponent and frameComponent._loadedAtlas and frameComponent.regions then
-        self._NinePatch.draw(frameComponent, frameComponent._loadedAtlas, trackX, trackY, dims.horizontal.trackWidth, element.scrollbarWidth)
+        self._NinePatch.draw(
+          frameComponent,
+          frameComponent._loadedAtlas,
+          trackX,
+          trackY,
+          dims.horizontal.trackWidth,
+          element.scrollbarWidth
+        )
       end
 
       -- Draw thumb (bar) if component exists
@@ -1063,11 +1180,25 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
 
       -- Draw track
       love.graphics.setColor(element.scrollbarTrackColor:toRGBA())
-      love.graphics.rectangle("fill", trackX, trackY, dims.horizontal.trackWidth, element.scrollbarWidth, element.scrollbarRadius)
+      love.graphics.rectangle(
+        "fill",
+        trackX,
+        trackY,
+        dims.horizontal.trackWidth,
+        element.scrollbarWidth,
+        element.scrollbarRadius
+      )
 
       -- Draw thumb with state-based color
       love.graphics.setColor(thumbColor:toRGBA())
-      love.graphics.rectangle("fill", trackX + dims.horizontal.thumbX, trackY, dims.horizontal.thumbWidth, element.scrollbarWidth, element.scrollbarRadius)
+      love.graphics.rectangle(
+        "fill",
+        trackX + dims.horizontal.thumbX,
+        trackY,
+        dims.horizontal.thumbWidth,
+        element.scrollbarWidth,
+        element.scrollbarRadius
+      )
     end
   end
 

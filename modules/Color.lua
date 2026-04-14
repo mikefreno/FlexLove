@@ -353,6 +353,4 @@ function Color.lerp(colorA, colorB, t)
   return Color.new(r, g, b, a)
 end
 
-
-
 return Color

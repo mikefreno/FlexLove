@@ -118,7 +118,7 @@ function ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, bounds
   else
     ErrorHandler:warn("ImageRenderer", "VAL_007", {
       fitMode = fitMode,
-      fallback = "fill"
+      fallback = "fill",
     })
     -- Use 'fill' as fallback
     return ImageRenderer.calculateFit(imageWidth, imageHeight, boundsWidth, boundsHeight, "fill", objectPosition)
@@ -333,8 +333,12 @@ function ImageRenderer.drawTiled(image, x, y, width, height, repeatMode, opacity
     local tilesX = math.floor(width / imgWidth)
     local tilesY = math.floor(height / imgHeight)
 
-    if tilesX < 1 then tilesX = 1 end
-    if tilesY < 1 then tilesY = 1 end
+    if tilesX < 1 then
+      tilesX = 1
+    end
+    if tilesY < 1 then
+      tilesY = 1
+    end
 
     local spaceX = tilesX > 1 and (width - (tilesX * imgWidth)) / (tilesX - 1) or 0
     local spaceY = tilesY > 1 and (height - (tilesY * imgHeight)) / (tilesY - 1) or 0
@@ -364,7 +368,7 @@ function ImageRenderer.drawTiled(image, x, y, width, height, repeatMode, opacity
   else
     ErrorHandler:warn("ImageRenderer", "VAL_007", {
       repeatMode = repeatMode,
-      fallback = "no-repeat"
+      fallback = "no-repeat",
     })
     love.graphics.draw(image, x, y)
   end

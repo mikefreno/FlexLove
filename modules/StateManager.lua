@@ -215,12 +215,12 @@ function StateManager.generateID(props, parent)
     -- This ensures the same call site always generates the same ID, even when
     -- retained children persist in parent.children array
     local baseID = parent.id .. "_" .. locationKey
-    
+
     -- Count how many children have been created at THIS call site
     local callSiteKey = parent.id .. "_" .. locationKey
     callSiteCounters[callSiteKey] = (callSiteCounters[callSiteKey] or 0) + 1
     local instanceNum = callSiteCounters[callSiteKey]
-    
+
     if instanceNum > 1 then
       baseID = baseID .. "_" .. instanceNum
     end

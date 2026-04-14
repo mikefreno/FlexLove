@@ -80,13 +80,17 @@ function TestAnimationChaining:test_chained_animations_execute_in_order()
     duration = 0.2,
     start = { x = 0 },
     final = { x = 50 },
-    onComplete = function() table.insert(order, 1) end,
+    onComplete = function()
+      table.insert(order, 1)
+    end,
   })
   local anim2 = Animation.new({
     duration = 0.2,
     start = { x = 50 },
     final = { x = 100 },
-    onComplete = function() table.insert(order, 2) end,
+    onComplete = function()
+      table.insert(order, 2)
+    end,
   })
 
   anim1:chain(anim2)

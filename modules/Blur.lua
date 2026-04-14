@@ -138,7 +138,17 @@ end
 ---@param isBackdrop boolean Whether this is backdrop blur
 ---@return string key Cache key
 function Cache.generateBlurCacheKey(elementId, x, y, width, height, radius, quality, isBackdrop)
-  return string.format("%s:%d:%d:%d:%d:%.1f:%d:%s", elementId, x, y, width, height, radius, quality, tostring(isBackdrop))
+  return string.format(
+    "%s:%d:%d:%d:%d:%.1f:%d:%s",
+    elementId,
+    x,
+    y,
+    width,
+    height,
+    radius,
+    quality,
+    tostring(isBackdrop)
+  )
 end
 
 --- Get cached blurred canvas
@@ -350,7 +360,8 @@ local function checkLargeBlurWarning(elementId, width, height, blurType)
   warningCache[warningKey] = true
 
   -- Issue warning
-  local message = string.format("Large %s blur area detected (%dx%d = %d pixels) in immediate mode", blurType, width, height, area)
+  local message =
+    string.format("Large %s blur area detected (%dx%d = %d pixels) in immediate mode", blurType, width, height, area)
 
   local suggestion =
     "Consider using retained mode for this component to avoid recreating blur effects every frame. Large blur operations are expensive and can cause performance issues in immediate mode."

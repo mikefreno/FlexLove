@@ -302,7 +302,9 @@ function TestSetPropertyTransitions:test_setProperty_transition_onComplete_callb
   local callbackCalled = false
   el:setTransition("opacity", {
     duration = 0.3,
-    onComplete = function() callbackCalled = true end,
+    onComplete = function()
+      callbackCalled = true
+    end,
   })
 
   el:setProperty("opacity", 0)

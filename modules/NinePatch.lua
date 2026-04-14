@@ -99,17 +99,24 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
       -- Get ImageData from component (stored during theme loading)
       local atlasData = component._loadedAtlasData
       if not atlasData then
-        ErrorHandler.error("NinePatch", "REN_007", "No ImageData available for atlas. Image must be loaded with safeLoadImage.", {
-          componentType = component.type,
-        })
+        ErrorHandler.error(
+          "NinePatch",
+          "REN_007",
+          "No ImageData available for atlas. Image must be loaded with safeLoadImage.",
+          {
+            componentType = component.type,
+          }
+        )
       end
 
       local scaledData
 
       if scalingAlgorithm == "nearest" then
-        scaledData = ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+        scaledData =
+          ImageScaler.scaleNearest(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
       else
-        scaledData = ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
+        scaledData =
+          ImageScaler.scaleBilinear(atlasData, region.x, region.y, region.w, region.h, targetWidth, targetHeight)
       end
 
       -- Convert to image and cache
@@ -149,7 +156,8 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
     -- TOP/BOTTOM EDGES (stretch horizontally, scale vertically)
     if adjustedContentWidth > 0 then
       local topCenterScaled = getScaledRegion("topCenter", regions.topCenter, regions.topCenter.w, scaledTop)
-      local bottomCenterScaled = getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
+      local bottomCenterScaled =
+        getScaledRegion("bottomCenter", regions.bottomCenter, regions.bottomCenter.w, scaledBottom)
 
       love.graphics.draw(topCenterScaled, x + scaledLeft, y, 0, adjustedScaleX, 1)
       love.graphics.draw(bottomCenterScaled, x + scaledLeft, y + height - scaledBottom, 0, adjustedScaleX, 1)
@@ -166,7 +174,15 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
 
     -- CENTER (stretch both dimensions, no scaling)
     if adjustedContentWidth > 0 and adjustedContentHeight > 0 then
-      love.graphics.draw(atlas, makeQuad(regions.middleCenter), x + scaledLeft, y + scaledTop, 0, adjustedScaleX, adjustedScaleY)
+      love.graphics.draw(
+        atlas,
+        makeQuad(regions.middleCenter),
+        x + scaledLeft,
+        y + scaledTop,
+        0,
+        adjustedScaleX,
+        adjustedScaleY
+      )
     end
   else
     -- Original rendering logic (no scaling)

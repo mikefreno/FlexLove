@@ -114,7 +114,14 @@ function KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
 
   -- Debug logging
   if KeyboardNavigation.config.debugMode then
-    print(string.format("[KeyboardNavigation] Key pressed: %s (scancode: %s, repeat: %s)", key, scancode, tostring(isrepeat)))
+    print(
+      string.format(
+        "[KeyboardNavigation] Key pressed: %s (scancode: %s, repeat: %s)",
+        key,
+        scancode,
+        tostring(isrepeat)
+      )
+    )
     print(string.format("[KeyboardNavigation] Enabled: %s", tostring(KeyboardNavigation.config.enabled)))
   end
 
@@ -170,7 +177,9 @@ function KeyboardNavigation:nextFocusable()
 
   local current = Context.getFocused()
   if KeyboardNavigation.config.debugMode then
-    print(string.format("[KeyboardNavigation] Tab pressed - Current focus: %s", tostring(current and current.id or "nil")))
+    print(
+      string.format("[KeyboardNavigation] Tab pressed - Current focus: %s", tostring(current and current.id or "nil"))
+    )
   end
 
   local nextElem
@@ -262,8 +271,8 @@ end
 ---@param root Element
 ---@return Element[]
 function KeyboardNavigation:_collectFocusablesInOrder(root)
-  local withPositiveTabIndex = {}  -- tabIndex > 0
-  local withZeroTabIndex = {}      -- tabIndex = 0 or nil (natural order)
+  local withPositiveTabIndex = {} -- tabIndex > 0
+  local withZeroTabIndex = {} -- tabIndex = 0 or nil (natural order)
 
   local function collect(elem)
     for _, child in ipairs(elem.children) do
@@ -273,7 +282,7 @@ function KeyboardNavigation:_collectFocusablesInOrder(root)
         if tabIndex == -1 then
           goto continue
         end
-        
+
         if tabIndex and tabIndex > 0 then
           -- Positive tabIndex: explicit order, visited first
           table.insert(withPositiveTabIndex, child)
@@ -611,7 +620,13 @@ function KeyboardNavigation:_focusElement(element)
 
   if element and element:isFocusable() then
     if KeyboardNavigation.config.debugMode then
-      print(string.format("[KeyboardNavigation] Focusing element: %s (id: %s)", element.themeComponent or "unknown", tostring(element.id)))
+      print(
+        string.format(
+          "[KeyboardNavigation] Focusing element: %s (id: %s)",
+          element.themeComponent or "unknown",
+          tostring(element.id)
+        )
+      )
     end
     Context.setFocused(element)
 

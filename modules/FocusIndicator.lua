@@ -72,7 +72,8 @@ function FocusIndicator:update(dt)
 
   -- Update focus entrance animation
   if FocusIndicator._animationProgress < 1 then
-    FocusIndicator._animationProgress = math.min(1, FocusIndicator._animationProgress + (dt / FocusIndicator.config.animationDuration))
+    FocusIndicator._animationProgress =
+      math.min(1, FocusIndicator._animationProgress + (dt / FocusIndicator.config.animationDuration))
   end
 
   -- Update pulse animation
@@ -107,7 +108,8 @@ function FocusIndicator:getScale()
     local pulseProgress = FocusIndicator._pulsePhase / FocusIndicator.config.pulseDuration
     -- Smooth sine wave pulse
     local pulseScale = FocusIndicator.config.pulseScaleMin
-      + (FocusIndicator.config.pulseScaleMax - FocusIndicator.config.pulseScaleMin) * (0.5 + 0.5 * math.sin(2 * math.pi * pulseProgress))
+      + (FocusIndicator.config.pulseScaleMax - FocusIndicator.config.pulseScaleMin)
+        * (0.5 + 0.5 * math.sin(2 * math.pi * pulseProgress))
     scale = scale * pulseScale
   end
 
@@ -150,8 +152,10 @@ function FocusIndicator:draw()
   -- Get element dimensions (use border-box size which includes padding)
   local x = element.x or 0
   local y = element.y or 0
-  local w = element._borderBoxWidth or (element.width + (element.padding and (element.padding.left + element.padding.right) or 0))
-  local h = element._borderBoxHeight or (element.height + (element.padding and (element.padding.top + element.padding.bottom) or 0))
+  local w = element._borderBoxWidth
+    or (element.width + (element.padding and (element.padding.left + element.padding.right) or 0))
+  local h = element._borderBoxHeight
+    or (element.height + (element.padding and (element.padding.top + element.padding.bottom) or 0))
 
   if w == 0 or h == 0 then
     return

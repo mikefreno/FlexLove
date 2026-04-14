@@ -26,12 +26,16 @@ local function createNullObject(moduleName)
     __index = function(_, key)
       -- Common initialization method
       if key == "init" then
-        return function() return stub end
+        return function()
+          return stub
+        end
       end
 
       -- Common constructor method
       if key == "new" then
-        return function() return stub end
+        return function()
+          return stub
+        end
       end
 
       -- Common draw method
@@ -71,7 +75,9 @@ local function createNullObject(moduleName)
 
       -- Common get method
       if key == "get" then
-        return function() return nil end
+        return function()
+          return nil
+        end
       end
 
       -- Common set method
@@ -81,17 +87,23 @@ local function createNullObject(moduleName)
 
       -- Common load method
       if key == "load" then
-        return function() return stub end
+        return function()
+          return stub
+        end
       end
 
       -- Common cache-related methods
       if key == "cache" or key == "getCache" or key == "clearCache" then
-        return function() return {} end
+        return function()
+          return {}
+        end
       end
 
       -- For any unknown method, return a no-op function that accepts any arguments
       -- This allows safe method calls on stub objects (e.g., Performance:startFrame())
-      return function() return stub end
+      return function()
+        return stub
+      end
     end,
 
     -- Make function calls safe (in case the stub itself is called)
@@ -115,10 +127,10 @@ function ModuleLoader.safeRequire(modulePath, isOptional)
   if ModuleLoader._registry[modulePath] then
     return ModuleLoader._registry[modulePath]
   end
-  
+
   -- Attempt to load the module
   local success, result = pcall(require, modulePath)
-  
+
   if success then
     -- Module loaded successfully
     ModuleLoader._registry[modulePath] = result
@@ -129,18 +141,14 @@ function ModuleLoader.safeRequire(modulePath, isOptional)
       -- Create null-object stub for optional module
       local stub = createNullObject(modulePath)
       ModuleLoader._registry[modulePath] = stub
-      
+
       -- Log warning about missing optional module
       if ModuleLoader._ErrorHandler then
-        ModuleLoader._ErrorHandler:warn(
-          "ModuleLoader",
-          "MOD_001",
-          {
-            modulePath = modulePath
-          }
-        )
+        ModuleLoader._ErrorHandler:warn("ModuleLoader", "MOD_001", {
+          modulePath = modulePath,
+        })
       end
-      
+
       return stub
     else
       -- Required module is missing - throw error
@@ -157,7 +165,7 @@ function ModuleLoader.isModuleLoaded(modulePath)
   if not module then
     return false
   end
-  
+
   -- Check if it's a stub
   return not module._isStub
 end

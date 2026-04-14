@@ -33,7 +33,7 @@ function RoundedRect.getPoints(x, y, width, height, cornerRadius, segments)
       topLeft = cornerRadius,
       topRight = cornerRadius,
       bottomLeft = cornerRadius,
-      bottomRight = cornerRadius
+      bottomRight = cornerRadius,
     }
   end
 
@@ -70,7 +70,7 @@ function RoundedRect.draw(mode, x, y, width, height, cornerRadius)
     love.graphics.rectangle(mode, x, y, width, height)
     return
   end
-  
+
   -- Handle uniform corner radius (number)
   if type(cornerRadius) == "number" then
     if cornerRadius <= 0 then
@@ -82,12 +82,15 @@ function RoundedRect.draw(mode, x, y, width, height, cornerRadius)
       topLeft = cornerRadius,
       topRight = cornerRadius,
       bottomLeft = cornerRadius,
-      bottomRight = cornerRadius
+      bottomRight = cornerRadius,
     }
   end
-  
+
   -- Check if any corners are rounded
-  local hasRoundedCorners = cornerRadius.topLeft > 0 or cornerRadius.topRight > 0 or cornerRadius.bottomLeft > 0 or cornerRadius.bottomRight > 0
+  local hasRoundedCorners = cornerRadius.topLeft > 0
+    or cornerRadius.topRight > 0
+    or cornerRadius.bottomLeft > 0
+    or cornerRadius.bottomRight > 0
 
   if not hasRoundedCorners then
     -- No rounded corners, use regular rectangle

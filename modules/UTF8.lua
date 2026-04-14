@@ -13,19 +13,19 @@ local function loadUTF8()
   if utf8 and type(utf8) == "table" and utf8.len then
     return utf8
   end
-  
+
   -- Try lua-utf8 from LuaRocks
   local ok, luautf8 = pcall(require, "lua-utf8")
   if ok then
     return luautf8
   end
-  
+
   -- Try standard utf8 module name as fallback
   ok, luautf8 = pcall(require, "utf8")
   if ok then
     return luautf8
   end
-  
+
   -- No UTF-8 library available
   error("No UTF-8 library available. Please install 'luautf8' via LuaRocks: luarocks install luautf8")
 end

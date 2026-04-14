@@ -265,13 +265,8 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
       return nil
     end
 
-    local resolved = self._Units.resolve(
-      axisUnits.value,
-      axisUnits.unit,
-      viewportWidth,
-      viewportHeight,
-      availableMainSize
-    )
+    local resolved =
+      self._Units.resolve(axisUnits.value, axisUnits.unit, viewportWidth, viewportHeight, availableMainSize)
 
     if type(resolved) == "number" then
       return math.max(0, resolved)
@@ -488,14 +483,14 @@ function LayoutEngine:layoutChildren()
   -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
   local availableMainSize = 0
   local availableCrossSize = 0
-  
+
   -- Reserve space for scrollbars if needed (reserve-space mode)
   local scrollbarReservedWidth = 0
   local scrollbarReservedHeight = 0
   if self.element._scrollManager and self.element._scrollManager.scrollbarPlacement == "reserve-space" then
     scrollbarReservedWidth, scrollbarReservedHeight = self.element._scrollManager:getReservedSpace(self.element)
   end
-  
+
   if self.flexDirection == self._FlexDirection.HORIZONTAL then
     availableMainSize = self.element.width - scrollbarReservedWidth
     availableCrossSize = self.element.height - scrollbarReservedHeight
@@ -505,7 +500,7 @@ function LayoutEngine:layoutChildren()
   end
 
   -- Adjust children with percentage-based cross-axis dimensions when scrollbar space is reserved
-  if (scrollbarReservedWidth > 0 or scrollbarReservedHeight > 0) then
+  if scrollbarReservedWidth > 0 or scrollbarReservedHeight > 0 then
     local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
     for _, child in ipairs(flexChildren) do
       if isHorizontal then
@@ -570,13 +565,8 @@ function LayoutEngine:layoutChildren()
         return nil
       end
 
-      local resolved = self._Units.resolve(
-        axisUnits.value,
-        axisUnits.unit,
-        viewportWidth,
-        viewportHeight,
-        availableMainSize
-      )
+      local resolved =
+        self._Units.resolve(axisUnits.value, axisUnits.unit, viewportWidth, viewportHeight, availableMainSize)
 
       if type(resolved) == "number" then
         return math.max(0, resolved)

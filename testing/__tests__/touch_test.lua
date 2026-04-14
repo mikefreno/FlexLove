@@ -27,7 +27,9 @@ local GestureRecognizer = package.loaded["modules.GestureRecognizer"]
 
 --- Create a GestureRecognizer touch event helper
 local function touchEvent(id, x, y, phase, time)
-  if time then love.timer.setTime(time) end
+  if time then
+    love.timer.setTime(time)
+  end
   return InputEvent.fromTouch(id, x, y, phase, 1.0)
 end
 
@@ -53,8 +55,12 @@ local function createMockElement(width, height, contentWidth, contentHeight)
     height = contentHeight or 600,
     margin = { top = 0, right = 0, bottom = 0, left = 0 },
     _explicitlyAbsolute = false,
-    getBorderBoxWidth = function(self) return self.width end,
-    getBorderBoxHeight = function(self) return self.height end,
+    getBorderBoxWidth = function(self)
+      return self.width
+    end,
+    getBorderBoxHeight = function(self)
+      return self.height
+    end,
   })
 
   return {
@@ -64,8 +70,12 @@ local function createMockElement(width, height, contentWidth, contentHeight)
     height = height or 300,
     padding = { top = 0, right = 0, bottom = 0, left = 0 },
     children = children,
-    getBorderBoxWidth = function(self) return self.width end,
-    getBorderBoxHeight = function(self) return self.height end,
+    getBorderBoxWidth = function(self)
+      return self.width
+    end,
+    getBorderBoxHeight = function(self)
+      return self.height
+    end,
   }
 end
 
@@ -128,9 +138,13 @@ function TestTouchEventHandler:test_touch_began()
 
   FlexLove.endFrame()
 
-  love.touch.getTouches = function() return { "touch1" } end
+  love.touch.getTouches = function()
+    return { "touch1" }
+  end
   love.touch.getPosition = function(id)
-    if id == "touch1" then return 100, 100 end
+    if id == "touch1" then
+      return 100, 100
+    end
     return 0, 0
   end
 
@@ -164,9 +178,13 @@ function TestTouchEventHandler:test_touch_moved()
 
   FlexLove.endFrame()
 
-  love.touch.getTouches = function() return { "touch1" } end
+  love.touch.getTouches = function()
+    return { "touch1" }
+  end
   love.touch.getPosition = function(id)
-    if id == "touch1" then return 100, 100 end
+    if id == "touch1" then
+      return 100, 100
+    end
     return 0, 0
   end
 
@@ -175,7 +193,9 @@ function TestTouchEventHandler:test_touch_moved()
   FlexLove.endFrame()
 
   love.touch.getPosition = function(id)
-    if id == "touch1" then return 150, 150 end
+    if id == "touch1" then
+      return 150, 150
+    end
     return 0, 0
   end
 
@@ -211,9 +231,13 @@ function TestTouchEventHandler:test_touch_ended()
 
   FlexLove.endFrame()
 
-  love.touch.getTouches = function() return { "touch1" } end
+  love.touch.getTouches = function()
+    return { "touch1" }
+  end
   love.touch.getPosition = function(id)
-    if id == "touch1" then return 100, 100 end
+    if id == "touch1" then
+      return 100, 100
+    end
     return 0, 0
   end
 
@@ -221,7 +245,9 @@ function TestTouchEventHandler:test_touch_ended()
   element._eventHandler:processTouchEvents(element)
   FlexLove.endFrame()
 
-  love.touch.getTouches = function() return {} end
+  love.touch.getTouches = function()
+    return {}
+  end
 
   FlexLove.beginFrame()
   element._eventHandler:processTouchEvents(element)
@@ -254,10 +280,16 @@ function TestTouchEventHandler:test_multi_touch()
 
   FlexLove.endFrame()
 
-  love.touch.getTouches = function() return { "touch1", "touch2" } end
+  love.touch.getTouches = function()
+    return { "touch1", "touch2" }
+  end
   love.touch.getPosition = function(id)
-    if id == "touch1" then return 50, 50 end
-    if id == "touch2" then return 150, 150 end
+    if id == "touch1" then
+      return 50, 50
+    end
+    if id == "touch2" then
+      return 150, 150
+    end
     return 0, 0
   end
 
@@ -374,7 +406,9 @@ function TestTouchGestureRecognizer:test_double_tap_detected()
   luaunit.assertNotNil(gestures, "Should detect gesture on second tap")
   local foundDoubleTap = false
   for _, g in ipairs(gestures) do
-    if g.type == "double_tap" then foundDoubleTap = true end
+    if g.type == "double_tap" then
+      foundDoubleTap = true
+    end
   end
   luaunit.assertTrue(foundDoubleTap, "Should detect double-tap gesture")
 end
@@ -424,7 +458,9 @@ function TestTouchGestureRecognizer:test_pan_changed()
   luaunit.assertNotNil(gestures)
   local panChanged = nil
   for _, g in ipairs(gestures) do
-    if g.type == "pan" and g.state == "changed" then panChanged = g end
+    if g.type == "pan" and g.state == "changed" then
+      panChanged = g
+    end
   end
   luaunit.assertNotNil(panChanged, "Should detect pan changed")
   luaunit.assertEquals(panChanged.dx, 20)
@@ -444,7 +480,9 @@ function TestTouchGestureRecognizer:test_pan_ended()
   luaunit.assertNotNil(gestures)
   local panEnded = nil
   for _, g in ipairs(gestures) do
-    if g.type == "pan" and g.state == "ended" then panEnded = g end
+    if g.type == "pan" and g.state == "ended" then
+      panEnded = g
+    end
   end
   luaunit.assertNotNil(panEnded, "Should detect pan ended")
 end
@@ -474,7 +512,9 @@ function TestTouchGestureRecognizer:test_swipe_right()
   luaunit.assertNotNil(gestures)
   local swipe = nil
   for _, g in ipairs(gestures) do
-    if g.type == "swipe" then swipe = g end
+    if g.type == "swipe" then
+      swipe = g
+    end
   end
   luaunit.assertNotNil(swipe, "Should detect swipe")
   luaunit.assertEquals(swipe.direction, "right")
@@ -493,7 +533,9 @@ function TestTouchGestureRecognizer:test_swipe_left()
   luaunit.assertNotNil(gestures)
   local swipe = nil
   for _, g in ipairs(gestures) do
-    if g.type == "swipe" then swipe = g end
+    if g.type == "swipe" then
+      swipe = g
+    end
   end
   luaunit.assertNotNil(swipe, "Should detect left swipe")
   luaunit.assertEquals(swipe.direction, "left")
@@ -512,7 +554,9 @@ function TestTouchGestureRecognizer:test_swipe_down()
   luaunit.assertNotNil(gestures)
   local swipe = nil
   for _, g in ipairs(gestures) do
-    if g.type == "swipe" then swipe = g end
+    if g.type == "swipe" then
+      swipe = g
+    end
   end
   luaunit.assertNotNil(swipe, "Should detect down swipe")
   luaunit.assertEquals(swipe.direction, "down")
@@ -531,7 +575,9 @@ function TestTouchGestureRecognizer:test_swipe_up()
   luaunit.assertNotNil(gestures)
   local swipe = nil
   for _, g in ipairs(gestures) do
-    if g.type == "swipe" then swipe = g end
+    if g.type == "swipe" then
+      swipe = g
+    end
   end
   luaunit.assertNotNil(swipe, "Should detect up swipe")
   luaunit.assertEquals(swipe.direction, "up")
@@ -587,7 +633,9 @@ function TestTouchGestureRecognizer:test_pinch_detected()
   luaunit.assertNotNil(gestures, "Pinch should be detected")
   local pinch = nil
   for _, g in ipairs(gestures) do
-    if g.type == "pinch" then pinch = g end
+    if g.type == "pinch" then
+      pinch = g
+    end
   end
   luaunit.assertNotNil(pinch, "Should detect pinch gesture")
   luaunit.assertTrue(pinch.scale > 1.0, "Scale should be greater than 1.0 for spread")
@@ -607,7 +655,9 @@ function TestTouchGestureRecognizer:test_pinch_scale_decreases()
   if gestures then
     local pinch = nil
     for _, g in ipairs(gestures) do
-      if g.type == "pinch" then pinch = g end
+      if g.type == "pinch" then
+        pinch = g
+      end
     end
     if pinch then
       luaunit.assertTrue(pinch.scale < 1.0, "Scale should be less than 1.0 for pinch")
@@ -643,7 +693,9 @@ function TestTouchGestureRecognizer:test_rotate_detected()
   if gestures then
     local rotate = nil
     for _, g in ipairs(gestures) do
-      if g.type == "rotate" then rotate = g end
+      if g.type == "rotate" then
+        rotate = g
+      end
     end
     if rotate then
       luaunit.assertNotNil(rotate.rotation, "Rotate gesture should have rotation angle")
@@ -973,7 +1025,9 @@ function TestTouchScrollMomentum:test_momentum_stops_at_low_velocity()
 
   for i = 1, 500 do
     sm:update(1 / 60)
-    if not sm:isMomentumScrolling() then break end
+    if not sm:isMomentumScrolling() then
+      break
+    end
   end
 
   luaunit.assertFalse(sm:isMomentumScrolling())
@@ -1146,8 +1200,12 @@ end
 
 function TestTouchRouting:tearDown()
   FlexLove.destroy()
-  love.touch.getTouches = function() return {} end
-  love.touch.getPosition = function() return 0, 0 end
+  love.touch.getTouches = function()
+    return {}
+  end
+  love.touch.getPosition = function()
+    return 0, 0
+  end
 end
 
 function TestTouchRouting:test_touchpressed_routes_to_element()
@@ -1188,7 +1246,9 @@ function TestTouchRouting:test_touchmoved_routes_to_owner()
 
   local moveEvents = {}
   for _, e in ipairs(touchEvents) do
-    if e.type == "touchmove" then table.insert(moveEvents, e) end
+    if e.type == "touchmove" then
+      table.insert(moveEvents, e)
+    end
   end
 
   luaunit.assertTrue(#moveEvents >= 1, "Should receive touchmove event")
@@ -1216,7 +1276,9 @@ function TestTouchRouting:test_touchreleased_routes_and_cleans_up()
 
   local releaseEvents = {}
   for _, e in ipairs(touchEvents) do
-    if e.type == "touchrelease" then table.insert(releaseEvents, e) end
+    if e.type == "touchrelease" then
+      table.insert(releaseEvents, e)
+    end
   end
 
   luaunit.assertTrue(#releaseEvents >= 1, "Should receive touchrelease event")
@@ -1239,7 +1301,9 @@ function TestTouchRouting:test_touch_ownership_persists_outside_bounds()
 
   local moveEvents = {}
   for _, e in ipairs(touchEvents) do
-    if e.type == "touchmove" then table.insert(moveEvents, e) end
+    if e.type == "touchmove" then
+      table.insert(moveEvents, e)
+    end
   end
 
   luaunit.assertTrue(#moveEvents >= 1, "Move event should route to owner even outside bounds")
@@ -1421,7 +1485,9 @@ function TestTouchRouting:test_onEvent_receives_touch_events()
 
   local touchPressEvents = {}
   for _, e in ipairs(allEvents) do
-    if e.type == "touchpress" then table.insert(touchPressEvents, e) end
+    if e.type == "touchpress" then
+      table.insert(touchPressEvents, e)
+    end
   end
 
   luaunit.assertTrue(#touchPressEvents >= 1, "onEvent should receive touchpress events")
@@ -1446,7 +1512,9 @@ function TestTouchRouting:test_gesture_routing()
 
   local tapGestures = {}
   for _, g in ipairs(gestureEvents) do
-    if g.type == "tap" then table.insert(tapGestures, g) end
+    if g.type == "tap" then
+      table.insert(tapGestures, g)
+    end
   end
 
   luaunit.assertTrue(#tapGestures >= 1, "Should detect tap gesture from press+release")
@@ -1578,9 +1646,15 @@ function TestTouchRouting:test_child_receives_touch_over_parent()
 
   FlexLove.touchpressed("touch1", 100, 100, 0, 0, 1.0)
 
-  luaunit.assertTrue(#childEvents >= 1,
-    string.format("Child should receive touch (child=%d, parent=%d, topElements=%d)",
-      #childEvents, #parentEvents, #FlexLove.topElements))
+  luaunit.assertTrue(
+    #childEvents >= 1,
+    string.format(
+      "Child should receive touch (child=%d, parent=%d, topElements=%d)",
+      #childEvents,
+      #parentEvents,
+      #FlexLove.topElements
+    )
+  )
 end
 
 function TestTouchRouting:test_non_interactive_element_ignored()
@@ -1694,7 +1768,9 @@ function TestTouchElementCallbacks:test_onGesture_callback()
 
   local tapGestures = {}
   for _, g in ipairs(receivedGestures) do
-    if g.type == "tap" then table.insert(tapGestures, g) end
+    if g.type == "tap" then
+      table.insert(tapGestures, g)
+    end
   end
   luaunit.assertTrue(#tapGestures >= 1, "Should receive tap gesture callback")
 end
@@ -1715,7 +1791,9 @@ function TestTouchElementCallbacks:test_onEvent_also_receives_touch()
 
   local touchEvents = {}
   for _, e in ipairs(receivedEvents) do
-    if e.type == "touchpress" then table.insert(touchEvents, e) end
+    if e.type == "touchpress" then
+      table.insert(touchEvents, e)
+    end
   end
   luaunit.assertTrue(#touchEvents >= 1, "onEvent should receive touch events")
 end
@@ -1868,7 +1946,9 @@ function TestTouchElementDirect:test_touch_pan_lifecycle()
 
   local panGestures = {}
   for _, g in ipairs(gestureEvents) do
-    if g.type == "pan" then table.insert(panGestures, g) end
+    if g.type == "pan" then
+      table.insert(panGestures, g)
+    end
   end
   luaunit.assertTrue(#panGestures >= 1, "Should receive pan gesture events")
 end

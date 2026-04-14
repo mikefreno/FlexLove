@@ -2304,7 +2304,8 @@ function TestElementTheme:test_children_shift_with_pressed_theme_state()
   local borderBoxWidth = parent._borderBoxWidth or (parent.width + parent.padding.left + parent.padding.right)
   local borderBoxHeight = parent._borderBoxHeight or (parent.height + parent.padding.top + parent.padding.bottom)
   local normalPadding = parent._themeManager:getScaledContentPaddingForState("normal", borderBoxWidth, borderBoxHeight)
-  local pressedPadding = parent._themeManager:getScaledContentPaddingForState("pressed", borderBoxWidth, borderBoxHeight)
+  local pressedPadding =
+    parent._themeManager:getScaledContentPaddingForState("pressed", borderBoxWidth, borderBoxHeight)
   local expectedShiftX = pressedPadding.left - normalPadding.left
   local expectedShiftY = pressedPadding.top - normalPadding.top
 

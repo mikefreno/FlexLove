@@ -434,7 +434,9 @@ local function validateEnum(value, enumTable, propName, moduleName)
       got = tostring(value),
     })
   else
-    error(string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value)))
+    error(
+      string.format("%s must be one of: %s. Got: '%s'", propName, table.concat(validOptions, ", "), tostring(value))
+    )
   end
 end
 
@@ -468,7 +470,9 @@ local function validateRange(value, min, max, propName, moduleName)
         value = tostring(value),
       })
     else
-      error(string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value)))
+      error(
+        string.format("%s must be between %s and %s, got %s", propName, tostring(min), tostring(max), tostring(value))
+      )
     end
   end
   return true

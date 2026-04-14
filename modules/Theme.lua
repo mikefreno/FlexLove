@@ -586,7 +586,11 @@ function Theme.new(definition)
             scrollbarDef.bar.knobOffset = scrollbarDef.knobOffset
           end
           if scrollbarDef.bar.atlas and type(scrollbarDef.bar.atlas) == "string" then
-            loadAtlasWithNinePatch(scrollbarDef.bar, scrollbarDef.bar.atlas, "for scrollbar '" .. scrollbarName .. ".bar'")
+            loadAtlasWithNinePatch(
+              scrollbarDef.bar,
+              scrollbarDef.bar.atlas,
+              "for scrollbar '" .. scrollbarName .. ".bar'"
+            )
           end
           if scrollbarDef.bar.insets then
             createRegionsFromInsets(scrollbarDef.bar, scrollbarDef.bar._loadedAtlas or self.atlas)
@@ -607,7 +611,11 @@ function Theme.new(definition)
         elseif type(scrollbarDef.frame) == "table" then
           -- Already a ThemeComponent structure, process it
           if scrollbarDef.frame.atlas and type(scrollbarDef.frame.atlas) == "string" then
-            loadAtlasWithNinePatch(scrollbarDef.frame, scrollbarDef.frame.atlas, "for scrollbar '" .. scrollbarName .. ".frame'")
+            loadAtlasWithNinePatch(
+              scrollbarDef.frame,
+              scrollbarDef.frame.atlas,
+              "for scrollbar '" .. scrollbarName .. ".frame'"
+            )
           end
           if scrollbarDef.frame.insets then
             createRegionsFromInsets(scrollbarDef.frame, scrollbarDef.frame._loadedAtlas or self.atlas)
@@ -632,7 +640,11 @@ function Theme.new(definition)
         for stateName, stateComponent in pairs(scrollbarDef.states) do
           if stateComponent.atlas then
             if type(stateComponent.atlas) == "string" then
-              loadAtlasWithNinePatch(stateComponent, stateComponent.atlas, "for scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "'")
+              loadAtlasWithNinePatch(
+                stateComponent,
+                stateComponent.atlas,
+                "for scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "'"
+              )
             else
               stateComponent._loadedAtlas = stateComponent.atlas
             end
@@ -924,27 +936,27 @@ function ThemeManager:updateState(isHovered, isPressed, isFocused, isDisabled)
   -- If themeStateLock is set (and not false), use the locked state
   if self.themeStateLock ~= false and self.themeStateLock ~= nil then
     local lockedState
-    
+
     if self.themeStateLock == true or self.themeStateLock == "default" then
       -- true or "default" means lock to "normal" (base state)
       lockedState = "normal"
     elseif type(self.themeStateLock) == "string" then
       -- String means lock to specific state
       lockedState = self.themeStateLock
-      
+
       -- Validate the locked state exists in the theme component (will be done during initialization)
       -- For now, just use the string value
     else
       -- Invalid themeStateLock value, fall back to normal behavior
       lockedState = nil
     end
-    
+
     if lockedState then
       self._themeState = lockedState
       return lockedState
     end
   end
-  
+
   -- Normal behavior: calculate state based on interaction
   local newState = "normal"
 
@@ -1020,7 +1032,13 @@ function ThemeManager:getStateComponent()
   end
 
   local state = self._themeState
-  if state and state ~= "normal" and component.states and type(component.states) == "table" and component.states[state] then
+  if
+    state
+    and state ~= "normal"
+    and component.states
+    and type(component.states) == "table"
+    and component.states[state]
+  then
     return component.states[state]
   end
 
@@ -1116,11 +1134,23 @@ function ThemeManager:_getScaledContentPaddingForComponent(component, borderBoxW
       end
 
       local left = mapDistanceFromStart(contentPadding.left, originalWidth, borderBoxWidth, insets.left, insets.right)
-      local rightBoundary = mapDistanceFromStart(originalWidth - contentPadding.right, originalWidth, borderBoxWidth, insets.left, insets.right)
+      local rightBoundary = mapDistanceFromStart(
+        originalWidth - contentPadding.right,
+        originalWidth,
+        borderBoxWidth,
+        insets.left,
+        insets.right
+      )
       local right = borderBoxWidth - rightBoundary
 
       local top = mapDistanceFromStart(contentPadding.top, originalHeight, borderBoxHeight, insets.top, insets.bottom)
-      local bottomBoundary = mapDistanceFromStart(originalHeight - contentPadding.bottom, originalHeight, borderBoxHeight, insets.top, insets.bottom)
+      local bottomBoundary = mapDistanceFromStart(
+        originalHeight - contentPadding.bottom,
+        originalHeight,
+        borderBoxHeight,
+        insets.top,
+        insets.bottom
+      )
       local bottom = borderBoxHeight - bottomBoundary
 
       return {
@@ -1231,21 +1261,21 @@ function ThemeManager:validateThemeStateLock()
   if not self.themeStateLock or self.themeStateLock == false then
     return true
   end
-  
+
   -- true is always valid (lock to normal)
   if self.themeStateLock == true then
     return true
   end
-  
+
   -- String value needs validation
   if type(self.themeStateLock) == "string" then
     -- "default" is always valid (lock to normal/base state)
     if self.themeStateLock == "default" then
       return true
     end
-    
+
     local component = self:getComponent()
-    
+
     -- If no component, warn that themeStateLock has no effect
     if not component then
       if self.themeComponent then
@@ -1257,7 +1287,7 @@ function ThemeManager:validateThemeStateLock()
       self.themeStateLock = false
       return false
     end
-    
+
     -- Check if component has any states at all
     if not component.states or type(component.states) ~= "table" or next(component.states) == nil then
       Theme._ErrorHandler:warn("Theme", "THM_008", {
@@ -1267,7 +1297,7 @@ function ThemeManager:validateThemeStateLock()
       self.themeStateLock = false
       return false
     end
-    
+
     -- Check if the specified state exists
     if not component.states[self.themeStateLock] then
       -- Warn and fall back to false (no lock)
@@ -1280,10 +1310,10 @@ function ThemeManager:validateThemeStateLock()
       self.themeStateLock = false
       return false
     end
-    
+
     return true
   end
-  
+
   -- Invalid type for themeStateLock
   Theme._ErrorHandler:warn("Theme", "THM_010", {
     themeStateLockType = type(self.themeStateLock),
@@ -1420,7 +1450,10 @@ function Theme.validateTheme(theme, options)
             else
               for stateName, stateComponent in pairs(component.states) do
                 if type(stateComponent) ~= "table" then
-                  table.insert(errors, "Component '" .. componentName .. "' state '" .. stateName .. "' must be a table")
+                  table.insert(
+                    errors,
+                    "Component '" .. componentName .. "' state '" .. stateName .. "' must be a table"
+                  )
                 end
               end
             end
@@ -1440,7 +1473,10 @@ function Theme.validateTheme(theme, options)
             if type(component.scalingAlgorithm) ~= "string" then
               table.insert(errors, "Component '" .. componentName .. "' scalingAlgorithm must be a string")
             elseif component.scalingAlgorithm ~= "nearest" and component.scalingAlgorithm ~= "bilinear" then
-              table.insert(errors, "Component '" .. componentName .. "' scalingAlgorithm must be 'nearest' or 'bilinear'")
+              table.insert(
+                errors,
+                "Component '" .. componentName .. "' scalingAlgorithm must be 'nearest' or 'bilinear'"
+              )
             end
           end
         end
@@ -1487,7 +1523,10 @@ function Theme.validateTheme(theme, options)
                   elseif type(scrollbarDef.insets[side]) ~= "number" then
                     table.insert(errors, "Scrollbar '" .. scrollbarName .. "' insets." .. side .. " must be a number")
                   elseif scrollbarDef.insets[side] < 0 then
-                    table.insert(errors, "Scrollbar '" .. scrollbarName .. "' insets." .. side .. " must be non-negative")
+                    table.insert(
+                      errors,
+                      "Scrollbar '" .. scrollbarName .. "' insets." .. side .. " must be non-negative"
+                    )
                   end
                 end
               end
@@ -1500,7 +1539,10 @@ function Theme.validateTheme(theme, options)
               else
                 for stateName, stateComponent in pairs(scrollbarDef.states) do
                   if type(stateComponent) ~= "table" then
-                    table.insert(errors, "Scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "' must be a table")
+                    table.insert(
+                      errors,
+                      "Scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "' must be a table"
+                    )
                   end
                 end
               end

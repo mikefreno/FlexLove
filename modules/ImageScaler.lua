@@ -28,7 +28,7 @@ end
 function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
   if not sourceImageData then
     ErrorHandler:error("ImageScaler", "VAL_001", {
-      parameter = "sourceImageData"
+      parameter = "sourceImageData",
     })
   end
 
@@ -38,7 +38,7 @@ function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW
       srcH = srcH,
       destW = destW,
       destH = destH,
-      fallback = "1x1 transparent image"
+      fallback = "1x1 transparent image",
     })
     -- Return a minimal 1x1 transparent image as fallback
     local fallbackImageData = love.image.newImageData(1, 1)
@@ -98,7 +98,7 @@ end
 function ImageScaler.scaleBilinear(sourceImageData, srcX, srcY, srcW, srcH, destW, destH)
   if not sourceImageData then
     ErrorHandler:error("ImageScaler", "VAL_001", {
-      parameter = "sourceImageData"
+      parameter = "sourceImageData",
     })
   end
 
@@ -108,7 +108,7 @@ function ImageScaler.scaleBilinear(sourceImageData, srcX, srcY, srcW, srcH, dest
       srcH = srcH,
       destW = destW,
       destH = destH,
-      fallback = "1x1 transparent image"
+      fallback = "1x1 transparent image",
     })
     -- Return a minimal 1x1 transparent image as fallback
     local fallbackImageData = love.image.newImageData(1, 1)

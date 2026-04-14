@@ -135,7 +135,14 @@ local function isPointInElement(element, x, y)
     local overflowY = current.overflowY or current.overflow
 
     -- Check if parent clips content (overflow: hidden, scroll, auto)
-    if overflowX == "hidden" or overflowX == "scroll" or overflowX == "auto" or overflowY == "hidden" or overflowY == "scroll" or overflowY == "auto" then
+    if
+      overflowX == "hidden"
+      or overflowX == "scroll"
+      or overflowX == "auto"
+      or overflowY == "hidden"
+      or overflowY == "scroll"
+      or overflowY == "auto"
+    then
       local parentX = current.x + current.padding.left
       local parentY = current.y + current.padding.top
       local parentW = current.width

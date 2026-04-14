@@ -98,10 +98,18 @@ function Grid.layoutGridItems(element)
       local childBorderBoxHeight = child:getBorderBoxHeight()
       child.x = cellX + (cellWidth - childBorderBoxWidth) / 2
       child.y = cellY + (cellHeight - childBorderBoxHeight) / 2
-    elseif effectiveAlignItems == AlignItems.FLEX_START or effectiveAlignItems == "flex-start" or effectiveAlignItems == "start" then
+    elseif
+      effectiveAlignItems == AlignItems.FLEX_START
+      or effectiveAlignItems == "flex-start"
+      or effectiveAlignItems == "start"
+    then
       child.x = cellX
       child.y = cellY
-    elseif effectiveAlignItems == AlignItems.FLEX_END or effectiveAlignItems == "flex-end" or effectiveAlignItems == "end" then
+    elseif
+      effectiveAlignItems == AlignItems.FLEX_END
+      or effectiveAlignItems == "flex-end"
+      or effectiveAlignItems == "end"
+    then
       local childBorderBoxWidth = child:getBorderBoxWidth()
       local childBorderBoxHeight = child:getBorderBoxHeight()
       child.x = cellX + cellWidth - childBorderBoxWidth

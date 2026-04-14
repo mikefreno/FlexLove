@@ -47,8 +47,10 @@ KeyboardNavigation.FocusIndicator = FocusIndicator
 -- Test helper to create test UI
 local function createTestUI()
   local container = Element.new({
-    x = 0, y = 0,
-    width = 800, height = 600,
+    x = 0,
+    y = 0,
+    width = 800,
+    height = 600,
     positioning = utils.enums.Positioning.FLEX,
     flexDirection = utils.enums.FlexDirection.VERTICAL,
     gap = 10,
@@ -155,8 +157,10 @@ local tests = {
   testDirectionalNavigation = function()
     -- Create horizontal layout
     local container = Element.new({
-      x = 0, y = 0,
-      width = 800, height = 600,
+      x = 0,
+      y = 0,
+      width = 800,
+      height = 600,
       positioning = utils.enums.Positioning.FLEX,
       flexDirection = utils.enums.FlexDirection.HORIZONTAL,
       gap = 10,
@@ -189,19 +193,26 @@ local tests = {
 
     -- Create test UI with tracked onEvent
     local container = Element.new({
-      x = 0, y = 0,
-      width = 800, height = 600,
+      x = 0,
+      y = 0,
+      width = 800,
+      height = 600,
       positioning = utils.enums.Positioning.FLEX,
       flexDirection = utils.enums.FlexDirection.VERTICAL,
       gap = 10,
     })
     Context.setNavigationContainer(container)
 
-    Element.new({ parent = container, id = "btn1", text = "Button 1", onEvent = function(elem, event)
-      if event.type == "press" or event.type == "release" then
-        activated = true
-      end
-    end })
+    Element.new({
+      parent = container,
+      id = "btn1",
+      text = "Button 1",
+      onEvent = function(elem, event)
+        if event.type == "press" or event.type == "release" then
+          activated = true
+        end
+      end,
+    })
     Element.new({ parent = container, id = "btn2", text = "Button 2", onEvent = function() end })
     Element.new({ parent = container, id = "btn3", text = "Button 3", onEvent = function() end })
     Element.new({ parent = container, id = "input1", editable = true })
@@ -302,8 +313,10 @@ local tests = {
     -- Run a frame to create elements in immediate mode
     FlexLove.beginFrame()
     container = Element.new({
-      x = 0, y = 0,
-      width = 800, height = 600,
+      x = 0,
+      y = 0,
+      width = 800,
+      height = 600,
       positioning = utils.enums.Positioning.FLEX,
       flexDirection = utils.enums.FlexDirection.VERTICAL,
       gap = 10,
@@ -349,38 +362,46 @@ local tests = {
 
     -- Create buttons with explicit positions (not using flex layout)
     local btnTop = Element.new({
-      x = 100, y = 50,
-      width = 80, height = 30,
+      x = 100,
+      y = 50,
+      width = 80,
+      height = 30,
       text = "Top",
-      onEvent = function() end
+      onEvent = function() end,
     })
 
     local btnCenter = Element.new({
-      x = 100, y = 150,
-      width = 80, height = 30,
+      x = 100,
+      y = 150,
+      width = 80,
+      height = 30,
       text = "Center",
-      onEvent = function() end
+      onEvent = function() end,
     })
 
     local btnBottom = Element.new({
-      x = 100, y = 250,
-      width = 80, height = 30,
+      x = 100,
+      y = 250,
+      width = 80,
+      height = 30,
       text = "Bottom",
-      onEvent = function() end
+      onEvent = function() end,
     })
 
     local btnRight = Element.new({
-      x = 250, y = 150,
-      width = 80, height = 30,
+      x = 250,
+      y = 150,
+      width = 80,
+      height = 30,
       text = "Right",
-      onEvent = function() end
+      onEvent = function() end,
     })
 
     -- Update spatial index with all buttons
-    KeyboardNavigation._spatialIndex.elementPositions[btnTop] = {x = 100, y = 50, w = 80, h = 30}
-    KeyboardNavigation._spatialIndex.elementPositions[btnCenter] = {x = 100, y = 150, w = 80, h = 30}
-    KeyboardNavigation._spatialIndex.elementPositions[btnBottom] = {x = 100, y = 250, w = 80, h = 30}
-    KeyboardNavigation._spatialIndex.elementPositions[btnRight] = {x = 250, y = 150, w = 80, h = 30}
+    KeyboardNavigation._spatialIndex.elementPositions[btnTop] = { x = 100, y = 50, w = 80, h = 30 }
+    KeyboardNavigation._spatialIndex.elementPositions[btnCenter] = { x = 100, y = 150, w = 80, h = 30 }
+    KeyboardNavigation._spatialIndex.elementPositions[btnBottom] = { x = 100, y = 250, w = 80, h = 30 }
+    KeyboardNavigation._spatialIndex.elementPositions[btnRight] = { x = 250, y = 150, w = 80, h = 30 }
 
     -- Add to grid cells
     local cellSize = KeyboardNavigation._spatialIndex.cellSize
@@ -401,10 +422,10 @@ local tests = {
       end
     end
 
-    addToGrid(btnTop, {x = 100, y = 50, w = 80, h = 30})
-    addToGrid(btnCenter, {x = 100, y = 150, w = 80, h = 30})
-    addToGrid(btnBottom, {x = 100, y = 250, w = 80, h = 30})
-    addToGrid(btnRight, {x = 250, y = 150, w = 80, h = 30})
+    addToGrid(btnTop, { x = 100, y = 50, w = 80, h = 30 })
+    addToGrid(btnCenter, { x = 100, y = 150, w = 80, h = 30 })
+    addToGrid(btnBottom, { x = 100, y = 250, w = 80, h = 30 })
+    addToGrid(btnRight, { x = 250, y = 150, w = 80, h = 30 })
 
     -- Focus center button
     Context.setFocused(btnCenter)

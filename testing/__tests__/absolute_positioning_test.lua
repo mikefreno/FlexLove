@@ -255,8 +255,16 @@ function TestAbsolutePositioning:testExplicitlyAbsoluteFlagIsSet()
     height = 100,
   })
 
-  luaunit.assertEquals(absoluteChild._explicitlyAbsolute, true, "Explicitly absolute child should have _explicitlyAbsolute = true")
-  luaunit.assertEquals(absoluteChild._originalPositioning, "absolute", "Absolute child should have _originalPositioning = 'absolute'")
+  luaunit.assertEquals(
+    absoluteChild._explicitlyAbsolute,
+    true,
+    "Explicitly absolute child should have _explicitlyAbsolute = true"
+  )
+  luaunit.assertEquals(
+    absoluteChild._originalPositioning,
+    "absolute",
+    "Absolute child should have _originalPositioning = 'absolute'"
+  )
 
   luaunit.assertEquals(flexChild._explicitlyAbsolute, false, "Flex child should have _explicitlyAbsolute = false")
   luaunit.assertEquals(flexChild._originalPositioning, nil, "Flex child should have _originalPositioning = nil")

@@ -102,7 +102,7 @@ function ScrollManager.new(config, deps)
 
   -- Scrollbar placement: "reserve-space" (default) or "overlay"
   self.scrollbarPlacement = config.scrollbarPlacement or "reserve-space"
-  
+
   -- Scrollbar balance: when true, reserve space on both sides for visual balance
   self.scrollbarBalance = config.scrollbarBalance or false
 
@@ -165,7 +165,7 @@ function ScrollManager:getReservedSpace(element)
 
   local overflowX = self.overflowX or self.overflow
   local overflowY = self.overflowY or self.overflow
-  
+
   local reservedWidth = 0
   local reservedHeight = 0
 
@@ -627,7 +627,8 @@ function ScrollManager:handleWheel(x, y)
   -- In immediate mode, overflow might not be calculated yet, so allow scrolling based on maxScroll values
   -- If _overflowY is nil/false but _maxScrollY > 0, we should still allow scrolling (from restored state)
   local hasVerticalOverflow = (self._overflowY and self._maxScrollY > 0) or (self._maxScrollY and self._maxScrollY > 0)
-  local hasHorizontalOverflow = (self._overflowX and self._maxScrollX > 0) or (self._maxScrollX and self._maxScrollX > 0)
+  local hasHorizontalOverflow = (self._overflowX and self._maxScrollX > 0)
+    or (self._maxScrollX and self._maxScrollX > 0)
 
   local scrolled = false
 

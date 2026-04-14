@@ -154,7 +154,9 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
   end
 
   -- Can only process events if we have handler, element is enabled, and is active or dragging or has tracked press
-  local canProcessEvents = (self.onEvent or element.editable) and not element.disabled and (isActiveElement or isDragging or hasTrackedPress)
+  local canProcessEvents = (self.onEvent or element.editable)
+    and not element.disabled
+    and (isActiveElement or isDragging or hasTrackedPress)
 
   if not canProcessEvents then
     -- If not hovering and no buttons are physically pressed, reset all pressed states
@@ -168,7 +170,7 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
         end
       end
     end
-    
+
     -- Track hover state changes even when events can't be processed
     -- Fire unhover event if we were hovering and now we're not
     if self._hovered and not isHovering then
@@ -187,7 +189,7 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
         self:_invokeCallback(element, unhoverEvent)
       end
     end
-    
+
     if EventHandler._Performance and EventHandler._Performance.enabled then
       EventHandler._Performance:stopTimer("event_mouse")
     end
@@ -411,7 +413,11 @@ function EventHandler:_handleMouseRelease(element, mx, my, button)
   local clickCount = 1
   local doubleClickThreshold = 0.3 -- 300ms for double-click
 
-  if self._lastClickTime and self._lastClickButton == button and (currentTime - self._lastClickTime) < doubleClickThreshold then
+  if
+    self._lastClickTime
+    and self._lastClickButton == button
+    and (currentTime - self._lastClickTime) < doubleClickThreshold
+  then
     clickCount = self._clickCount + 1
   else
     clickCount = 1
@@ -494,7 +500,9 @@ function EventHandler:processTouchEvents(element)
   local activeTouchIds = {}
 
   -- Check if element can process events
-  local canProcessEvents = (self.onEvent or self.onTouchEvent or element.editable) and not element.disabled and self.touchEnabled
+  local canProcessEvents = (self.onEvent or self.onTouchEvent or element.editable)
+    and not element.disabled
+    and self.touchEnabled
 
   if not canProcessEvents then
     if EventHandler._Performance and EventHandler._Performance.enabled then

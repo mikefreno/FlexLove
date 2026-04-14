@@ -270,19 +270,25 @@ function TestAnimationGroupSequence:test_sequence_maintains_order()
     duration = 0.2,
     start = { x = 0 },
     final = { x = 100 },
-    onStart = function() table.insert(order, 1) end,
+    onStart = function()
+      table.insert(order, 1)
+    end,
   })
   local anim2 = Animation.new({
     duration = 0.2,
     start = { x = 0 },
     final = { x = 100 },
-    onStart = function() table.insert(order, 2) end,
+    onStart = function()
+      table.insert(order, 2)
+    end,
   })
   local anim3 = Animation.new({
     duration = 0.2,
     start = { x = 0 },
     final = { x = 100 },
-    onStart = function() table.insert(order, 3) end,
+    onStart = function()
+      table.insert(order, 3)
+    end,
   })
 
   local group = AnimationGroup.new({
@@ -402,7 +408,9 @@ function TestAnimationGroupCallbacks:test_onStart_called_once()
   local startCount = 0
   local group = AnimationGroup.new({
     animations = { makeAnim(0.5) },
-    onStart = function() startCount = startCount + 1 end,
+    onStart = function()
+      startCount = startCount + 1
+    end,
   })
 
   group:update(0.1)
@@ -416,7 +424,9 @@ function TestAnimationGroupCallbacks:test_onStart_receives_group_reference()
   local receivedGroup = nil
   local group = AnimationGroup.new({
     animations = { makeAnim(0.5) },
-    onStart = function(g) receivedGroup = g end,
+    onStart = function(g)
+      receivedGroup = g
+    end,
   })
 
   group:update(0.1)
@@ -427,7 +437,9 @@ function TestAnimationGroupCallbacks:test_onComplete_called_when_all_finish()
   local completeCount = 0
   local group = AnimationGroup.new({
     animations = { makeAnim(0.3) },
-    onComplete = function() completeCount = completeCount + 1 end,
+    onComplete = function()
+      completeCount = completeCount + 1
+    end,
   })
 
   runToCompletion(group)
@@ -438,7 +450,9 @@ function TestAnimationGroupCallbacks:test_onComplete_not_called_before_completio
   local completed = false
   local group = AnimationGroup.new({
     animations = { makeAnim(1) },
-    onComplete = function() completed = true end,
+    onComplete = function()
+      completed = true
+    end,
   })
 
   group:update(0.5)
@@ -448,8 +462,12 @@ end
 function TestAnimationGroupCallbacks:test_callback_error_does_not_crash()
   local group = AnimationGroup.new({
     animations = { makeAnim(0.1) },
-    onStart = function() error("onStart error") end,
-    onComplete = function() error("onComplete error") end,
+    onStart = function()
+      error("onStart error")
+    end,
+    onComplete = function()
+      error("onComplete error")
+    end,
   })
 
   -- Should not throw
@@ -584,7 +602,9 @@ function TestAnimationGroupControl:test_reset_allows_replaying()
   local completeCount = 0
   local group = AnimationGroup.new({
     animations = { makeAnim(0.2) },
-    onComplete = function() completeCount = completeCount + 1 end,
+    onComplete = function()
+      completeCount = completeCount + 1
+    end,
   })
 
   runToCompletion(group)
@@ -690,7 +710,9 @@ function TestAnimationGroupEdgeCases:test_empty_group_completes_immediately()
   local completed = false
   local group = AnimationGroup.new({
     animations = {},
-    onComplete = function() completed = true end,
+    onComplete = function()
+      completed = true
+    end,
   })
 
   local finished = group:update(0.1)

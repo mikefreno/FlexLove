@@ -51,22 +51,50 @@ get_description() {
   esac
 }
 
-# Function to get modules for a profile
-get_modules() {
+# Modules excluded from each profile (blacklist approach).
+# All modules in modules/ are included by default; only those listed here are omitted.
+# New modules added to modules/ will automatically appear in all profiles unless blacklisted.
+get_excluded_modules() {
   case "$1" in
     minimal)
-      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua FFI.lua UTF8.lua"
+      # Exclude: image support, animation, themes, blur, gesture, calc, keyboard nav and debug tools
+      echo "Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua GestureRecognizer.lua Performance.lua MemoryScanner.lua KeyboardNavigation.lua FocusIndicator.lua"
       ;;
     slim)
-      echo "utils.lua Units.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua FFI.lua UTF8.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua"
+      # Exclude: themes, blur, gesture, and debug tools
+      echo "Theme.lua Blur.lua GestureRecognizer.lua Performance.lua MemoryScanner.lua"
       ;;
     default)
-      echo "utils.lua Units.lua Calc.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua FFI.lua UTF8.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua GestureRecognizer.lua"
+      # Exclude: debug tools only
+      echo "Performance.lua MemoryScanner.lua"
       ;;
     full)
-      echo "utils.lua Units.lua Calc.lua Context.lua StateManager.lua ErrorHandler.lua Color.lua InputEvent.lua TextEditor.lua LayoutEngine.lua Renderer.lua EventHandler.lua ScrollManager.lua Element.lua RoundedRect.lua Grid.lua ModuleLoader.lua types.lua FFI.lua UTF8.lua Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua GestureRecognizer.lua Performance.lua MemoryScanner.lua"
+      # Exclude nothing — include all modules
+      echo ""
       ;;
   esac
+}
+
+# Resolve the module list for a profile by subtracting the blacklist from all modules
+get_modules() {
+  local excluded
+  excluded=$(get_excluded_modules "$1")
+  local result=""
+  for f in modules/*.lua; do
+    module=$(basename "$f")
+    # Check if module is in the exclusion list
+    excluded_match=false
+    for ex in $excluded; do
+      if [ "$module" = "$ex" ]; then
+        excluded_match=true
+        break
+      fi
+    done
+    if [ "$excluded_match" = false ]; then
+      result="$result $module"
+    fi
+  done
+  echo "$result"
 }
 
 # Build each profile

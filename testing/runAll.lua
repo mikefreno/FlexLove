@@ -1,4 +1,5 @@
-package.path = package.path .. ";./?.lua;./modules/?.lua;./game/?.lua;./game/utils/?.lua;./game/components/?.lua;./game/systems/?.lua"
+package.path = package.path
+  .. ";./?.lua;./modules/?.lua;./game/?.lua;./game/utils/?.lua;./game/components/?.lua;./game/systems/?.lua"
 
 -- Set global flag BEFORE loading anything to prevent individual test files from modifying package.path
 _G.RUNNING_ALL_TESTS = true
@@ -61,6 +62,7 @@ local testFiles = {
   "testing/__tests__/ninepatch_test.lua",
   "testing/__tests__/performance_test.lua",
   "testing/__tests__/renderer_test.lua",
+  "testing/__tests__/release_variants_test.lua",
   "testing/__tests__/retained_in_immediate_test.lua",
   "testing/__tests__/retained_prop_stability_test.lua",
   "testing/__tests__/roundedrect_test.lua",

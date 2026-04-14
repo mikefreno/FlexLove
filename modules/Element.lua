@@ -2572,6 +2572,45 @@ function Element:removeChild(child)
   end
 end
 
+--- Reparent this element to a new parent, properly detaching from the current location
+--- and inserting into the new parent's children hierarchy with correct layout and alignment.
+--- If newParent is nil, the element becomes a top-level element.
+--- Works whether the element was originally created with or without a parent.
+---@param newParent Element?
+function Element:setParent(newParent)
+  if self.parent == newParent then
+    return -- Already at this parent, no-op
+  end
+
+  -- Remove from current location
+  if self.parent then
+    -- removeChild sets child.parent = nil and recalculates parent layout
+    self.parent:removeChild(self)
+  else
+    -- Remove from topElements (element was created without a parent)
+    for i, elem in ipairs(Element._Context.topElements) do
+      if elem == self then
+        table.remove(Element._Context.topElements, i)
+        break
+      end
+    end
+    self.parent = nil
+  end
+
+  if newParent then
+    -- addChild handles: setting self.parent, re-evaluating positioning,
+    -- inserting into children, marking dirty, auto-sizing, and layoutChildren
+    newParent:addChild(self)
+  else
+    -- Become a top-level element
+    self.parent = nil
+    self.x = self.x or 0
+    self.y = self.y or 0
+    self.z = self.z or 0
+    table.insert(Element._Context.topElements, self)
+  end
+end
+
 --- Delete all child elements at once for resetting containers or clearing lists
 --- Use this to efficiently empty containers when rebuilding UI from scratch
 function Element:clearChildren()
@@ -4091,6 +4130,12 @@ function Element:setProperty(property, value)
   if property == "themeComponent" then
     self.themeComponent = value
     self:_syncThemeAndRenderer(property, value)
+    return
+  end
+
+  -- Handle parent reparenting - must use setParent for proper hierarchy management
+  if property == "parent" then
+    self:setParent(value)
     return
   end
 

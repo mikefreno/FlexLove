@@ -3459,7 +3459,7 @@ end
 -- Input Handling - Selection Management
 -- ====================
 
---- Set selection range
+--- Set selection range (delegates to TextEditor)
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:setSelection(startPos, endPos)
@@ -3468,59 +3468,42 @@ function Element:setSelection(startPos, endPos)
   end
 end
 
---- Get selection range
+--- Get selection range (delegates to TextEditor)
 ---@return number?, number? -- Start and end positions, or nil if no selection
 function Element:getSelection()
-  if self._textEditor then
-    return self._textEditor:getSelection()
-  end
-  return nil, nil
+  return self._textEditor and self._textEditor:getSelection()
 end
 
---- Check if there is an active selection
+--- Check if there is an active selection (delegates to TextEditor)
 ---@return boolean
 function Element:hasSelection()
-  if self._textEditor then
-    return self._textEditor:hasSelection()
-  end
-  return false
+  return self._textEditor ~= nil and self._textEditor:hasSelection()
 end
 
---- Clear selection
+--- Clear selection (delegates to TextEditor)
 function Element:clearSelection()
   if self._textEditor then
     self._textEditor:clearSelection(self)
   end
 end
 
---- Select all text
+--- Select all text (delegates to TextEditor)
 function Element:selectAll()
   if self._textEditor then
     self._textEditor:selectAll(self)
   end
 end
 
---- Get selected text
+--- Get selected text (delegates to TextEditor)
 ---@return string? -- Selected text or nil if no selection
 function Element:getSelectedText()
-  if self._textEditor then
-    return self._textEditor:getSelectedText()
-  end
-  return nil
+  return self._textEditor and self._textEditor:getSelectedText()
 end
 
---- Delete selected text
+--- Delete selected text (delegates to TextEditor, which owns text sync + auto-grow)
 ---@return boolean -- True if text was deleted
 function Element:deleteSelection()
-  if self._textEditor then
-    local result = self._textEditor:deleteSelection(self)
-    if result then
-      self.text = self._textEditor:getText() -- Sync display text
-      self._textEditor:updateAutoGrowHeight(self)
-    end
-    return result
-  end
-  return false
+  return (self._textEditor and self._textEditor:deleteSelection(self)) or false
 end
 
 -- ====================

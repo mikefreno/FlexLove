@@ -882,6 +882,12 @@ function TextEditor:deleteSelection(element)
   self:_validateCursorPosition()
   self:_saveState(element)
 
+  -- Sync display text and auto-grow height on the owning element
+  if element then
+    element.text = self:getText()
+    self:updateAutoGrowHeight(element)
+  end
+
   return true
 end
 

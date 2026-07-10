@@ -316,6 +316,110 @@ local function _refreshUnit(self, key, ref, ctx, scaleAxis)
 end
 
 -- ---------------------------------------------------------------------------
+-- Consolidated warn helpers (Task 11).
+-- Each duplicated "expecting X, got Y" / guard instrumentation block lived at
+-- its own use site; these single-reference helpers centralize the emit so call
+-- sites are thin invocations. Validation semantics (warn+fallback vs. throw) are
+-- preserved exactly — instrumentation is consolidated, not deleted.
+-- ---------------------------------------------------------------------------
+
+-- Emit a VAL_001 invalid-enum warn for a textAlign sub-field and return the
+-- fallback. textAlign's schema entry is type "any" (string | table | compound),
+-- so this IS the boundary validator for the 4 parse branches in _initVisualState.
+local function _warnTextAlign(field, expected, got, fallback)
+  Element._ErrorHandler:warn("Element", "VAL_001", {
+    property = field,
+    expected = expected,
+    got = tostring(got),
+  })
+  return fallback
+end
+
+-- Emit a FLEX_00x warn for an invalid flexGrow/flexShrink/flexBasis and return
+-- the fallback value. These props are SPECIAL_PROPS (warn+fallback, not throw)
+-- so this is their boundary validator.
+local function _warnFlexInvalid(self, code, issue, value, fallback)
+  Element._ErrorHandler:warn("Element", code, {
+    element = self.id or "unnamed",
+    issue = issue,
+    value = tostring(value),
+  })
+  return fallback
+end
+
+-- Emit an ELEM_010/011/012 warn for malformed declarative children entries.
+local function _warnChildrenInvalid(self, code, issue, value)
+  local details = { element = self.id or "unnamed", issue = issue }
+  if value ~= nil then
+    details.value = tostring(value)
+  end
+  Element._ErrorHandler:warn("Element", code, details)
+end
+
+-- Emit LAY_011 when CSS positioning props (top/right/bottom/left) are supplied
+-- without absolute positioning. Called from both the no-parent and with-parent
+-- branches of _initPositioning.
+local function _warnCssPositioningWithoutAbsolute(self, props)
+  local properties = {}
+  if props.top then
+    table.insert(properties, "top")
+  end
+  if props.bottom then
+    table.insert(properties, "bottom")
+  end
+  if props.left then
+    table.insert(properties, "left")
+  end
+  if props.right then
+    table.insert(properties, "right")
+  end
+  Element._ErrorHandler:warn("Element", "LAY_011", {
+    element = self.id or "unnamed",
+    positioning = self._originalPositioning or "relative",
+    properties = table.concat(properties, ", "),
+  })
+end
+
+-- Emit an ELEM_003/004/005 guard warn for the animation/transition public API
+-- (deps-missing, non-table arg, invalid duration, non-table property list).
+-- All warn + fall back rather than throw. `value` nil => warn carries no details.
+local function _warnAnimApi(code, value)
+  if value ~= nil then
+    Element._ErrorHandler:warn("Element", code, { value = tostring(value) })
+  else
+    Element._ErrorHandler:warn("Element", code)
+  end
+end
+
+-- Fire a user-supplied image callback (onImageLoad/onImageError) under pcall,
+-- honoring the onXDeferred flag when `honorDeferred` is true, and emit a single
+-- EVT_002 warn on failure. Replaces 5 duplicated pcall+warn blocks across
+-- _initImageAndRenderer/_loadImage. The direct-`image` sync init path passes
+-- honorDeferred=false to preserve immediate firing (image is already loaded).
+local function _fireImageCallback(self, callbackField, honorDeferred, ...)
+  local cb = self[callbackField]
+  if type(cb) ~= "function" then
+    return
+  end
+  local argc = select("#", ...)
+  local args = { ... }
+  local function invoke()
+    local ok, err = pcall(cb, self, unpack(args, 1, argc))
+    if not ok then
+      Element._ErrorHandler:warn("Element", "EVT_002", {
+        callback = callbackField,
+        error = tostring(err),
+      })
+    end
+  end
+  if honorDeferred and self[callbackField .. "Deferred"] then
+    Element._Context.deferCallback(invoke)
+  else
+    invoke()
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Data-driven prop binding (Task 03)
 -- ---------------------------------------------------------------------------
 -- Props that CANNOT be bound generically by _applyProps because they need
@@ -800,12 +904,7 @@ function Element:_initVisualState(props)
         end
       end
       if not validH then
-        Element._ErrorHandler:warn("Element", "VAL_001", {
-          property = "textAlign.horizontal",
-          expected = "valid TextAlign value",
-          got = tostring(hAlign),
-        })
-        hAlign = textAlignDefault
+        hAlign = _warnTextAlign("textAlign.horizontal", "valid TextAlign value", hAlign, textAlignDefault)
       end
 
       -- Validate vertical value
@@ -817,12 +916,12 @@ function Element:_initVisualState(props)
         end
       end
       if not validV then
-        Element._ErrorHandler:warn("Element", "VAL_001", {
-          property = "textAlign.vertical",
-          expected = "valid TextAlignVertical value",
-          got = tostring(vAlign),
-        })
-        vAlign = Element._utils.enums.TextAlignVertical.START
+        vAlign = _warnTextAlign(
+          "textAlign.vertical",
+          "valid TextAlignVertical value",
+          vAlign,
+          Element._utils.enums.TextAlignVertical.START
+        )
       end
 
       self.textAlignHorizontal = hAlign
@@ -860,18 +959,15 @@ function Element:_initVisualState(props)
             self.textAlignHorizontal = resolvedH
             self.textAlignVertical = resolvedV
           else
-            Element._ErrorHandler:warn("Element", "VAL_001", {
-              property = "textAlign",
-              expected = "valid compound string (e.g., 'top-left', 'center-right')",
-              got = props.textAlign,
-            })
+            _warnTextAlign(
+              "textAlign",
+              "valid compound string (e.g., 'top-left', 'center-right')",
+              props.textAlign,
+              nil
+            )
           end
         else
-          Element._ErrorHandler:warn("Element", "VAL_001", {
-            property = "textAlign",
-            expected = "valid TextAlign value or compound string",
-            got = props.textAlign,
-          })
+          _warnTextAlign("textAlign", "valid TextAlign value or compound string", props.textAlign, nil)
         end
       end
     end
@@ -891,15 +987,7 @@ function Element:_initImageAndRenderer(props)
     self:_deferMethod("_loadImage")
   elseif self.image then
     self._loadedImage = self.image
-    if self.onImageLoad and type(self.onImageLoad) == "function" then
-      local success, callbackErr = pcall(self.onImageLoad, self, self.image)
-      if not success then
-        Element._ErrorHandler:warn("Element", "EVT_002", {
-          callback = "onImageLoad",
-          error = tostring(callbackErr),
-        })
-      end
-    end
+    _fireImageCallback(self, "onImageLoad", false, self.image)
   else
     self._loadedImage = nil
   end
@@ -1183,12 +1271,7 @@ function Element:_initBoxModel(props)
     if type(props.flexGrow) == "number" and props.flexGrow >= 0 then
       self.flexGrow = props.flexGrow
     else
-      Element._ErrorHandler:warn("Element", "FLEX_001", {
-        element = self.id or "unnamed",
-        issue = "flexGrow must be a non-negative number",
-        value = tostring(props.flexGrow),
-      })
-      self.flexGrow = 0
+      self.flexGrow = _warnFlexInvalid(self, "FLEX_001", "flexGrow must be a non-negative number", props.flexGrow, 0)
     end
   else
     self.flexGrow = 0
@@ -1199,12 +1282,8 @@ function Element:_initBoxModel(props)
     if type(props.flexShrink) == "number" and props.flexShrink >= 0 then
       self.flexShrink = props.flexShrink
     else
-      Element._ErrorHandler:warn("Element", "FLEX_002", {
-        element = self.id or "unnamed",
-        issue = "flexShrink must be a non-negative number",
-        value = tostring(props.flexShrink),
-      })
-      self.flexShrink = 1
+      self.flexShrink =
+        _warnFlexInvalid(self, "FLEX_002", "flexShrink must be a non-negative number", props.flexShrink, 1)
     end
   else
     self.flexShrink = 1
@@ -1225,12 +1304,8 @@ function Element:_initBoxModel(props)
       self.flexBasis = props.flexBasis
       self.units.flexBasis = { value = props.flexBasis, unit = "px" }
     else
-      Element._ErrorHandler:warn("Element", "FLEX_003", {
-        element = self.id or "unnamed",
-        issue = "flexBasis must be a number, string, or 'auto'",
-        value = tostring(props.flexBasis),
-      })
-      self.flexBasis = "auto"
+      self.flexBasis =
+        _warnFlexInvalid(self, "FLEX_003", "flexBasis must be a number, string, or 'auto'", props.flexBasis, "auto")
       self.units.flexBasis = { value = nil, unit = "auto" }
     end
   else
@@ -1269,26 +1344,9 @@ function Element:_initBoxModel(props)
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
   local tempPadding
   if use9PatchPadding then
-    -- Ensure tempWidth and tempHeight are numbers (not CalcObjects)
-    -- This should already be true after Units.resolve(), but add defensive check
-    if type(tempWidth) ~= "number" then
-      if Element._ErrorHandler then
-        Element._ErrorHandler:warn("Element", "LAY_003", {
-          issue = "tempWidth is not a number after resolution",
-          type = type(tempWidth),
-        })
-      end
-      tempWidth = 0
-    end
-    if type(tempHeight) ~= "number" then
-      if Element._ErrorHandler then
-        Element._ErrorHandler:warn("Element", "LAY_003", {
-          issue = "tempHeight is not a number after resolution",
-          type = type(tempHeight),
-        })
-      end
-      tempHeight = 0
-    end
+    -- tempWidth/tempHeight are guaranteed numbers by _resolveUnit (which warns +
+    -- clamps non-numbers) and calculateAutoWidth/Height; the prior defensive
+    -- re-check duplicated that boundary validation (Task 11).
 
     -- Get scaled 9-patch content padding from ThemeManager
     local scaledPadding = self._themeManager:getScaledContentPadding(tempWidth, tempHeight)
@@ -1486,24 +1544,7 @@ function Element:_initPositioning(props)
     -- Handle positioning properties for elements without parent
     -- Warn if CSS positioning properties are used without absolute positioning
     if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
-      local properties = {}
-      if props.top then
-        table.insert(properties, "top")
-      end
-      if props.bottom then
-        table.insert(properties, "bottom")
-      end
-      if props.left then
-        table.insert(properties, "left")
-      end
-      if props.right then
-        table.insert(properties, "right")
-      end
-      Element._ErrorHandler:warn("Element", "LAY_011", {
-        element = self.id or "unnamed",
-        positioning = self._originalPositioning or "relative",
-        properties = table.concat(properties, ", "),
-      })
+      _warnCssPositioningWithoutAbsolute(self, props)
     end
 
     -- Handle top/right/bottom/left positioning with units
@@ -1601,24 +1642,7 @@ function Element:_initPositioning(props)
     -- Handle positioning properties BEFORE adding to parent (so they're available during layout)
     -- Warn if CSS positioning properties are used without absolute positioning
     if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
-      local properties = {}
-      if props.top then
-        table.insert(properties, "top")
-      end
-      if props.bottom then
-        table.insert(properties, "bottom")
-      end
-      if props.left then
-        table.insert(properties, "left")
-      end
-      if props.right then
-        table.insert(properties, "right")
-      end
-      Element._ErrorHandler:warn("Element", "LAY_011", {
-        element = self.id or "unnamed",
-        positioning = self._originalPositioning or "relative",
-        properties = table.concat(properties, ", "),
-      })
+      _warnCssPositioningWithoutAbsolute(self, props)
     end
 
     -- Handle top/right/bottom/left positioning with units
@@ -1878,25 +1902,14 @@ function Element:_finalizeConstruction(props)
   -- Placed after all self properties are initialized so children can safely access parent state
   if props.children then
     if type(props.children) ~= "table" then
-      Element._ErrorHandler:warn("Element", "ELEM_010", {
-        element = self.id or "unnamed",
-        issue = "children must be a table array",
-        value = tostring(props.children),
-      })
+      _warnChildrenInvalid(self, "ELEM_010", "children must be a table array", props.children)
     else
       for i = 1, #props.children do
         local childProps = props.children[i]
         if childProps == nil then
-          Element._ErrorHandler:warn("Element", "ELEM_011", {
-            element = self.id or "unnamed",
-            issue = "nil entry in children array, skipping",
-          })
+          _warnChildrenInvalid(self, "ELEM_011", "nil entry in children array, skipping", nil)
         elseif type(childProps) ~= "table" then
-          Element._ErrorHandler:warn("Element", "ELEM_012", {
-            element = self.id or "unnamed",
-            issue = "non-table entry in children array, skipping",
-            value = tostring(childProps),
-          })
+          _warnChildrenInvalid(self, "ELEM_012", "non-table entry in children array, skipping", childProps)
         else
           local childCopy = {}
           for k, v in pairs(childProps) do
@@ -2079,49 +2092,9 @@ function Element:_loadImage()
     local loadedImage, err = Element._ImageCache.load(self.imagePath)
     if loadedImage then
       self._loadedImage = loadedImage
-      if self.onImageLoad and type(self.onImageLoad) == "function" then
-        if self.onImageLoadDeferred then
-          Element._Context.deferCallback(function()
-            local success, callbackErr = pcall(self.onImageLoad, self, loadedImage)
-            if not success then
-              Element._ErrorHandler:warn("Element", "EVT_002", {
-                callback = "onImageLoad",
-                error = tostring(callbackErr),
-              })
-            end
-          end)
-        else
-          local success, callbackErr = pcall(self.onImageLoad, self, loadedImage)
-          if not success then
-            Element._ErrorHandler:warn("Element", "EVT_002", {
-              callback = "onImageLoad",
-              error = tostring(callbackErr),
-            })
-          end
-        end
-      end
+      _fireImageCallback(self, "onImageLoad", true, loadedImage)
     else
-      if self.onImageError and type(self.onImageError) == "function" then
-        if self.onImageErrorDeferred then
-          Element._Context.deferCallback(function()
-            local success, callbackErr = pcall(self.onImageError, self, err or "Unknown error")
-            if not success then
-              Element._ErrorHandler:warn("Element", "EVT_002", {
-                callback = "onImageError",
-                error = tostring(callbackErr),
-              })
-            end
-          end)
-        else
-          local success, callbackErr = pcall(self.onImageError, self, err or "Unknown error")
-          if not success then
-            Element._ErrorHandler:warn("Element", "EVT_002", {
-              callback = "onImageError",
-              error = tostring(callbackErr),
-            })
-          end
-        end
-      end
+      _fireImageCallback(self, "onImageError", true, err or "Unknown error")
     end
   end
 end
@@ -3894,12 +3867,12 @@ end
 ---@return Element self For method chaining
 function Element:animateTo(props, duration, easing)
   if not Element._Animation then
-    Element._ErrorHandler:warn("Element", "ELEM_003")
+    _warnAnimApi("ELEM_003")
     return self
   end
 
   if type(props) ~= "table" then
-    Element._ErrorHandler:warn("Element", "ELEM_003")
+    _warnAnimApi("ELEM_003")
     return self
   end
 
@@ -3947,7 +3920,7 @@ end
 ---@return Element self For method chaining
 function Element:scaleTo(targetScale, duration, easing)
   if not Element._Animation or not Element._Transform then
-    Element._ErrorHandler:warn("Element", "ELEM_003")
+    _warnAnimApi("ELEM_003")
     return self
   end
 
@@ -3989,15 +3962,13 @@ function Element:setTransition(property, config)
   end
 
   if type(config) ~= "table" then
-    Element._ErrorHandler:warn("Element", "ELEM_003")
+    _warnAnimApi("ELEM_003")
     config = {}
   end
 
   -- Validate config
   if config.duration and (type(config.duration) ~= "number" or config.duration < 0) then
-    Element._ErrorHandler:warn("Element", "ELEM_004", {
-      value = tostring(config.duration),
-    })
+    _warnAnimApi("ELEM_004", config.duration)
     config.duration = 0.3
   end
 
@@ -4015,7 +3986,7 @@ end
 ---@param properties table Array of property names
 function Element:setTransitionGroup(_, config, properties)
   if type(properties) ~= "table" then
-    Element._ErrorHandler:warn("Element", "ELEM_005")
+    _warnAnimApi("ELEM_005")
     return
   end
 

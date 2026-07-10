@@ -604,49 +604,6 @@ function ErrorCodes.describe(code)
   return "Unknown error code: " .. code
 end
 
---- Get suggested fix for error code
---- @param code string Error code
---- @return string suggestion Suggested fix
-function ErrorCodes.getSuggestion(code)
-  local info = ErrorCodes.get(code)
-  if info then
-    return info.suggestion
-  end
-  return "No suggestion available"
-end
-
---- Get category for error code
---- @param code string Error code
---- @return string category Error category name
-function ErrorCodes.getCategory(code)
-  local info = ErrorCodes.get(code)
-  if info then
-    return ErrorCodes.categories[info.category] or info.category
-  end
-  return "Unknown"
-end
-
---- List all error codes in a category
---- @param category string Category code (e.g., "VAL", "LAY")
---- @return table codes List of error codes in category
-function ErrorCodes.listByCategory(category)
-  local result = {}
-  for code, info in pairs(ErrorCodes.codes) do
-    if info.category == category then
-      table.insert(result, {
-        code = code,
-        fullCode = info.code,
-        description = info.description,
-        suggestion = info.suggestion,
-      })
-    end
-  end
-  table.sort(result, function(a, b)
-    return a.code < b.code
-  end)
-  return result
-end
-
 --- Search error codes by keyword
 --- @param keyword string Keyword to search for
 --- @return table codes Matching error codes
@@ -665,25 +622,6 @@ function ErrorCodes.search(keyword)
       })
     end
   end
-  return result
-end
-
---- Get all error codes
---- @return table codes All error codes
-function ErrorCodes.listAll()
-  local result = {}
-  for code, info in pairs(ErrorCodes.codes) do
-    table.insert(result, {
-      code = code,
-      fullCode = info.code,
-      description = info.description,
-      suggestion = info.suggestion,
-      category = ErrorCodes.categories[info.category],
-    })
-  end
-  table.sort(result, function(a, b)
-    return a.code < b.code
-  end)
   return result
 end
 
@@ -1093,57 +1031,12 @@ end
 
 --- Validate that a value is of the expected type
 ---@param module string The module name
----@param value any The value to check
----@param expectedType string The expected type name
----@param paramName string The parameter name
----@return boolean True if valid
-function ErrorHandler:assertType(module, value, expectedType, paramName)
-  local actualType = type(value)
-  if actualType ~= expectedType then
-    self:error(module, "VAL_001", "Invalid property type", {
-      property = paramName,
-      expected = expectedType,
-      got = actualType,
-    })
-    return false
-  end
-  return true
-end
-
---- Validate that a number is within a range
----@param module string The module name
----@param value number The value to check
----@param min number Minimum value (inclusive)
----@param max number Maximum value (inclusive)
----@param paramName string The parameter name
----@return boolean True if valid
-function ErrorHandler:assertRange(module, value, min, max, paramName)
-  if value < min or value > max then
-    self:error(module, "VAL_002", "Property value out of range", {
-      property = paramName,
-      min = tostring(min),
-      max = tostring(max),
-      value = tostring(value),
-    })
-    return false
-  end
-  return true
-end
-
 --- Warn if a value is deprecated
 ---@param module string The module name
 ---@param oldName string The deprecated name
 ---@param newName string The new name to use
 function ErrorHandler:warnDeprecated(module, oldName, newName)
   self:warn(module, string.format("'%s' is deprecated. Use '%s' instead", oldName, newName))
-end
-
---- Warn about a common mistake
----@param module string The module name
----@param issue string Description of the issue
----@param suggestion string Suggested fix
-function ErrorHandler:warnCommonMistake(module, issue, suggestion)
-  self:warn(module, string.format("%s. Suggestion: %s", issue, suggestion))
 end
 
 return ErrorHandler

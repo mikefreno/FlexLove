@@ -403,16 +403,6 @@ function StateManager.markStateUsed(id)
   end
 end
 
---- Get the last frame number when state was accessed
----@param id string Element ID
----@return number|nil frameNumber Last accessed frame, or nil if not found
-function StateManager.getLastAccessedFrame(id)
-  if stateMetadata[id] then
-    return stateMetadata[id].lastFrame
-  end
-  return nil
-end
-
 -- ====================
 -- Frame Management
 -- ====================
@@ -556,21 +546,6 @@ function StateManager.getStats()
   }
 end
 
---- Dump all states for debugging
----@return table states Copy of all states with metadata
-function StateManager.dumpStates()
-  local dump = {}
-
-  for id, state in pairs(stateStore) do
-    dump[id] = {
-      state = state,
-      metadata = stateMetadata[id],
-    }
-  end
-
-  return dump
-end
-
 --- Get internal state (for debugging/profiling only)
 ---@return table internal {stateStore, stateMetadata, callSiteCounters}
 function StateManager._getInternalState()
@@ -592,34 +567,6 @@ end
 -- ====================
 -- Convenience Functions (for backward compatibility)
 -- ====================
-
---- Get the current state for an element ID (alias for getState)
----@param id string Element ID
----@return table state State object for the element
-function StateManager.getCurrentState(id)
-  return stateStore[id] or {}
-end
-
---- Get the active state values for an element (interaction states only)
----@param id string Element ID
----@return table state Active state values
-function StateManager.getActiveState(id)
-  local state = StateManager.getState(id)
-
-  -- Return only the active state properties (not tracking frames or internal state)
-  return {
-    hover = state.hover,
-    pressed = state.pressed,
-    focused = state.focused,
-    disabled = state.disabled,
-    active = state.active,
-    scrollbarHoveredVertical = state.scrollbarHoveredVertical,
-    scrollbarHoveredHorizontal = state.scrollbarHoveredHorizontal,
-    scrollbarDragging = state.scrollbarDragging,
-    hoveredScrollbar = state.hoveredScrollbar,
-    scrollbarDragOffset = state.scrollbarDragOffset,
-  }
-end
 
 --- Check if an element is currently hovered
 ---@param id string Element ID

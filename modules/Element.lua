@@ -189,6 +189,11 @@ function Element.init(deps)
     utils = Element._utils,
     Element = Element,
   })
+  Element._ScrollManager.init({
+    ErrorHandler = Element._ErrorHandler,
+    Context = Element._Context,
+    StateManager = Element._StateManager,
+  })
 
   -- Bind Element scroll/scrollbar API directly onto ScrollManager.
   -- ScrollManager owns all scroll interaction logic; Element retains only
@@ -592,7 +597,7 @@ function Element.new(props)
   self:_applyProps(props)
   self:_initSubSystems(props)
   self:_initVisualState(props)
-  self:_initImageAndRenderer(props)
+  self:_initImageAndRenderer()
   self:_initSizingContext(props)
   self:_initBoxModel(props)
   self:_initPositioning(props)
@@ -975,7 +980,7 @@ function Element:_initVisualState(props)
 end
 
 --- Phase 5: image loading (deferred/cached/direct) and Renderer instantiation.
-function Element:_initImageAndRenderer(props)
+function Element:_initImageAndRenderer()
   -- Image properties (imagePath/image/objectFit/objectPosition/imageOpacity/
   -- imageRepeat/imageTint/onImageLoad[+Deferred]/onImageError[+Deferred] are bound
   -- by _applyProps; only the load side-effect remains here).
@@ -1070,8 +1075,7 @@ function Element:_initSizingContext(props)
     },
   }
 
-  local scaleX, scaleY = Element._Context.getScaleFactors()
-  local _ctx = { vw = viewportWidth, vh = viewportHeight, sx = scaleX, sy = scaleY }
+  local _, scaleY = Element._Context.getScaleFactors()
 
   -- minTextSize/maxTextSize/autoScaleText are bound by _applyProps (autoScaleText
   -- defaults true). They are needed before textSize processing below.
@@ -1423,73 +1427,33 @@ function Element:_initBoxModel(props)
   end
 
   -- Store original spacing values for proper resize handling
-  -- Store shorthand properties first (horizontal/vertical)
-  if props.padding then
-    if props.padding.horizontal then
-      if type(props.padding.horizontal) == "string" then
-        local value, unit = Element._Units.parse(props.padding.horizontal)
-        self.units.padding.horizontal = { value = value, unit = unit }
-      else
-        self.units.padding.horizontal = { value = props.padding.horizontal, unit = "px" }
+  -- Store spacing unit specs (padding + margin share identical structure)
+  local sides = { "top", "right", "bottom", "left" }
+  for _, kind in ipairs({ "padding", "margin" }) do
+    local src = props[kind]
+    if src then
+      for _, axis in ipairs({ "horizontal", "vertical" }) do
+        if src[axis] then
+          if type(src[axis]) == "string" then
+            local value, unit = Element._Units.parse(src[axis])
+            self.units[kind][axis] = { value = value, unit = unit }
+          else
+            self.units[kind][axis] = { value = src[axis], unit = "px" }
+          end
+        end
       end
     end
-    if props.padding.vertical then
-      if type(props.padding.vertical) == "string" then
-        local value, unit = Element._Units.parse(props.padding.vertical)
-        self.units.padding.vertical = { value = value, unit = unit }
+    for _, side in ipairs(sides) do
+      if src and src[side] then
+        if type(src[side]) == "string" then
+          local value, unit = Element._Units.parse(src[side])
+          self.units[kind][side] = { value = value, unit = unit, explicit = true }
+        else
+          self.units[kind][side] = { value = src[side], unit = "px", explicit = true }
+        end
       else
-        self.units.padding.vertical = { value = props.padding.vertical, unit = "px" }
+        self.units[kind][side] = { value = self[kind][side], unit = "px", explicit = false }
       end
-    end
-  end
-
-  -- Initialize all padding sides
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    if props.padding and props.padding[side] then
-      if type(props.padding[side]) == "string" then
-        local value, unit = Element._Units.parse(props.padding[side])
-        self.units.padding[side] = { value = value, unit = unit, explicit = true }
-      else
-        self.units.padding[side] = { value = props.padding[side], unit = "px", explicit = true }
-      end
-    else
-      -- Mark as derived from shorthand (will use shorthand during resize if available)
-      self.units.padding[side] = { value = self.padding[side], unit = "px", explicit = false }
-    end
-  end
-
-  -- Store margin shorthand properties
-  if props.margin then
-    if props.margin.horizontal then
-      if type(props.margin.horizontal) == "string" then
-        local value, unit = Element._Units.parse(props.margin.horizontal)
-        self.units.margin.horizontal = { value = value, unit = unit }
-      else
-        self.units.margin.horizontal = { value = props.margin.horizontal, unit = "px" }
-      end
-    end
-    if props.margin.vertical then
-      if type(props.margin.vertical) == "string" then
-        local value, unit = Element._Units.parse(props.margin.vertical)
-        self.units.margin.vertical = { value = value, unit = unit }
-      else
-        self.units.margin.vertical = { value = props.margin.vertical, unit = "px" }
-      end
-    end
-  end
-
-  -- Initialize all margin sides
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    if props.margin and props.margin[side] then
-      if type(props.margin[side]) == "string" then
-        local value, unit = Element._Units.parse(props.margin[side])
-        self.units.margin[side] = { value = value, unit = unit, explicit = true }
-      else
-        self.units.margin[side] = { value = props.margin[side], unit = "px", explicit = true }
-      end
-    else
-      -- Mark as derived from shorthand (will use shorthand during resize if available)
-      self.units.margin[side] = { value = self.margin[side], unit = "px", explicit = false }
     end
   end
 
@@ -2205,82 +2169,6 @@ function Element:getAvailableContentHeight()
   return math.max(0, availableHeight)
 end
 
----@param selectParent Element
-function Element._rebuildSelectOptionLookup(selectParent)
-  Element._Select.rebuildOptionLookup(selectParent)
-end
-
----@param selectParent Element
-function Element._syncSelectOptionStates(selectParent)
-  Element._Select.syncOptionStates(selectParent)
-end
-
-function Element:_resetSelectOptions()
-  Element._Select.resetOptions(self)
-end
-
----@param frame any
----@return boolean
-function Element:_isValidSelectFrame(frame)
-  return Element._Select.isValidSelectFrame(frame)
-end
-
----@param code string
----@param details table?
-function Element:_warnSelectFrame(code, details)
-  Element._Select.warnSelectFrame(self, code, details)
-end
-
----@param frame Element
-function Element:_trackManagedSelectFrame(frame)
-  Element._Select.trackManagedFrame(self, frame)
-end
-
----@return Element
-function Element:_getOrCreateManagedSelectAnchor()
-  return Element._Select.getOrCreateManagedAnchor(self)
-end
-
----@param frame Element
-function Element:_applyManagedSelectFrameLayout(frame)
-  Element._Select.applyManagedFrameLayout(self, frame)
-end
-
----@param frame Element
-function Element:_adoptSelectFrame(frame)
-  Element._Select.adoptSelectFrame(self, frame)
-end
-
-function Element:_ensureSelectFrameState()
-  Element._Select.ensureFrameState(self)
-end
-
-function Element:_syncManagedSelectFrameVisibility()
-  Element._Select.syncManagedFrameVisibility(self)
-end
-
----@return Element?
-function Element:_findOwningSelectParent()
-  return Element._Select.findOwningSelectParent(self)
-end
-
-function Element:_registerWithSelectParent()
-  Element._Select.registerWithSelectParent(self)
-end
-
-function Element:_attachSelectOptionToManagedFrame()
-  Element._Select.attachOptionToManagedFrame(self)
-end
-
-function Element:_unregisterFromSelectParent()
-  Element._Select.unregisterFromSelectParent(self)
-end
-
---- Save select state to StateManager for immediate mode persistence
-function Element:_saveSelectStateToStateManager()
-  Element._Select.saveStateToStateManager(self)
-end
-
 function Element:openSelect()
   Element._Select.openSelect(self)
 end
@@ -2519,7 +2407,7 @@ end
 function Element:clearChildren()
   -- Clear parent references for all children
   for _, child in ipairs(self.children) do
-    child:_unregisterFromSelectParent()
+    Element._Select.unregisterFromSelectParent(child)
     child.parent = nil
   end
 
@@ -2699,10 +2587,6 @@ function Element:draw(backdropCanvas)
     return
   end
 
-  -- Handle opacity during animation: Renderer:draw recomputes the animated
-  -- background color from element.backgroundColor + element.animation, so nothing
-  -- to do here (the old local drawBackgroundColor was unreachable dead code).
-
   -- Cache border box dimensions for this draw call (optimization)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
@@ -2721,9 +2605,8 @@ function Element:draw(backdropCanvas)
     love.graphics.pop()
   end
 
-  -- Draw visual feedback when element is pressed (if it has an onEvent handler and highlight is not disabled)
+  -- Draw visual feedback when element is pressed
   if self.onEvent and not self.disableHighlight and self._eventHandler then
-    -- Check if any button is pressed
     local anyPressed = false
     local pressedState = self._eventHandler:getState()._pressed or {}
     for _, pressed in pairs(pressedState) do
@@ -2733,9 +2616,6 @@ function Element:draw(backdropCanvas)
       end
     end
     if anyPressed then
-      -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
-      local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-      local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
       self._renderer:drawPressedState(self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.cornerRadius)
     end
   end
@@ -2764,92 +2644,62 @@ function Element:draw(backdropCanvas)
 
   -- Helper function to draw children (with or without clipping)
   local function drawChildren()
+    if #sortedChildren == 0 then
+      return
+    end
+
     local contentOffsetX, contentOffsetY = self:getContentStateOffset()
 
     -- Determine overflow behavior per axis (matches HTML/CSS behavior)
-    -- Priority: axis-specific (overflowX/Y) > general (overflow) > default (hidden)
     local overflowX = self.overflowX or self.overflow
     local overflowY = self.overflowY or self.overflow
     local needsOverflowClipping = (overflowX ~= "visible" or overflowY ~= "visible")
       and (overflowX ~= nil or overflowY ~= nil)
 
-    -- Apply scroll offset if overflow is not visible
+    -- Apply scroll/content offset after clipping is set
     local hasScrollOffset = needsOverflowClipping and (self._scrollX ~= 0 or self._scrollY ~= 0)
     local hasContentOffset = contentOffsetX ~= 0 or contentOffsetY ~= 0
+    local hasOffset = hasScrollOffset or hasContentOffset
 
-    if hasRoundedCorners and #sortedChildren > 0 then
-      -- Use stencil to clip children to rounded rectangle
-      -- BORDER-BOX MODEL: Use stored border-box dimensions for clipping
+    -- Set up clipping: rounded-corners (stencil) > overflow (scissor) > none
+    local clipMode = "none"
+    if hasRoundedCorners then
       local roundedBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local roundedBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
       local stencilFunc =
         Element._RoundedRect.stencilFunction(self.x, self.y, roundedBoxWidth, roundedBoxHeight, self.cornerRadius)
-
-      -- Temporarily disable canvas for stencil operation (LÖVE 11.5 workaround)
       local currentCanvas = love.graphics.getCanvas()
       love.graphics.setCanvas()
       love.graphics.stencil(stencilFunc, "replace", 1)
       love.graphics.setCanvas(currentCanvas)
-
       love.graphics.setStencilTest("greater", 0)
+      clipMode = "stencil"
+    elseif needsOverflowClipping then
+      love.graphics.setScissor(self.x + self.padding.left, self.y + self.padding.top, self.width, self.height)
+      clipMode = "scissor"
+    end
 
-      -- Apply scroll/content offset AFTER clipping is set
-      if hasScrollOffset or hasContentOffset then
-        love.graphics.push()
-        local translateX = (hasScrollOffset and -self._scrollX or 0) + contentOffsetX
-        local translateY = (hasScrollOffset and -self._scrollY or 0) + contentOffsetY
-        love.graphics.translate(translateX, translateY)
-      end
+    if hasOffset then
+      love.graphics.push()
+      love.graphics.translate(
+        (hasScrollOffset and -self._scrollX or 0) + contentOffsetX,
+        (hasScrollOffset and -self._scrollY or 0) + contentOffsetY
+      )
+    end
 
-      for _, child in ipairs(sortedChildren) do
-        child:draw(backdropCanvas)
-      end
+    for _, child in ipairs(sortedChildren) do
+      child:draw(backdropCanvas)
+    end
 
-      if hasScrollOffset or hasContentOffset then
-        love.graphics.pop()
-      end
+    if hasOffset then
+      love.graphics.pop()
+    end
 
+    -- Restore clipping state
+    if clipMode == "stencil" then
       love.graphics.setStencilTest()
-    elseif needsOverflowClipping and #sortedChildren > 0 then
-      -- Clip content for overflow hidden/scroll/auto without rounded corners
-      local contentX = self.x + self.padding.left
-      local contentY = self.y + self.padding.top
-      local contentWidth = self.width
-      local contentHeight = self.height
-
-      love.graphics.setScissor(contentX, contentY, contentWidth, contentHeight)
-
-      -- Apply scroll/content offset AFTER clipping is set
-      if hasScrollOffset or hasContentOffset then
-        love.graphics.push()
-        local translateX = (hasScrollOffset and -self._scrollX or 0) + contentOffsetX
-        local translateY = (hasScrollOffset and -self._scrollY or 0) + contentOffsetY
-        love.graphics.translate(translateX, translateY)
-      end
-
-      for _, child in ipairs(sortedChildren) do
-        child:draw(backdropCanvas)
-      end
-
-      if hasScrollOffset or hasContentOffset then
-        love.graphics.pop()
-      end
-
+    elseif clipMode == "scissor" then
       love.graphics.setScissor()
-    else
-      -- No clipping needed
-      if hasContentOffset then
-        love.graphics.push()
-        love.graphics.translate(contentOffsetX, contentOffsetY)
-      end
-
-      for _, child in ipairs(sortedChildren) do
-        child:draw(backdropCanvas)
-      end
-
-      if hasContentOffset then
-        love.graphics.pop()
-      end
     end
   end
 
@@ -2904,31 +2754,7 @@ function Element:update(dt)
   end
 
   -- Restore scrollbar state from StateManager in immediate mode
-  if self._stateId and Element._Context._immediateMode then
-    local state = Element._StateManager.getState(self._stateId)
-    if state and state.scrollManager then
-      -- Restore from nested scrollManager state (saved via saveState())
-      self._scrollbarHoveredVertical = state.scrollManager._scrollbarHoveredVertical or false
-      self._scrollbarHoveredHorizontal = state.scrollManager._scrollbarHoveredHorizontal or false
-      self._scrollbarDragging = state.scrollManager._scrollbarDragging or false
-      self._hoveredScrollbar = state.scrollManager._hoveredScrollbar
-      self._scrollbarDragOffset = state.scrollManager._scrollbarDragOffset or 0
-
-      if self._scrollManager then
-        self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
-        self._scrollManager._scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal
-        self._scrollManager._scrollbarDragging = self._scrollbarDragging
-        self._scrollManager._hoveredScrollbar = self._hoveredScrollbar
-        self._scrollManager._scrollbarDragOffset = self._scrollbarDragOffset
-
-        -- Restore drag start positions for relative movement tracking
-        self._scrollManager._dragStartMouseX = state.scrollManager._dragStartMouseX or 0
-        self._scrollManager._dragStartMouseY = state.scrollManager._dragStartMouseY or 0
-        self._scrollManager._dragStartScrollX = state.scrollManager._dragStartScrollX or 0
-        self._scrollManager._dragStartScrollY = state.scrollManager._dragStartScrollY or 0
-      end
-    end
-  end
+  Element._ScrollManager.restoreImmediateState(self)
 
   for _, child in ipairs(self.children) do
     child:update(dt)
@@ -2975,112 +2801,14 @@ function Element:update(dt)
       end
     else
       -- Apply animation interpolation during update
-      local anim = self.animation:interpolate()
-
-      -- Apply numeric properties
-      self.width = anim.width or self.width
-      self.height = anim.height or self.height
-      self.opacity = anim.opacity or self.opacity
-      self.x = anim.x or self.x
-      self.y = anim.y or self.y
-      self.gap = anim.gap or self.gap
-      self.imageOpacity = anim.imageOpacity or self.imageOpacity
-      self.scrollbarWidth = anim.scrollbarWidth or self.scrollbarWidth
-      self.borderWidth = anim.borderWidth or self.borderWidth
-      self.fontSize = anim.fontSize or self.fontSize
-      self.lineHeight = anim.lineHeight or self.lineHeight
-
-      -- Apply color properties
-      if anim.backgroundColor then
-        self.backgroundColor = anim.backgroundColor
-      end
-      if anim.borderColor then
-        self.borderColor = anim.borderColor
-      end
-      if anim.textColor then
-        self.textColor = anim.textColor
-      end
-      if anim.scrollbarColor then
-        self.scrollbarColor = anim.scrollbarColor
-      end
-      if anim.scrollbarBackgroundColor then
-        self.scrollbarBackgroundColor = anim.scrollbarBackgroundColor
-      end
-      if anim.imageTint then
-        self.imageTint = anim.imageTint
-      end
-
-      -- Apply table properties
-      if anim.padding then
-        self.padding = anim.padding
-      end
-      if anim.margin then
-        self.margin = anim.margin
-      end
-      if anim.cornerRadius then
-        self.cornerRadius = anim.cornerRadius
-      end
-
-      -- Apply transform property
-      if anim.transform then
-        self.transform = anim.transform
-      end
-
-      -- Backward compatibility: Update background color with interpolated opacity
-      if anim.opacity and not anim.backgroundColor then
-        self.backgroundColor.a = anim.opacity
-      end
+      self.animation:applyInterpolation(self)
     end
   end
 
   local mx, my = love.mouse.getPosition()
 
-  if self._scrollManager then
-    self._scrollManager:updateHoverState(self, mx, my)
-    self:_syncScrollManagerState()
-  end
-
-  -- Note: Scrollbar state is saved via saveState() -> ScrollManager:getState() at end of frame
-  -- This intermediate save is kept for backward compatibility with hover states
-
-  if self._scrollbarDragging and love.mouse.isDown(1) then
-    self:_handleScrollbarDrag(mx, my)
-  elseif self._scrollbarDragging then
-    if self._scrollManager then
-      self._scrollManager:handleMouseRelease(1)
-      self:_syncScrollManagerState()
-    end
-
-    if self._stateId and Element._Context._immediateMode then
-      Element._StateManager.updateState(self._stateId, {
-        scrollbarDragging = false,
-      })
-    end
-  end
-
-  -- Handle scrollbar click/press (independent of onEvent)
-  -- Check if we should handle scrollbar press for elements with overflow
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-  local hasScrollableOverflow = (
-    overflowX == "scroll"
-    or overflowX == "auto"
-    or overflowY == "scroll"
-    or overflowY == "auto"
-  )
-
-  if hasScrollableOverflow and not self._scrollbarDragging then
-    -- Check for scrollbar press on left mouse button
-    if love.mouse.isDown(1) and not self._scrollbarPressHandled then
-      local scrollbarPressed = self:_handleScrollbarPress(mx, my, 1)
-      if scrollbarPressed then
-        self._scrollbarPressHandled = true
-      end
-    elseif not love.mouse.isDown(1) then
-      -- Reset press handled flag when button is released
-      self._scrollbarPressHandled = false
-    end
-  end
+  -- Handle scrollbar hover, drag, and press interaction
+  Element._ScrollManager.updateInteraction(self, mx, my)
 
   if self.onEvent or self.themeComponent or self.editable or self._selectState or self.selectOption then
     -- Clickable area is the border box (x, y already includes padding)
@@ -4323,29 +4051,6 @@ function Element:restoreState(state)
   end
 
   -- Note: Blur cache data is used for invalidation, not restoration
-end
-
---- Check if blur cache should be invalidated based on state changes
----@param oldState ElementStateData? Previous state
----@param newState ElementStateData Current state
----@return boolean shouldInvalidate True if blur cache should be cleared
-function Element:shouldInvalidateBlurCache(oldState, newState)
-  if not oldState or not oldState.blur or not newState.blur then
-    return false
-  end
-
-  local old = oldState.blur
-  local new = newState.blur
-
-  -- Check if any blur-related property changed
-  return old._blurX ~= new._blurX
-    or old._blurY ~= new._blurY
-    or old._blurWidth ~= new._blurWidth
-    or old._blurHeight ~= new._blurHeight
-    or old._backdropBlurRadius ~= new._backdropBlurRadius
-    or old._backdropBlurQuality ~= new._backdropBlurQuality
-    or old._contentBlurRadius ~= new._contentBlurRadius
-    or old._contentBlurQuality ~= new._contentBlurQuality
 end
 
 --- Cleanup method to break circular references (for immediate mode)

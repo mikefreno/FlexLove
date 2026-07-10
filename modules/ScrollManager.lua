@@ -58,7 +58,9 @@ ScrollManager.__index = ScrollManager
 ---@param deps table Dependencies {ErrorHandler}
 function ScrollManager.init(deps)
   if type(deps) == "table" then
-    ScrollManager._ErrorHandler = deps.ErrorHandler
+    ScrollManager._ErrorHandler = deps.ErrorHandler or ScrollManager._ErrorHandler
+    ScrollManager._Context = deps.Context or ScrollManager._Context
+    ScrollManager._StateManager = deps.StateManager or ScrollManager._StateManager
   end
 end
 
@@ -158,7 +160,7 @@ end
 --- This is called BEFORE layout to reduce available space for children
 ---@param element Element The parent Element instance
 ---@return number reservedWidth, number reservedHeight
-function ScrollManager:getReservedSpace(element)
+function ScrollManager:getReservedSpace()
   if self.scrollbarPlacement ~= "reserve-space" then
     return 0, 0
   end
@@ -205,7 +207,6 @@ function ScrollManager:detectOverflow(element)
     return -- No children, no overflow
   end
 
-  local minX, minY = 0, 0
   local maxX, maxY = 0, 0
 
   -- Content area starts after padding
@@ -216,9 +217,6 @@ function ScrollManager:detectOverflow(element)
     -- Skip absolutely positioned children (they don't contribute to overflow)
     if not child._explicitlyAbsolute then
       -- Calculate child's margin box bounds relative to content area
-      -- child.x/y is the border-box position, margins extend outside this
-      local childMarginLeft = child.x - contentX - child.margin.left
-      local childMarginTop = child.y - contentY - child.margin.top
       local childMarginRight = child.x - contentX + child:getBorderBoxWidth() + child.margin.right
       local childMarginBottom = child.y - contentY + child:getBorderBoxHeight() + child.margin.bottom
 
@@ -1022,7 +1020,7 @@ end
 
 --- Update bounce effect when overscrolled (internal)
 ---@param dt number Delta time in seconds
-function ScrollManager:_updateBounce(dt)
+function ScrollManager:_updateBounce()
   local bounced = false
 
   -- Bounce back horizontal overscroll
@@ -1360,6 +1358,84 @@ function ScrollManager.scrollToRight(element)
     element:setScrollPosition(maxScrollX, nil)
   else
     element:_deferMethod("scrollToRight")
+  end
+end
+
+--- Restore scrollbar state from StateManager in immediate mode.
+---@param element table Element instance
+function ScrollManager.restoreImmediateState(element)
+  if not element._stateId or not ScrollManager._Context._immediateMode then
+    return
+  end
+  local state = ScrollManager._StateManager.getState(element._stateId)
+  if not state or not state.scrollManager then
+    return
+  end
+  local sm_state = state.scrollManager
+  element._scrollbarHoveredVertical = sm_state._scrollbarHoveredVertical or false
+  element._scrollbarHoveredHorizontal = sm_state._scrollbarHoveredHorizontal or false
+  element._scrollbarDragging = sm_state._scrollbarDragging or false
+  element._hoveredScrollbar = sm_state._hoveredScrollbar
+  element._scrollbarDragOffset = sm_state._scrollbarDragOffset or 0
+
+  local sm = element._scrollManager
+  if sm then
+    sm._scrollbarHoveredVertical = element._scrollbarHoveredVertical
+    sm._scrollbarHoveredHorizontal = element._scrollbarHoveredHorizontal
+    sm._scrollbarDragging = element._scrollbarDragging
+    sm._hoveredScrollbar = element._hoveredScrollbar
+    sm._scrollbarDragOffset = element._scrollbarDragOffset
+    sm._dragStartMouseX = sm_state._dragStartMouseX or 0
+    sm._dragStartMouseY = sm_state._dragStartMouseY or 0
+    sm._dragStartScrollX = sm_state._dragStartScrollX or 0
+    sm._dragStartScrollY = sm_state._dragStartScrollY or 0
+  end
+end
+
+--- Update hover, drag, and press interaction for scrollbars during Element:update.
+---@param element table Element instance
+---@param mx number Mouse X
+---@param my number Mouse Y
+function ScrollManager.updateInteraction(element, mx, my)
+  local sm = element._scrollManager
+  if sm then
+    sm:updateHoverState(element, mx, my)
+    ScrollManager.syncToElement(element)
+  end
+
+  if element._scrollbarDragging and love.mouse.isDown(1) then
+    ScrollManager._handleScrollbarDrag(element, mx, my)
+  elseif element._scrollbarDragging then
+    if sm then
+      sm:handleMouseRelease(1)
+      ScrollManager.syncToElement(element)
+    end
+    if element._stateId and ScrollManager._Context._immediateMode then
+      ScrollManager._StateManager.updateState(element._stateId, {
+        scrollbarDragging = false,
+      })
+    end
+  end
+
+  -- Handle scrollbar press for elements with scrollable overflow
+  local overflowX = element.overflowX or element.overflow
+  local overflowY = element.overflowY or element.overflow
+  local hasScrollableOverflow = (
+    overflowX == "scroll"
+    or overflowX == "auto"
+    or overflowY == "scroll"
+    or overflowY == "auto"
+  )
+
+  if hasScrollableOverflow and not element._scrollbarDragging then
+    if love.mouse.isDown(1) and not element._scrollbarPressHandled then
+      local scrollbarPressed = ScrollManager._handleScrollbarPress(element, mx, my, 1)
+      if scrollbarPressed then
+        element._scrollbarPressHandled = true
+      end
+    elseif not love.mouse.isDown(1) then
+      element._scrollbarPressHandled = false
+    end
   end
 end
 

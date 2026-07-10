@@ -167,39 +167,6 @@ function LayoutEngine:applyPositioningOffsets(child)
   end
 end
 
---- Calculate positions for a batch of children
----@param children table Array of child elements
----@param startX number Starting X position
----@param startY number Starting Y position
----@param spacing number Spacing between children
----@param isHorizontal boolean True if horizontal layout
----@return table positions Array of {x, y} positions
-function LayoutEngine:_batchCalculatePositions(children, startX, startY, spacing, isHorizontal)
-  local count = #children
-
-  -- Fallback to Lua table
-  local positions = {}
-  local currentPos = isHorizontal and startX or startY
-
-  for i, child in ipairs(children) do
-    if isHorizontal then
-      positions[i] = {
-        x = currentPos + child.margin.left,
-        y = startY + child.margin.top,
-      }
-      currentPos = currentPos + child:getBorderBoxWidth() + child.margin.left + child.margin.right + spacing
-    else
-      positions[i] = {
-        x = startX + child.margin.left,
-        y = currentPos + child.margin.top,
-      }
-      currentPos = currentPos + child:getBorderBoxHeight() + child.margin.top + child.margin.bottom + spacing
-    end
-  end
-
-  return positions
-end
-
 --- Calculate flex item sizes based on flexGrow, flexShrink, flexBasis
 --- Implements CSS flexbox sizing algorithm
 ---@param children table Array of child elements in the flex line

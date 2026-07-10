@@ -738,13 +738,6 @@ function EventHandler:getActiveTouches()
   return self._touches
 end
 
---- Get touch history for gesture recognition
----@param touchId string Touch ID
----@return table? Touch history (last 5 positions)
-function EventHandler:getTouchHistory(touchId)
-  return self._touchHistory[touchId]
-end
-
 --- Reset scrollbar press flag (called each frame)
 function EventHandler:resetScrollbarPressFlag()
   self._scrollbarPressHandled = false

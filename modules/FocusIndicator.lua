@@ -214,12 +214,6 @@ function FocusIndicator:draw()
   love.graphics.setLineWidth(prevLineWidth)
 end
 
---- Enable or disable the focus indicator rendering
----@param enabled boolean True to render indicator, false to hide it
-function FocusIndicator.setEnabled(enabled)
-  FocusIndicator.config.enabled = enabled
-end
-
 --- Set the indicator color
 ---@param r number Red component (0-1 range)
 ---@param g number Green component (0-1 range)
@@ -233,12 +227,6 @@ end
 ---@param width number Line width in pixels
 function FocusIndicator.setLineWidth(width)
   FocusIndicator.config.lineWidth = width
-end
-
---- Enable or disable the pulsing animation
----@param enabled boolean True to enable pulse effect, false to disable
-function FocusIndicator.setPulseEnabled(enabled)
-  FocusIndicator.config.pulseEnabled = enabled
 end
 
 return FocusIndicator

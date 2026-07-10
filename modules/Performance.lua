@@ -557,10 +557,4 @@ function Performance:updateMemoryProfiling()
   end
 end
 
-function Performance:resetMemoryProfile()
-  self._memoryProfiler.samples = {}
-  self._memoryProfiler.framesSinceLastSample = 0
-  self._shownWarnings = {}
-end
-
 return Performance

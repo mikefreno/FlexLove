@@ -902,6 +902,65 @@ function Animation:apply(element)
   element.animation = self
 end
 
+--- Apply interpolated values to an element during update.
+--- Called each frame while the animation is active (not yet finished).
+---@param element table Element to apply interpolated properties to
+function Animation:applyInterpolation(element)
+  local anim = self:interpolate()
+
+  -- Numeric properties
+  element.width = anim.width or element.width
+  element.height = anim.height or element.height
+  element.opacity = anim.opacity or element.opacity
+  element.x = anim.x or element.x
+  element.y = anim.y or element.y
+  element.gap = anim.gap or element.gap
+  element.imageOpacity = anim.imageOpacity or element.imageOpacity
+  element.scrollbarWidth = anim.scrollbarWidth or element.scrollbarWidth
+  element.borderWidth = anim.borderWidth or element.borderWidth
+  element.fontSize = anim.fontSize or element.fontSize
+  element.lineHeight = anim.lineHeight or element.lineHeight
+
+  -- Color properties
+  if anim.backgroundColor then
+    element.backgroundColor = anim.backgroundColor
+  end
+  if anim.borderColor then
+    element.borderColor = anim.borderColor
+  end
+  if anim.textColor then
+    element.textColor = anim.textColor
+  end
+  if anim.scrollbarColor then
+    element.scrollbarColor = anim.scrollbarColor
+  end
+  if anim.scrollbarBackgroundColor then
+    element.scrollbarBackgroundColor = anim.scrollbarBackgroundColor
+  end
+  if anim.imageTint then
+    element.imageTint = anim.imageTint
+  end
+
+  -- Table properties
+  if anim.padding then
+    element.padding = anim.padding
+  end
+  if anim.margin then
+    element.margin = anim.margin
+  end
+  if anim.cornerRadius then
+    element.cornerRadius = anim.cornerRadius
+  end
+  if anim.transform then
+    element.transform = anim.transform
+  end
+
+  -- Backward compatibility: opacity-only animation updates background alpha
+  if anim.opacity and not anim.backgroundColor then
+    element.backgroundColor.a = anim.opacity
+  end
+end
+
 --- Pause animation
 function Animation:pause()
   if self._state == "playing" or self._state == "pending" then

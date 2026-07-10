@@ -255,38 +255,6 @@ function GestureRecognizer:_detectLongPressBegan(touchId, event)
   }
 end
 
---- Update long-press detection
----@param touchId string
----@param event InputEvent
----@return table? Gesture event
-function GestureRecognizer:_updateLongPress(touchId, event)
-  local lpState = self._gestureStates.longPress[touchId]
-  if not lpState or lpState.triggered then
-    return nil
-  end
-
-  local duration = event.timestamp - lpState.startTime
-  local dx = event.x - lpState.startX
-  local dy = event.y - lpState.startY
-  local distance = math.sqrt(dx * dx + dy * dy)
-
-  -- Check if long-press duration reached and movement within threshold
-  if duration >= self._config.longPressMinDuration and distance < self._config.longPressMaxMovement then
-    lpState.triggered = true
-
-    return {
-      type = GestureType.LONG_PRESS,
-      state = GestureState.BEGAN,
-      x = event.x,
-      y = event.y,
-      timestamp = event.timestamp,
-      duration = duration,
-    }
-  end
-
-  return nil
-end
-
 --- Detect pan gesture
 ---@param touchId string
 ---@param event InputEvent

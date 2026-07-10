@@ -377,31 +377,6 @@ function KeyboardNavigation:_findPreviousInZIndexOrder(current)
   return nil
 end
 
---- Check if element is within container tree
----@param element Element
----@param container Element
----@return boolean
-function KeyboardNavigation:_isInContainer(element, container)
-  -- Direct match: element IS the container's child at some depth
-  local current = element.parent
-  while current do
-    if current == container then
-      return true
-    end
-    current = current.parent
-  end
-  -- Also accept elements that share the same top-level ancestor as container
-  -- (handles immediate mode where container is a top-level element)
-  local function getRoot(elem)
-    local e = elem
-    while e.parent do
-      e = e.parent
-    end
-    return e
-  end
-  return getRoot(element) == getRoot(container)
-end
-
 --- Navigate using arrow keys
 ---@param direction "up"|"down"|"left"|"right"
 ---@return boolean success
@@ -786,25 +761,6 @@ function KeyboardNavigation:popFocus()
   return previous
 end
 
---- Set a custom key binding for navigation
----@param keyName string The binding name (e.g., "next", "previous", "up", "down", "activate")
----@param keyBinding string|table Key scancode or table of scancodes
-function KeyboardNavigation.setKeyBinding(keyName, keyBinding)
-  KeyboardNavigation.config.keys[keyName] = keyBinding
-end
-
---- Enable or disable arrow key directional navigation
----@param enabled boolean True to enable arrow key navigation, false to restrict to Tab only
-function KeyboardNavigation.setDirectionalNavigation(enabled)
-  KeyboardNavigation.config.directionalNavigation = enabled
-end
-
---- Enable or disable Tab wrapping at document boundaries
----@param enabled boolean True to wrap from last to first focusable, false to stop at boundaries
-function KeyboardNavigation.setWrapAround(enabled)
-  KeyboardNavigation.config.wrapAround = enabled
-end
-
 -- ====================
 -- Spatial Index (Performance Optimization)
 -- ====================
@@ -815,70 +771,6 @@ function KeyboardNavigation.enableSpatialIndex(enabled)
   KeyboardNavigation._spatialIndex.enabled = enabled
   if not enabled then
     KeyboardNavigation:_clearSpatialIndex()
-  end
-end
-
---- Set spatial index cell size (larger = fewer cells, faster lookup but less precision)
----@param cellSize number
-function KeyboardNavigation.setSpatialCellSize(cellSize)
-  KeyboardNavigation._spatialIndex.cellSize = cellSize
-  KeyboardNavigation:_clearSpatialIndex()
-end
-
---- Update spatial index (call when layout changes)
-function KeyboardNavigation:updateSpatialIndex()
-  local Context = KeyboardNavigation._Context
-  if not Context then
-    return
-  end
-
-  local index = KeyboardNavigation._spatialIndex
-  local cellSize = index.cellSize
-
-  -- Clear old index
-  KeyboardNavigation:_clearSpatialIndex()
-
-  -- Collect all focusable elements and their positions
-  local function collectElements(elem)
-    if elem and elem:isFocusable() then
-      local w = elem.width or 0
-      local h = elem.height or 0
-      index.elementPositions[elem] = { x = elem.x, y = elem.y, w = w, h = h }
-
-      -- Add to grid cells (element can span multiple cells)
-      local leftCell = math.floor(elem.x / cellSize)
-      local rightCell = math.floor((elem.x + w - 1) / cellSize)
-      local topCell = math.floor(elem.y / cellSize)
-      local bottomCell = math.floor((elem.y + h - 1) / cellSize)
-
-      for gx = leftCell, rightCell do
-        for gy = topCell, bottomCell do
-          local cellKey = string.format("%d,%d", gx, gy)
-          if not index.grid[cellKey] then
-            index.grid[cellKey] = {}
-          end
-          table.insert(index.grid[cellKey], elem)
-        end
-      end
-    end
-
-    -- Recurse into children
-    if elem and elem.children then
-      for _, child in ipairs(elem.children) do
-        collectElements(child)
-      end
-    end
-  end
-
-  -- Collect from top-level elements
-  if Context._immediateMode and Context._zIndexOrderedElements then
-    for _, elem in ipairs(Context._zIndexOrderedElements) do
-      collectElements(elem)
-    end
-  elseif Context.topElements then
-    for _, elem in ipairs(Context.topElements) do
-      collectElements(elem)
-    end
   end
 end
 

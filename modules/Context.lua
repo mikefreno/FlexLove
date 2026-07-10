@@ -316,12 +316,6 @@ end
 -- Navigation Context
 -- ====================
 
---- Get the navigation context
----@return table
-function Context.getNavigationContext()
-  return Context._navigationContext
-end
-
 --- Push current focus onto stack (for modals/dialogs)
 ---@param element Element?
 function Context.pushFocusStack(element)

@@ -298,7 +298,12 @@ function TestBehaviorIntegration:tearDown()
   FlexLove.destroy()
 end
 
-function TestBehaviorIntegration:testNewElement_HasEmptyBehaviorsTable()
+function TestBehaviorIntegration:testNewElement_AttachesThemedRenderBehavior()
+  -- Task 07: the Themed behavior owns the per-element Renderer + the single
+  -- Renderer:draw call, and attaches to every renderable Element (mirroring the
+  -- pre-refactor invariant that every element had a Renderer). So a freshly
+  -- constructed element always has at least the Thamed behavior attached.
+  local Themed = require("modules.behaviors.Themed")
   local element = FlexLove.new({
     id = "behavior-int-1",
     width = 100,
@@ -306,13 +311,22 @@ function TestBehaviorIntegration:testNewElement_HasEmptyBehaviorsTable()
   })
   luaunit.assertNotNil(element.behaviors)
   luaunit.assertEquals(type(element.behaviors), "table")
-  luaunit.assertEquals(next(element.behaviors), nil, "behaviors should start empty")
+  luaunit.assertNotIsNil(next(element.behaviors), "every element attaches the Thamed render behavior")
+  local themedAttached = false
+  for _, b in ipairs(element.behaviors) do
+    if b == Themed then
+      themedAttached = true
+      break
+    end
+  end
+  luaunit.assertTrue(themedAttached, "Thamed render behavior must be auto-attached")
 end
 
 function TestBehaviorIntegration:testEachNewElement_GetsIndependentBehaviorsTable()
   local a = FlexLove.new({ id = "behavior-int-a", width = 10, height = 10 })
   local b = FlexLove.new({ id = "behavior-int-b", width = 10, height = 10 })
   luaunit.assertNotIs(a.behaviors, b.behaviors, "each element must own its behaviors table")
+  -- Writing to one element's behaviors table must not leak into another.
   a.behaviors.placeholder = true
   luaunit.assertIsNil(b.behaviors.placeholder, "writes to one element must not leak into another")
 end
@@ -320,8 +334,9 @@ end
 function TestBehaviorIntegration:testBehaviorsFieldPresentAcrossElementTypes()
   -- Every element exposes a `behaviors` slot because _construct runs for all.
   -- Interactive elements (here: an editable text element) auto-attach the
-  -- Clickable behavior via shouldAttach(editable=true); a passive scrollable
-  -- container with no interaction props stays behavior-less until the
+  -- Clickable behavior via shouldAttach(editable=true) ON TOP of the always-
+  -- attached Thamed render behavior. A passive scrollable container has no
+  -- interaction props so it attaches only Thamed (no Clickable) until the
   -- Scrollable behavior lands in a later task.
   local text = FlexLove.new({ id = "behavior-int-text", width = 100, height = 30, text = "hi", editable = true })
   local panel = FlexLove.new({ id = "behavior-int-panel", width = 200, height = 200, scrollable = true })
@@ -329,10 +344,10 @@ function TestBehaviorIntegration:testBehaviorsFieldPresentAcrossElementTypes()
     luaunit.assertNotNil(el.behaviors)
     luaunit.assertEquals(type(el.behaviors), "table")
   end
-  -- editable element attaches Clickable
-  luaunit.assertNotIsNil(next(text.behaviors), "editable element should attach the Clickable behavior")
-  -- passive scrollable container has no behavior yet
-  luaunit.assertIsNil(next(panel.behaviors), "passive scrollable panel should start behavior-less")
+  -- editable element attaches Clickable (in addition to the always-present Thamed)
+  luaunit.assertNotIsNil(next(text.behaviors), "editable element should attach at least the Thamed behavior")
+  -- passive scrollable container attaches only the Thamed render behavior
+  luaunit.assertNotIsNil(next(panel.behaviors), "passive panel attaches the Thamed render behavior")
 end
 
 -- Run tests if this file is executed directly.

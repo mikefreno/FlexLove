@@ -125,14 +125,32 @@ end
 
 function TestClickableIntegration:testInteractiveElement_AttachesClickableAndHandler()
   local el = FlexLove.new({ id = "clickable-1", width = 100, height = 50, onEvent = function() end })
-  luaunit.assertEquals(#el.behaviors, 1)
-  luaunit.assertIs(el.behaviors[1], Clickable, "the attached behavior must be the shared Clickable instance")
+  -- Registry order is [Thamed, Clickable, Imageable]; an interactive element
+  -- attaches the always-on Thamed render behavior PLUS the Clickable behavior.
+  luaunit.assertTrue(#el.behaviors >= 1)
+  local clickableAttached = false
+  for _, b in ipairs(el.behaviors) do
+    if b == Clickable then
+      clickableAttached = true
+      break
+    end
+  end
+  luaunit.assertTrue(clickableAttached, "interactive element must attach the Clickable behavior")
   luaunit.assertNotNil(el._eventHandler, "onAttach must allocate self._eventHandler")
 end
 
 function TestClickableIntegration:testPassiveElement_HasNoClickableAndNoHandler()
   local el = FlexLove.new({ id = "passive-1", width = 100, height = 50, text = "label" })
-  luaunit.assertIsNil(next(el.behaviors), "passive element should not attach any behavior")
+  -- A passive element attaches the always-on Thamed render behavior but NOT the
+  -- Clickable behavior, and allocates no EventHandler.
+  local clickableAttached = false
+  for _, b in ipairs(el.behaviors) do
+    if b == Clickable then
+      clickableAttached = true
+      break
+    end
+  end
+  luaunit.assertFalse(clickableAttached, "passive element must not attach the Clickable behavior")
   luaunit.assertIsNil(el._eventHandler, "passive element should not allocate an EventHandler")
 end
 
@@ -164,7 +182,15 @@ end
 function TestClickableIntegration:testOnDrawNoErrors_WhenNotPressed()
   local el = FlexLove.new({ id = "clickable-draw", width = 100, height = 50, onEvent = function() end })
   -- onDraw with no pressed button is a no-op; must not error.
-  el.behaviors[1].onDraw(el, {})
+  local clickable = nil
+  for _, b in ipairs(el.behaviors) do
+    if b == Clickable then
+      clickable = b
+      break
+    end
+  end
+  luaunit.assertNotNil(clickable)
+  clickable.onDraw(el, {})
   luaunit.assertTrue(true)
 end
 

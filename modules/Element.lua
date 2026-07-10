@@ -231,9 +231,16 @@ function Element.init(deps)
   -- modules/behaviors/ and auto-attach during Element.new when their
   -- shouldAttach(props) predicate returns true. Element.update/draw/save-restore
   -- dispatch over `element.behaviors` instead of branching on capability flags.
-  -- Task 02 wires Clickable; later tasks add Scrollable / TextEditable /
-  -- Selectable / Themed here.
-  Element._behaviorRegistry = deps.clickableBehaviors or {}
+  -- Registry order matters for onDraw layering: Themed (core Renderer:draw) must
+  -- run before Clickable (pressed overlay) so pressed feedback paints on top.
+  -- Imageable (image config) runs last. Animated (task 06) is late-attach-only.
+  -- Task 02 wires Clickable; task 06 Animated; task 07 adds Themed + Imageable;
+  -- later tasks add Scrollable / TextEditable / Selectable.
+  Element._behaviorRegistry = deps.behaviors or deps.clickableBehaviors or {}
+  -- Cached lookup of the Animated behavior instance for late-attach. Resolved
+  -- lazily (behaviors are optional in minimal builds) the first time an
+  -- animation is created on an element.
+  Element._animatedBehavior = nil
   Element._rendererDeps = {
     Color = Element._Color,
     RoundedRect = Element._RoundedRect,
@@ -404,33 +411,13 @@ local function _warnAnimApi(code, value)
   end
 end
 
--- Fire a user-supplied image callback (onImageLoad/onImageError) under pcall,
--- honoring the onXDeferred flag when `honorDeferred` is true, and emit a single
--- EVT_002 warn on failure. Replaces 5 duplicated pcall+warn blocks across
--- _initImageAndRenderer/_loadImage. The direct-`image` sync init path passes
--- honorDeferred=false to preserve immediate firing (image is already loaded).
-local function _fireImageCallback(self, callbackField, honorDeferred, ...)
-  local cb = self[callbackField]
-  if type(cb) ~= "function" then
-    return
-  end
-  local argc = select("#", ...)
-  local args = { ... }
-  local function invoke()
-    local ok, err = pcall(cb, self, unpack(args, 1, argc))
-    if not ok then
-      Element._ErrorHandler:warn("Element", "EVT_002", {
-        callback = callbackField,
-        error = tostring(err),
-      })
-    end
-  end
-  if honorDeferred and self[callbackField .. "Deferred"] then
-    Element._Context.deferCallback(invoke)
-  else
-    invoke()
-  end
-end
+-- Image loading + image callback firing now live in the Imageable behavior
+-- (modules/behaviors/Imageable.lua) — moved out of Element per
+-- behavior-mode-unification task 07. Element is decoupled from image concern;
+-- the Imageable behavior enriches `element._renderer` with image config, runs
+-- the deferred load pipeline, and persists `_loadedImage` across immediate-mode
+-- frames. The fire-callback helper (formerly `_fireImageCallback` here) is
+-- reproduced inside Imageable as `fireImageCallback`.
 
 -- ---------------------------------------------------------------------------
 -- Data-driven prop binding (Task 03)
@@ -674,6 +661,116 @@ function Element:_attachBehaviors(props)
       end
     end
   end
+end
+
+--- Idempotently attach the Animated behavior to an element that just gained an
+--- animation (animateTo / fadeIn / direct assignment / a firing transition
+--- in setProperty). Resolves the Animated behavior instance from the registry
+--- lazily (cached on the class as Element._animatedBehavior) and delegates to
+--- `Animated.ensureAttached`, which no-ops if already attached. Lets animation
+--- be opt-in while ensuring subsequent Element:update frames dispatch to
+--- Animated.onUpdate without Element:update branching on `if self.animation`.
+--- (behavior-mode-unification task 06.)
+function Element._ensureAnimatedAttached(element)
+  if not element then
+    return
+  end
+  -- Resolve + cache the Animated behavior from the registry (once per class.
+  -- Behaviors are optional in minimal builds, so cache nil too to avoid
+  -- re-scanning the registry every call.)
+  local animated = Element._animatedBehavior
+  if animated == nil then
+    local registry = Element._behaviorRegistry
+    if registry then
+      for _, behavior in ipairs(registry) do
+        -- Animated exposes ensureAttached; Clickable/Themed/Imageable do not.
+        if type(behavior.ensureAttached) == "function" then
+          animated = behavior
+          break
+        end
+      end
+    end
+    Element._animatedBehavior = animated or false
+  end
+  if animated then
+    animated.ensureAttached(element, animated)
+  end
+end
+
+--- Dispatch the Animated behavior's onUpdate at its historical position in
+--- Element:update (before mouse-position capture / scroll interaction) so
+--- animated geometry is current for Clickable hit-testing and ScrollManager
+--- interaction this frame. No-op when the element has no Animated behavior
+--- attached (non-animated elements). The general behavior-dispatch loop later
+--- in Element:update skips Animated via `_isAnimatedBehavior` to avoid
+--- double-execution. (behavior-mode-unification task 06.)
+function Element._dispatchAnimatedUpdate(element, dt)
+  local behaviors = element.behaviors
+  if not behaviors then
+    return
+  end
+  for i = 1, #behaviors do
+    local b = behaviors[i]
+    -- Animated is the behavior that exposes `ensureAttached` (Clickable /
+    -- Themed / Imageable do not).
+    if type(b.ensureAttached) == "function" then
+      b.onUpdate(element, dt)
+      return
+    end
+  end
+end
+
+--- Predicate: true if `behavior` is the Animated behavior (identified by its
+--- `ensureAttached` field). Used by the general behavior-dispatch loop in
+--- Element:update to skip Animated, since it is dispatched earlier via
+--- `_dispatchAnimatedUpdate` to preserve frame ordering.
+function Element._isAnimatedBehavior(behavior)
+  return behavior ~= nil and type(behavior.ensureAttached) == "function"
+end
+
+--- Resolve the (lazily cached) Animated behavior instance from the registry.
+--- Mirrors the resolution in _ensureAnimatedAttached so the two stay in sync
+--- without coupling the dispatch path to the attach path. Returns the behavior
+--- instance or `false` (cached nil sentinel). (behavior-mode-unification task 06/07.)
+function Element._resolveAnimatedBehavior()
+  local animated = Element._animatedBehavior
+  if animated == nil then
+    local registry = Element._behaviorRegistry
+    if registry then
+      for _, behavior in ipairs(registry) do
+        -- Animated exposes ensureAttached; Clickable/Themed/Imageable do not.
+        if type(behavior.ensureAttached) == "function" then
+          animated = behavior
+          break
+        end
+      end
+    end
+    Element._animatedBehavior = animated or false
+  end
+  return animated
+end
+
+--- Dispatch the Animated behavior's onUpdate for an element EARLY in
+--- Element:update — before mouse-position capture and scroll interaction — so
+--- animated geometry (x/y/width/height) is current for Clickable hit-testing
+--- and ScrollManager interaction this frame. Dispatches unconditionally (when a
+--- cached Animated behavior exists) rather than only when the behavior is
+--- attached to the element, because an animation can be installed on an element
+--- via `anim:apply(el)` / direct `element.animation = ...` assignment WITHOUT
+--- routing through ensureAttached — Animated.onUpdate is stateless and reads
+--- `element.animation` directly, so it no-ops for elements with no animation.
+--- The general behavior-update loop below skips the cached Animated behavior
+--- (when attached) to avoid a double update, since animation:update(dt) is not
+--- idempotent within a frame. (behavior-mode-unification task 06/07.)
+function Element._dispatchAnimatedUpdate(element, dt)
+  if not element then
+    return
+  end
+  local animated = Element._resolveAnimatedBehavior()
+  if not animated then
+    return
+  end
+  animated.onUpdate(element, dt)
 end
 
 --- Phase 3: ThemeManager, text editing defaults, Select subsystem,
@@ -990,45 +1087,15 @@ function Element:_initVisualState(props)
   end
 end
 
---- Phase 5: image loading (deferred/cached/direct) and Renderer instantiation.
-function Element:_initImageAndRenderer()
-  -- Image properties (imagePath/image/objectFit/objectPosition/imageOpacity/
-  -- imageRepeat/imageTint/onImageLoad[+Deferred]/onImageError[+Deferred] are bound
-  -- by _applyProps; only the load side-effect remains here).
-  -- Auto-load image if imagePath is provided
-  if self.imagePath and not self.image then
-    -- Check cache first (no I/O). Set _loadedImage immediately if cached
-    self._loadedImage = Element._ImageCache.get(self.imagePath)
-    -- Defer image loading to avoid I/O and callbacks in constructor
-    self:_deferMethod("_loadImage")
-  elseif self.image then
-    self._loadedImage = self.image
-    _fireImageCallback(self, "onImageLoad", false, self.image)
-  else
-    self._loadedImage = nil
-  end
-
-  -- Initialize Renderer module for visual rendering
-  -- NOTE: backgroundColor/borderColor/opacity/cornerRadius/themeComponent are
-  -- intentionally NOT passed here. Renderer:draw() reads them from the element as
-  -- the single source of truth (see Renderer.lua draw()). Only renderer-owned state
-  -- (theme, images, blur) is cached on the renderer; border is now element-sourced too.
-  self._renderer = Element._Renderer.new({
-    theme = self.theme,
-    scaleCorners = self.scaleCorners,
-    scalingAlgorithm = self.scalingAlgorithm,
-    imagePath = self.imagePath,
-    image = self.image,
-    _loadedImage = self._loadedImage,
-    objectFit = self.objectFit,
-    objectPosition = self.objectPosition,
-    imageOpacity = self.imageOpacity,
-    imageRepeat = self.imageRepeat,
-    imageTint = self.imageTint,
-    contentBlur = self.contentBlur,
-    backdropBlur = self.backdropBlur,
-  }, Element._rendererDeps)
-end
+--- Phase 5: image + renderer initialization is now owned by the Themed and
+--- Imageable behaviors (modules/behaviors/), attached in _attachBehaviors.
+--- Themed.onAttach creates the Renderer (theme/blur config); Imageable.onAttach
+--- enriches it with image config + deferred image loading. This method is kept
+--- as a thin (no-op) phase so the staged-init orchestrator contract and tests
+--- (which assert the phase method exists and is called) remain stable; the real
+--- renderer-creation logic no longer lives in Element init phases
+--- (behavior-mode-unification task 07). See behaviors/Themed.lua + Imageable.lua.
+function Element:_initImageAndRenderer() end
 
 --- Phase 6a: viewport/scale context, LayoutEngine (defaults), unit specs table,
 --- fontFamily, and textSize resolution.
@@ -2060,19 +2127,12 @@ function Element:_deferMethod(methodName, ...)
   })
 end
 
---- Deferred image loading (avoids I/O in constructor)
---- Loads the image from cache or disk, then fires onImageLoad/onImageError callbacks
-function Element:_loadImage()
-  if self.imagePath and not self.image then
-    local loadedImage, err = Element._ImageCache.load(self.imagePath)
-    if loadedImage then
-      self._loadedImage = loadedImage
-      _fireImageCallback(self, "onImageLoad", true, loadedImage)
-    else
-      _fireImageCallback(self, "onImageError", true, err or "Unknown error")
-    end
-  end
-end
+-- Deferred image loading is owned by the Imageable behavior
+-- (modules/behaviors/Imageable.lua). Imageable.onAttach installs an instance
+-- closure on `element._loadImage` and defers it via _deferMethod; the deferred-
+-- method dispatcher (which resolves `self[methodName]`) invokes that closure.
+-- Element no longer owns the load logic itself and has zero image-branch logic.
+-- (behavior-mode-unification task 07)
 
 -- scrollToBottom / scrollToLeft / scrollToRight are bound to ScrollManager in Element.init.
 
@@ -2602,14 +2662,12 @@ function Element:draw(backdropCanvas)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
-  -- LAYERS 0.5-5: Delegate all visual rendering (blur, bg, image, theme, borders, text,
-  -- customDraw) to Renderer via command buffer
-  self._renderer:draw(self, backdropCanvas)
-
-  -- Dispatch onDraw to attached behaviors (Clickable pressed-state overlay, ...).
-  -- Runs after the renderer's core layers and before children so pressed-state
-  -- feedback paints above the element's own surface but below its children,
-  -- preserving the original layer order. (behavior-mode-unification task 02)
+  -- LAYERS 0.5-5: Visual rendering (blur, bg, image, theme, borders, text,
+  -- customDraw) is now dispatched via behavior iteration — the Themed behavior's
+  -- onDraw owns the single `Renderer:draw` call (behavior-mode-unification task 07).
+  -- The draw loop below dispatches onDraw to every attached behavior in registry
+  -- order: Themed (core Renderer:draw) → Clickable (pressed-state overlay) →
+  -- Imageable (image layer via the integrated Renderer:draw command buffer).
   local drawCtx = { backdropCanvas = backdropCanvas }
   for i = 1, #self.behaviors do
     self.behaviors[i].onDraw(self, drawCtx)
@@ -2766,39 +2824,15 @@ function Element:update(dt)
     self:_syncScrollManagerState()
   end
 
-  -- Update animation if exists
-  if self.animation then
-    -- Ensure animation has Color module reference for color interpolation
-    if Element._Animation and not Element._Animation._ColorModule and Element._Color then
-      Element._Animation._ColorModule = Element._Color
-    end
-
-    -- Ensure animation has Transform module reference for transform interpolation
-    if Element._Animation and not Element._Animation._TransformModule and Element._Transform then
-      Element._Animation._TransformModule = Element._Transform
-    end
-
-    local finished = self.animation:update(dt, self)
-    if finished then
-      -- Animation:update() already called onComplete callback
-      -- Check for chained animation
-      if self.animation._next then
-        self.animation = self.animation._next
-      elseif self.animation._nextFactory and type(self.animation._nextFactory) == "function" then
-        local success, nextAnim = pcall(self.animation._nextFactory, self)
-        if success and nextAnim then
-          self.animation = nextAnim
-        else
-          self.animation = nil
-        end
-      else
-        self.animation = nil
-      end
-    else
-      -- Apply animation interpolation during update
-      self.animation:applyInterpolation(self)
-    end
-  end
+  -- Animation update + interpolation + chain resolution. Now dispatched via
+  -- the Animated behavior (behavior-mode-unification task 06) instead of an
+  -- inline `if self.animation` block. Stays BEFORE mouse-position capture /
+  -- scroll interaction so animated geometry (x/y/width/height) is current for
+  -- Clickable hit-testing and ScrollManager interaction this frame. The Animated
+  -- behavior's onUpdate is a no-op when there is no active animation, so this
+  -- is safe for non-animated elements. We dispatch it here explicitly (rather
+  -- than in the general behavior loop below) to preserve frame ordering.
+  Element._dispatchAnimatedUpdate(self, dt)
 
   local mx, my = love.mouse.getPosition()
 
@@ -2808,9 +2842,17 @@ function Element:update(dt)
   -- Dispatch to attached behaviors (Clickable mouse/touch + pressed-state,
   -- Scrollable, TextEditable, ...). Replaces the former capability-gated
   -- event-processing block in Element:update (behavior-mode-unification task 02).
+  -- The Animated behavior is EXCLUDED here: its onUpdate was already dispatched
+  -- above via Element._dispatchAnimatedUpdate (early, before mouse capture) so
+  -- animated geometry is current for hit-testing; animation:update(dt) is not
+  -- idempotent, so a second dispatch here would double-advance the animation.
   local behaviors = self.behaviors
+  local animated = Element._animatedBehavior or false
   for i = 1, #behaviors do
-    behaviors[i].onUpdate(self, dt)
+    local behavior = behaviors[i]
+    if behavior ~= animated then
+      behavior.onUpdate(self, dt)
+    end
   end
 
   -- Retry any deferred methods (methods that deferred their execution

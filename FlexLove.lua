@@ -53,6 +53,25 @@ local Select = req("Select")
 -- Auto-attaches to interactive elements via shouldAttach(props).
 local Clickable = req("behaviors.Clickable")
 
+-- Behavior: Renderer ownership + theme-state rendering (task 07). Owns the
+-- single Renderer:draw call and creates the per-element Renderer. Attaches to
+-- every renderable element (see behaviors/Themed.lua for the always-attach
+-- rationale). Must precede Clickable in the registry so its core Renderer:draw
+-- runs before Clickable's pressed-state overlay (onDraw layering).
+local Themed = req("behaviors.Themed")
+
+-- Behavior: image loading + image rendering config (task 07). Enriches the
+-- shared element._renderer with image config, runs the deferred image-load
+-- pipeline, and persists _loadedImage across immediate-mode frames. Attaches to
+-- elements with imagePath/image.
+local Imageable = req("behaviors.Imageable")
+
+-- Behavior: animation update, interpolation, chaining, transition wiring
+-- (task 06). Auto-attaches to elements that pre-declare `transitions`, and
+-- late-attaches on demand via Animated.ensureAttached when an animation is
+-- created post-construction (animateTo/fadeIn/direct assignment/transition fire).
+local Animated = req("behaviors.Animated")
+
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
 ---@type Performance
@@ -310,7 +329,8 @@ function flexlove.init(config)
     ZIndex = ZIndex,
     Select = Select,
     PropertySchema = PropertySchema,
-    clickableBehaviors = { Clickable },
+    clickableBehaviors = { Themed, Clickable, Imageable },
+    behaviors = { Themed, Clickable, Imageable, Animated },
   }
 
   -- Initialize Element module with dependencies

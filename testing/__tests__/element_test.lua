@@ -3172,46 +3172,14 @@ function TestConvenienceAPI:tearDown()
   FlexLove.endFrame()
 end
 
-function TestConvenienceAPI:test_flexDirection_row_converts()
-  local element = FlexLove.new({
-    id = "test_row",
-    width = 200,
-    height = 100,
-    positioning = "flex",
-    flexDirection = "row",
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.flexDirection, "horizontal")
-end
-
-function TestConvenienceAPI:test_flexDirection_column_converts()
-  local element = FlexLove.new({
-    id = "test_column",
-    width = 200,
-    height = 100,
-    positioning = "flex",
-    flexDirection = "column",
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.flexDirection, "vertical")
-end
-
-function TestConvenienceAPI:test_padding_single_number()
-  local element = FlexLove.new({
-    id = "test_padding_num",
-    width = 200,
-    height = 100,
-    padding = 10,
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.padding.top, 10)
-  luaunit.assertEquals(element.padding.right, 10)
-  luaunit.assertEquals(element.padding.bottom, 10)
-  luaunit.assertEquals(element.padding.left, 10)
-end
+-- REMOVED (task 12, redundant vs apply_props_test schema normalizers):
+--   test_flexDirection_row_converts    -> apply_props_test:test_flex_direction_row_alias_normalized
+--   test_flexDirection_column_converts  -> apply_props_test:test_flex_direction_column_alias_normalized
+--   test_padding_single_number          -> apply_props_test:test_padding_single_value_expanded_to_table
+-- (margin_single_number removed below for the same reason — see
+--  apply_props_test:test_margin_single_value_expanded_to_table.)
+-- Behavior is identical (schema normalizer applied during data-driven binding);
+-- the cases are subsumed by the parametric apply_props suite.
 
 function TestConvenienceAPI:test_padding_single_string()
   local element = FlexLove.new({
@@ -3228,28 +3196,6 @@ function TestConvenienceAPI:test_padding_single_string()
   luaunit.assertEquals(element.padding.right, 10)
   luaunit.assertEquals(element.padding.top, 5)
   luaunit.assertEquals(element.padding.bottom, 5)
-end
-
-function TestConvenienceAPI:test_margin_single_number()
-  local parent = FlexLove.new({
-    id = "parent",
-    width = 400,
-    height = 300,
-  })
-
-  local element = FlexLove.new({
-    id = "test_margin_num",
-    parent = parent,
-    width = 100,
-    height = 100,
-    margin = 15,
-  })
-
-  luaunit.assertNotNil(element)
-  luaunit.assertEquals(element.margin.top, 15)
-  luaunit.assertEquals(element.margin.right, 15)
-  luaunit.assertEquals(element.margin.bottom, 15)
-  luaunit.assertEquals(element.margin.left, 15)
 end
 
 -- ============================================================================

@@ -17,7 +17,7 @@ Status legend: [ ] todo, [~] in-progress, [x] done
 - [x] 09 — split-utils-into-focused-modules → `09-split-utils-into-focused-modules.md`
 - [x] 10 — split-element-new-into-staged-initializers → `10-split-element-new-into-staged-initializers.md`
 - [x] 11 — trim-defensive-errorhandler-instrumentation → `11-trim-defensive-errorhandler-instrumentation.md`
-- [ ] 12 — update-and-trim-test-suite-to-new-apis → `12-update-and-trim-test-suite-to-new-apis.md`
+- [x] 12 — update-and-trim-test-suite-to-new-apis → `12-update-and-trim-test-suite-to-new-apis.md`
 - [ ] 13 — verify-loc-reduction-and-regressions → `13-verify-loc-reduction-and-regressions.md`
 
 ## Dependencies
@@ -56,3 +56,22 @@ Status legend: [ ] todo, [~] in-progress, [x] done
 - Consolidation (single-reference helpers, validation semantics unchanged): `_warnTextAlign`, `_warnFlexInvalid`, `_warnChildrenInvalid`, `_warnCssPositioningWithoutAbsolute`, `_warnAnimApi`, `_fireImageCallback`. The 5 duplicated EVT_002 pcall+warn blocks across `_initImageAndRenderer`/`_loadImage` collapsed into `_fireImageCallback` (which preserves the direct-`image` sync path's immediate firing via `honorDeferred=false` and the async `_loadImage` path's deferred firing via `honorDeferred=true`).
 - Guardrails: `critical_failures_test.lua` (33/0) and `event_handler_test.lua` (24/0) pass; full suite `lua testing/runAll.lua --no-coverage` = **1911 tests, 0 failures** (matches baseline). No public-API input went unvalidated — all warning *emission* was consolidated/moved, none deleted; the schema validators (Task 02) already cover the non-SPECIAL_PROPS type/range checks.
 - Note for Task 12: warning *codes* and detail *shapes* are preserved, but a few detail-table field-orderings changed (e.g. `_warnFlexInvalid` emits `element/issue/value`; `_warnChildrenInvalid` omits `value` when nil). Tests asserting on codes (ELEM_010/011/012, LAY_004, ELEM_008/009, VAL_001) still pass; tests asserting on exact detail-table contents (none found) would need updating.
+
+## Task 12 metrics — update-and-trim-test-suite-to-new-apis
+
+- Full suite `lua testing/runAll.lua --no-coverage` = **1915 tests, 0 failures** (`47.8s`). Baseline (task 01) was **1,764 / 0** over 39 files; post-tasks-02–11 was **1,911 / 0** over 47 files. Task 12 net delta = **+4 tests** (+8 added delegation tests, −4 removed redundant convenience-API tests).
+- Validation gates (standalone, all exit 0):
+  - `lua testing/__tests__/property_schema_test.lua` → 37/0.
+  - `lua testing/__tests__/subsystem_delegation_test.lua` → 8/0 (new this task).
+- **New test file added (registered in `runAll.lua`):** `testing/__tests__/subsystem_delegation_test.lua` (8 integration tests pinning the extraction-delegation wiring for all 3 styles — Select `Element._Select.<fn>(self)`, ScrollManager `Element.<field> = ScrollManager.<fn>` direct aliases, TextEditor `self._textEditor:<fn>(self,...)` plus getter-style `self._textEditor:<fn>()`). PropertySchema module integration is covered by the pre-existing `property_schema_test.lua` (37 tests incl. full-prop-inventory coverage); `apply_props_test.lua` covers the schema-driven binding loop (defaults/overrides/normalizers/**parametric Deferred companions**/validators/storageKey alias).
+- **Removed redundant cases (element_test.lua, 4 tests / ~54 LOC, behavior fully subsumed by `apply_props_test` schema normalizers):**
+  - `TestConvenienceAPI:test_flexDirection_row_converts` → `TestApplyProps:test_flex_direction_row_alias_normalized`.
+  - `TestConvenienceAPI:test_flexDirection_column_converts` → `TestApplyProps:test_flex_direction_column_alias_normalized`.
+  - `TestConvenienceAPI:test_padding_single_number` → `TestApplyProps:test_padding_single_value_expanded_to_table`.
+  - `TestConvenienceAPI:test_margin_single_number` → `TestApplyProps:test_margin_single_value_expanded_to_table`.
+  - `TestConvenienceAPI:test_padding_single_string` **kept** (percentage-string parsing path NOT covered by apply_props).
+  - Removed cases are documented inline at their former sites in `element_test.lua`.
+- **Baseline test-file accounting (task 01 list, 39 files):** all 39 still present and green (migrated, not removed). The 8 added files across tasks 02–12 are: `property_schema_test`, `apply_props_test`, `setproperty_dispatch_test`, `staged_initializers_test`, `subsystem_delegation_test` (this task), `font_cache_test`, `number_validation_test`, `path_validator_test`, `text_sanitizer_test`.
+- **Deferred/prop-default consolidation:** no per-Deferred-bool tests ever existed in `element_test.lua`/`flexlove_test.lua` (the Deferred references there are all behavioral — `executeDeferredCallbacks` firing, deferred-image-loading, deferred-onCreate). The generic Deferred-companion loop is exercised parametrically by `TestApplyProps:test_deferred_companions_default_false_when_omitted` (11 callbacks) + `TestPropertySchema:testFlags_CallbacksHaveDeferred`. No further consolidation was available without losing the behavioral `executeDeferredCallbacks` coverage.
+- **ErrorHandler-warn migration (task 11 follow-up):** the task-11 warning-code/shape changes were already absorbed — suite was green at 1911/0 entering task 12 and remains green at 1915/0; no test asserted on exact detail-table field orderings, so no test updates were required for the schema-validator path.
+- `element_test.lua`: 4,566 → 4,512 LOC. Per the task's risk note, behavioral coverage was prioritized over LOC reduction — no behavioral case was removed (the 4 removed cases were pure prop-normalization mechanic duplicates).

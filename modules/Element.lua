@@ -2925,6 +2925,11 @@ function Element:resize(newGameWidth, newGameHeight)
     self._borderBoxWidth =
       Element._utils.clamp(contentWidth + self.padding.left + self.padding.right, self.minWidth, self.maxWidth)
     self.width = math.max(0, self._borderBoxWidth - self.padding.left - self.padding.right)
+    -- CONTENT-LEVEL CLAMP: CSS min-width/max-width also bound the content width.
+    -- Subtracting padding from the clamped border-box can drop the content width
+    -- below minWidth (e.g. minWidth=200, horizontal padding=100 => content=100),
+    -- so re-clamp the content dimension with the shared size-clamping utility.
+    self.width = Element._utils.clampSize(self.width, self.minWidth, self.maxWidth)
   end
   if self.autosizing.height then
     local contentHeight = self:calculateAutoHeight()
@@ -2932,6 +2937,11 @@ function Element:resize(newGameWidth, newGameHeight)
     self._borderBoxHeight =
       Element._utils.clamp(contentHeight + self.padding.top + self.padding.bottom, self.minHeight, self.maxHeight)
     self.height = math.max(0, self._borderBoxHeight - self.padding.top - self.padding.bottom)
+    -- CONTENT-LEVEL CLAMP: CSS min-height/max-height also bound the content height.
+    -- Subtracting padding from the clamped border-box can drop the content height
+    -- below minHeight (e.g. minHeight=200, vertical padding=100 => content=100),
+    -- so re-clamp the content dimension with the shared size-clamping utility.
+    self.height = Element._utils.clampSize(self.height, self.minHeight, self.maxHeight)
   end
 
   -- Re-resolve textSize if it uses viewport-relative units after dimensions are finalized

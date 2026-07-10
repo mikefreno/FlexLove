@@ -1983,8 +1983,11 @@ end
 
 function TestMinMax:test_flex_grow_clamped_by_maxWidth_redistributes()
   local container = FlexLove.new({
-    width = 600, height = 100,
-    positioning = "flex", flexDirection = "horizontal", gap = 0,
+    width = 600,
+    height = 100,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    gap = 0,
   })
   local capped = FlexLove.new({ width = 100, height = 50, flexGrow = 1, maxWidth = 200, parent = container })
   local free = FlexLove.new({ width = 100, height = 50, flexGrow = 1, parent = container })
@@ -1995,9 +1998,12 @@ end
 
 function TestMinMax:test_cross_axis_stretch_clamped_by_maxHeight()
   local container = FlexLove.new({
-    width = 400, height = 300,
-    positioning = "flex", flexDirection = "horizontal",
-    alignItems = "stretch", gap = 0,
+    width = 400,
+    height = 300,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    alignItems = "stretch",
+    gap = 0,
   })
   local child = FlexLove.new({ width = 100, maxHeight = 100, parent = container })
   container:layoutChildren()
@@ -2013,6 +2019,70 @@ function TestMinMax:test_vw_constraint_reresolves_on_resize()
   FlexLove.resize()
   luaunit.assertEquals(el.maxWidth, 1000)
   luaunit.assertEquals(el.width, 1000)
+end
+
+-- Task 02 (minmax-constraint-fixes-02): auto-sized content clamp after
+-- border-box padding subtraction. CSS min/max constraints must bound the
+-- content dimension, not just the border box.
+
+function TestMinMax:test_auto_width_clamped_above_padding()
+  -- Auto-width element with minWidth and non-zero horizontal padding must never
+  -- report a content width below minWidth after the border-box padding
+  -- subtraction performed in resize().
+  local el = FlexLove.new({
+    height = 50,
+    minWidth = 200,
+    padding = { left = 50, right = 50, top = 0, bottom = 0 },
+  })
+  luaunit.assertTrue(el.autosizing.width, "element with no width should be auto-sized on width")
+  -- Leaf with no text/children => calculateAutoWidth() == 0. The border-box is
+  -- clamped to minWidth (200); subtracting horizontal padding (100) yields a
+  -- content width of 100, which is below minWidth. The content clamp must raise
+  -- it back to minWidth.
+  FlexLove.resize()
+  luaunit.assertTrue(
+    el.width >= el.minWidth,
+    "auto content width should be clamped to >= minWidth after padding subtraction"
+  )
+  luaunit.assertEquals(el.width, 200)
+end
+
+function TestMinMax:test_auto_height_clamped_above_padding()
+  -- Auto-height element with minHeight and non-zero vertical padding must never
+  -- report a content height below minHeight after the border-box padding
+  -- subtraction performed in resize().
+  local el = FlexLove.new({
+    width = 50,
+    minHeight = 200,
+    padding = { left = 0, right = 0, top = 50, bottom = 50 },
+  })
+  luaunit.assertTrue(el.autosizing.height, "element with no height should be auto-sized on height")
+  -- Leaf with no text/children => calculateAutoHeight() == 0. The border-box is
+  -- clamped to minHeight (200); subtracting vertical padding (100) yields a
+  -- content height of 100, which is below minHeight. The content clamp must
+  -- raise it back to minHeight.
+  FlexLove.resize()
+  luaunit.assertTrue(
+    el.height >= el.minHeight,
+    "auto content height should be clamped to >= minHeight after padding subtraction"
+  )
+  luaunit.assertEquals(el.height, 200)
+end
+
+function TestMinMax:test_auto_width_constraint_during_construction()
+  -- Auto-sized elements must be clamped to min/max constraints immediately at
+  -- construction time (closes the PR-review breaking pattern), not only after a
+  -- subsequent resize() pass.
+  local el = FlexLove.new({
+    height = 50,
+    minWidth = 300,
+  })
+  luaunit.assertTrue(el.autosizing.width, "element with no width should be auto-sized on width")
+  luaunit.assertTrue(
+    el.width >= el.minWidth,
+    "auto width should be clamped to >= minWidth immediately after construction"
+  )
+  luaunit.assertEquals(el.width, 300)
 end
 
 -- ============================================================================

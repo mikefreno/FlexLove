@@ -234,9 +234,16 @@ function Element.init(deps)
   -- Registry order matters for onDraw layering: Themed (core Renderer:draw) must
   -- run before Clickable (pressed overlay) so pressed feedback paints on top.
   -- Imageable (image config) runs last. Animated (task 06) is late-attach-only.
-  -- Task 02 wires Clickable; task 06 Animated; task 07 adds Themed + Imageable;
-  -- later tasks add Scrollable / TextEditable / Selectable.
+  -- Task 02 wires Clickable; task 05 Selectable; task 06 Animated; task 07
+  -- Themed + Imageable; task 04 TextEditable (cursor blink + TextEditor
+  -- ownership + the 27 text-delegate forwarders). Scrollable is pending.
   Element._behaviorRegistry = deps.behaviors or deps.clickableBehaviors or {}
+  -- TextEditable module reference: Element's 1-line text-delegate forwarders
+  -- route through `Element._TextEditable.<fn>(self, ...)` (task 04). Resolved
+  -- from deps (wired by FlexLove alongside the behavior registry) so minimal
+  -- builds without TextEditable leave forwarders inert (guarded by their
+  -- callers / the behavior's nil-checks).
+  Element._TextEditable = deps.TextEditable
   -- Cached lookup of the Animated behavior instance for late-attach. Resolved
   -- lazily (behaviors are optional in minimal builds) the first time an
   -- animation is created on an element.
@@ -774,9 +781,11 @@ function Element._dispatchAnimatedUpdate(element, dt)
 end
 
 --- Phase 3: ThemeManager, text editing defaults, Select subsystem,
---- TextEditor, and parent assignment. EventHandler creation (with immediate-mode
---- state restore) is owned by the Clickable behavior (_attachBehaviors / onAttach),
---- so this phase no longer touches the event handler.
+--- and parent assignment. EventHandler creation (with immediate-mode state
+--- restore) is owned by the Clickable behavior (_attachBehaviors / onAttach);
+--- TextEditor creation (with immediate-mode state restore) is owned by the
+--- TextEditable behavior (_attachBehaviors / onAttach, task 04) — both run at
+--- the tail of Element.new, so this phase no longer touches either subsystem.
 function Element:_initSubSystems(props)
   if Element._Theme then
     self._themeManager = Element._Theme.Manager.new({
@@ -917,40 +926,11 @@ function Element:_initSubSystems(props)
     self.selectOption = props.selectOption
   end
 
-  if self.editable then
-    self._textEditor = Element._TextEditor.new({
-      editable = self.editable,
-      multiline = self.multiline,
-      passwordMode = self.passwordMode,
-      textWrap = self.textWrap,
-      maxLines = self.maxLines,
-      maxLength = self.maxLength,
-      placeholder = self.placeholder,
-      inputType = self.inputType,
-      textOverflow = self.textOverflow,
-      scrollable = self.scrollable,
-      autoGrow = self.autoGrow,
-      selectOnFocus = self.selectOnFocus,
-      cursorColor = self.cursorColor,
-      selectionColor = self.selectionColor,
-      cursorBlinkRate = self.cursorBlinkRate,
-      text = props.text or "",
-      onFocus = props.onFocus,
-      onBlur = props.onBlur,
-      onTextInput = props.onTextInput,
-      onTextChange = props.onTextChange,
-      onEnter = props.onEnter,
-    }, Element._textEditorDeps)
-
-    -- Restore TextEditor state from StateManager in immediate mode
-    if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
-      local state = Element._StateManager.getState(self._stateId)
-      if state and state.textEditor then
-        -- Restore from nested textEditor state (saved via saveState())
-        self._textEditor:setState(state.textEditor, self)
-      end
-    end
-  end
+  -- TextEditor creation + immediate-mode state restore is owned by the
+  -- TextEditable behavior's onAttach (task 04), which runs in _attachBehaviors
+  -- at the tail of Element.new (after _initVisualState has bound self.text
+  -- and the schema-driven callback fields). Element:_initSubSystems no longer
+  -- touches the TextEditor.
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
@@ -2804,9 +2784,9 @@ function Element:update(dt)
     child:update(dt)
   end
 
-  -- Text editor cursor blink moved to TextEditable behavior's onUpdate
-  -- (behavior-mode-unification task 04); dispatched via the behavior loop
-  -- below.
+  -- Text editor cursor blink is owned by the TextEditable behavior's
+  -- onUpdate (behavior-mode-unification task 04), dispatched via the behavior
+  -- loop below — Element:update contains zero text-editor references.
 
   -- Update scroll manager for smooth scrolling and momentum
   if self._scrollManager then
@@ -2830,11 +2810,12 @@ function Element:update(dt)
   Element._ScrollManager.updateInteraction(self, mx, my)
 
   -- Dispatch to attached behaviors (Clickable mouse/touch + pressed-state,
-  -- Scrollable, TextEditable, ...). Replaces the former capability-gated
-  -- event-processing block in Element:update (behavior-mode-unification task 02).
-  -- The Animated behavior is EXCLUDED here: its onUpdate was already dispatched
-  -- above via Element._dispatchAnimatedUpdate (early, before mouse capture) so
-  -- animated geometry is current for hit-testing; animation:update(dt) is not
+  -- TextEditable cursor blink, Selectable frame sync, ...). Replaces the
+  -- former capability-gated event-processing block in Element:update
+  -- (behavior-mode-unification task 02). The Animated behavior is EXCLUDED
+  -- here: its onUpdate was already dispatched above via
+  -- Element._dispatchAnimatedUpdate (early, before mouse capture) so animated
+  -- geometry is current for hit-testing; animation:update(dt) is not
   -- idempotent, so a second dispatch here would double-advance the animation.
   local behaviors = self.behaviors
   local animated = Element._animatedBehavior or false
@@ -3075,182 +3056,142 @@ function Element:show()
 end
 
 -- ====================
--- Input Handling - Cursor Management
+-- Input Handling - Text Editing (behavior-delegated, task 04)
+-- ====================
+-- All text-editor operations are dispatched through the TextEditable behavior
+-- (modules/behaviors/TextEditable.lua). Element retains only thin 1-line
+-- forwarders for backward-compat with external callers (EventHandler,
+-- KeyboardNavigation, Renderer, game UI). The behavior owns the TextEditor
+-- subsystem (onAttach creates it, onUpdate drives cursor blink, saveState /
+-- restoreState persist it) AND implements the delegate bodies (text sync,
+-- auto-grow, nil-guarding element._textEditor) — so Element carries zero
+-- text-editor nil-guard branches and zero text-editor logic.
+--
+-- `_wrapLine` / `_getFont` remain here: they are RENDERER forwarders (not
+-- TextEditor delegates), and the TextEditor has its own implementations.
+-- `updateText` (above) is a plain-label text setter, not a TextEditor delegate.
 -- ====================
 
---- Set cursor position
+--- Set cursor position (delegates to TextEditable behavior)
 ---@param position number -- Character index (0-based)
 function Element:setCursorPosition(position)
-  if self._textEditor then
-    self._textEditor:setCursorPosition(self, position)
-  end
+  return Element._TextEditable.setCursorPosition(self, position)
 end
 
---- Get cursor position
+--- Get cursor position (delegates to TextEditable behavior)
 ---@return number -- Character index (0-based)
 function Element:getCursorPosition()
-  if self._textEditor then
-    return self._textEditor:getCursorPosition()
-  end
-  return 0
+  return Element._TextEditable.getCursorPosition(self)
 end
 
---- Move cursor by delta characters
+--- Move cursor by delta characters (delegates to TextEditable behavior)
 ---@param delta number -- Number of characters to move (positive or negative)
 function Element:moveCursorBy(delta)
-  if self._textEditor then
-    self._textEditor:moveCursorBy(self, delta)
-  end
+  return Element._TextEditable.moveCursorBy(self, delta)
 end
 
---- Move cursor to start of text
+--- Move cursor to start of text (delegates to TextEditable behavior)
 function Element:moveCursorToStart()
-  if self._textEditor then
-    self._textEditor:moveCursorToStart(self)
-  end
+  return Element._TextEditable.moveCursorToStart(self)
 end
 
---- Move cursor to end of text
+--- Move cursor to end of text (delegates to TextEditable behavior)
 function Element:moveCursorToEnd()
-  if self._textEditor then
-    self._textEditor:moveCursorToEnd(self)
-  end
+  return Element._TextEditable.moveCursorToEnd(self)
 end
 
---- Move cursor to start of current line
+--- Move cursor to start of current line (delegates to TextEditable behavior)
 function Element:moveCursorToLineStart()
-  if self._textEditor then
-    self._textEditor:moveCursorToLineStart(self)
-  end
+  return Element._TextEditable.moveCursorToLineStart(self)
 end
 
---- Move cursor to end of current line
+--- Move cursor to end of current line (delegates to TextEditable behavior)
 function Element:moveCursorToLineEnd()
-  if self._textEditor then
-    self._textEditor:moveCursorToLineEnd(self)
-  end
+  return Element._TextEditable.moveCursorToLineEnd(self)
 end
 
---- Move cursor to start of previous word
+--- Move cursor to start of previous word (delegates to TextEditable behavior)
 function Element:moveCursorToPreviousWord()
-  if self._textEditor then
-    self._textEditor:moveCursorToPreviousWord(self)
-  end
+  return Element._TextEditable.moveCursorToPreviousWord(self)
 end
 
---- Move cursor to start of next word
+--- Move cursor to start of next word (delegates to TextEditable behavior)
 function Element:moveCursorToNextWord()
-  if self._textEditor then
-    self._textEditor:moveCursorToNextWord(self)
-  end
+  return Element._TextEditable.moveCursorToNextWord(self)
 end
 
--- ====================
--- Input Handling - Selection Management
--- ====================
-
---- Set selection range (delegates to TextEditor)
+--- Set selection range (delegates to TextEditable behavior)
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:setSelection(startPos, endPos)
-  if self._textEditor then
-    self._textEditor:setSelection(self, startPos, endPos)
-  end
+  return Element._TextEditable.setSelection(self, startPos, endPos)
 end
 
---- Get selection range (delegates to TextEditor)
+--- Get selection range (delegates to TextEditable behavior)
 ---@return number?, number? -- Start and end positions, or nil if no selection
 function Element:getSelection()
-  return self._textEditor and self._textEditor:getSelection()
+  return Element._TextEditable.getSelection(self)
 end
 
---- Check if there is an active selection (delegates to TextEditor)
+--- Check if there is an active selection (delegates to TextEditable behavior)
 ---@return boolean
 function Element:hasSelection()
-  return self._textEditor ~= nil and self._textEditor:hasSelection()
+  return Element._TextEditable.hasSelection(self)
 end
 
---- Clear selection (delegates to TextEditor)
+--- Clear selection (delegates to TextEditable behavior)
 function Element:clearSelection()
-  if self._textEditor then
-    self._textEditor:clearSelection(self)
-  end
+  return Element._TextEditable.clearSelection(self)
 end
 
---- Select all text (delegates to TextEditor)
+--- Select all text (delegates to TextEditable behavior)
 function Element:selectAll()
-  if self._textEditor then
-    self._textEditor:selectAll(self)
-  end
+  return Element._TextEditable.selectAll(self)
 end
 
---- Get selected text (delegates to TextEditor)
+--- Get selected text (delegates to TextEditable behavior)
 ---@return string? -- Selected text or nil if no selection
 function Element:getSelectedText()
-  return self._textEditor and self._textEditor:getSelectedText()
+  return Element._TextEditable.getSelectedText(self)
 end
 
---- Delete selected text (delegates to TextEditor, which owns text sync + auto-grow)
+--- Delete selected text (delegates to TextEditable behavior, which owns text sync + auto-grow)
 ---@return boolean -- True if text was deleted
 function Element:deleteSelection()
-  return (self._textEditor and self._textEditor:deleteSelection(self)) or false
+  return Element._TextEditable.deleteSelection(self)
 end
-
--- ====================
--- Input Handling - Focus Management
--- ====================
 
 --- Give this element keyboard focus to enable text input or keyboard navigation
 --- Use this to automatically focus text fields when showing forms or dialogs
 function Element:focus()
-  if self._textEditor then
-    self._textEditor:focus(self)
-  end
+  return Element._TextEditable.focus(self)
 end
 
 --- Remove keyboard focus to stop capturing input events
 --- Use this when closing popups or switching focus to other elements
 function Element:blur()
-  if self._textEditor then
-    self._textEditor:blur(self)
-  end
+  return Element._TextEditable.blur(self)
 end
 
 --- Query focus state to conditionally render focus indicators or handle keyboard input
 --- Use this to style focused elements or determine which element receives keyboard events
 ---@return boolean
 function Element:isFocused()
-  if self._textEditor then
-    return self._textEditor:isFocused()
-  end
-  return false
+  return Element._TextEditable.isFocused(self)
 end
-
--- ====================
--- Input Handling - Text Buffer Management
--- ====================
 
 --- Retrieve the element's current text content for processing or validation
 --- Use this to read user input from text fields or get display text
 ---@return string
 function Element:getText()
-  if self._textEditor then
-    return self._textEditor:getText()
-  end
-  return self.text or ""
+  return Element._TextEditable.getText(self)
 end
 
 --- Update the element's text content programmatically for dynamic labels or resetting inputs
 --- Use this to change text without user input, like clearing fields or updating status messages
 ---@param text string
 function Element:setText(text)
-  if self._textEditor then
-    self._textEditor:setText(self, text)
-    self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight(self)
-    return
-  end
-  self.text = text
+  return Element._TextEditable.setText(self, text)
 end
 
 --- Programmatically insert text at any position for autocomplete or text manipulation
@@ -3258,21 +3199,13 @@ end
 ---@param text string -- Text to insert
 ---@param position number? -- Position to insert at (default: cursor position)
 function Element:insertText(text, position)
-  if self._textEditor then
-    self._textEditor:insertText(self, text, position)
-    self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight(self)
-  end
+  return Element._TextEditable.insertText(self, text, position)
 end
 
 ---@param startPos number -- Start position (inclusive)
 ---@param endPos number -- End position (inclusive)
 function Element:deleteText(startPos, endPos)
-  if self._textEditor then
-    self._textEditor:deleteText(self, startPos, endPos)
-    self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight(self)
-  end
+  return Element._TextEditable.deleteText(self, startPos, endPos)
 end
 
 --- Replace text in range
@@ -3280,11 +3213,7 @@ end
 ---@param endPos number -- End position (inclusive)
 ---@param newText string -- Replacement text
 function Element:replaceText(startPos, endPos, newText)
-  if self._textEditor then
-    self._textEditor:replaceText(self, startPos, endPos, newText)
-    self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight(self)
-  end
+  return Element._TextEditable.replaceText(self, startPos, endPos, newText)
 end
 
 --- Wrap a single line of text
@@ -3305,53 +3234,38 @@ end
 -- ====================
 
 --- Handle mouse click on text (set cursor position or start selection)
+--- Delegates to the TextEditable behavior, which owns drag tracking.
 ---@param mouseX number -- Mouse X coordinate
 ---@param mouseY number -- Mouse Y coordinate
 ---@param clickCount number -- Number of clicks (1=single, 2=double, 3=triple)
 function Element:_handleTextClick(mouseX, mouseY, clickCount)
-  if self._textEditor then
-    self._textEditor:handleTextClick(self, mouseX, mouseY, clickCount)
-    -- Store mouse down position on element for drag tracking
-    if clickCount == 1 then
-      self._mouseDownPosition = self._textEditor:mouseToTextPosition(self, mouseX, mouseY)
-    end
-  end
+  return Element._TextEditable._handleTextClick(self, mouseX, mouseY, clickCount)
 end
 
 --- Handle mouse drag for text selection
+--- Delegates to the TextEditable behavior, which owns drag tracking.
 ---@param mouseX number -- Mouse X coordinate
 ---@param mouseY number -- Mouse Y coordinate
 function Element:_handleTextDrag(mouseX, mouseY)
-  if self._textEditor then
-    self._textEditor:handleTextDrag(self, mouseX, mouseY)
-    self._textDragOccurred = self._textEditor._textDragOccurred
-  end
+  return Element._TextEditable._handleTextDrag(self, mouseX, mouseY)
 end
 
 -- ====================
--- Input Handling - Keyboard Input
+-- Input Handling - Keyboard Input (behavior-delegated, task 04)
 -- ====================
 
---- Handle text input (character input)
+--- Handle text input (character input) — delegates to the TextEditable behavior.
 ---@param text string -- Character(s) to insert
 function Element:textinput(text)
-  if self._textEditor then
-    self._textEditor:handleTextInput(self, text)
-    self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight(self)
-  end
+  return Element._TextEditable.textinput(self, text)
 end
 
---- Handle key press (special keys)
+--- Handle key press (special keys) — delegates to the TextEditable behavior.
 ---@param key string -- Key name
 ---@param scancode string -- Scancode
 ---@param isrepeat boolean -- Whether this is a key repeat
 function Element:keypressed(key, scancode, isrepeat)
-  if self._textEditor then
-    self._textEditor:handleKeyPress(self, key, scancode, isrepeat)
-    self.text = self._textEditor:getText() -- Sync display text
-    self._textEditor:updateAutoGrowHeight(self)
-  end
+  return Element._TextEditable.keypressed(self, key, scancode, isrepeat)
 end
 
 -- ====================
@@ -3899,9 +3813,10 @@ function Element:saveState()
   if selectState then
     state.select = selectState
   end
-  if self._textEditor then
-    state.textEditor = self._textEditor:getState()
-  end
+  -- TextEditor state + text-selection drag tracking (_mouseDownPosition /
+  -- _textDragOccurred) are saved by the TextEditable behavior's saveState hook
+  -- (task 04), dispatched via the behavior loop above and merged under the
+  -- `textEditor` / top-level keys to match the legacy restoreState contract.
   if self._scrollManager then
     state.scrollManager = self._scrollManager:getState()
   end
@@ -3939,13 +3854,9 @@ function Element:saveState()
     end
   end
 
-  -- Save drag tracking state for text selection
-  if self._mouseDownPosition ~= nil then
-    state._mouseDownPosition = self._mouseDownPosition
-  end
-  if self._textDragOccurred ~= nil then
-    state._textDragOccurred = self._textDragOccurred
-  end
+  -- Drag-tracking state (_mouseDownPosition / _textDragOccurred) is saved AND
+  -- restored by the TextEditable behavior (task 04) via the behavior-dispatch
+  -- loops above; no inline handling needed here.
 
   return state
 end
@@ -3966,16 +3877,9 @@ function Element:restoreState(state)
     Element._Select.restoreState(self, state.select)
   end
 
-  -- Restore TextEditor state (if exists)
-  if self._textEditor and state.textEditor then
-    self._textEditor:setState(state.textEditor, self)
-    -- Sync TextEditor's focus state to Element for theme management
-    self._focused = self._textEditor._focused
-    self._cursorPosition = self._textEditor._cursorPosition
-    self._selectionStart = self._textEditor._selectionStart
-    self._selectionEnd = self._textEditor._selectionEnd
-    self._textBuffer = self._textEditor._textBuffer
-  end
+  -- TextEditor state + cursor/selection field sync + text-selection drag
+  -- tracking are restored by the TextEditable behavior's restoreState hook
+  -- (task 04), dispatched via the behavior loop above.
 
   -- Restore ScrollManager state (if exists)
   if self._scrollManager and state.scrollManager then
@@ -3990,15 +3894,9 @@ function Element:restoreState(state)
     end
   end
 
-  -- Restore drag tracking state for text selection
-  if state._mouseDownPosition ~= nil then
-    self._mouseDownPosition = state._mouseDownPosition
-  end
-  if state._textDragOccurred ~= nil then
-    self._textDragOccurred = state._textDragOccurred
-  end
-
   -- Note: Blur cache data is used for invalidation, not restoration
+  -- Drag-tracking state (_mouseDownPosition / _textDragOccurred) is restored by
+  -- the TextEditable behavior (task 04) via the behavior-dispatch loop above.
 end
 
 --- Cleanup method to break circular references (for immediate mode)

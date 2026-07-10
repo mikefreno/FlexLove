@@ -77,6 +77,14 @@ local Animated = req("behaviors.Animated")
 -- attaches to elements with selectParent or selectOption props.
 local Selectable = req("behaviors.Selectable")
 
+-- Behavior: TextEditor subsystem ownership — text editing, cursor management,
+-- text selection, text-related input handling, and text-editor save/restore
+-- (task 04). Auto-attaches to editable elements and text-bearing elements via
+-- shouldAttach(props); onAttach allocates the TextEditor (editable only).
+-- Element retains 1-line forwarders routed through this module for the 27
+-- text-editor delegate methods, eliminating the `if self._textEditor` guards.
+local TextEditable = req("behaviors.TextEditable")
+
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
 ---@type Performance
@@ -335,7 +343,8 @@ function flexlove.init(config)
     Select = Select,
     PropertySchema = PropertySchema,
     clickableBehaviors = { Themed, Clickable, Imageable },
-    behaviors = { Themed, Clickable, Imageable, Animated, Selectable },
+    behaviors = { Themed, Clickable, Imageable, Animated, Selectable, TextEditable },
+    TextEditable = TextEditable,
   }
 
   -- Initialize Element module with dependencies

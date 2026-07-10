@@ -105,6 +105,7 @@ local testFiles = {
   "testing/__tests__/test_children_prop.lua",
   "testing/__tests__/themed_imageable_behavior_test.lua",
   "testing/__tests__/test_display.lua",
+  "testing/__tests__/texteditable_behavior_test.lua",
   "testing/__tests__/text_editor_test.lua",
   "testing/__tests__/text_sanitizer_test.lua",
   "testing/__tests__/theme_test.lua",

@@ -18,7 +18,7 @@ Status legend: [ ] todo, [~] in-progress, [x] done
 - [x] 10 — split-element-new-into-staged-initializers → `10-split-element-new-into-staged-initializers.md`
 - [x] 11 — trim-defensive-errorhandler-instrumentation → `11-trim-defensive-errorhandler-instrumentation.md`
 - [x] 12 — update-and-trim-test-suite-to-new-apis → `12-update-and-trim-test-suite-to-new-apis.md`
-- [ ] 13 — verify-loc-reduction-and-regressions → `13-verify-loc-reduction-and-regressions.md`
+- [x] 13 — verify-loc-reduction-and-regressions → `13-verify-loc-reduction-and-regressions.md`
 
 ## Dependencies
 

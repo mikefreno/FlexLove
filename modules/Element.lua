@@ -136,6 +136,16 @@
 local Element = {}
 Element.__index = Element
 
+-- NOTE: There is intentionally NO custom Element.__newindex for dimension properties.
+-- Lua's __newindex fires ONLY when the key is ABSENT from the raw table, but width/
+-- height/x/y are all assigned during Element.new, so they already exist post-
+-- construction. A __newindex handler therefore CANNOT intercept retained-mode bare
+-- writes like `element.width = "42%"` (it just rawsets the broken string).
+-- Dimensions are instead validated lazily in Element:_checkDimensionTypes() at the
+-- start of each reflow, and must be changed via :setProperty() for resolution +
+-- layout invalidation. Keeping the metatable free of __newindex also avoids a
+-- per-field-write function call on every absent-key assignment (perf).
+
 local MAX_DEFER_RETRIES = 10
 local MAX_DEFERRED_METHODS = 100
 local _DEFERRED_NIL = {}
@@ -362,11 +372,11 @@ function Element.new(props)
 
   -- In immediate mode, restore EventHandler state from StateManager
   local eventHandlerConfig = {
-    onEvent = self.onEvent,
+    -- element.onEvent is source of truth; not cached on handler
     onEventDeferred = props.onEventDeferred,
-    onTouchEvent = self.onTouchEvent,
+    -- element.onTouchEvent is source of truth; not cached on handler
     onTouchEventDeferred = self.onTouchEventDeferred,
-    onGesture = self.onGesture,
+    -- element.onGesture is source of truth; not cached on handler
     onGestureDeferred = self.onGestureDeferred,
     touchEnabled = self.touchEnabled,
     multiTouchEnabled = self.multiTouchEnabled,
@@ -850,14 +860,12 @@ function Element.new(props)
   end
 
   -- Initialize Renderer module for visual rendering
+  -- NOTE: backgroundColor/borderColor/opacity/cornerRadius/themeComponent are
+  -- intentionally NOT passed here. Renderer:draw() reads them from the element as
+  -- the single source of truth (see Renderer.lua draw()). Only renderer-owned state
+  -- (theme, images, blur) is cached on the renderer; border is now element-sourced too.
   self._renderer = Element._Renderer.new({
-    backgroundColor = self.backgroundColor,
-    borderColor = self.borderColor,
-    opacity = self.opacity,
-    border = self.border,
-    cornerRadius = self.cornerRadius,
     theme = self.theme,
-    themeComponent = self.themeComponent,
     scaleCorners = self.scaleCorners,
     scalingAlgorithm = self.scalingAlgorithm,
     imagePath = self.imagePath,
@@ -1029,7 +1037,11 @@ function Element.new(props)
   end
 
   -- Handle width (both w and width properties, prefer w if both exist)
+  -- "auto" is treated as content-sized (same as omitting the property), per CSS semantics.
   local widthProp = props.width
+  if widthProp == "auto" then
+    widthProp = nil
+  end
   local tempWidth -- Temporary width for padding resolution
   if widthProp then
     local parentWidth = self.parent and self.parent.width or viewportWidth
@@ -1051,7 +1063,11 @@ function Element.new(props)
   end
 
   -- Handle height (both h and height properties, prefer h if both exist)
+  -- "auto" is treated as content-sized (same as omitting the property), per CSS semantics.
   local heightProp = props.height
+  if heightProp == "auto" then
+    heightProp = nil
+  end
   local tempHeight -- Temporary height for padding resolution
   if heightProp then
     local parentHeight = self.parent and self.parent.height or viewportHeight
@@ -1880,6 +1896,11 @@ function Element.new(props)
     end
   end
 
+  -- Mark element as fully constructed.
+  -- NOTE: no longer gates an __newindex dimension warning (removed — see comment
+  -- at top of file). Retained lazily in case future write-interception is added.
+  self._constructed = true
+
   return self
 end
 
@@ -2536,9 +2557,10 @@ function Element:addChild(child)
 
     local overflowX = self.overflowX or self.overflow
     local overflowY = self.overflowY or self.overflow
-    local isScrollContainer =
-      overflowX == "scroll" or overflowX == "auto"
-      or overflowY == "scroll" or overflowY == "auto"
+    local isScrollContainer = overflowX == "scroll"
+      or overflowX == "auto"
+      or overflowY == "scroll"
+      or overflowY == "auto"
 
     if self.autosizing.height and not isScrollContainer then
       local oldHeight = self.height
@@ -2743,8 +2765,43 @@ function Element:layoutChildren()
     self:_checkPerformanceWarnings()
   end
 
+  -- Catch stale bare dimension writes that bypassed setProperty (e.g.
+  -- `element.width = "42%"` stores a raw string). Lua __newindex cannot intercept
+  -- these at write time (the keys exist post-construction), so we validate lazily
+  -- here, once per element per property, only when a reflow is already pending.
+  if self._dirty then
+    self:_checkDimensionTypes()
+  end
+
   -- Delegate layout to LayoutEngine
   self._layoutEngine:layoutChildren()
+end
+
+--- Warn once per stale dimension property that holds a non-number value, which
+--- indicates a bare write (e.g. `element.width = "42%"`) bypassed setProperty.
+--- Bare dimension writes neither resolve unit strings nor invalidate layout;
+--- the element renders with the wrong size until :setProperty() is used.
+function Element:_checkDimensionTypes()
+  if not self._dimWarned then
+    self._dimWarned = {}
+  end
+  for _, prop in ipairs({ "width", "height", "x", "y" }) do
+    local v = self[prop]
+    if v ~= nil and type(v) ~= "number" then
+      if not self._dimWarned[prop] then
+        self._dimWarned[prop] = true
+        Element._ErrorHandler:warn("Element", "ELM_001", {
+          property = prop,
+          message = string.format(
+            'element.%s holds a non-number value (%s); a bare write bypassed setProperty and was not resolved to pixels. Use element:setProperty("%s", value) instead.',
+            prop,
+            type(v),
+            prop
+          ),
+        })
+      end
+    end
+  end
 end
 
 --- Warn about percentage sizing with auto-sizing parent
@@ -2852,15 +2909,9 @@ function Element:draw(backdropCanvas)
     return
   end
 
-  -- Handle opacity during animation
-  local drawBackgroundColor = self.backgroundColor
-  if self.animation then
-    local anim = self.animation:interpolate()
-    if anim.opacity then
-      drawBackgroundColor =
-        Element._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
-    end
-  end
+  -- Handle opacity during animation: Renderer:draw recomputes the animated
+  -- background color from element.backgroundColor + element.animation, so nothing
+  -- to do here (the old local drawBackgroundColor was unreachable dead code).
 
   -- Cache border box dimensions for this draw call (optimization)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
@@ -2895,7 +2946,7 @@ function Element:draw(backdropCanvas)
       -- BORDER-BOX MODEL: Use stored border-box dimensions for drawing
       local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
       local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-      self._renderer:drawPressedState(self.x, self.y, borderBoxWidth, borderBoxHeight)
+      self._renderer:drawPressedState(self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.cornerRadius)
     end
   end
 
@@ -3050,9 +3101,9 @@ end
 --- Update element (propagate to children)
 ---@param dt number
 function Element:update(dt)
-	if self.display == false then
-		return
-	end
+  if self.display == false then
+    return
+  end
   -- Track active animations for performance warnings (only on root elements)
   if not self.parent then
     self:_trackActiveAnimations()
@@ -3513,7 +3564,7 @@ function Element:calculateTextHeight()
     end
 
     if availableWidth and availableWidth > 0 then
-      local wrappedWidth, wrappedLines = font:getWrap(self.text, availableWidth)
+      local _, wrappedLines = font:getWrap(self.text, availableWidth)
       height = height * #wrappedLines
     end
   end
@@ -4162,7 +4213,7 @@ end
 ---@param groupName string Name for this transition group
 ---@param config table Transition config {duration, easing, delay, onComplete}
 ---@param properties table Array of property names
-function Element:setTransitionGroup(groupName, config, properties)
+function Element:setTransitionGroup(_, config, properties)
   if type(properties) ~= "table" then
     Element._ErrorHandler:warn("Element", "ELEM_005")
     return
@@ -4321,45 +4372,43 @@ function Element:setProperty(property, value)
     return
   end
 
-  -- Don't transition if value is the same
-  if self[property] == value then
-    Element._ErrorHandler:warn("Element", "SYS_003", {
-      property = tostring(property),
-      value = tostring(value),
-      element = self.id or "unknown",
-    })
-    return
-  end
+  local unchanged = self[property] == value
 
-  if shouldTransition and transitionConfig then
-    local currentValue = self[property]
+  -- Skip write/transition/layout work for unchanged values, but still call
+  -- _syncThemeAndRenderer: disabled/active must reach setThemeState even when the
+  -- value is unchanged (renderer/theme state may have been reset out-of-band),
+  -- and themeComponent must propagate to themeManager.
+  if not unchanged then
+    if shouldTransition and transitionConfig then
+      local currentValue = self[property]
 
-    -- Only transition if we have a valid current value
-    if currentValue ~= nil then
-      -- Create animation for the property change
-      local Animation = require("modules.Animation")
-      local anim = Animation.new({
-        duration = transitionConfig.duration,
-        start = { [property] = currentValue },
-        final = { [property] = value },
-        easing = transitionConfig.easing,
-        onComplete = transitionConfig.onComplete,
-      })
+      -- Only transition if we have a valid current value
+      if currentValue ~= nil then
+        -- Create animation for the property change
+        local Animation = require("modules.Animation")
+        local anim = Animation.new({
+          duration = transitionConfig.duration,
+          start = { [property] = currentValue },
+          final = { [property] = value },
+          easing = transitionConfig.easing,
+          onComplete = transitionConfig.onComplete,
+        })
 
-      anim:apply(self)
+        anim:apply(self)
+      else
+        self[property] = value
+      end
     else
       self[property] = value
     end
-  else
-    self[property] = value
+
+    -- Invalidate layout if this property affects layout
+    if layoutProperties[property] then
+      self:invalidateLayout()
+    end
   end
 
-  -- Invalidate layout if this property affects layout
-  if layoutProperties[property] then
-    self:invalidateLayout()
-  end
-
-  -- Sync ThemeManager and Renderer for properties that affect rendering
+  -- Sync ThemeManager/Renderer side effects (disabled/active/themeComponent).
   self:_syncThemeAndRenderer(property, value)
 end
 
@@ -4367,6 +4416,11 @@ end
 ---@param property string The property name that changed
 ---@param value any The new value
 function Element:_syncThemeAndRenderer(property, value)
+  -- Visual props (backgroundColor/borderColor/cornerRadius/opacity) and callbacks
+  -- (onEvent/onTouchEvent/onGesture) are intentionally NOT synced here: Renderer:draw
+  -- and EventHandler dispatch read them from the element as source of truth, so a
+  -- bare `element.<prop> = v` write is immediately consistent with setProperty(...).
+  -- Only stateful side effects (theme-state machine + themeManager component) remain.
   if property == "disabled" then
     if self._themeManager then
       self._themeManager.disabled = value
@@ -4384,25 +4438,6 @@ function Element:_syncThemeAndRenderer(property, value)
   elseif property == "themeComponent" then
     if self._themeManager then
       self._themeManager.themeComponent = value
-    end
-    if self._renderer then
-      self._renderer.themeComponent = value
-    end
-  elseif property == "opacity" then
-    if self._renderer then
-      self._renderer.opacity = value
-    end
-  elseif property == "backgroundColor" then
-    if self._renderer then
-      self._renderer.backgroundColor = value
-    end
-  elseif property == "borderColor" then
-    if self._renderer then
-      self._renderer.borderColor = value
-    end
-  elseif property == "cornerRadius" then
-    if self._renderer then
-      self._renderer.cornerRadius = value
     end
   end
 end
@@ -4551,9 +4586,11 @@ end
 
 --- Cleanup method to break circular references (for immediate mode)
 --- Note: Cleans internal module state but keeps structure for inspection
+--- Note: Does NOT clear onEvent, onTouchEvent, onGesture — the Renderer/EventHandler
+--- read these directly from the element (not the cache), so clearing them here would
+--- break retained mode. The cache copies still hold references for GC accounting.
 function Element:_cleanup()
-  -- Clear event callbacks (may hold closures)
-  self.onEvent = nil
+  -- Clear focus/text callbacks (not read directly from element at draw/dispatch time)
   self.onFocus = nil
   self.onBlur = nil
   self.onTextInput = nil
@@ -4561,8 +4598,6 @@ function Element:_cleanup()
   self.onEnter = nil
   self.onImageLoad = nil
   self.onImageError = nil
-  self.onTouchEvent = nil
-  self.onGesture = nil
   self.onCreate = nil
   if self.selectParent then
     self.selectParent.onChange = nil

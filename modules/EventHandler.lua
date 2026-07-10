@@ -154,7 +154,14 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
   end
 
   -- Can only process events if we have handler, element is enabled, and is active or dragging or has tracked press
-  local canProcessEvents = (self.onEvent or element.editable or element._selectState or element.selectOption)
+  -- Read onEvent from element (source of truth), fallback to handler cache for backwards compat
+  local canProcessEvents = (
+    element.onEvent
+    or self.onEvent
+    or element.editable
+    or element._selectState
+    or element.selectOption
+  )
     and element.visibility ~= "hidden"
     and not element.disabled
     and (isActiveElement or isDragging or hasTrackedPress)
@@ -176,7 +183,7 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
     -- Fire synthetic unhover when element becomes disabled while hovered
     if element.disabled and self._hovered then
       self._hovered = false
-      if self.onEvent then
+      if element.onEvent or self.onEvent then
         local modifiers = EventHandler._utils.getModifiers()
         local unhoverEvent = EventHandler._InputEvent.new({
           type = "unhover",
@@ -190,7 +197,7 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
       end
     elseif self._hovered and not isHovering then
       self._hovered = false
-      if self.onEvent then
+      if element.onEvent or self.onEvent then
         local modifiers = EventHandler._utils.getModifiers()
         local unhoverEvent = EventHandler._InputEvent.new({
           type = "unhover",
@@ -517,7 +524,13 @@ function EventHandler:processTouchEvents(element)
   end
 
   -- Check if element can process events
-  local canProcessEvents = (self.onEvent or self.onTouchEvent or element.editable)
+  local canProcessEvents = (
+    element.onEvent
+    or self.onEvent
+    or element.onTouchEvent
+    or self.onTouchEvent
+    or element.editable
+  )
     and not element.disabled
     and self.touchEnabled
 
@@ -759,7 +772,9 @@ end
 ---@param element Element The element that triggered the event
 ---@param event InputEvent The event data
 function EventHandler:_invokeCallback(element, event)
-  if not self.onEvent then
+  -- Read onEvent from element (source of truth), fallback to handler cache for backwards compat
+  local callback = element.onEvent or self.onEvent
+  if not callback then
     return
   end
 
@@ -768,7 +783,7 @@ function EventHandler:_invokeCallback(element, event)
     local FlexLove = package.loaded["FlexLove"] or package.loaded["libs.FlexLove"]
     if FlexLove and FlexLove.deferCallback then
       FlexLove.deferCallback(function()
-        self.onEvent(element, event)
+        callback(element, event)
       end)
     else
       EventHandler._ErrorHandler:error("EventHandler", "SYS_003", {
@@ -776,7 +791,7 @@ function EventHandler:_invokeCallback(element, event)
       })
     end
   else
-    self.onEvent(element, event)
+    callback(element, event)
   end
 end
 
@@ -784,7 +799,9 @@ end
 ---@param element Element The element that triggered the event
 ---@param event InputEvent The touch event data
 function EventHandler:_invokeTouchCallback(element, event)
-  if not self.onTouchEvent then
+  -- Read onTouchEvent from element (source of truth), fallback to handler cache for backwards compat
+  local callback = element.onTouchEvent or self.onTouchEvent
+  if not callback then
     return
   end
 
@@ -792,7 +809,7 @@ function EventHandler:_invokeTouchCallback(element, event)
     local FlexLove = package.loaded["FlexLove"] or package.loaded["libs.FlexLove"]
     if FlexLove and FlexLove.deferCallback then
       FlexLove.deferCallback(function()
-        self.onTouchEvent(element, event)
+        callback(element, event)
       end)
     else
       EventHandler._ErrorHandler:error("EventHandler", "SYS_003", {
@@ -800,7 +817,7 @@ function EventHandler:_invokeTouchCallback(element, event)
       })
     end
   else
-    self.onTouchEvent(element, event)
+    callback(element, event)
   end
 end
 
@@ -808,7 +825,9 @@ end
 ---@param element Element The element that triggered the event
 ---@param gesture table The gesture data from GestureRecognizer
 function EventHandler:_invokeGestureCallback(element, gesture)
-  if not self.onGesture then
+  -- Read onGesture from element (source of truth), fallback to handler cache for backwards compat
+  local callback = element.onGesture or self.onGesture
+  if not callback then
     return
   end
 
@@ -816,7 +835,7 @@ function EventHandler:_invokeGestureCallback(element, gesture)
     local FlexLove = package.loaded["FlexLove"] or package.loaded["libs.FlexLove"]
     if FlexLove and FlexLove.deferCallback then
       FlexLove.deferCallback(function()
-        self.onGesture(element, gesture)
+        callback(element, gesture)
       end)
     else
       EventHandler._ErrorHandler:error("EventHandler", "SYS_003", {
@@ -824,7 +843,7 @@ function EventHandler:_invokeGestureCallback(element, gesture)
       })
     end
   else
-    self.onGesture(element, gesture)
+    callback(element, gesture)
   end
 end
 

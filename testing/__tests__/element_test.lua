@@ -4364,6 +4364,202 @@ function TestOnCreate:test_onCreate_not_required()
   luaunit.assertEquals(element.id, "no_oncreate")
 end
 
+-- ===========================================================================
+-- Retained-Mode Property Consistency
+--
+-- Verifies that bare field writes (`element.prop = v`) behave identically to
+-- `element:setProperty("prop", v)` for the visual properties and callbacks whose
+-- draw/dispatch paths read from the element as the single source of truth.
+-- Previously, Element.new copied these into _renderer / _eventHandler caches and
+-- the draw/dispatch paths read the cache, so bare writes silently no-oped while
+-- setProperty worked. These tests lock in the element-as-source-of-truth design.
+-- ===========================================================================
+
+TestRetainedPropertyConsistency = {}
+
+-- Note: retained mode — Element.new() directly, no beginFrame/endFrame needed.
+
+function TestRetainedPropertyConsistency:test_bare_backgroundColor_write_takes_effect()
+  local Color = FlexLove.Color
+  local element = createBasicElement({
+    id = "bare_bg",
+    backgroundColor = Color.fromHex("#ff0000"),
+  })
+  local newColor = Color.fromHex("#00ff00")
+
+  element.backgroundColor = newColor
+
+  luaunit.assertEquals(element.backgroundColor, newColor)
+  luaunit.assertNotEquals(element.backgroundColor, Color.fromHex("#ff0000"))
+end
+
+function TestRetainedPropertyConsistency:test_bare_borderColor_write_takes_effect()
+  local Color = FlexLove.Color
+  local element = createBasicElement({
+    id = "bare_border",
+    borderColor = Color.fromHex("#ff0000"),
+  })
+  local newColor = Color.fromHex("#0000ff")
+
+  element.borderColor = newColor
+
+  luaunit.assertEquals(element.borderColor, newColor)
+  luaunit.assertNotEquals(element.borderColor, Color.fromHex("#ff0000"))
+end
+
+function TestRetainedPropertyConsistency:test_bare_border_write_takes_effect()
+  -- border was the last visual property read from a renderer cache. It is now
+  -- element-sourced, so a bare `element.border = ...` write must take effect for
+  -- the next draw without requiring setProperty.
+  local element = createBasicElement({ id = "bare_border_cfg", border = 2 })
+
+  element.border = { top = true, right = false, bottom = true, left = false }
+
+  luaunit.assertTrue(element.border.top)
+  luaunit.assertFalse(element.border.right)
+  luaunit.assertTrue(element.border.bottom)
+  luaunit.assertFalse(element.border.left)
+  -- renderer must NOT hold a stale border cache diverging from the element
+  luaunit.assertNil(element._renderer.border)
+end
+
+function TestRetainedPropertyConsistency:test_setProperty_border_matches_bare_write()
+  local a = createBasicElement({ id = "border_setprop_a", border = 1 })
+  local b = createBasicElement({ id = "border_setprop_b", border = 1 })
+  local target = { top = 3, right = 3, bottom = 3, left = 3 }
+
+  a.border = target
+  b:setProperty("border", target)
+
+  luaunit.assertEquals(a.border, b.border)
+  luaunit.assertEquals(a.border, target)
+end
+
+function TestRetainedPropertyConsistency:test_bare_opacity_write_takes_effect()
+  local element = createBasicElement({ id = "bare_opacity", opacity = 1 })
+
+  element.opacity = 0.5
+
+  luaunit.assertEquals(element.opacity, 0.5)
+end
+
+function TestRetainedPropertyConsistency:test_bare_cornerRadius_write_takes_effect()
+  local element = createBasicElement({ id = "bare_radius", cornerRadius = 0 })
+
+  element.cornerRadius = 12
+
+  luaunit.assertEquals(element.cornerRadius, 12)
+end
+
+function TestRetainedPropertyConsistency:test_bare_onEvent_write_changes_dispatched_callback()
+  local element = createBasicElement({ id = "bare_onevent" })
+  local calls = {}
+
+  element.onEvent = function(_, event)
+    table.insert(calls, event.type)
+  end
+
+  -- The element is the source of truth; the handler must dispatch it.
+  element._eventHandler:_invokeCallback(element, { type = "click" })
+
+  luaunit.assertEquals(#calls, 1)
+  luaunit.assertEquals(calls[1], "click")
+
+  -- Replacing the callback must take effect without setProperty.
+  local calls2 = {}
+  element.onEvent = function(_, event)
+    table.insert(calls2, event.type)
+  end
+  element._eventHandler:_invokeCallback(element, { type = "click" })
+
+  luaunit.assertEquals(#calls, 1) -- original callback NOT invoked again
+  luaunit.assertEquals(#calls2, 1) -- new callback invoked
+  luaunit.assertEquals(calls2[1], "click")
+end
+
+function TestRetainedPropertyConsistency:test_bare_write_matches_setProperty_for_visual_props()
+  local Color = FlexLove.Color
+  local a = createBasicElement({ id = "cmp_a", backgroundColor = Color.fromHex("#000000") })
+  local b = createBasicElement({ id = "cmp_b", backgroundColor = Color.fromHex("#000000") })
+  local target = Color.new(0.4, 0.6, 0.8, 1)
+
+  a.backgroundColor = target
+  b:setProperty("backgroundColor", target)
+
+  luaunit.assertEquals(a.backgroundColor, b.backgroundColor)
+  luaunit.assertEquals(a.backgroundColor, target)
+end
+
+function TestRetainedPropertyConsistency:test_redundant_disabled_setProperty_still_syncs_theme_state()
+  -- setProperty("disabled", v) with an unchanged value must still reach
+  -- _syncThemeAndRenderer (setThemeState), not early-return before it.
+  local element = createBasicElement({ id = "redundant_disabled", disabled = true })
+  local stateCalls = {}
+  local origSet = element._renderer.setThemeState
+  element._renderer.setThemeState = function(_, state)
+    table.insert(stateCalls, state)
+  end
+
+  element:setProperty("disabled", true) -- same value, must NOT skip sync
+
+  luaunit.assertEquals(#stateCalls, 1)
+  luaunit.assertEquals(stateCalls[1], "disabled")
+  element._renderer.setThemeState = origSet
+end
+
+function TestRetainedPropertyConsistency:test_dimension_string_bare_write_warns_lazily()
+  -- Lua __newindex cannot intercept writes to existing keys (width/height are
+  -- set during construction), so a bare `element.width = "42%"` stores a raw
+  -- string. The lazy _checkDimensionTypes must flag it on the next reflow.
+  local element = createBasicElement({ id = "bare_dim_str", width = 100, height = 50 })
+  element.width = "42%" -- bypasses setProperty: stored as raw string
+  luaunit.assertEquals(type(element.width), "string")
+
+  -- Before any check, no warning has been recorded for this element.
+  luaunit.assertNil(element._dimWarned)
+
+  element:invalidateLayout()
+  element:layoutChildren() -- triggers the lazy check (dirty flag was set)
+
+  luaunit.assertNotNil(element._dimWarned)
+  luaunit.assertTrue(element._dimWarned.width == true, "expected stale width to be flagged")
+end
+
+function TestRetainedPropertyConsistency:test_checkDimensionTypes_flags_non_number_directly()
+  local element = createBasicElement({ id = "bare_dim_direct", width = 100, height = 50 })
+  element.height = "10%"
+
+  element:_checkDimensionTypes()
+
+  luaunit.assertTrue(element._dimWarned.height == true)
+  -- width is still a valid number -> NOT flagged
+  luaunit.assertNil(element._dimWarned.width)
+end
+
+function TestRetainedPropertyConsistency:test_checkDimensionTypes_warns_only_once_per_property()
+  local element = createBasicElement({ id = "bare_dim_once", width = 100, height = 50 })
+  element.width = "42%"
+
+  element:_checkDimensionTypes()
+  local firstFlag = element._dimWarned.width
+  -- A second call must not re-warn (flag stays set, no re-entry / spam).
+  element:_checkDimensionTypes()
+
+  luaunit.assertEquals(firstFlag, true)
+  luaunit.assertEquals(element._dimWarned.width, true)
+end
+
+function TestRetainedPropertyConsistency:test_dimension_setProperty_still_resolves_unit_strings()
+  -- Regression guard: setProperty must remain the correct path for dimensions.
+  local element = createBasicElement({ id = "dim_setprop", width = 100, height = 50 })
+  element:setProperty("width", "50%")
+
+  luaunit.assertEquals(type(element.width), "number")
+  luaunit.assertNotEquals(element.width, "50%")
+  luaunit.assertNotNil(element.units.width)
+  luaunit.assertEquals(element.units.width.unit, "%")
+end
+
 -- Run tests
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())

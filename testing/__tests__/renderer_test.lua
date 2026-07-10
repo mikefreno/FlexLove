@@ -99,7 +99,9 @@ function TestRendererConstruction:testNewWithEmptyConfig()
   luaunit.assertNotNil(renderer)
   luaunit.assertNotNil(renderer.backgroundColor)
   luaunit.assertNotNil(renderer.borderColor)
-  luaunit.assertNotNil(renderer.border)
+  -- border is intentionally NOT cached on the renderer: _drawBorders reads
+  -- element.border (source of truth) at draw time (see TestRendererBorder).
+  luaunit.assertNil(renderer.border)
   luaunit.assertNotNil(renderer.cornerRadius)
 end
 
@@ -206,7 +208,14 @@ end
 
 TestRendererBorder = {}
 
-function TestRendererBorder:testNewWithBorder()
+-- Border is resolved from the ELEMENT (source of truth) at draw time via the
+-- `border` argument to _drawBorders, not cached on the renderer. Renderer.new
+-- intentionally ignores config.border so that retained-mode bare writes
+-- (`element.border = ...`) and setProperty("border", ...) both take effect.
+-- Coverage of bare-write behavior lives in element_test.lua
+-- (TestRetainedPropertyConsistency).
+
+function TestRendererBorder:testBorderNotCachedWhenPassedInConfig()
   local renderer = Renderer.new({
     border = {
       top = true,
@@ -216,26 +225,12 @@ function TestRendererBorder:testNewWithBorder()
     },
   }, createDeps())
 
-  luaunit.assertTrue(renderer.border.top)
-  luaunit.assertFalse(renderer.border.right)
-  luaunit.assertTrue(renderer.border.bottom)
-  luaunit.assertFalse(renderer.border.left)
+  luaunit.assertNil(renderer.border, "border must not be cached on the renderer")
 end
 
-function TestRendererBorder:testNewWithAllBordersEnabled()
-  local renderer = Renderer.new({
-    border = {
-      top = true,
-      right = true,
-      bottom = true,
-      left = true,
-    },
-  }, createDeps())
-
-  luaunit.assertTrue(renderer.border.top)
-  luaunit.assertTrue(renderer.border.right)
-  luaunit.assertTrue(renderer.border.bottom)
-  luaunit.assertTrue(renderer.border.left)
+function TestRendererBorder:testBorderNotCachedWhenOmitted()
+  local renderer = Renderer.new({}, createDeps())
+  luaunit.assertNil(renderer.border)
 end
 
 -- ============================================================================
@@ -657,8 +652,8 @@ function TestRendererCombinedProperties:testNewWithAllVisualProperties()
   luaunit.assertEquals(renderer.objectFit, "contain")
   luaunit.assertEquals(renderer.objectPosition, "top left")
   luaunit.assertEquals(renderer.imageOpacity, 0.9)
-  luaunit.assertTrue(renderer.border.top)
-  luaunit.assertTrue(renderer.border.right)
+  -- border is NOT cached on the renderer (element source of truth); only
+  -- verify the still-cached cornerRadius here.
   luaunit.assertEquals(renderer.cornerRadius.topLeft, 10)
 end
 

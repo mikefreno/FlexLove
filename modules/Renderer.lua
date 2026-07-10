@@ -70,13 +70,9 @@ function Renderer.new(config, deps)
   self.borderColor = config.borderColor or Color.new(0, 0, 0, 1)
   self.opacity = config.opacity or 1
 
-  -- Border configuration
-  self.border = config.border or {
-    top = false,
-    right = false,
-    bottom = false,
-    left = false,
-  }
+  -- NOTE: border is intentionally NOT cached here. Renderer:draw resolves it from
+  -- element.border (source of truth) so retained-mode bare writes and
+  -- setProperty("border", ...) both take effect immediately.
 
   -- Corner radius
   self.cornerRadius = config.cornerRadius
@@ -109,7 +105,7 @@ function Renderer.new(config, deps)
 
   -- Load image if path provided
   if self.imagePath and not self.image then
-    local loadedImage, err = ImageCache.load(self.imagePath)
+    local loadedImage = ImageCache.load(self.imagePath)
     if loadedImage then
       self._loadedImage = loadedImage
     else
@@ -169,15 +165,17 @@ end
 ---@param width number Width
 ---@param height number Height
 ---@param drawBackgroundColor table Background color (may have animation applied)
-function Renderer:_drawBackground(x, y, width, height, drawBackgroundColor)
+---@param opacity number Element opacity
+---@param cornerRadius number|table Corner radius
+function Renderer:_drawBackground(x, y, width, height, drawBackgroundColor, opacity, cornerRadius)
   local backgroundWithOpacity = self._Color.new(
     drawBackgroundColor.r,
     drawBackgroundColor.g,
     drawBackgroundColor.b,
-    drawBackgroundColor.a * self.opacity
+    drawBackgroundColor.a * opacity
   )
   love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  self._RoundedRect.draw("fill", x, y, width, height, self.cornerRadius)
+  self._RoundedRect.draw("fill", x, y, width, height, cornerRadius)
 end
 
 --- Draw image layer
@@ -197,7 +195,9 @@ function Renderer:_drawImage(
   contentWidth,
   contentHeight,
   borderBoxWidth,
-  borderBoxHeight
+  borderBoxHeight,
+  opacity,
+  cornerRadius
 )
   if not self._loadedImage then
     return
@@ -210,18 +210,18 @@ function Renderer:_drawImage(
   local imageHeight = contentHeight
 
   -- Combine element opacity with imageOpacity
-  local finalOpacity = self.opacity * self.imageOpacity
+  local finalOpacity = opacity * self.imageOpacity
 
   -- Apply cornerRadius clipping if set
   local hasCornerRadius = false
-  if self.cornerRadius then
-    if type(self.cornerRadius) == "number" then
-      hasCornerRadius = self.cornerRadius > 0
+  if cornerRadius then
+    if type(cornerRadius) == "number" then
+      hasCornerRadius = cornerRadius > 0
     else
-      hasCornerRadius = self.cornerRadius.topLeft > 0
-        or self.cornerRadius.topRight > 0
-        or self.cornerRadius.bottomLeft > 0
-        or self.cornerRadius.bottomRight > 0
+      hasCornerRadius = cornerRadius.topLeft > 0
+        or cornerRadius.topRight > 0
+        or cornerRadius.bottomLeft > 0
+        or cornerRadius.bottomRight > 0
     end
   end
 
@@ -229,7 +229,7 @@ function Renderer:_drawImage(
     -- Use stencil to clip image to rounded corners
     local success, err = pcall(function()
       love.graphics.stencil(function()
-        self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+        self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
       end, "replace", 1)
       love.graphics.setStencilTest("greater", 0)
     end)
@@ -238,15 +238,15 @@ function Renderer:_drawImage(
       -- Check if it's a stencil buffer error
       if err and err:match("stencil") then
         local cornerRadiusStr
-        if type(self.cornerRadius) == "number" then
-          cornerRadiusStr = tostring(self.cornerRadius)
+        if type(cornerRadius) == "number" then
+          cornerRadiusStr = tostring(cornerRadius)
         else
           cornerRadiusStr = string.format(
             "TL:%d TR:%d BL:%d BR:%d",
-            self.cornerRadius.topLeft,
-            self.cornerRadius.topRight,
-            self.cornerRadius.bottomLeft,
-            self.cornerRadius.bottomRight
+            cornerRadius.topLeft,
+            cornerRadius.topRight,
+            cornerRadius.bottomLeft,
+            cornerRadius.bottomRight
           )
         end
         Renderer._ErrorHandler:warn("Renderer", "IMG_001", {
@@ -304,8 +304,19 @@ end
 ---@param borderBoxHeight number Border box height
 ---@param scaleCorners boolean Whether to scale corners (from element)
 ---@param scalingAlgorithm string Scaling algorithm (from element)
-function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners, scalingAlgorithm)
-  if not self.themeComponent then
+---@param themeComponent string|nil Theme component name
+---@param opacity number Element opacity
+function Renderer:_drawTheme(
+  x,
+  y,
+  borderBoxWidth,
+  borderBoxHeight,
+  scaleCorners,
+  scalingAlgorithm,
+  themeComponent,
+  opacity
+)
+  if not themeComponent then
     return
   end
 
@@ -332,7 +343,7 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
   end
 
   -- Get the component from the theme
-  local component = themeToUse.components[self.themeComponent]
+  local component = themeToUse.components[themeComponent]
   if not component then
     return
   end
@@ -367,7 +378,7 @@ function Renderer:_drawTheme(x, y, borderBoxWidth, borderBoxHeight, scaleCorners
         y,
         borderBoxWidth,
         borderBoxHeight,
-        self.opacity,
+        opacity,
         scaleCorners,
         scalingAlgorithm
       )
@@ -380,59 +391,62 @@ end
 ---@param y number Y position
 ---@param borderBoxWidth number Border box width
 ---@param borderBoxHeight number Border box height
-function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight)
+---@param borderColor Color Border color
+---@param opacity number Element opacity
+---@param cornerRadius number|table Corner radius
+function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight, borderColor, opacity, cornerRadius, border)
+  -- border is read from the element (source of truth) so retained-mode bare writes
+  -- (`element.border = ...`) and setProperty("border", ...) both take effect immediately.
   -- OPTIMIZATION: Early exit if no border (nil or all false)
-  if not self.border then
+  if not border then
     return
   end
 
   -- Handle border as number (uniform border width)
-  if type(self.border) == "number" then
-    local borderColorWithOpacity =
-      self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  if type(border) == "number" then
+    local borderColorWithOpacity = self._Color.new(borderColor.r, borderColor.g, borderColor.b, borderColor.a * opacity)
     love.graphics.setColor(borderColorWithOpacity:toRGBA())
-    love.graphics.setLineWidth(self.border)
-    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+    love.graphics.setLineWidth(border)
+    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
     love.graphics.setLineWidth(1) -- Reset to default
     return
   end
 
-  local borderColorWithOpacity =
-    self._Color.new(self.borderColor.r, self.borderColor.g, self.borderColor.b, self.borderColor.a * self.opacity)
+  local borderColorWithOpacity = self._Color.new(borderColor.r, borderColor.g, borderColor.b, borderColor.a * opacity)
   love.graphics.setColor(borderColorWithOpacity:toRGBA())
 
   -- Check if all borders are enabled with same width
-  local allBorders = self.border.top and self.border.bottom and self.border.left and self.border.right
+  local allBorders = border.top and border.bottom and border.left and border.right
   local uniformWidth = allBorders
-    and type(self.border.top) == "number"
-    and self.border.top == self.border.right
-    and self.border.top == self.border.bottom
-    and self.border.top == self.border.left
+    and type(border.top) == "number"
+    and border.top == border.right
+    and border.top == border.bottom
+    and border.top == border.left
 
   if uniformWidth then
     -- Draw complete rounded rectangle border with uniform width
-    love.graphics.setLineWidth(self.border.top)
-    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+    love.graphics.setLineWidth(border.top)
+    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
     love.graphics.setLineWidth(1) -- Reset to default
   else
     -- Draw individual borders with varying widths (without rounded corners for partial/varying borders)
-    if self.border.top then
-      local width = type(self.border.top) == "number" and self.border.top or 1
+    if border.top then
+      local width = type(border.top) == "number" and border.top or 1
       love.graphics.setLineWidth(width)
       love.graphics.line(x, y, x + borderBoxWidth, y)
     end
-    if self.border.bottom then
-      local width = type(self.border.bottom) == "number" and self.border.bottom or 1
+    if border.bottom then
+      local width = type(border.bottom) == "number" and border.bottom or 1
       love.graphics.setLineWidth(width)
       love.graphics.line(x, y + borderBoxHeight, x + borderBoxWidth, y + borderBoxHeight)
     end
-    if self.border.left then
-      local width = type(self.border.left) == "number" and self.border.left or 1
+    if border.left then
+      local width = type(border.left) == "number" and border.left or 1
       love.graphics.setLineWidth(width)
       love.graphics.line(x, y, x, y + borderBoxHeight)
     end
-    if self.border.right then
-      local width = type(self.border.right) == "number" and self.border.right or 1
+    if border.right then
+      local width = type(border.right) == "number" and border.right or 1
       love.graphics.setLineWidth(width)
       love.graphics.line(x + borderBoxWidth, y, x + borderBoxWidth, y + borderBoxHeight)
     end
@@ -459,8 +473,18 @@ function Renderer:draw(element, backdropCanvas)
     Renderer._Performance:incrementCounter("draw_calls", 1)
   end
 
+  -- Resolve visual properties from element (source of truth), use inline defaults
+  -- Direct writes to element properties are the single source of truth;
+  -- no cache fallback so that retained-mode direct field updates work consistently.
+  local opacity = element.opacity ~= nil and element.opacity or 1
+  local backgroundColor = element.backgroundColor or self._Color.new(0, 0, 0, 0)
+  local borderColor = element.borderColor or self._Color.new(0, 0, 0, 1)
+  local cornerRadius = element.cornerRadius ~= nil and element.cornerRadius or nil
+  local themeComponent = element.themeComponent
+  local border = element.border
+
   -- Early exit if element is invisible (optimization)
-  if self.opacity <= 0 then
+  if opacity <= 0 then
     if Renderer._Performance and Renderer._Performance.enabled and elementId then
       Renderer._Performance:stopTimer("render_" .. elementId)
     end
@@ -468,12 +492,11 @@ function Renderer:draw(element, backdropCanvas)
   end
 
   -- Handle opacity during animation
-  local drawBackgroundColor = self.backgroundColor
+  local drawBackgroundColor = backgroundColor
   if element.animation then
     local anim = element.animation:interpolate()
     if anim.opacity then
-      drawBackgroundColor =
-        self._Color.new(self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b, anim.opacity)
+      drawBackgroundColor = self._Color.new(backgroundColor.r, backgroundColor.g, backgroundColor.b, anim.opacity)
     end
   end
 
@@ -506,7 +529,15 @@ function Renderer:draw(element, backdropCanvas)
   end
 
   -- LAYER 1: Draw backgroundColor first (behind everything)
-  self:_drawBackground(element.x, element.y, borderBoxWidth, borderBoxHeight, drawBackgroundColor)
+  self:_drawBackground(
+    element.x,
+    element.y,
+    borderBoxWidth,
+    borderBoxHeight,
+    drawBackgroundColor,
+    opacity,
+    cornerRadius
+  )
 
   -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
   self:_drawImage(
@@ -517,14 +548,25 @@ function Renderer:draw(element, backdropCanvas)
     element.width,
     element.height,
     borderBoxWidth,
-    borderBoxHeight
+    borderBoxHeight,
+    opacity,
+    cornerRadius
   )
 
   -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
-  self:_drawTheme(element.x, element.y, borderBoxWidth, borderBoxHeight, element.scaleCorners, element.scalingAlgorithm)
+  self:_drawTheme(
+    element.x,
+    element.y,
+    borderBoxWidth,
+    borderBoxHeight,
+    element.scaleCorners,
+    element.scalingAlgorithm,
+    themeComponent,
+    opacity
+  )
 
   -- LAYER 3: Draw borders on top of theme
-  self:_drawBorders(element.x, element.y, borderBoxWidth, borderBoxHeight)
+  self:_drawBorders(element.x, element.y, borderBoxWidth, borderBoxHeight, borderColor, opacity, cornerRadius, border)
 
   -- Unapply transform if it was applied
   if hasTransform then
@@ -614,7 +656,7 @@ function Renderer:wrapLine(element, line, maxWidth)
 
     -- Process tokens and wrap
     local charPos = 0 -- Track our position in the original line
-    for i, token in ipairs(tokens) do
+    for _, token in ipairs(tokens) do
       if token.type == "word" then
         local testLine = currentLine .. token.text
         local width = font:getWidth(testLine)
@@ -750,7 +792,6 @@ function Renderer:drawText(element)
   -- For editable elements, use TextEditor buffer; for non-editable, use text
   local displayText = element._textEditor and element._textEditor:getText() or element.text
   local isPlaceholder = false
-  local isPasswordMasked = false
 
   -- Show placeholder if editable and empty
   if element.editable and (not displayText or displayText == "") and element.placeholder then
@@ -762,7 +803,6 @@ function Renderer:drawText(element)
   if element.passwordMode and displayText and displayText ~= "" and not isPlaceholder then
     local maskedText = string.rep("•", UTF8.len(displayText))
     displayText = maskedText
-    isPasswordMasked = true
   end
 
   if displayText and displayText ~= "" then
@@ -774,7 +814,8 @@ function Renderer:drawText(element)
           element.textColor.a * 0.5
         )
       or element.textColor
-    local textColorWithOpacity = self._Color.new(textColor.r, textColor.g, textColor.b, textColor.a * self.opacity)
+    local textColorOpacity = element.opacity ~= nil and element.opacity or (self.opacity or 1)
+    local textColorWithOpacity = self._Color.new(textColor.r, textColor.g, textColor.b, textColor.a * textColorOpacity)
     love.graphics.setColor(textColorWithOpacity:toRGBA())
 
     local origFont = love.graphics.getFont()
@@ -878,8 +919,9 @@ function Renderer:drawText(element)
     -- Draw cursor for focused editable elements (even if text is empty)
     if element._textEditor and element._textEditor:isFocused() and element._textEditor._cursorVisible then
       local cursorColor = element.cursorColor or element.textColor
+      local elemOpacity = element.opacity ~= nil and element.opacity or (self.opacity or 1)
       local cursorWithOpacity =
-        self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+        self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * elemOpacity)
       love.graphics.setColor(cursorWithOpacity:toRGBA())
 
       -- Calculate cursor position using TextEditor method
@@ -914,8 +956,9 @@ function Renderer:drawText(element)
       if textBuffer and textBuffer ~= "" then
         local selStart, selEnd = element._textEditor:getSelection()
         local selectionColor = element.selectionColor or self._Color.new(0.3, 0.5, 0.8, 0.5)
+        local elemOpacity = element.opacity ~= nil and element.opacity or (self.opacity or 1)
         local selectionWithOpacity =
-          self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * self.opacity)
+          self._Color.new(selectionColor.r, selectionColor.g, selectionColor.b, selectionColor.a * elemOpacity)
 
         -- Get selection rectangles from TextEditor
         local selectionRects = element._textEditor:_getSelectionRects(element, selStart, selEnd)
@@ -980,7 +1023,8 @@ function Renderer:drawText(element)
 
     -- Draw cursor
     local cursorColor = element.cursorColor or element.textColor
-    local cursorWithOpacity = self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * self.opacity)
+    local elemOpacity = element.opacity ~= nil and element.opacity or (self.opacity or 1)
+    local cursorWithOpacity = self._Color.new(cursorColor.r, cursorColor.g, cursorColor.b, cursorColor.a * elemOpacity)
     love.graphics.setColor(cursorWithOpacity:toRGBA())
     love.graphics.rectangle("fill", contentX, contentY, 2, textHeight)
 
@@ -1032,16 +1076,11 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         knobOffsetY = themeOffset.vertical
       end
 
-      -- Extract contentPadding from frame for knob sizing
-      local framePaddingLeft = 0
+      -- Extract contentPadding top inset from frame for knob sizing.
+      -- Vertical scrollbar only consumes framePaddingTop; other insets are unused.
       local framePaddingTop = 0
-      local framePaddingRight = 0
-      local framePaddingBottom = 0
       if frameComponent and frameComponent._ninePatchData and frameComponent._ninePatchData.contentPadding then
-        framePaddingLeft = frameComponent._ninePatchData.contentPadding.left or 0
         framePaddingTop = frameComponent._ninePatchData.contentPadding.top or 0
-        framePaddingRight = frameComponent._ninePatchData.contentPadding.right or 0
-        framePaddingBottom = frameComponent._ninePatchData.contentPadding.bottom or 0
       end
 
       -- Draw track (frame) if component exists
@@ -1137,15 +1176,13 @@ function Renderer:drawScrollbars(element, x, y, w, h, dims)
         knobOffsetY = themeOffset.y
       end
 
-      -- Extract contentPadding from frame for knob sizing
+      -- Extract contentPadding from frame for knob sizing (horizontal: right inset unused).
       local framePaddingLeft = 0
       local framePaddingTop = 0
-      local framePaddingRight = 0
       local framePaddingBottom = 0
       if frameComponent and frameComponent._ninePatchData and frameComponent._ninePatchData.contentPadding then
         framePaddingLeft = frameComponent._ninePatchData.contentPadding.left or 0
         framePaddingTop = frameComponent._ninePatchData.contentPadding.top or 0
-        framePaddingRight = frameComponent._ninePatchData.contentPadding.right or 0
         framePaddingBottom = frameComponent._ninePatchData.contentPadding.bottom or 0
       end
 
@@ -1223,9 +1260,11 @@ end
 ---@param y number Y position
 ---@param borderBoxWidth number Border box width
 ---@param borderBoxHeight number Border box height
-function Renderer:drawPressedState(x, y, borderBoxWidth, borderBoxHeight)
-  love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * self.opacity) -- Semi-transparent gray for pressed state with opacity
-  self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, self.cornerRadius)
+---@param opacity number Element opacity
+---@param cornerRadius number|table Corner radius
+function Renderer:drawPressedState(x, y, borderBoxWidth, borderBoxHeight, opacity, cornerRadius)
+  love.graphics.setColor(0.5, 0.5, 0.5, 0.3 * (opacity or 1))
+  self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
 end
 
 --- Cleanup renderer resources

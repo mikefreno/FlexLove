@@ -189,6 +189,30 @@ function Element.init(deps)
     utils = Element._utils,
     Element = Element,
   })
+
+  -- Bind Element scroll/scrollbar API directly onto ScrollManager.
+  -- ScrollManager owns all scroll interaction logic; Element retains only
+  -- 1-line delegates (no hand-written sync/nil-guard boilerplate).
+  local SM = Element._ScrollManager
+  Element._syncScrollManagerState = SM.syncToElement
+  Element._detectOverflow = SM._detectOverflow
+  Element.setScrollPosition = SM.setScrollPosition
+  Element._calculateScrollbarDimensions = SM._calculateScrollbarDimensions
+  Element._getScrollbarAtPosition = SM._getScrollbarAtPosition
+  Element._handleScrollbarPress = SM._handleScrollbarPress
+  Element._handleScrollbarDrag = SM._handleScrollbarDrag
+  Element._handleScrollbarRelease = SM._handleScrollbarRelease
+  Element._handleWheelScroll = SM._handleWheelScroll
+  Element.getScrollPosition = SM.getScrollPosition
+  Element.getMaxScroll = SM.elementGetMaxScroll
+  Element.getScrollPercentage = SM.elementGetScrollPercentage
+  Element.hasOverflow = SM.elementHasOverflow
+  Element.getContentSize = SM.elementGetContentSize
+  Element.scrollBy = SM.elementScrollBy
+  Element.scrollToTop = SM.scrollToTop
+  Element.scrollToBottom = SM.scrollToBottom
+  Element.scrollToLeft = SM.scrollToLeft
+  Element.scrollToRight = SM.scrollToRight
 end
 
 -- Module-level helper: resolve a dimensional property with CSS-like unit support (px, %, vw, vh, calc)
@@ -1956,206 +1980,11 @@ function Element:invalidateLayout()
   end
 end
 
---- Sync ScrollManager state to Element properties for backward compatibility
---- This ensures Renderer and StateManager can access scroll state from Element
-function Element:_syncScrollManagerState()
-  if not self._scrollManager then
-    return
-  end
-
-  -- Sync state properties from ScrollManager
-  self._overflowX = self._scrollManager._overflowX
-  self._overflowY = self._scrollManager._overflowY
-  self._contentWidth = self._scrollManager._contentWidth
-  self._contentHeight = self._scrollManager._contentHeight
-  self._scrollX = self._scrollManager._scrollX
-  self._scrollY = self._scrollManager._scrollY
-  self._maxScrollX = self._scrollManager._maxScrollX
-  self._maxScrollY = self._scrollManager._maxScrollY
-  self._scrollbarHoveredVertical = self._scrollManager._scrollbarHoveredVertical
-  self._scrollbarHoveredHorizontal = self._scrollManager._scrollbarHoveredHorizontal
-  self._scrollbarDragging = self._scrollManager._scrollbarDragging
-  self._hoveredScrollbar = self._scrollManager._hoveredScrollbar
-  self._scrollbarDragOffset = self._scrollManager._scrollbarDragOffset
-end
-
---- Detect if content overflows container bounds (delegates to ScrollManager)
-function Element:_detectOverflow()
-  if self._scrollManager then
-    self._scrollManager:detectOverflow(self)
-    self:_syncScrollManagerState()
-  end
-end
-
---- Programmatically scroll content to any position for implementing "scroll to top" buttons or navigation anchors
---- Use this to create custom scrolling controls or jump to specific content sections
----@param x number? -- X scroll position (nil to keep current)
----@param y number? -- Y scroll position (nil to keep current)
-function Element:setScrollPosition(x, y)
-  if self._scrollManager then
-    self._scrollManager:setScroll(x, y)
-    self:_syncScrollManagerState()
-  end
-end
-
---- Calculate scrollbar dimensions and positions (delegates to ScrollManager)
----@return table -- {vertical: {visible, trackHeight, thumbHeight, thumbY}, horizontal: {visible, trackWidth, thumbWidth, thumbX}}
-function Element:_calculateScrollbarDimensions()
-  if self._scrollManager then
-    return self._scrollManager:calculateScrollbarDimensions(self)
-  end
-  -- Return empty result if no ScrollManager
-  return {
-    vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
-    horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
-  }
-end
-
---- Draw scrollbars
-
---- Get scrollbar at mouse position (delegates to ScrollManager)
----@param mouseX number
----@param mouseY number
----@return table|nil -- {component: "vertical"|"horizontal", region: "thumb"|"track"}
-function Element:_getScrollbarAtPosition(mouseX, mouseY)
-  if self._scrollManager then
-    return self._scrollManager:getScrollbarAtPosition(self, mouseX, mouseY)
-  end
-  return nil
-end
-
---- Handle scrollbar mouse press
----@param mouseX number
----@param mouseY number
----@param button number
----@return boolean -- True if event was consumed
-function Element:_handleScrollbarPress(mouseX, mouseY, button)
-  if self._scrollManager then
-    local consumed = self._scrollManager:handleMousePress(self, mouseX, mouseY, button)
-    self:_syncScrollManagerState()
-    return consumed
-  end
-  return false
-end
-
---- Handle scrollbar drag (delegates to ScrollManager)
----@param mouseX number
----@param mouseY number
----@return boolean -- True if event was consumed
-function Element:_handleScrollbarDrag(mouseX, mouseY)
-  if self._scrollManager then
-    local consumed = self._scrollManager:handleMouseMove(self, mouseX, mouseY)
-    self:_syncScrollManagerState()
-    return consumed
-  end
-  return false
-end
-
---- Handle scrollbar release (delegates to ScrollManager)
----@param button number
----@return boolean -- True if event was consumed
-function Element:_handleScrollbarRelease(button)
-  if self._scrollManager then
-    local consumed = self._scrollManager:handleMouseRelease(button)
-    self:_syncScrollManagerState()
-    return consumed
-  end
-  return false
-end
-
---- Handle mouse wheel scrolling (delegates to ScrollManager)
----@param x number -- Horizontal scroll amount
----@param y number -- Vertical scroll amount
----@return boolean -- True if scroll was handled
-function Element:_handleWheelScroll(x, y)
-  if self._scrollManager then
-    local consumed = self._scrollManager:handleWheel(x, y)
-    self:_syncScrollManagerState()
-    return consumed
-  end
-  return false
-end
-
---- Query how far content is scrolled to implement scroll-aware UI like "back to top" buttons
---- Use this to create scroll position indicators or trigger lazy-loading
----@return number scrollX, number scrollY
-function Element:getScrollPosition()
-  if self._scrollManager then
-    return self._scrollManager:getScroll()
-  end
-  return 0, 0
-end
-
---- Find the scroll limits for validation and scroll position clamping
---- Use this to determine if content is fully scrolled or calculate remaining scroll distance
----@return number maxScrollX, number maxScrollY
-function Element:getMaxScroll()
-  if self._scrollManager then
-    return self._scrollManager:getMaxScroll()
-  end
-  return 0, 0
-end
-
---- Get normalized scroll progress for scroll-based animations or position indicators
---- Use this to drive progress bars or parallax effects based on scroll position
----@return number percentX, number percentY
-function Element:getScrollPercentage()
-  if self._scrollManager then
-    return self._scrollManager:getScrollPercentage()
-  end
-  return 0, 0
-end
-
---- Determine if content extends beyond visible bounds to conditionally show scrollbars or overflow indicators
---- Use this to decide whether to display scroll hints or enable scroll interactions
----@return boolean hasOverflowX, boolean hasOverflowY
-function Element:hasOverflow()
-  if self._scrollManager then
-    return self._scrollManager:hasOverflow()
-  end
-  return false, false
-end
-
---- Measure total content size including overflowed areas for scroll calculations
---- Use this to understand how much content exists beyond the visible viewport
----@return number contentWidth, number contentHeight
-function Element:getContentSize()
-  if self._scrollManager then
-    return self._scrollManager:getContentSize()
-  end
-  return 0, 0
-end
-
---- Scroll content by a relative amount for smooth scrolling animations or gesture-based scrolling
---- Use this to implement custom scroll controls or smooth scroll transitions
---- In immediate mode, defers until layout has calculated scroll bounds.
----@param dx number? -- X delta (nil for no change)
----@param dy number? -- Y delta (nil for no change)
-function Element:scrollBy(dx, dy)
-  if self._scrollManager then
-    local maxScrollX, maxScrollY = self._scrollManager:getMaxScroll()
-
-    if dx ~= nil and maxScrollX == 0 then
-      self:_deferMethod("scrollBy", dx, nil)
-      dx = nil
-    end
-    if dy ~= nil and maxScrollY == 0 then
-      self:_deferMethod("scrollBy", nil, dy)
-      dy = nil
-    end
-
-    if dx ~= nil or dy ~= nil then
-      self._scrollManager:scrollBy(dx, dy)
-      self:_syncScrollManagerState()
-    end
-  end
-end
-
---- Jump to the beginning of scrollable content instantly
---- Use this for "back to top" buttons or resetting scroll position
-function Element:scrollToTop()
-  self:setScrollPosition(nil, 0)
-end
+-- Scroll / scrollbar methods (_syncScrollManagerState, _detectOverflow, setScrollPosition,
+-- _calculateScrollbarDimensions, _getScrollbarAtPosition, _handleScrollbarPress/Drag/Release,
+-- _handleWheelScroll, getScrollPosition, getMaxScroll, getScrollPercentage, hasOverflow,
+-- getContentSize, scrollBy, scrollToTop) are bound to ScrollManager in Element.init. ScrollManager
+-- owns all scrollbar interaction logic; Element retains only 1-line delegates (see ScrollManager.lua).
 
 --- Mark a method for deferred retry during the update phase.
 --- Methods that depend on layout calculations (e.g., scroll, sizing)
@@ -2249,38 +2078,7 @@ function Element:_loadImage()
   end
 end
 
---- Scroll to bottom
---- In immediate mode, scroll position is saved after the update phase,
---- so we defer the scroll if layout hasn't happened yet.
-function Element:scrollToBottom()
-  if self._scrollManager then
-    local _, maxScrollY = self._scrollManager:getMaxScroll()
-    if maxScrollY > 0 then
-      self:setScrollPosition(nil, maxScrollY)
-    else
-      self:_deferMethod("scrollToBottom")
-    end
-  end
-end
-
---- Scroll to left
-function Element:scrollToLeft()
-  self:setScrollPosition(0, nil)
-end
-
---- Jump to the rightmost position of horizontally scrollable content
---- Use this to navigate to the end of horizontal lists or carousels
---- In immediate mode, defers until layout has calculated scroll bounds.
-function Element:scrollToRight()
-  if self._scrollManager then
-    local maxScrollX, _ = self._scrollManager:getMaxScroll()
-    if maxScrollX > 0 then
-      self:setScrollPosition(maxScrollX, nil)
-    else
-      self:_deferMethod("scrollToRight")
-    end
-  end
-end
+-- scrollToBottom / scrollToLeft / scrollToRight are bound to ScrollManager in Element.init.
 
 --- Get the current state's scaled content padding
 --- Returns the contentPadding for the current theme state, scaled to the element's size

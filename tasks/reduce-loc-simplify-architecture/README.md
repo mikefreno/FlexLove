@@ -12,7 +12,7 @@ Status legend: [ ] todo, [~] in-progress, [x] done
 - [x] 04 — hoist-lookup-tables-to-module-scope → `04-hoist-lookup-tables-to-module-scope.md`
 - [x] 05 — registry-driven-setproperty-dispatch → `05-registry-driven-setproperty-dispatch.md`
 - [x] 06 — extract-select-subsystem-from-element → `06-extract-select-subsystem-from-element.md`
-- [ ] 07 — extract-scrollbar-handling-from-element → `07-extract-scrollbar-handling-from-element.md`
+- [x] 07 — extract-scrollbar-handling-from-element → `07-extract-scrollbar-handling-from-element.md`
 - [ ] 08 — extract-texteditor-selection-from-element → `08-extract-texteditor-selection-from-element.md`
 - [ ] 09 — split-utils-into-focused-modules → `09-split-utils-into-focused-modules.md`
 - [ ] 10 — split-element-new-into-staged-initializers → `10-split-element-new-into-staged-initializers.md`

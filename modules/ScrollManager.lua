@@ -1081,4 +1081,286 @@ function ScrollManager:isMomentumScrolling()
   return self._momentumScrolling
 end
 
+-------------------------------------------------------------------------------
+-- Element-facing delegates
+--
+-- These wrappers bind the Element class's scroll API directly onto the
+-- ScrollManager instance methods. Each takes the Element as its first argument
+-- (the role `self` played when these methods lived on Element), performs the
+-- nil-safety guard, invokes the owning ScrollManager instance, and syncs state
+-- back onto the element for backward-compatible readers (Renderer, FlexLove,
+-- Context hit-testing read these fields from Element).
+--
+-- Element binds them via direct assignment in Element.init, e.g.
+--   Element.scrollToTop = Element._ScrollManager.scrollToTop
+-- so Element retains only 1-line delegates and owns no scroll logic.
+-------------------------------------------------------------------------------
+
+local _EMPTY_SCROLLBAR_DIMS = {
+  vertical = { visible = false, trackHeight = 0, thumbHeight = 0, thumbY = 0 },
+  horizontal = { visible = false, trackWidth = 0, thumbWidth = 0, thumbX = 0 },
+}
+
+--- Sync internal scroll state onto the element for backward-compatible readers.
+---@param element table Element instance whose _scrollManager holds the state
+function ScrollManager.syncToElement(element)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  element._overflowX = sm._overflowX
+  element._overflowY = sm._overflowY
+  element._contentWidth = sm._contentWidth
+  element._contentHeight = sm._contentHeight
+  element._scrollX = sm._scrollX
+  element._scrollY = sm._scrollY
+  element._maxScrollX = sm._maxScrollX
+  element._maxScrollY = sm._maxScrollY
+  element._scrollbarHoveredVertical = sm._scrollbarHoveredVertical
+  element._scrollbarHoveredHorizontal = sm._scrollbarHoveredHorizontal
+  element._scrollbarDragging = sm._scrollbarDragging
+  element._hoveredScrollbar = sm._hoveredScrollbar
+  element._scrollbarDragOffset = sm._scrollbarDragOffset
+end
+
+--- Backward-compatible alias retained by Element internals (update hover/drag).
+ScrollManager.syncScrollManagerState = ScrollManager.syncToElement
+
+--- Detect overflow and sync state onto element.
+---@param element table Element instance
+function ScrollManager._detectOverflow(element)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  sm:detectOverflow(element)
+  ScrollManager.syncToElement(element)
+end
+
+--- Set scroll position (element-facing). Nil args keep the current axis.
+---@param element table Element instance
+---@param x number? X scroll position
+---@param y number? Y scroll position
+function ScrollManager.setScrollPosition(element, x, y)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  sm:setScroll(x, y)
+  ScrollManager.syncToElement(element)
+end
+
+--- Calculate scrollbar dimensions (element-facing).
+---@param element table Element instance
+---@return table dims {vertical, horizontal}
+function ScrollManager._calculateScrollbarDimensions(element)
+  local sm = element._scrollManager
+  if not sm then
+    return _EMPTY_SCROLLBAR_DIMS
+  end
+  return sm:calculateScrollbarDimensions(element)
+end
+
+--- Get scrollbar at mouse position (element-facing).
+---@param element table Element instance
+---@param mouseX number
+---@param mouseY number
+---@return table|nil {component, region}
+function ScrollManager._getScrollbarAtPosition(element, mouseX, mouseY)
+  local sm = element._scrollManager
+  if not sm then
+    return nil
+  end
+  return sm:getScrollbarAtPosition(element, mouseX, mouseY)
+end
+
+--- Handle scrollbar mouse press (element-facing).
+---@param element table Element instance
+---@param mouseX number
+---@param mouseY number
+---@param button number
+---@return boolean consumed
+function ScrollManager._handleScrollbarPress(element, mouseX, mouseY, button)
+  local sm = element._scrollManager
+  if not sm then
+    return false
+  end
+  local consumed = sm:handleMousePress(element, mouseX, mouseY, button)
+  ScrollManager.syncToElement(element)
+  return consumed
+end
+
+--- Handle scrollbar drag (element-facing).
+---@param element table Element instance
+---@param mouseX number
+---@param mouseY number
+---@return boolean consumed
+function ScrollManager._handleScrollbarDrag(element, mouseX, mouseY)
+  local sm = element._scrollManager
+  if not sm then
+    return false
+  end
+  local consumed = sm:handleMouseMove(element, mouseX, mouseY)
+  ScrollManager.syncToElement(element)
+  return consumed
+end
+
+--- Handle scrollbar release (element-facing).
+---@param element table Element instance
+---@param button number
+---@return boolean consumed
+function ScrollManager._handleScrollbarRelease(element, button)
+  local sm = element._scrollManager
+  if not sm then
+    return false
+  end
+  local consumed = sm:handleMouseRelease(button)
+  ScrollManager.syncToElement(element)
+  return consumed
+end
+
+--- Handle mouse wheel scrolling (element-facing).
+---@param element table Element instance
+---@param x number Horizontal scroll amount
+---@param y number Vertical scroll amount
+---@return boolean consumed
+function ScrollManager._handleWheelScroll(element, x, y)
+  local sm = element._scrollManager
+  if not sm then
+    return false
+  end
+  local consumed = sm:handleWheel(x, y)
+  ScrollManager.syncToElement(element)
+  return consumed
+end
+
+--- Get current scroll position (element-facing).
+---@param element table Element instance
+---@return number scrollX, number scrollY
+function ScrollManager.getScrollPosition(element)
+  local sm = element._scrollManager
+  if not sm then
+    return 0, 0
+  end
+  return sm:getScroll()
+end
+
+-- The following getters share names with ScrollManager *instance* methods,
+-- so the element-facing wrappers use distinct `element`-prefixed names to
+-- avoid shadowing the instance API (tests call sm:getMaxScroll() etc.).
+
+--- Get maximum scroll bounds (element-facing).
+---@param element table Element instance
+---@return number maxScrollX, number maxScrollY
+function ScrollManager.elementGetMaxScroll(element)
+  local sm = element._scrollManager
+  if not sm then
+    return 0, 0
+  end
+  return sm:getMaxScroll()
+end
+
+--- Get scroll percentage 0-1 (element-facing).
+---@param element table Element instance
+---@return number percentX, number percentY
+function ScrollManager.elementGetScrollPercentage(element)
+  local sm = element._scrollManager
+  if not sm then
+    return 0, 0
+  end
+  return sm:getScrollPercentage()
+end
+
+--- Check if element has overflow (element-facing).
+---@param element table Element instance
+---@return boolean hasOverflowX, boolean hasOverflowY
+function ScrollManager.elementHasOverflow(element)
+  local sm = element._scrollManager
+  if not sm then
+    return false, false
+  end
+  return sm:hasOverflow()
+end
+
+--- Get content dimensions (element-facing).
+---@param element table Element instance
+---@return number contentWidth, number contentHeight
+function ScrollManager.elementGetContentSize(element)
+  local sm = element._scrollManager
+  if not sm then
+    return 0, 0
+  end
+  return sm:getContentSize()
+end
+
+--- Scroll by relative delta (element-facing).
+-- In immediate mode, per-axis deltas whose scroll bound is still 0 are deferred
+-- until layout calculates the bound (delegates to Element:_deferMethod).
+---@param element table Element instance
+---@param dx number? X delta
+---@param dy number? Y delta
+function ScrollManager.elementScrollBy(element, dx, dy)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  local maxScrollX, maxScrollY = sm:getMaxScroll()
+  if dx ~= nil and maxScrollX == 0 then
+    element:_deferMethod("scrollBy", dx, nil)
+    dx = nil
+  end
+  if dy ~= nil and maxScrollY == 0 then
+    element:_deferMethod("scrollBy", nil, dy)
+    dy = nil
+  end
+  if dx ~= nil or dy ~= nil then
+    sm:scrollBy(dx, dy)
+    ScrollManager.syncToElement(element)
+  end
+end
+
+--- Jump to the top of scrollable content.
+---@param element table Element instance
+function ScrollManager.scrollToTop(element)
+  element:setScrollPosition(nil, 0)
+end
+
+--- Jump to the bottom of scrollable content.
+-- Defers until layout has calculated the vertical scroll bound.
+---@param element table Element instance
+function ScrollManager.scrollToBottom(element)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  local _, maxScrollY = sm:getMaxScroll()
+  if maxScrollY > 0 then
+    element:setScrollPosition(nil, maxScrollY)
+  else
+    element:_deferMethod("scrollToBottom")
+  end
+end
+
+--- Jump to the leftmost position of scrollable content.
+---@param element table Element instance
+function ScrollManager.scrollToLeft(element)
+  element:setScrollPosition(0, nil)
+end
+
+--- Jump to the rightmost position of scrollable content.
+-- Defers until layout has calculated the horizontal scroll bound.
+---@param element table Element instance
+function ScrollManager.scrollToRight(element)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  local maxScrollX, _ = sm:getMaxScroll()
+  if maxScrollX > 0 then
+    element:setScrollPosition(maxScrollX, nil)
+  else
+    element:_deferMethod("scrollToRight")
+  end
+end
+
 return ScrollManager

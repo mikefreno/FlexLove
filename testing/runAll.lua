@@ -93,6 +93,7 @@ local testFiles = {
   "testing/__tests__/scroll_manager_test.lua",
   "testing/__tests__/scrollbar_placement_test.lua",
   "testing/__tests__/select_test.lua",
+  "testing/__tests__/setproperty_dispatch_test.lua",
   "testing/__tests__/test_children_prop.lua",
   "testing/__tests__/test_display.lua",
   "testing/__tests__/text_editor_test.lua",

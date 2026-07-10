@@ -248,6 +248,16 @@ function PropertySchema.isDimension(name)
   return meta ~= nil and meta.isDimension == true
 end
 
+--- True for props whose setProperty path must reach ThemeManager/Renderer
+--- (disabled/active/themeComponent). O(1) registry lookup — no per-call table
+--- construction. Unknown props return false, matching a legacy nil-lookup exactly.
+---@param name string prop name
+---@return boolean
+function PropertySchema.syncsTheme(name)
+  local meta = registry[name]
+  return meta ~= nil and meta.syncsTheme == true
+end
+
 -- ---------------------------------------------------------------------------
 -- Default schema (covers every prop handled in Element.new lines 259-1909 and
 -- Element:setProperty lines 4291-4417 of the Task-01 baseline).

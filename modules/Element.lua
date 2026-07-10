@@ -4273,112 +4273,124 @@ function Element:_resolveDimensionProperty(property, value)
   return resolved
 end
 
---- Set property with automatic transition
+--- Resolve a dimension (width/height) prop given a unit-string/Calc value.
+--- Handles the unit-sameness short-circuit, transition-on-resolved-pixel-value
+--- semantics, and layout invalidation. Exits setProperty (caller returns).
+local function _setDimensionWithUnit(self, property, value, transitionConfig)
+  -- Check if the unit specification is the same (compare against stored units)
+  local currentUnits = self.units[property]
+  local newValue, newUnit = Element._Units.parse(value)
+  if currentUnits and currentUnits.value == newValue and currentUnits.unit == newUnit then
+    return
+  end
+
+  if transitionConfig then
+    -- For transitions, resolve the target value and transition the pixel value
+    local currentPixelValue = self[property]
+    local resolvedTarget = self:_resolveDimensionProperty(property, value)
+
+    if currentPixelValue ~= nil and currentPixelValue ~= resolvedTarget then
+      -- Reset to current value before animating
+      self[property] = currentPixelValue
+      local Animation = require("modules.Animation")
+      local anim = Animation.new({
+        duration = transitionConfig.duration,
+        start = { [property] = currentPixelValue },
+        final = { [property] = resolvedTarget },
+        easing = transitionConfig.easing,
+        onComplete = transitionConfig.onComplete,
+      })
+      anim:apply(self)
+    end
+  else
+    self:_resolveDimensionProperty(property, value)
+  end
+
+  self:invalidateLayout()
+end
+
+--- Apply a transition animation from the current value to `value` for `property`.
+--- Falls back to a direct write when there is no current value to animate from.
+local function _animatePropertyTo(self, property, value, transitionConfig)
+  local currentValue = self[property]
+  if currentValue ~= nil then
+    local Animation = require("modules.Animation")
+    local anim = Animation.new({
+      duration = transitionConfig.duration,
+      start = { [property] = currentValue },
+      final = { [property] = value },
+      easing = transitionConfig.easing,
+      onComplete = transitionConfig.onComplete,
+    })
+    anim:apply(self)
+  else
+    self[property] = value
+  end
+end
+
+-- Explicit handler map for the few props with genuinely-different setProperty
+-- semantics that cannot be expressed via schema flags alone. Adding a new prop
+-- with ordinary behavior requires NO new entry here — it flows through the
+-- generic flagged dispatch below. Handlers signal a full-handled early return.
+local _specialSetHandlers = {
+  parent = function(self, value)
+    self:setParent(value)
+    return true
+  end,
+  themeComponent = function(self, value)
+    self.themeComponent = value
+    self:_syncThemeAndRenderer("themeComponent", value)
+    return true
+  end,
+}
+
+--- Set property with automatic transition.
+--- Dispatch is registry-driven: dimension/unit props route through
+--- `_setDimensionWithUnit`, the two genuinely-special props (parent,
+--- themeComponent) route through `_specialSetHandlers`, and everything else is
+--- a single generic path that consults schema flags (`affectsLayout` /
+--- `syncsTheme`) for layout invalidation and theme sync. No inline hardcoded
+--- property-name branches and no per-call table allocation.
 ---@param property string Property name
 ---@param value any New value
 function Element:setProperty(property, value)
-  -- Check if transitions are enabled for this property
-  local shouldTransition = false
-  local transitionConfig = nil
-
+  local transitionConfig
   if self.transitions then
     transitionConfig = self.transitions[property] or self.transitions["all"]
-    shouldTransition = transitionConfig ~= nil
   end
 
-  -- Lookup tables (layoutProperties / dimensionProperties) were previously rebuilt
-  -- in-function on every setProperty call. Membership is now driven by the
-  -- PropertySchema registry flags (`affectsLayout` / `isDimension`) via O(1)
-  -- module-scope lookups — no per-call table allocation.
   local schema = Element._PropertySchema
 
-  -- For dimension properties with unit strings, resolve to pixels
-  local isUnitValue = type(value) == "string" or (Element._Calc and Element._Calc.isCalc(value))
-  if schema.isDimension(property) and isUnitValue then
-    -- Check if the unit specification is the same (compare against stored units)
-    local currentUnits = self.units[property]
-    local newValue, newUnit = Element._Units.parse(value)
-    if currentUnits and currentUnits.value == newValue and currentUnits.unit == newUnit then
-      return
-    end
-
-    if shouldTransition and transitionConfig then
-      -- For transitions, resolve the target value and transition the pixel value
-      local currentPixelValue = self[property]
-      local resolvedTarget = self:_resolveDimensionProperty(property, value)
-
-      if currentPixelValue ~= nil and currentPixelValue ~= resolvedTarget then
-        -- Reset to current value before animating
-        self[property] = currentPixelValue
-        local Animation = require("modules.Animation")
-        local anim = Animation.new({
-          duration = transitionConfig.duration,
-          start = { [property] = currentPixelValue },
-          final = { [property] = resolvedTarget },
-          easing = transitionConfig.easing,
-          onComplete = transitionConfig.onComplete,
-        })
-        anim:apply(self)
-      end
-    else
-      self:_resolveDimensionProperty(property, value)
-    end
-
-    self:invalidateLayout()
+  -- 1. Dimension prop with a unit string / CalcObject: resolve to pixels.
+  if schema.isDimension(property) and (type(value) == "string" or (Element._Calc and Element._Calc.isCalc(value))) then
+    _setDimensionWithUnit(self, property, value, transitionConfig)
     return
   end
 
-  -- Handle themeComponent - sync with ThemeManager and Renderer
-  if property == "themeComponent" then
-    self.themeComponent = value
-    self:_syncThemeAndRenderer(property, value)
+  -- 2. Genuinely-special props (parent reparenting, themeComponent sync).
+  local handler = _specialSetHandlers[property]
+  if handler then
+    handler(self, value)
     return
   end
 
-  -- Handle parent reparenting - must use setParent for proper hierarchy management
-  if property == "parent" then
-    self:setParent(value)
-    return
-  end
-
-  local unchanged = self[property] == value
-
-  -- Skip write/transition/layout work for unchanged values, but still call
-  -- _syncThemeAndRenderer: disabled/active must reach setThemeState even when the
-  -- value is unchanged (renderer/theme state may have been reset out-of-band),
-  -- and themeComponent must propagate to themeManager.
-  if not unchanged then
-    if shouldTransition and transitionConfig then
-      local currentValue = self[property]
-
-      -- Only transition if we have a valid current value
-      if currentValue ~= nil then
-        -- Create animation for the property change
-        local Animation = require("modules.Animation")
-        local anim = Animation.new({
-          duration = transitionConfig.duration,
-          start = { [property] = currentValue },
-          final = { [property] = value },
-          easing = transitionConfig.easing,
-          onComplete = transitionConfig.onComplete,
-        })
-
-        anim:apply(self)
-      else
-        self[property] = value
-      end
+  -- 3. Generic flagged dispatch.
+  -- Skip write/transition/layout work for unchanged values, but still sync
+  -- theme state: disabled/active must reach setThemeState even when the value is
+  -- unchanged (renderer/theme state may have been reset out-of-band).
+  if self[property] ~= value then
+    if transitionConfig then
+      _animatePropertyTo(self, property, value, transitionConfig)
     else
       self[property] = value
     end
-
-    -- Invalidate layout if this property affects layout (registry-driven)
     if schema.affectsLayout(property) then
       self:invalidateLayout()
     end
   end
-
-  -- Sync ThemeManager/Renderer side effects (disabled/active/themeComponent).
-  self:_syncThemeAndRenderer(property, value)
+  if schema.syncsTheme(property) then
+    self:_syncThemeAndRenderer(property, value)
+  end
 end
 
 ---Sync ThemeManager and Renderer when properties change that affect rendering

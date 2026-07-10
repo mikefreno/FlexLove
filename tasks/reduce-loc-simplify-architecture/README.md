@@ -11,7 +11,7 @@ Status legend: [ ] todo, [~] in-progress, [x] done
 - [x] 03 — data-driven-prop-binding-in-element-new → `03-data-driven-prop-binding-in-element-new.md`
 - [x] 04 — hoist-lookup-tables-to-module-scope → `04-hoist-lookup-tables-to-module-scope.md`
 - [x] 05 — registry-driven-setproperty-dispatch → `05-registry-driven-setproperty-dispatch.md`
-- [ ] 06 — extract-select-subsystem-from-element → `06-extract-select-subsystem-from-element.md`
+- [x] 06 — extract-select-subsystem-from-element → `06-extract-select-subsystem-from-element.md`
 - [ ] 07 — extract-scrollbar-handling-from-element → `07-extract-scrollbar-handling-from-element.md`
 - [ ] 08 — extract-texteditor-selection-from-element → `08-extract-texteditor-selection-from-element.md`
 - [ ] 09 — split-utils-into-focused-modules → `09-split-utils-into-focused-modules.md`

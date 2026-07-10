@@ -671,4 +671,43 @@ function Select.cleanupDestroy(element)
   end
 end
 
+--- Called when a select parent removes a child: clears frame/anchor refs if the removed child was the
+--- select-managed frame or anchor. Keeps select state-mutation logic owned by the Select module.
+---@param element Element The select parent whose child was removed.
+---@param child Element The removed child.
+function Select.handleChildRemoved(element, child)
+  if not element._selectState then
+    return
+  end
+  if element._selectState.selectFrame == child then
+    element._selectState.selectFrame = nil
+    element._selectState.expectedFrameParent = nil
+    element._selectState.frameAdopted = false
+  end
+  if element._selectState.selectAnchor == child then
+    element._selectState.selectAnchor = nil
+  end
+end
+
+--- Layout-path hook: adjust an auto-width child's border-box width for a managed-select frame.
+--- Invoked from LayoutEngine (via the Element delegate) during vertical-flex auto-width calculation.
+---@param element Element The managed-select frame (the dropdown container).
+---@param child Element The flex child being measured.
+---@param childBorderBoxWidth number Current computed border-box width of `child`.
+---@return number Possibly-adjusted border-box width.
+function Select.adjustAutoWidthChild(element, child, childBorderBoxWidth)
+  if
+    element._managedSelectFrame
+    and element.autosizing
+    and element.autosizing.width
+    and child.units
+    and child.units.width
+    and child.units.width.unit == "%"
+  then
+    local intrinsicBorderBoxWidth = child:calculateAutoWidth() + child.padding.left + child.padding.right
+    return math.max(childBorderBoxWidth, intrinsicBorderBoxWidth)
+  end
+  return childBorderBoxWidth
+end
+
 return Select

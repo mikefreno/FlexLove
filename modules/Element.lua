@@ -2610,14 +2610,7 @@ end
 function Element:removeChild(child)
   for i, c in ipairs(self.children) do
     if c == child then
-      if self._selectState and self._selectState.selectFrame == child then
-        self._selectState.selectFrame = nil
-        self._selectState.expectedFrameParent = nil
-        self._selectState.frameAdopted = false
-      end
-      if self._selectState and self._selectState.selectAnchor == child then
-        self._selectState.selectAnchor = nil
-      end
+      Element._Select.handleChildRemoved(self, child)
       Element._Select.unregisterFromSelectParent(child)
       table.remove(self.children, i)
       child.parent = nil
@@ -2824,23 +2817,13 @@ function Element:_adjustCrossAxisPercentageWidth(child, newBorderBoxWidth)
   return newBorderBoxWidth
 end
 
---- Adjust child border-box width for managed select in vertical flex auto-width
+--- Layout-path delegate: adjust child border-box width for a managed-select frame.
+--- Owned by Select; routed through here so the layout path stays free of dropdown details.
 ---@param child Element
 ---@param childBorderBoxWidth number
 ---@return number
 function Element:_adjustAutoWidthChildBorderBoxForManagedSelect(child, childBorderBoxWidth)
-  if
-    self._managedSelectFrame
-    and self.autosizing
-    and self.autosizing.width
-    and child.units
-    and child.units.width
-    and child.units.width.unit == "%"
-  then
-    local intrinsicBorderBoxWidth = child:calculateAutoWidth() + child.padding.left + child.padding.right
-    return math.max(childBorderBoxWidth, intrinsicBorderBoxWidth)
-  end
-  return childBorderBoxWidth
+  return Element._Select.adjustAutoWidthChild(self, child, childBorderBoxWidth)
 end
 
 --- Destroy element and its children

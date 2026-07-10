@@ -911,11 +911,10 @@ function Element:_initSubSystems(props)
 
   if type(props.selectParent) == "table" then
     self.selectParent = props.selectParent
-    Element._Select.initSelectParent(self, props.selectParent)
   end
 
   if type(props.selectOption) == "table" then
-    Element._Select.initSelectOption(self, props.selectOption)
+    self.selectOption = props.selectOption
   end
 
   if self.editable then
@@ -1763,10 +1762,6 @@ function Element:_initPositioning(props)
   end
 
   -- alignSelf is bound by _applyProps (default "auto").
-
-  if self._selectState and props.selectParent and props.selectParent.selectFrame ~= nil then
-    Element._Select.adoptSelectFrame(self, props.selectParent.selectFrame)
-  end
 
   -- Update the LayoutEngine with actual layout properties
   -- (it was initialized early with defaults for auto-sizing calculations)
@@ -2802,10 +2797,6 @@ function Element:update(dt)
     self:_trackActiveAnimations()
   end
 
-  if self._selectState then
-    Element._Select.ensureFrameState(self)
-  end
-
   -- Restore scrollbar state from StateManager in immediate mode
   Element._ScrollManager.restoreImmediateState(self)
 
@@ -2813,10 +2804,9 @@ function Element:update(dt)
     child:update(dt)
   end
 
-  -- Update text editor cursor blink
-  if self._textEditor then
-    self._textEditor:update(self, dt)
-  end
+  -- Text editor cursor blink moved to TextEditable behavior's onUpdate
+  -- (behavior-mode-unification task 04); dispatched via the behavior loop
+  -- below.
 
   -- Update scroll manager for smooth scrolling and momentum
   if self._scrollManager then

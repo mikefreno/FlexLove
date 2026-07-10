@@ -72,6 +72,11 @@ local Imageable = req("behaviors.Imageable")
 -- created post-construction (animateTo/fadeIn/direct assignment/transition fire).
 local Animated = req("behaviors.Animated")
 
+-- Behavior: Select state-machine lifecycle (task 05). Owns select subsystem
+-- init, managed-frame layout sync each frame, and select save/restore. Auto-
+-- attaches to elements with selectParent or selectOption props.
+local Selectable = req("behaviors.Selectable")
+
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
 ---@type Performance
@@ -330,7 +335,7 @@ function flexlove.init(config)
     Select = Select,
     PropertySchema = PropertySchema,
     clickableBehaviors = { Themed, Clickable, Imageable },
-    behaviors = { Themed, Clickable, Imageable, Animated },
+    behaviors = { Themed, Clickable, Imageable, Animated, Selectable },
   }
 
   -- Initialize Element module with dependencies

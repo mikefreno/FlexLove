@@ -350,6 +350,109 @@ function TestBehaviorIntegration:testBehaviorsFieldPresentAcrossElementTypes()
   luaunit.assertNotIsNil(next(panel.behaviors), "passive panel attaches the Thamed render behavior")
 end
 
+-- ============================================================================
+-- Selectable behavior (task 05)
+-- ============================================================================
+
+TestSelectableBehavior = {}
+
+function TestSelectableBehavior:setUp()
+  FlexLove.init()
+  FlexLove.beginFrame()
+end
+
+function TestSelectableBehavior:tearDown()
+  FlexLove.endFrame()
+  FlexLove.destroy()
+end
+
+function TestSelectableBehavior:testShouldAttach_SelectParentConfigTrue()
+  local Selectable = require("modules.behaviors.Selectable")
+  luaunit.assertTrue(Selectable.shouldAttach({ selectParent = { value = "a" } }))
+end
+
+function TestSelectableBehavior:testShouldAttach_SelectOptionConfigTrue()
+  local Selectable = require("modules.behaviors.Selectable")
+  luaunit.assertTrue(Selectable.shouldAttach({ selectOption = { value = "x" } }))
+end
+
+function TestSelectableBehavior:testShouldAttach_EmptyPropsFalse()
+  local Selectable = require("modules.behaviors.Selectable")
+  luaunit.assertFalse(Selectable.shouldAttach({}))
+end
+
+function TestSelectableBehavior:testShouldAttach_NonTableSelectParentFalse()
+  local Selectable = require("modules.behaviors.Selectable")
+  luaunit.assertFalse(Selectable.shouldAttach({ selectParent = "not a table" }))
+end
+
+function TestSelectableBehavior:testShouldAttach_NilPropsFalse()
+  local Selectable = require("modules.behaviors.Selectable")
+  luaunit.assertFalse(Selectable.shouldAttach(nil))
+end
+
+function TestSelectableBehavior:testAutoAttach_SelectParentElement()
+  -- A select-parent element should have the Selectable behavior attached.
+  local Selectable = require("modules.behaviors.Selectable")
+  local sp = FlexLove.new({
+    id = "sel-behavior-sp",
+    width = 200,
+    height = 40,
+    selectParent = { value = "a" },
+  })
+  local found = false
+  for _, b in ipairs(sp.behaviors) do
+    if b == Selectable then
+      found = true
+      break
+    end
+  end
+  luaunit.assertTrue(found, "Selectable behavior should be auto-attached to select parent")
+end
+
+function TestSelectableBehavior:testAutoAttach_SelectOptionElement()
+  local Selectable = require("modules.behaviors.Selectable")
+  local sp = FlexLove.new({
+    id = "sel-behavior-sp2",
+    width = 200,
+    height = 40,
+    selectParent = { value = "a" },
+  })
+  local opt = FlexLove.new({
+    id = "sel-behavior-opt",
+    parent = sp,
+    width = 200,
+    height = 30,
+    selectOption = { value = "a" },
+  })
+  local found = false
+  for _, b in ipairs(opt.behaviors) do
+    if b == Selectable then
+      found = true
+      break
+    end
+  end
+  luaunit.assertTrue(found, "Selectable behavior should be auto-attached to select option")
+end
+
+function TestSelectableBehavior:testAutoAttach_PlainElementFalse()
+  -- A plain element with no select props should NOT have Selectable attached.
+  local Selectable = require("modules.behaviors.Selectable")
+  local el = FlexLove.new({
+    id = "sel-behavior-plain",
+    width = 100,
+    height = 50,
+  })
+  local found = false
+  for _, b in ipairs(el.behaviors) do
+    if b == Selectable then
+      found = true
+      break
+    end
+  end
+  luaunit.assertFalse(found, "Selectable behavior should NOT attach to plain elements")
+end
+
 -- Run tests if this file is executed directly.
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())

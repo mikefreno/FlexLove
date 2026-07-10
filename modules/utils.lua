@@ -272,6 +272,9 @@ return {
   TEXT_SIZE_PRESETS = TEXT_SIZE_PRESETS,
   init = init,
   clamp = clamp,
+  -- Alias for `clamp`; exposed under the size-clamping name so Element/LayoutEngine
+  -- and tests can reference min/max content-size clamping explicitly.
+  clampSize = clamp,
   lerp = lerp,
   round = round,
   safeLoadImage = safeLoadImage,

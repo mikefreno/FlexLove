@@ -117,6 +117,37 @@ function TestMathUtils:testClamp_NilBounds()
   luaunit.assertEquals(utils.clamp(10, 20, 5), 5)
 end
 
+-- Dedicated tests for the public `clampSize` alias (same implementation as `clamp`).
+-- Covers the shared min/max content-size clamping contract used by Element and
+-- LayoutEngine, including non-zero-padding auto-size scenarios where content
+-- dimensions must never fall below the declared min constraint.
+TestClampSize = {}
+
+function TestClampSize:testMinClampsUp()
+  -- min clamps up when below the lower bound
+  luaunit.assertEquals(utils.clampSize(50, 100, nil), 100)
+end
+
+function TestClampSize:testMaxClampsDown()
+  -- max clamps down when above the upper bound
+  luaunit.assertEquals(utils.clampSize(150, nil, 100), 100)
+end
+
+function TestClampSize:testWithinRangeUnchanged()
+  -- within range, value is unchanged
+  luaunit.assertEquals(utils.clampSize(75, 50, 100), 75)
+end
+
+function TestClampSize:testNoConstraintsUnchanged()
+  -- no constraints, value is unchanged
+  luaunit.assertEquals(utils.clampSize(50, nil, nil), 50)
+end
+
+function TestClampSize:testInvertedBoundsMaxWins()
+  -- inverted bounds (min > max): max wins (matches CSS behaviour)
+  luaunit.assertEquals(utils.clampSize(30, 100, 50), 50)
+end
+
 function TestMathUtils:testLerp_Boundaries()
   luaunit.assertEquals(utils.lerp(0, 10, 0), 0)
   luaunit.assertEquals(utils.lerp(0, 10, 1), 10)

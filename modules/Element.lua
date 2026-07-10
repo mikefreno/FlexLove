@@ -620,7 +620,13 @@ function Element:_construct(props)
   props.padding = schema.get("padding").normalizer(props.padding)
   props.margin = schema.get("margin").normalizer(props.margin)
 
+  -- Behavior registry (Task 01 of behavior-mode-unification). Concrete
+  -- behaviors (Clickable, Scrollable, ...) are attached here in later tasks;
+  -- Element:update/draw/save-restore dispatch over this table instead of
+  -- branching on individual capability flags. Initially empty so existing
+  -- behavior is identical to pre-refactor until behaviors are wired in.
   instance.children = {}
+  instance.behaviors = {}
   instance._deferredMethods = {}
 
   -- Track whether ID was auto-generated (before ID assignment)
@@ -635,6 +641,11 @@ function Element:_construct(props)
 
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   instance._stateId = instance.id
+
+  -- Register with StateManager for state access (both immediate and retained modes)
+  if instance._stateId and instance._stateId ~= "" then
+    Element._StateManager.registerStateful(instance._stateId, instance)
+  end
   return instance
 end
 
@@ -2591,34 +2602,9 @@ function Element:draw(backdropCanvas)
   local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
-  -- LAYERS 0.5-3: Delegate visual rendering (backdrop blur, background, image, theme, borders) to Renderer module
+  -- LAYERS 0.5-5: Delegate all visual rendering (blur, bg, image, theme, borders, text,
+  -- customDraw, pressedState) to Renderer via command buffer
   self._renderer:draw(self, backdropCanvas)
-
-  -- LAYER 4: Delegate text rendering (text, cursor, selection, placeholder, password masking) to Renderer module
-  self._renderer:drawText(self)
-
-  -- LAYER 4.5: Custom draw callback (if provided)
-  if self.customDraw then
-    love.graphics.push()
-    love.graphics.setColor(1, 1, 1, 1) -- Reset color to white
-    self.customDraw(self)
-    love.graphics.pop()
-  end
-
-  -- Draw visual feedback when element is pressed
-  if self.onEvent and not self.disableHighlight and self._eventHandler then
-    local anyPressed = false
-    local pressedState = self._eventHandler:getState()._pressed or {}
-    for _, pressed in pairs(pressedState) do
-      if pressed then
-        anyPressed = true
-        break
-      end
-    end
-    if anyPressed then
-      self._renderer:drawPressedState(self.x, self.y, borderBoxWidth, borderBoxHeight, self.opacity, self.cornerRadius)
-    end
-  end
 
   -- Sort children by z-index before drawing
   local sortedChildren = {}
@@ -4080,6 +4066,11 @@ function Element:_cleanup()
   self._managedSelectBaseOpacity = nil
   self._managedSelectBaseVisibility = nil
   self._managedSelectBaseDisabled = nil
+
+  -- Unregister from StateManager
+  if self._stateId and self._stateId ~= "" then
+    Element._StateManager.unregisterStateful(self._stateId)
+  end
 end
 
 -- ====================

@@ -16,6 +16,16 @@ local frameNumber = 0
 -- Counter to track multiple elements created at the same source location (e.g., in loops)
 local callSiteCounters = {}
 
+-- Stateful element mapping: stateId -> element instance
+-- Used in retained mode for cache-through: StateManager resolves id -> element -> field
+local statefulElements = {}
+
+-- Dirty state tracking for flushFrame: set of {id, key} pairs modified this frame
+local dirtyState = {}
+
+-- Immediate mode flag
+local _immediateMode = false
+
 -- Configuration
 local config = {
   stateRetentionFrames = 2, -- Keep unused state for 2 frames
@@ -421,6 +431,161 @@ function StateManager.getFrameNumber()
 end
 
 -- ====================
+-- Granular State Access (Unified API for both modes)
+-- ====================
+
+--- Get a single state value by key for a given element ID.
+--- Works identically in both modes — the caller does not need to know the mode.
+---
+--- Immediate mode: reads from persistent state store.
+--- Retained mode: resolves through registered element field (cache-through).
+---
+---@param id string Element state ID
+---@param key string State key
+---@return any value The stored value, or nil if not found
+function StateManager.getStateValue(id, key)
+  if not id or not key then
+    ErrorHandler:error("StateManager", "SYS_001", {
+      parameter = "id and key",
+      value = "missing",
+    })
+  end
+
+  -- Update metadata for access tracking
+  if stateMetadata[id] then
+    stateMetadata[id].lastFrame = frameNumber
+    stateMetadata[id].accessCount = stateMetadata[id].accessCount + 1
+  end
+
+  if _immediateMode then
+    -- Immediate mode: read from persistent state store
+    local state = stateStore[id]
+    if state then
+      return state[key]
+    end
+    return nil
+  else
+    -- Retained mode: resolve through element field
+    local element = statefulElements[id]
+    if element then
+      return element[key]
+    end
+    return nil
+  end
+end
+
+--- Set a single state value by key for a given element ID.
+--- Works identically in both modes — the caller does not need to know the mode.
+---
+--- Immediate mode: marks dirty for flushFrame() persistence.
+--- Retained mode: writes directly to element field (cache-through).
+---
+---@param id string Element state ID
+---@param key string State key
+---@param value any Value to store
+function StateManager.setStateValue(id, key, value)
+  if not id or not key then
+    ErrorHandler:error("StateManager", "SYS_001", {
+      parameter = "id and key",
+      value = "missing",
+    })
+  end
+
+  -- Update metadata
+  if not stateMetadata[id] then
+    stateMetadata[id] = {
+      lastFrame = frameNumber,
+      createdFrame = frameNumber,
+      accessCount = 1,
+    }
+  else
+    stateMetadata[id].lastFrame = frameNumber
+  end
+
+  if _immediateMode then
+    -- Immediate mode: mark dirty for flushFrame persistence
+    local state = StateManager.getState(id)
+    state[key] = value
+    dirtyState[id] = dirtyState[id] or {}
+    dirtyState[id][key] = true
+  else
+    -- Retained mode: write directly to element field
+    local element = statefulElements[id]
+    if element then
+      element[key] = value
+    end
+  end
+end
+
+-- ====================
+-- Stateful Element Registration (Retained Mode Cache-Through)
+-- ====================
+
+--- Register an element instance for retained-mode cache-through.
+--- After registration, getStateValue/setStateValue will resolve through the element's fields.
+---
+--- Called by Element in _construct phase.
+---
+---@param id string State ID (typically element.id)
+---@param element table Element instance to link
+function StateManager.registerStateful(id, element)
+  if not id or not element then
+    return
+  end
+  statefulElements[id] = element
+end
+
+--- Unregister an element instance.
+--- After unregistration, retained-mode access will fall back to nil.
+---
+--- Called by Element in _cleanup phase.
+---
+---@param id string State ID to unregister
+function StateManager.unregisterStateful(id)
+  if id then
+    statefulElements[id] = nil
+  end
+end
+
+-- ====================
+-- Frame Flush (Immediate Mode Dirty State Persistence)
+-- ====================
+
+--- Flush dirty state to persistent store at end of frame.
+--- Called automatically at frame end in immediate mode.
+--- Behaviors call setStateValue during update without knowing the mode.
+---
+--- In retained mode, this is a no-op (state is written directly to elements).
+function StateManager.flushFrame()
+  if not _immediateMode then
+    return
+  end
+
+  -- All dirty writes were already applied to stateStore during setStateValue
+  -- This method exists for future extensions (e.g., batching, analytics)
+  -- Reset dirty tracking for next frame
+  dirtyState = {}
+end
+
+-- ====================
+-- Mode Configuration
+-- ====================
+
+--- Configure immediate mode state.
+--- Called by Context when immediate mode is enabled/disabled.
+---
+---@param enabled boolean Whether immediate mode is active
+function StateManager.setImmediateMode(enabled)
+  _immediateMode = enabled
+end
+
+--- Check if immediate mode is active.
+---@return boolean
+function StateManager.isImmediateMode()
+  return _immediateMode
+end
+
+-- ====================
 -- Cleanup & Maintenance
 -- ====================
 
@@ -562,6 +727,9 @@ function StateManager.reset()
   stateMetadata = {}
   frameNumber = 0
   callSiteCounters = {}
+  statefulElements = {}
+  dirtyState = {}
+  _immediateMode = false
 end
 
 -- ====================

@@ -159,337 +159,199 @@ function Renderer:setThemeState(state)
   self._themeState = state
 end
 
---- Draw background layer
----@param x number X position
----@param y number Y position
----@param width number Width
----@param height number Height
----@param drawBackgroundColor table Background color (may have animation applied)
----@param opacity number Element opacity
----@param cornerRadius number|table Corner radius
-function Renderer:_drawBackground(x, y, width, height, drawBackgroundColor, opacity, cornerRadius)
-  local backgroundWithOpacity = self._Color.new(
-    drawBackgroundColor.r,
-    drawBackgroundColor.g,
-    drawBackgroundColor.b,
-    drawBackgroundColor.a * opacity
-  )
-  love.graphics.setColor(backgroundWithOpacity:toRGBA())
-  self._RoundedRect.draw("fill", x, y, width, height, cornerRadius)
-end
-
---- Draw image layer
----@param x number X position (border box)
----@param y number Y position (border box)
----@param paddingLeft number Left padding
----@param paddingTop number Top padding
----@param contentWidth number Content width
----@param contentHeight number Content height
----@param borderBoxWidth number Border box width
----@param borderBoxHeight number Border box height
-function Renderer:_drawImage(
-  x,
-  y,
-  paddingLeft,
-  paddingTop,
-  contentWidth,
-  contentHeight,
-  borderBoxWidth,
-  borderBoxHeight,
-  opacity,
-  cornerRadius
-)
-  if not self._loadedImage then
-    return
-  end
-
-  -- Calculate image bounds (content area - respects padding)
-  local imageX = x + paddingLeft
-  local imageY = y + paddingTop
-  local imageWidth = contentWidth
-  local imageHeight = contentHeight
-
-  -- Combine element opacity with imageOpacity
-  local finalOpacity = opacity * self.imageOpacity
-
-  -- Apply cornerRadius clipping if set
-  local hasCornerRadius = false
-  if cornerRadius then
-    if type(cornerRadius) == "number" then
-      hasCornerRadius = cornerRadius > 0
-    else
-      hasCornerRadius = cornerRadius.topLeft > 0
-        or cornerRadius.topRight > 0
-        or cornerRadius.bottomLeft > 0
-        or cornerRadius.bottomRight > 0
+--- Execute a single core draw command (background, image, theme, borders).
+--- Commands are plain tables: { type = "background"|"image"|"theme"|"borders", ... }
+---@param cmd table Command table
+---@param ctx table Resolved draw context
+function Renderer:_executeDrawCommand(cmd, ctx)
+  if cmd.type == "background" then
+    local c = self._Color.new(cmd.color.r, cmd.color.g, cmd.color.b, cmd.color.a * ctx.opacity)
+    love.graphics.setColor(c:toRGBA())
+    self._RoundedRect.draw("fill", ctx.x, ctx.y, ctx.borderBoxWidth, ctx.borderBoxHeight, ctx.cornerRadius)
+  elseif cmd.type == "image" then
+    if not self._loadedImage then
+      return
     end
-  end
-
-  if hasCornerRadius then
-    -- Use stencil to clip image to rounded corners
-    local success, err = pcall(function()
-      love.graphics.stencil(function()
-        self._RoundedRect.draw("fill", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
-      end, "replace", 1)
-      love.graphics.setStencilTest("greater", 0)
-    end)
-
-    if not success then
-      -- Check if it's a stencil buffer error
-      if err and err:match("stencil") then
-        local cornerRadiusStr
-        if type(cornerRadius) == "number" then
-          cornerRadiusStr = tostring(cornerRadius)
-        else
-          cornerRadiusStr = string.format(
-            "TL:%d TR:%d BL:%d BR:%d",
-            cornerRadius.topLeft,
-            cornerRadius.topRight,
-            cornerRadius.bottomLeft,
-            cornerRadius.bottomRight
-          )
-        end
-        Renderer._ErrorHandler:warn("Renderer", "IMG_001", {
-          imagePath = self.imagePath or "unknown",
-          cornerRadius = cornerRadiusStr,
-          error = tostring(err),
-        })
-        -- Continue without corner radius
-        hasCornerRadius = false
+    local img = self._loadedImage
+    local imageX = ctx.x + ctx.paddingLeft
+    local imageY = ctx.y + ctx.paddingTop
+    local finalOpacity = ctx.opacity * self.imageOpacity
+    local hasCornerRadius = false
+    if ctx.cornerRadius then
+      if type(ctx.cornerRadius) == "number" then
+        hasCornerRadius = ctx.cornerRadius > 0
       else
-        -- Re-throw if it's a different error
-        error(err, 2)
+        hasCornerRadius = ctx.cornerRadius.topLeft > 0
+          or ctx.cornerRadius.topRight > 0
+          or ctx.cornerRadius.bottomLeft > 0
+          or ctx.cornerRadius.bottomRight > 0
+      end
+    end
+    if hasCornerRadius then
+      local success, err = pcall(function()
+        love.graphics.stencil(function()
+          self._RoundedRect.draw("fill", ctx.x, ctx.y, ctx.borderBoxWidth, ctx.borderBoxHeight, ctx.cornerRadius)
+        end, "replace", 1)
+        love.graphics.setStencilTest("greater", 0)
+      end)
+      if not success then
+        if err and err:match("stencil") then
+          local cr = ctx.cornerRadius
+          local crStr = type(cr) == "number" and tostring(cr)
+            or string.format("TL:%d TR:%d BL:%d BR:%d", cr.topLeft, cr.topRight, cr.bottomLeft, cr.bottomRight)
+          Renderer._ErrorHandler:warn(
+            "Renderer",
+            "IMG_001",
+            { imagePath = self.imagePath or "unknown", cornerRadius = crStr, error = tostring(err) }
+          )
+          hasCornerRadius = false
+        else
+          error(err, 2)
+        end
+      end
+    end
+    if self.imageRepeat and self.imageRepeat ~= "no-repeat" then
+      self._ImageRenderer.drawTiled(
+        img,
+        imageX,
+        imageY,
+        ctx.contentWidth,
+        ctx.contentHeight,
+        self.imageRepeat,
+        finalOpacity,
+        self.imageTint
+      )
+    else
+      self._ImageRenderer.draw(
+        img,
+        imageX,
+        imageY,
+        ctx.contentWidth,
+        ctx.contentHeight,
+        self.objectFit,
+        self.objectPosition,
+        finalOpacity,
+        self.imageTint
+      )
+    end
+    if hasCornerRadius then
+      love.graphics.setStencilTest()
+    end
+  elseif cmd.type == "theme" then
+    if not cmd.themeComponent then
+      return
+    end
+    local themeToUse = nil
+    if self.theme then
+      themeToUse = self._Theme.get(self.theme)
+      if not themeToUse then
+        pcall(function()
+          self._Theme.load(self.theme)
+        end)
+        themeToUse = self._Theme.get(self.theme)
+      end
+    else
+      themeToUse = self._Theme.getActive()
+    end
+    if not themeToUse then
+      return
+    end
+    local component = themeToUse.components[cmd.themeComponent]
+    if not component then
+      return
+    end
+    local state = self._themeState
+    if state and component.states and component.states[state] then
+      component = component.states[state]
+    end
+    local atlasToUse = component._loadedAtlas or themeToUse.atlas
+    if atlasToUse and component.regions then
+      local r = component.regions
+      if
+        r.topLeft
+        and r.topCenter
+        and r.topRight
+        and r.middleLeft
+        and r.middleCenter
+        and r.middleRight
+        and r.bottomLeft
+        and r.bottomCenter
+        and r.bottomRight
+      then
+        self._NinePatch.draw(
+          component,
+          atlasToUse,
+          ctx.x,
+          ctx.y,
+          ctx.borderBoxWidth,
+          ctx.borderBoxHeight,
+          ctx.opacity,
+          cmd.scaleCorners,
+          cmd.scalingAlgorithm
+        )
+      end
+    end
+  elseif cmd.type == "borders" then
+    local border = cmd.border
+    if not border then
+      return
+    end
+    local bc = cmd.borderColor
+    local borderColorWithOpacity = self._Color.new(bc.r, bc.g, bc.b, bc.a * ctx.opacity)
+    love.graphics.setColor(borderColorWithOpacity:toRGBA())
+    local bw, bh = ctx.borderBoxWidth, ctx.borderBoxHeight
+    if type(border) == "number" then
+      love.graphics.setLineWidth(border)
+      self._RoundedRect.draw("line", ctx.x, ctx.y, bw, bh, ctx.cornerRadius)
+      love.graphics.setLineWidth(1)
+    else
+      local allBorders = border.top and border.bottom and border.left and border.right
+      local uniformWidth = allBorders
+        and type(border.top) == "number"
+        and border.top == border.right
+        and border.top == border.bottom
+        and border.top == border.left
+      if uniformWidth then
+        love.graphics.setLineWidth(border.top)
+        self._RoundedRect.draw("line", ctx.x, ctx.y, bw, bh, ctx.cornerRadius)
+        love.graphics.setLineWidth(1)
+      else
+        if border.top then
+          love.graphics.setLineWidth(type(border.top) == "number" and border.top or 1)
+          love.graphics.line(ctx.x, ctx.y, ctx.x + bw, ctx.y)
+        end
+        if border.bottom then
+          love.graphics.setLineWidth(type(border.bottom) == "number" and border.bottom or 1)
+          love.graphics.line(ctx.x, ctx.y + bh, ctx.x + bw, ctx.y + bh)
+        end
+        if border.left then
+          love.graphics.setLineWidth(type(border.left) == "number" and border.left or 1)
+          love.graphics.line(ctx.x, ctx.y, ctx.x, ctx.y + bh)
+        end
+        if border.right then
+          love.graphics.setLineWidth(type(border.right) == "number" and border.right or 1)
+          love.graphics.line(ctx.x + bw, ctx.y, ctx.x + bw, ctx.y + bh)
+        end
+        love.graphics.setLineWidth(1)
       end
     end
   end
-
-  -- Draw the image based on repeat mode
-  if self.imageRepeat and self.imageRepeat ~= "no-repeat" then
-    -- Use tiled rendering
-    self._ImageRenderer.drawTiled(
-      self._loadedImage,
-      imageX,
-      imageY,
-      imageWidth,
-      imageHeight,
-      self.imageRepeat,
-      finalOpacity,
-      self.imageTint
-    )
-  else
-    -- Use standard fit-based rendering
-    self._ImageRenderer.draw(
-      self._loadedImage,
-      imageX,
-      imageY,
-      imageWidth,
-      imageHeight,
-      self.objectFit,
-      self.objectPosition,
-      finalOpacity,
-      self.imageTint
-    )
-  end
-
-  -- Clear stencil if it was used
-  if hasCornerRadius then
-    love.graphics.setStencilTest()
-  end
 end
 
---- Draw theme layer (9-patch)
----@param x number X position
----@param y number Y position
----@param borderBoxWidth number Border box width
----@param borderBoxHeight number Border box height
----@param scaleCorners boolean Whether to scale corners (from element)
----@param scalingAlgorithm string Scaling algorithm (from element)
----@param themeComponent string|nil Theme component name
----@param opacity number Element opacity
-function Renderer:_drawTheme(
-  x,
-  y,
-  borderBoxWidth,
-  borderBoxHeight,
-  scaleCorners,
-  scalingAlgorithm,
-  themeComponent,
-  opacity
-)
-  if not themeComponent then
-    return
-  end
-
-  -- Get the theme to use
-  local themeToUse = nil
-  if self.theme then
-    -- Element specifies a specific theme - load it if needed
-    if self._Theme.get(self.theme) then
-      themeToUse = self._Theme.get(self.theme)
-    else
-      -- Try to load the theme
-      pcall(function()
-        self._Theme.load(self.theme)
-      end)
-      themeToUse = self._Theme.get(self.theme)
-    end
-  else
-    -- Use active theme
-    themeToUse = self._Theme.getActive()
-  end
-
-  if not themeToUse then
-    return
-  end
-
-  -- Get the component from the theme
-  local component = themeToUse.components[themeComponent]
-  if not component then
-    return
-  end
-
-  -- Check for state-specific override
-  local state = self._themeState
-  if state and component.states and component.states[state] then
-    component = component.states[state]
-  end
-
-  -- Use component-specific atlas if available, otherwise use theme atlas
-  local atlasToUse = component._loadedAtlas or themeToUse.atlas
-
-  if atlasToUse and component.regions then
-    -- Validate component has required structure
-    local hasAllRegions = component.regions.topLeft
-      and component.regions.topCenter
-      and component.regions.topRight
-      and component.regions.middleLeft
-      and component.regions.middleCenter
-      and component.regions.middleRight
-      and component.regions.bottomLeft
-      and component.regions.bottomCenter
-      and component.regions.bottomRight
-
-    if hasAllRegions then
-      -- Pass element-level overrides for scaleCorners and scalingAlgorithm
-      self._NinePatch.draw(
-        component,
-        atlasToUse,
-        x,
-        y,
-        borderBoxWidth,
-        borderBoxHeight,
-        opacity,
-        scaleCorners,
-        scalingAlgorithm
-      )
-    end
-  end
-end
-
---- Draw borders
----@param x number X position
----@param y number Y position
----@param borderBoxWidth number Border box width
----@param borderBoxHeight number Border box height
----@param borderColor Color Border color
----@param opacity number Element opacity
----@param cornerRadius number|table Corner radius
-function Renderer:_drawBorders(x, y, borderBoxWidth, borderBoxHeight, borderColor, opacity, cornerRadius, border)
-  -- border is read from the element (source of truth) so retained-mode bare writes
-  -- (`element.border = ...`) and setProperty("border", ...) both take effect immediately.
-  -- OPTIMIZATION: Early exit if no border (nil or all false)
-  if not border then
-    return
-  end
-
-  -- Handle border as number (uniform border width)
-  if type(border) == "number" then
-    local borderColorWithOpacity = self._Color.new(borderColor.r, borderColor.g, borderColor.b, borderColor.a * opacity)
-    love.graphics.setColor(borderColorWithOpacity:toRGBA())
-    love.graphics.setLineWidth(border)
-    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
-    love.graphics.setLineWidth(1) -- Reset to default
-    return
-  end
-
-  local borderColorWithOpacity = self._Color.new(borderColor.r, borderColor.g, borderColor.b, borderColor.a * opacity)
-  love.graphics.setColor(borderColorWithOpacity:toRGBA())
-
-  -- Check if all borders are enabled with same width
-  local allBorders = border.top and border.bottom and border.left and border.right
-  local uniformWidth = allBorders
-    and type(border.top) == "number"
-    and border.top == border.right
-    and border.top == border.bottom
-    and border.top == border.left
-
-  if uniformWidth then
-    -- Draw complete rounded rectangle border with uniform width
-    love.graphics.setLineWidth(border.top)
-    self._RoundedRect.draw("line", x, y, borderBoxWidth, borderBoxHeight, cornerRadius)
-    love.graphics.setLineWidth(1) -- Reset to default
-  else
-    -- Draw individual borders with varying widths (without rounded corners for partial/varying borders)
-    if border.top then
-      local width = type(border.top) == "number" and border.top or 1
-      love.graphics.setLineWidth(width)
-      love.graphics.line(x, y, x + borderBoxWidth, y)
-    end
-    if border.bottom then
-      local width = type(border.bottom) == "number" and border.bottom or 1
-      love.graphics.setLineWidth(width)
-      love.graphics.line(x, y + borderBoxHeight, x + borderBoxWidth, y + borderBoxHeight)
-    end
-    if border.left then
-      local width = type(border.left) == "number" and border.left or 1
-      love.graphics.setLineWidth(width)
-      love.graphics.line(x, y, x, y + borderBoxHeight)
-    end
-    if border.right then
-      local width = type(border.right) == "number" and border.right or 1
-      love.graphics.setLineWidth(width)
-      love.graphics.line(x + borderBoxWidth, y, x + borderBoxWidth, y + borderBoxHeight)
-    end
-    love.graphics.setLineWidth(1) -- Reset to default
-  end
-end
-
---- Main draw method - renders all visual layers
----@param element Element The parent Element instance
----@param backdropCanvas table|nil Backdrop canvas for backdrop blur
-function Renderer:draw(element, backdropCanvas)
-  if not element then
-    Renderer._ErrorHandler:warn("Renderer", "SYS_002", {
-      method = "draw",
-    })
-    return
-  end
-
-  -- Start performance timing
-  local elementId
-  if Renderer._Performance and Renderer._Performance.enabled and element then
-    elementId = element.id or "unnamed"
-    Renderer._Performance:startTimer("render_" .. elementId)
-    Renderer._Performance:incrementCounter("draw_calls", 1)
-  end
-
-  -- Resolve visual properties from element (source of truth), use inline defaults
-  -- Direct writes to element properties are the single source of truth;
-  -- no cache fallback so that retained-mode direct field updates work consistently.
+--- Build the render command buffer: resolve draw properties once from the
+--- element (source of truth) and return a flat command list + draw context.
+---@param element table Element instance
+---@param backdropCanvas table|nil
+---@return table cmds, table ctx Command list and resolved context
+function Renderer:_buildCommands(element, backdropCanvas)
   local opacity = element.opacity ~= nil and element.opacity or 1
   local backgroundColor = element.backgroundColor or self._Color.new(0, 0, 0, 0)
   local borderColor = element.borderColor or self._Color.new(0, 0, 0, 1)
   local cornerRadius = element.cornerRadius ~= nil and element.cornerRadius or nil
   local themeComponent = element.themeComponent
   local border = element.border
-
-  -- Early exit if element is invisible (optimization)
-  if opacity <= 0 then
-    if Renderer._Performance and Renderer._Performance.enabled and elementId then
-      Renderer._Performance:stopTimer("render_" .. elementId)
-    end
-    return
-  end
+  local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+  local borderBoxHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
 
   -- Handle opacity during animation
   local drawBackgroundColor = backgroundColor
@@ -500,9 +362,144 @@ function Renderer:draw(element, backdropCanvas)
     end
   end
 
-  -- Cache border box dimensions for this draw call (optimization)
-  local borderBoxWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
-  local borderBoxHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+  -- Build resolved context (shared by all commands — eliminates per-method params)
+  local ctx = {
+    x = element.x,
+    y = element.y,
+    opacity = opacity,
+    cornerRadius = cornerRadius,
+    borderBoxWidth = borderBoxWidth,
+    borderBoxHeight = borderBoxHeight,
+    paddingLeft = element.padding.left,
+    paddingTop = element.padding.top,
+    contentWidth = element.width,
+    contentHeight = element.height,
+    backdropCanvas = backdropCanvas,
+  }
+
+  -- Build command list (conditional — only emit layers that have data)
+  local cmds = {}
+  local n = 0
+
+  -- LAYER 0.5: backdrop blur (handled separately, not a command — needs canvas access)
+  if self.backdropBlur and self.backdropBlur.radius > 0 then
+    n = n + 1
+    cmds[n] = { type = "backdropBlur", radius = self.backdropBlur.radius } -- executed before background
+  end
+
+  -- LAYER 1: background
+  n = n + 1
+  cmds[n] = { type = "background", color = drawBackgroundColor }
+
+  -- LAYER 1.5: image (always emit; _executeCommand early-exits if no image)
+  n = n + 1
+  cmds[n] = { type = "image" }
+
+  -- LAYER 2: theme 9-patch
+  n = n + 1
+  cmds[n] = {
+    type = "theme",
+    themeComponent = themeComponent,
+    scaleCorners = element.scaleCorners,
+    scalingAlgorithm = element.scalingAlgorithm,
+  }
+
+  -- LAYER 3: borders
+  n = n + 1
+  cmds[n] = { type = "borders", borderColor = borderColor, border = border }
+
+  -- LAYER 4: text (cursor, selection, placeholder, password masking)
+  n = n + 1
+  cmds[n] = { type = "text" }
+
+  -- LAYER 4.5: custom draw callback (if provided)
+  if element.customDraw then
+    n = n + 1
+    cmds[n] = { type = "customDraw" }
+  end
+
+  -- LAYER 5: pressed state overlay (if applicable)
+  if element.onEvent and not element.disableHighlight and element._eventHandler then
+    local anyPressed = false
+    local pressedState = element._eventHandler:getState()._pressed or {}
+    for _, pressed in pairs(pressedState) do
+      if pressed then
+        anyPressed = true
+        break
+      end
+    end
+    if anyPressed then
+      n = n + 1
+      cmds[n] = { type = "pressedState" }
+    end
+  end
+
+  return cmds, ctx
+end
+
+--- Execute a special render command (backdropBlur, customDraw, pressedState).
+--- These interact with love.graphics state in non-uniform ways and are handled separately
+--- from the core draw commands (background/image/theme/borders).
+---@param cmd table Command table
+---@param ctx table Resolved draw context
+function Renderer:_executeSpecialCommand(cmd, ctx)
+  if cmd.type == "backdropBlur" then
+    if ctx.backdropCanvas then
+      local blurInstance = self:getBlurInstance()
+      if blurInstance then
+        local eid = self._element and self._element.id and self._element.id ~= "" and self._element.id or nil
+        blurInstance:applyBackdropCached(
+          cmd.radius,
+          ctx.x,
+          ctx.y,
+          ctx.borderBoxWidth,
+          ctx.borderBoxHeight,
+          ctx.backdropCanvas,
+          eid
+        )
+      end
+    end
+  elseif cmd.type == "text" then
+    self:drawText(self._element)
+  elseif cmd.type == "customDraw" then
+    love.graphics.push()
+    love.graphics.setColor(1, 1, 1, 1)
+    self._element.customDraw(self._element)
+    love.graphics.pop()
+  elseif cmd.type == "pressedState" then
+    self:drawPressedState(ctx.x, ctx.y, ctx.borderBoxWidth, ctx.borderBoxHeight, ctx.opacity, ctx.cornerRadius)
+  end
+end
+
+--- Main draw method - renders all visual layers via command buffer.
+---@param element Element The parent Element instance
+---@param backdropCanvas table|nil Backdrop canvas for backdrop blur
+function Renderer:draw(element, backdropCanvas)
+  self._element = element -- cache for customDraw/pressedState
+
+  if not element then
+    Renderer._ErrorHandler:warn("Renderer", "SYS_002", { method = "draw" })
+    return
+  end
+
+  -- Start performance timing
+  local elementId
+  if Renderer._Performance and Renderer._Performance.enabled then
+    elementId = element.id or "unnamed"
+    Renderer._Performance:startTimer("render_" .. elementId)
+    Renderer._Performance:incrementCounter("draw_calls", 1)
+  end
+
+  -- Early exit if element is invisible (optimization)
+  if element.opacity ~= nil and element.opacity <= 0 then
+    if Renderer._Performance and Renderer._Performance.enabled and elementId then
+      Renderer._Performance:stopTimer("render_" .. elementId)
+    end
+    return
+  end
+
+  -- Build command buffer + resolve draw context once
+  local cmds, ctx = self:_buildCommands(element, backdropCanvas)
 
   -- Apply transform if exists
   local hasTransform = element.transform and self._Transform and not self._Transform.isIdentity(element.transform)
@@ -510,63 +507,17 @@ function Renderer:draw(element, backdropCanvas)
     self._Transform.apply(element.transform, element.x, element.y, element.width, element.height)
   end
 
-  -- LAYER 0.5: Draw backdrop blur if configured (before background)
-  if self.backdropBlur and self.backdropBlur.radius > 0 and backdropCanvas then
-    local blurInstance = self:getBlurInstance()
-    if blurInstance then
-      -- Use cached blur in immediate mode if element has an ID
-      local elementId = element.id and element.id ~= "" and element.id or nil
-      blurInstance:applyBackdropCached(
-        self.backdropBlur.radius,
-        element.x,
-        element.y,
-        borderBoxWidth,
-        borderBoxHeight,
-        backdropCanvas,
-        elementId
-      )
+  -- Execute all commands in order
+  for _, cmd in ipairs(cmds) do
+    -- Draw commands (background, image, theme, borders) use the core executor;
+    -- special commands (backdropBlur, customDraw, pressedState) are handled in _executeCommand.
+    local typ = cmd.type
+    if typ == "background" or typ == "image" or typ == "theme" or typ == "borders" then
+      self:_executeDrawCommand(cmd, ctx)
+    else
+      self:_executeSpecialCommand(cmd, ctx)
     end
   end
-
-  -- LAYER 1: Draw backgroundColor first (behind everything)
-  self:_drawBackground(
-    element.x,
-    element.y,
-    borderBoxWidth,
-    borderBoxHeight,
-    drawBackgroundColor,
-    opacity,
-    cornerRadius
-  )
-
-  -- LAYER 1.5: Draw image on top of backgroundColor (if image exists)
-  self:_drawImage(
-    element.x,
-    element.y,
-    element.padding.left,
-    element.padding.top,
-    element.width,
-    element.height,
-    borderBoxWidth,
-    borderBoxHeight,
-    opacity,
-    cornerRadius
-  )
-
-  -- LAYER 2: Draw theme on top of backgroundColor (if theme exists)
-  self:_drawTheme(
-    element.x,
-    element.y,
-    borderBoxWidth,
-    borderBoxHeight,
-    element.scaleCorners,
-    element.scalingAlgorithm,
-    themeComponent,
-    opacity
-  )
-
-  -- LAYER 3: Draw borders on top of theme
-  self:_drawBorders(element.x, element.y, borderBoxWidth, borderBoxHeight, borderColor, opacity, cornerRadius, border)
 
   -- Unapply transform if it was applied
   if hasTransform then

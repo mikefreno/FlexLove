@@ -67,6 +67,7 @@ local testFiles = {
   "testing/__tests__/animation_group_test.lua",
   "testing/__tests__/animation_test.lua",
   "testing/__tests__/apply_props_test.lua",
+  "testing/__tests__/behavior_test.lua",
   "testing/__tests__/blur_test.lua",
   "testing/__tests__/calc_test.lua",
   "testing/__tests__/critical_failures_test.lua",

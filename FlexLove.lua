@@ -49,6 +49,10 @@ local Color = req("Color")
 ---@type Select
 local Select = req("Select")
 
+-- Behavior: mouse/touch event handling, pressed-state, hit-testing (task 02).
+-- Auto-attaches to interactive elements via shouldAttach(props).
+local Clickable = req("behaviors.Clickable")
+
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
 ---@type Performance
@@ -306,6 +310,7 @@ function flexlove.init(config)
     ZIndex = ZIndex,
     Select = Select,
     PropertySchema = PropertySchema,
+    clickableBehaviors = { Clickable },
   }
 
   -- Initialize Element module with dependencies
@@ -600,6 +605,8 @@ function flexlove.setMode(mode)
     flexlove._immediateModeState = StateManager
     flexlove._frameStarted = false
     flexlove._autoBeganFrame = false
+    -- Notify StateManager of mode change
+    StateManager.setImmediateMode(true)
   elseif mode == "retained" then
     flexlove._immediateMode = false
     flexlove._immediateModeState = nil
@@ -607,6 +614,8 @@ function flexlove.setMode(mode)
     flexlove._autoBeganFrame = false
     flexlove._currentFrameElements = {}
     flexlove._frameNumber = 0
+    -- Notify StateManager of mode change
+    StateManager.setImmediateMode(false)
   else
     error("[FlexLove] Invalid mode: " .. tostring(mode) .. ". Expected 'immediate' or 'retained'")
   end
@@ -698,6 +707,8 @@ function flexlove.endFrame()
 
   StateManager.cleanup()
   StateManager.forceCleanupIfNeeded()
+  -- Flush dirty state from this frame (no-op in retained mode)
+  StateManager.flushFrame()
   flexlove._frameStarted = false
 
   -- End performance frame timing

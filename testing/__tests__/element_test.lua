@@ -4398,7 +4398,7 @@ function TestRetainedPropertyConsistency:test_bare_cornerRadius_write_takes_effe
 end
 
 function TestRetainedPropertyConsistency:test_bare_onEvent_write_changes_dispatched_callback()
-  local element = createBasicElement({ id = "bare_onevent" })
+  local element = createBasicElement({ id = "bare_onevent", onEvent = function() end })
   local calls = {}
 
   element.onEvent = function(_, event)

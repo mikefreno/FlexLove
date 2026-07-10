@@ -418,21 +418,9 @@ function Renderer:_buildCommands(element, backdropCanvas)
     cmds[n] = { type = "customDraw" }
   end
 
-  -- LAYER 5: pressed state overlay (if applicable)
-  if element.onEvent and not element.disableHighlight and element._eventHandler then
-    local anyPressed = false
-    local pressedState = element._eventHandler:getState()._pressed or {}
-    for _, pressed in pairs(pressedState) do
-      if pressed then
-        anyPressed = true
-        break
-      end
-    end
-    if anyPressed then
-      n = n + 1
-      cmds[n] = { type = "pressedState" }
-    end
-  end
+  -- NOTE: pressed-state overlay (former Layer 5) is now owned by the Clickable
+  -- behavior's onDraw, dispatched from Element:draw. The renderer no longer
+  -- branches on element.onEvent for press feedback.
 
   return cmds, ctx
 end
@@ -466,8 +454,6 @@ function Renderer:_executeSpecialCommand(cmd, ctx)
     love.graphics.setColor(1, 1, 1, 1)
     self._element.customDraw(self._element)
     love.graphics.pop()
-  elseif cmd.type == "pressedState" then
-    self:drawPressedState(ctx.x, ctx.y, ctx.borderBoxWidth, ctx.borderBoxHeight, ctx.opacity, ctx.cornerRadius)
   end
 end
 

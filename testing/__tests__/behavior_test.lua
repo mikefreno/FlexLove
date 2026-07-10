@@ -318,15 +318,21 @@ function TestBehaviorIntegration:testEachNewElement_GetsIndependentBehaviorsTabl
 end
 
 function TestBehaviorIntegration:testBehaviorsFieldPresentAcrossElementTypes()
-  -- Concretely: editable text element and a scrollable container both expose
-  -- the same empty behaviors slot, since _construct runs for every element.
+  -- Every element exposes a `behaviors` slot because _construct runs for all.
+  -- Interactive elements (here: an editable text element) auto-attach the
+  -- Clickable behavior via shouldAttach(editable=true); a passive scrollable
+  -- container with no interaction props stays behavior-less until the
+  -- Scrollable behavior lands in a later task.
   local text = FlexLove.new({ id = "behavior-int-text", width = 100, height = 30, text = "hi", editable = true })
   local panel = FlexLove.new({ id = "behavior-int-panel", width = 200, height = 200, scrollable = true })
   for _, el in ipairs({ text, panel }) do
     luaunit.assertNotNil(el.behaviors)
     luaunit.assertEquals(type(el.behaviors), "table")
-    luaunit.assertIsNil(next(el.behaviors))
   end
+  -- editable element attaches Clickable
+  luaunit.assertNotIsNil(next(text.behaviors), "editable element should attach the Clickable behavior")
+  -- passive scrollable container has no behavior yet
+  luaunit.assertIsNil(next(panel.behaviors), "passive scrollable panel should start behavior-less")
 end
 
 -- Run tests if this file is executed directly.

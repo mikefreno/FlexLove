@@ -112,12 +112,13 @@ function TestStagedInit:test_constructed_element_has_expected_state()
     text = "hello",
     border = 2,
     backgroundColor = { 1, 0, 0, 1 },
+    onEvent = function() end, -- interactive: Clickable behavior attaches + creates EventHandler
   })
   luaunit.assertTrue(el._constructed, "element must be marked constructed")
   luaunit.assertEquals(el.width, 120, "width preserved")
   luaunit.assertEquals(el.height, 80, "height preserved")
   luaunit.assertEquals(el.text, "hello", "text preserved")
-  luaunit.assertNotNil(el._eventHandler, "EventHandler initialized")
+  luaunit.assertNotNil(el._eventHandler, "EventHandler initialized (via Clickable behavior for interactive elements)")
   luaunit.assertNotNil(el._renderer, "Renderer initialized")
   luaunit.assertNotNil(el._layoutEngine, "LayoutEngine initialized")
   luaunit.assertNotNil(el._themeManager, "ThemeManager initialized")

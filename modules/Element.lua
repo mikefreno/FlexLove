@@ -226,6 +226,14 @@ function Element.init(deps)
     Context = Element._Context,
     utils = Element._utils,
   }
+
+  -- Behavior registry (behavior-mode-unification). Concrete behaviors live in
+  -- modules/behaviors/ and auto-attach during Element.new when their
+  -- shouldAttach(props) predicate returns true. Element.update/draw/save-restore
+  -- dispatch over `element.behaviors` instead of branching on capability flags.
+  -- Task 02 wires Clickable; later tasks add Scrollable / TextEditable /
+  -- Selectable / Themed here.
+  Element._behaviorRegistry = deps.clickableBehaviors or {}
   Element._rendererDeps = {
     Color = Element._Color,
     RoundedRect = Element._RoundedRect,
@@ -603,6 +611,7 @@ function Element.new(props)
   self:_initPositioning(props)
   self:_initScrollManager(props)
   self:_finalizeConstruction(props)
+  self:_attachBehaviors(props)
   return self
 end
 
@@ -649,38 +658,29 @@ function Element:_construct(props)
   return instance
 end
 
---- Phase 3: EventHandler (with immediate-mode state restore), ThemeManager,
---- text editing defaults, Select subsystem, TextEditor, and parent assignment.
-function Element:_initSubSystems(props)
-  -- In immediate mode, restore EventHandler state from StateManager
-  local eventHandlerConfig = {
-    -- element.onEvent is source of truth; not cached on handler
-    onEventDeferred = self.onEventDeferred,
-    -- element.onTouchEvent is source of truth; not cached on handler
-    onTouchEventDeferred = self.onTouchEventDeferred,
-    -- element.onGesture is source of truth; not cached on handler
-    onGestureDeferred = self.onGestureDeferred,
-    touchEnabled = self.touchEnabled,
-    multiTouchEnabled = self.multiTouchEnabled,
-  }
-  if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
-    local state = Element._StateManager.getState(self._stateId)
-    if state then
-      -- Restore EventHandler state from StateManager (sparse storage - provide defaults)
-      eventHandlerConfig._pressed = state._pressed or {}
-      eventHandlerConfig._lastClickTime = state._lastClickTime
-      eventHandlerConfig._lastClickButton = state._lastClickButton
-      eventHandlerConfig._clickCount = state._clickCount or 0
-      eventHandlerConfig._dragStartX = state._dragStartX or {}
-      eventHandlerConfig._dragStartY = state._dragStartY or {}
-      eventHandlerConfig._lastMouseX = state._lastMouseX or {}
-      eventHandlerConfig._lastMouseY = state._lastMouseY or {}
-      eventHandlerConfig._hovered = state._hovered
+--- Attach behaviors whose shouldAttach(props) predicate matches this element's
+--- props. Runs after prop binding + subsystem init (so Deferred flags and the
+--- Select subsystem are in place) and dispatches onAttach for each match. The
+--- EventHandler (Clickable) is created here rather than in _initSubSystems so
+--- Element never needs to know what an individual behavior does — it only
+--- iterates the registry (behavior-mode-unification task 02).
+function Element:_attachBehaviors(props)
+  local registry = Element._behaviorRegistry
+  if registry then
+    for _, behavior in ipairs(registry) do
+      if behavior.shouldAttach(props) then
+        table.insert(self.behaviors, behavior)
+        behavior.onAttach(self)
+      end
     end
   end
+end
 
-  self._eventHandler = Element._EventHandler.new(eventHandlerConfig, Element._eventHandlerDeps)
-
+--- Phase 3: ThemeManager, text editing defaults, Select subsystem,
+--- TextEditor, and parent assignment. EventHandler creation (with immediate-mode
+--- state restore) is owned by the Clickable behavior (_attachBehaviors / onAttach),
+--- so this phase no longer touches the event handler.
+function Element:_initSubSystems(props)
   if Element._Theme then
     self._themeManager = Element._Theme.Manager.new({
       theme = props.theme or Element._Context.defaultTheme,
@@ -2603,8 +2603,17 @@ function Element:draw(backdropCanvas)
   local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
   -- LAYERS 0.5-5: Delegate all visual rendering (blur, bg, image, theme, borders, text,
-  -- customDraw, pressedState) to Renderer via command buffer
+  -- customDraw) to Renderer via command buffer
   self._renderer:draw(self, backdropCanvas)
+
+  -- Dispatch onDraw to attached behaviors (Clickable pressed-state overlay, ...).
+  -- Runs after the renderer's core layers and before children so pressed-state
+  -- feedback paints above the element's own surface but below its children,
+  -- preserving the original layer order. (behavior-mode-unification task 02)
+  local drawCtx = { backdropCanvas = backdropCanvas }
+  for i = 1, #self.behaviors do
+    self.behaviors[i].onDraw(self, drawCtx)
+  end
 
   -- Sort children by z-index before drawing
   local sortedChildren = {}
@@ -2796,108 +2805,12 @@ function Element:update(dt)
   -- Handle scrollbar hover, drag, and press interaction
   Element._ScrollManager.updateInteraction(self, mx, my)
 
-  if self.onEvent or self.themeComponent or self.editable or self._selectState or self.selectOption then
-    -- Clickable area is the border box (x, y already includes padding)
-    -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection
-    local bx = self.x
-    local by = self.y
-    local bw = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-    local bh = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-
-    -- Account for scroll offsets from parent containers
-    -- Walk up the parent chain and accumulate scroll offsets
-    local scrollOffsetX = 0
-    local scrollOffsetY = 0
-    local current = self.parent
-    while current do
-      local overflowX = current.overflowX or current.overflow
-      local overflowY = current.overflowY or current.overflow
-      local hasScrollableOverflow = (
-        overflowX == "scroll"
-        or overflowX == "auto"
-        or overflowY == "scroll"
-        or overflowY == "auto"
-        or overflowX == "hidden"
-        or overflowY == "hidden"
-      )
-      if hasScrollableOverflow then
-        scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
-        scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
-      end
-      current = current.parent
-    end
-
-    -- Adjust mouse position by accumulated scroll offset for hit testing
-    local adjustedMx = mx + scrollOffsetX
-    local adjustedMy = my + scrollOffsetY
-    local isHovering = adjustedMx >= bx and adjustedMx <= bx + bw and adjustedMy >= by and adjustedMy <= by + bh
-
-    -- Check if this is the topmost element at the mouse position (z-index ordering)
-    -- This prevents blocked elements from receiving interactions or visual feedback
-    local isActiveElement
-    if Element._Context._immediateMode then
-      -- In immediate mode, use z-index occlusion detection
-      local topElement = Element._Context.getTopElementAt(mx, my)
-      isActiveElement = (topElement == self or topElement == nil)
-    else
-      -- In retained mode, use the old _activeEventElement mechanism
-      isActiveElement = (Element._Context._activeEventElement == nil or Element._Context._activeEventElement == self)
-    end
-
-    -- Reset scrollbar press flag at start of each frame
-    self._eventHandler:resetScrollbarPressFlag()
-
-    -- Process mouse events through EventHandler FIRST
-    -- This ensures pressed states are updated before theme state is calculated
-    self._eventHandler:processMouseEvents(self, mx, my, isHovering, isActiveElement)
-
-    -- In immediate mode, save EventHandler state to StateManager after processing events
-    if self._stateId and Element._Context._immediateMode and self._stateId ~= "" then
-      local eventHandlerState = self._eventHandler:getState()
-      Element._StateManager.updateState(self._stateId, {
-        _pressed = eventHandlerState._pressed,
-        _lastClickTime = eventHandlerState._lastClickTime,
-        _lastClickButton = eventHandlerState._lastClickButton,
-        _clickCount = eventHandlerState._clickCount,
-        _dragStartX = eventHandlerState._dragStartX,
-        _dragStartY = eventHandlerState._dragStartY,
-        _lastMouseX = eventHandlerState._lastMouseX,
-        _lastMouseY = eventHandlerState._lastMouseY,
-        _hovered = eventHandlerState._hovered,
-      })
-    end
-
-    -- Update theme state based on interaction
-    if self.themeComponent then
-      -- Check if any button is pressed via EventHandler
-      local anyPressed = self._eventHandler:isAnyButtonPressed()
-
-      -- Update theme state via ThemeManager
-      local isFocused = Element._Context.getFocused() == self
-      local newThemeState =
-        self._themeManager:updateState(isHovering and isActiveElement, anyPressed, isFocused, self.disabled)
-
-      if self._stateId and Element._Context._immediateMode then
-        local hover = newThemeState == "hover"
-        local pressed = newThemeState == "pressed"
-        local focused = isFocused
-
-        Element._StateManager.updateState(self._stateId, {
-          hover = hover,
-          pressed = pressed,
-          focused = focused,
-          disabled = self.disabled,
-          active = self.active,
-        })
-      end
-
-      if self._renderer then
-        self._renderer:setThemeState(newThemeState)
-      end
-    end
-
-    -- Process touch events through EventHandler
-    self._eventHandler:processTouchEvents(self)
+  -- Dispatch to attached behaviors (Clickable mouse/touch + pressed-state,
+  -- Scrollable, TextEditable, ...). Replaces the former capability-gated
+  -- event-processing block in Element:update (behavior-mode-unification task 02).
+  local behaviors = self.behaviors
+  for i = 1, #behaviors do
+    behaviors[i].onUpdate(self, dt)
   end
 
   -- Retry any deferred methods (methods that deferred their execution
@@ -3929,8 +3842,16 @@ end
 ---@return ElementStateData state Complete state snapshot
 function Element:saveState()
   local state = {}
-  if self._eventHandler then
-    state.eventHandler = self._eventHandler:getState()
+  -- Behavior-driven state (EventHandler state from Clickable, ...).
+  for i = 1, #self.behaviors do
+    local bstate = self.behaviors[i].saveState(self)
+    if bstate ~= nil then
+      -- Merge behavior snapshots under their behavior's key; Clickable uses
+      -- `eventHandler` to match the legacy restoreState contract.
+      for k, v in pairs(bstate) do
+        state[k] = v
+      end
+    end
   end
   local selectState = Element._Select.saveState(self)
   if selectState then
@@ -3994,10 +3915,9 @@ function Element:restoreState(state)
   if not state then
     return
   end
-
-  -- Restore EventHandler state (if exists)
-  if self._eventHandler and state.eventHandler then
-    self._eventHandler:setState(state.eventHandler)
+  -- Behavior-driven restore (EventHandler state via Clickable, ...).
+  for i = 1, #self.behaviors do
+    self.behaviors[i].restoreState(self, state)
   end
 
   if state.select then
@@ -4090,7 +4010,7 @@ function Element:isFocusable()
   end
 
   -- Elements with onEvent handlers are focusable (buttons, sliders, inputs, etc.)
-  if self.onEvent then
+  if type(self.onEvent) == "function" then
     return true
   end
 

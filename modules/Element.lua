@@ -181,6 +181,7 @@ function Element.init(deps)
   Element._Animation = deps.Animation
   Element._ZIndex = deps.ZIndex
   Element._Select = deps.Select
+  Element._PropertySchema = deps.PropertySchema or require("modules.PropertySchema")
   Element._Select.init({
     ErrorHandler = Element._ErrorHandler,
     Context = Element._Context,
@@ -254,6 +255,167 @@ local function _refreshUnit(self, key, ref, ctx, scaleAxis)
   self[key] = type(resolved) == "number" and resolved or nil
 end
 
+-- ---------------------------------------------------------------------------
+-- Data-driven prop binding (Task 03)
+-- ---------------------------------------------------------------------------
+-- Props that CANNOT be bound generically by _applyProps because they need
+-- side-effects, ordering relative to constructed sub-systems, non-literal
+-- (theme/parent/viewport-derived) defaults, or unit resolution. Each is still
+-- handled explicitly in Element.new (or its own special handler). Adding a new
+-- SIMPLE prop requires only a PropertySchema entry; adding a prop that needs
+-- side-effects additionally requires listing it here.
+--
+-- Props NOT listed here (e.g. callbacks, editable, multiline, passwordMode,
+-- autoScaleText, cursorColor, selectionColor, opacity, visibility, transform,
+-- imagePath/objectFit/..., minTextSize/maxTextSize, alignSelf, transition) are
+-- bound generically by _applyProps (defaults + normalizers + validators +
+-- onX/onXDeferred auto-wiring).
+local function _set(...)
+  local t = {}
+  for _, name in ipairs({ ... }) do
+    t[name] = true
+  end
+  return t
+end
+
+local SPECIAL_PROPS = _set(
+  -- identity / tree
+  "id",
+  "parent",
+  "children",
+  -- theme-driven (ThemeManager owns these / computes defaults)
+  "theme",
+  "themeComponent",
+  "disabled",
+  "isDisabled",
+  "active",
+  "disableHighlight",
+  "themeStateLock",
+  "themeComponentDisabledStates",
+  "scaleCorners",
+  "scalingAlgorithm",
+  "contentAutoSizingMultiplier",
+  -- color defaults that require the Color module
+  "borderColor",
+  "backgroundColor",
+  "textColor",
+  -- display: non-throwing warn+fallback (unlike throwing range/enum validators)
+  "display",
+  -- text editing (validation side-effects / computed defaults)
+  "textWrap",
+  "scrollable",
+  "autoGrow",
+  "text",
+  "textAlign",
+  "textAlignHorizontal",
+  "textAlignVertical",
+  "textSize",
+  "fontFamily",
+  -- box model / dimensions (unit resolution)
+  "width",
+  "height",
+  "x",
+  "y",
+  "z",
+  "minWidth",
+  "maxWidth",
+  "minHeight",
+  "maxHeight",
+  "gap",
+  "top",
+  "right",
+  "bottom",
+  "left",
+  "columnGap",
+  "rowGap",
+  "padding",
+  "margin",
+  -- layout enums (positioning-mode validation + LayoutEngine config)
+  "positioning",
+  "flexDirection",
+  "flexWrap",
+  "justifyContent",
+  "alignItems",
+  "alignContent",
+  "justifySelf",
+  "gridRows",
+  "gridColumns",
+  -- flex shorthand + validated numerics (custom FLEX_xx warnings)
+  "flex",
+  "flexGrow",
+  "flexShrink",
+  "flexBasis",
+  -- scroll / scrollbar (ScrollManager owns these)
+  "overflow",
+  "overflowX",
+  "overflowY",
+  "scrollbarWidth",
+  "scrollbarColor",
+  "scrollbarTrackColor",
+  "scrollbarRadius",
+  "scrollbarPadding",
+  "scrollSpeed",
+  "invertScroll",
+  "smoothScrollEnabled",
+  "scrollBarStyle",
+  "scrollbarKnobOffset",
+  "hideScrollbars",
+  "scrollbarPlacement",
+  "scrollbarBalance",
+  "_scrollX",
+  "_scrollY",
+  -- select (Select subsystem owns these)
+  "selectParent",
+  "selectOption",
+  -- border / cornerRadius use schema normalizers but are bound as special handlers
+  "border",
+  "cornerRadius",
+  -- misc instance-only fields derived during construction
+  "tabIndex"
+)
+
+--- Bind every schema-driven, side-effect-free prop onto `self` in one pass.
+--- Iterates PropertySchema entries: applies defaults, normalizers, validators,
+--- and auto-wires `onX` + `onXDeferred` companion pairs. Props listed in
+--- SPECIAL_PROPS are skipped (they are handled explicitly in Element.new).
+---@param props table Element construction props
+function Element:_applyProps(props)
+  local schema = Element._PropertySchema
+  local registry = schema.all()
+  for name, meta in pairs(registry) do
+    -- Skip deferred companion entries (auto-wired by their base callback's
+    -- hasDeferred branch below) and SPECIAL_PROPS (handled in Element.new).
+    if not (name:match("Deferred$") or SPECIAL_PROPS[name]) then
+      local value = props[name]
+      if value == nil then
+        value = meta.default
+      end
+      if meta.normalizer then
+        value = meta.normalizer(value)
+      end
+      if meta.validator and value ~= nil and not meta.validator(value) then
+        -- Mirror the legacy throwing validateRange/validateEnum behavior: invalid
+        -- enum/range values error during construction (validated props: opacity,
+        -- imageOpacity, objectFit, imageRepeat). display is a special handler that
+        -- warns + falls back instead.
+        Element._ErrorHandler:error("Element", "VAL_001", {
+          property = name,
+          expected = meta.type,
+          got = tostring(value),
+        })
+      end
+      local key = meta.storageKey or name
+      self[key] = value
+      -- Auto-wire deferred companion for callbacks that declare hasDeferred.
+      if meta.hasDeferred then
+        local deferredName = name .. "Deferred"
+        local deferredValue = props[deferredName]
+        self[deferredName] = deferredValue ~= nil and deferredValue or false
+      end
+    end
+  end
+end
+
 ---@param props ElementProps
 ---@return Element
 function Element.new(props)
@@ -298,38 +460,22 @@ function Element.new(props)
     Color = Element._Color,
   }
 
-  -- Normalize flexDirection: convert "row"→"horizontal", "column"→"vertical"
-  if props.flexDirection == "row" then
-    props.flexDirection = "horizontal"
-  elseif props.flexDirection == "column" then
-    props.flexDirection = "vertical"
-  end
+  -- Apply schema-driven shape normalizers to props for the special-handler
+  -- props (padding/margin/flexDirection) whose downstream unit-resolution logic
+  -- reads from `props` directly. Generic props are bound by _applyProps below.
+  local schema = Element._PropertySchema
+  props.flexDirection = schema.get("flexDirection").normalizer(props.flexDirection)
+  props.padding = schema.get("padding").normalizer(props.padding)
+  props.margin = schema.get("margin").normalizer(props.margin)
 
-  -- Normalize padding: convert single value to table with all sides
-  if props.padding ~= nil and type(props.padding) ~= "table" then
-    local singleValue = props.padding
-    props.padding = {
-      top = singleValue,
-      right = singleValue,
-      bottom = singleValue,
-      left = singleValue,
-    }
-  end
-
-  -- Normalize margin: convert single value to table with all sides
-  if props.margin ~= nil and type(props.margin) ~= "table" then
-    local singleValue = props.margin
-    props.margin = {
-      top = singleValue,
-      right = singleValue,
-      bottom = singleValue,
-      left = singleValue,
-    }
-  end
+  -- Bind every side-effect-free schema prop (defaults, normalizers, validators,
+  -- and onX/onXDeferred companion pairs) in a single registry-driven pass.
+  -- Props needing side-effects/ordering/non-literal defaults are skipped here
+  -- (see SPECIAL_PROPS) and handled explicitly below.
+  self:_applyProps(props)
 
   self.children = {}
   self._deferredMethods = {}
-  self.onEvent = props.onEvent
 
   -- Track whether ID was auto-generated (before ID assignment)
   local idWasAutoGenerated = not props.id or props.id == ""
@@ -341,39 +487,13 @@ function Element.new(props)
     self.id = props.id
   end
 
-  self.userdata = props.userdata
-
-  self.onFocus = props.onFocus
-  self.onFocusDeferred = props.onFocusDeferred or false
-  self.dropFocusOnSelection = props.dropFocusOnSelection
-  self.onBlur = props.onBlur
-  self.onBlurDeferred = props.onBlurDeferred or false
-  self.onTextInput = props.onTextInput
-  self.onTextInputDeferred = props.onTextInputDeferred or false
-  self.onTextChange = props.onTextChange
-  self.onTextChangeDeferred = props.onTextChangeDeferred or false
-  self.onEnter = props.onEnter
-  self.onEnterDeferred = props.onEnterDeferred or false
-  self.onCreate = props.onCreate
-  self.onCreateDeferred = props.onCreateDeferred or false
-
-  self.customDraw = props.customDraw -- Custom rendering callback
-
-  -- Touch event properties
-  self.onTouchEvent = props.onTouchEvent
-  self.onTouchEventDeferred = props.onTouchEventDeferred or false
-  self.onGesture = props.onGesture
-  self.onGestureDeferred = props.onGestureDeferred or false
-  self.touchEnabled = props.touchEnabled ~= false -- Default true
-  self.multiTouchEnabled = props.multiTouchEnabled or false -- Default false
-
   -- Initialize state manager ID for immediate mode (use self.id which may be auto-generated)
   self._stateId = self.id
 
   -- In immediate mode, restore EventHandler state from StateManager
   local eventHandlerConfig = {
     -- element.onEvent is source of truth; not cached on handler
-    onEventDeferred = props.onEventDeferred,
+    onEventDeferred = self.onEventDeferred,
     -- element.onTouchEvent is source of truth; not cached on handler
     onTouchEventDeferred = self.onTouchEventDeferred,
     -- element.onGesture is source of truth; not cached on handler
@@ -499,16 +619,11 @@ function Element.new(props)
   self.scaleCorners = self._themeManager.scaleCorners
   self.scalingAlgorithm = self._themeManager.scalingAlgorithm
 
-  self.contentBlur = props.contentBlur
-  self.backdropBlur = props.backdropBlur
   self._blurInstance = nil
 
-  self.editable = props.editable or false
-  self.multiline = props.multiline or false
-  self.passwordMode = props.passwordMode or false
-
-  -- Validate property combinations: passwordMode disables multiline
-  if self.passwordMode and props.multiline then
+  -- editable/multiline/passwordMode are bound by _applyProps (default false).
+  -- Validate combinations: passwordMode disables multiline.
+  if self.passwordMode and self.multiline then
     Element._ErrorHandler:warn("Element", "ELEM_006")
     self.multiline = false
   elseif self.passwordMode then
@@ -520,12 +635,6 @@ function Element.new(props)
     self.textWrap = self.multiline and "word" or false
   end
 
-  self.maxLines = props.maxLines
-  self.maxLength = props.maxLength
-  self.placeholder = props.placeholder
-  self.inputType = props.inputType or "text"
-
-  self.textOverflow = props.textOverflow or "clip"
   self.scrollable = props.scrollable
   if self.scrollable == nil then
     self.scrollable = self.multiline
@@ -536,11 +645,6 @@ function Element.new(props)
   else
     self.autoGrow = self.multiline
   end
-  self.selectOnFocus = props.selectOnFocus or false
-
-  self.cursorColor = props.cursorColor
-  self.selectionColor = props.selectionColor
-  self.cursorBlinkRate = props.cursorBlinkRate or 0.5
 
   self.selectParent = nil
   self.selectOption = nil
@@ -594,53 +698,19 @@ function Element.new(props)
   self.parent = props.parent
 
   ------ add non-hereditary ------
-  --- self drawing---
-  -- OPTIMIZATION: Handle border - only create table if border exists
-  -- This saves ~80 bytes per element without borders
-  if type(props.border) == "table" then
-    -- Check if any border side is truthy
-    local hasAnyBorder = props.border.top or props.border.right or props.border.bottom or props.border.left
-    if hasAnyBorder then
-      -- Normalize border values: boolean true → 1, number → value, false/nil → false
-      local function normalizeBorderValue(value)
-        if value == true then
-          return 1
-        elseif type(value) == "number" then
-          return value
-        else
-          return false
-        end
-      end
-
-      self.border = {
-        top = normalizeBorderValue(props.border.top),
-        right = normalizeBorderValue(props.border.right),
-        bottom = normalizeBorderValue(props.border.bottom),
-        left = normalizeBorderValue(props.border.left),
-      }
-    else
-      self.border = nil
-    end
-  elseif props.border then
-    -- If border is a number or truthy value, keep it as-is
-    self.border = props.border
-  else
-    -- No border specified - use nil instead of table with all false
-    self.border = nil
-  end
+  --- self drawing ---
+  -- Border shape-normalization via the schema normalizer (special handler: the
+  -- number-vs-table-vs-nil shape and the all-false→nil collapse are intentional).
+  self.border = schema.get("border").normalizer(props.border)
   self.borderColor = props.borderColor or Element._Color.new(0, 0, 0, 1)
   self.backgroundColor = props.backgroundColor or Element._Color.new(0, 0, 0, 0)
 
-  -- Validate and set opacity
-  if props.opacity ~= nil then
-    Element._utils.validateRange(props.opacity, 0, 1, "opacity")
-  end
-  self.opacity = props.opacity or 1
+  -- cornerRadius shape-normalization via the schema normalizer (special handler:
+  -- number-vs-table-vs-nil and the all-zero→nil collapse are intentional).
+  self.cornerRadius = schema.get("cornerRadius").normalizer(props.cornerRadius)
 
-  -- Set visibility property (default: "visible")
-  self.visibility = props.visibility or "visible"
-
-  -- Set display property (default: true — element participates in layout, rendering, and hit testing)
+  -- display: default true; invalid (non-boolean) warns + falls back to true
+  -- (non-throwing, unlike range/enum validators).
   if props.display ~= nil then
     if type(props.display) == "boolean" then
       self.display = props.display
@@ -654,41 +724,6 @@ function Element.new(props)
     end
   else
     self.display = true
-  end
-
-  -- Set transform property (optional)
-  self.transform = props.transform or nil
-
-  -- OPTIMIZATION: Handle cornerRadius - store as number or table, nil if all zeros
-  -- This saves ~80 bytes per element without rounded corners
-  if props.cornerRadius then
-    if type(props.cornerRadius) == "number" then
-      -- Store as number for uniform radius (compact)
-      if props.cornerRadius ~= 0 then
-        self.cornerRadius = props.cornerRadius
-      else
-        self.cornerRadius = nil
-      end
-    else
-      -- Store as table only if non-zero values exist
-      local hasNonZero = props.cornerRadius.topLeft
-        or props.cornerRadius.topRight
-        or props.cornerRadius.bottomLeft
-        or props.cornerRadius.bottomRight
-      if hasNonZero then
-        self.cornerRadius = {
-          topLeft = props.cornerRadius.topLeft or 0,
-          topRight = props.cornerRadius.topRight or 0,
-          bottomLeft = props.cornerRadius.bottomLeft or 0,
-          bottomRight = props.cornerRadius.bottomRight or 0,
-        }
-      else
-        self.cornerRadius = nil
-      end
-    end
-  else
-    -- No cornerRadius specified - use nil instead of table with all zeros
-    self.cornerRadius = nil
   end
 
   -- For editable elements, default text to empty string if not provided
@@ -796,48 +831,9 @@ function Element.new(props)
     end
   end
 
-  -- Image properties
-  self.imagePath = props.imagePath
-  self.image = props.image
-
-  -- Validate objectFit
-  if props.objectFit then
-    local validObjectFit =
-      { fill = "fill", contain = "contain", cover = "cover", ["scale-down"] = "scale-down", none = "none" }
-    Element._utils.validateEnum(props.objectFit, validObjectFit, "objectFit")
-  end
-  self.objectFit = props.objectFit or "fill"
-  self.objectPosition = props.objectPosition or "center center"
-
-  -- Validate and set imageOpacity
-  if props.imageOpacity ~= nil then
-    Element._utils.validateRange(props.imageOpacity, 0, 1, "imageOpacity")
-  end
-  self.imageOpacity = props.imageOpacity or 1
-
-  -- Validate and set imageRepeat
-  if props.imageRepeat then
-    local validImageRepeat = {
-      ["no-repeat"] = "no-repeat",
-      ["repeat"] = "repeat",
-      ["repeat-x"] = "repeat-x",
-      ["repeat-y"] = "repeat-y",
-      space = "space",
-      round = "round",
-    }
-    Element._utils.validateEnum(props.imageRepeat, validImageRepeat, "imageRepeat")
-  end
-  self.imageRepeat = props.imageRepeat or "no-repeat"
-
-  -- Set imageTint
-  self.imageTint = props.imageTint
-
-  -- Image callbacks
-  self.onImageLoad = props.onImageLoad
-  self.onImageLoadDeferred = props.onImageLoadDeferred or false
-  self.onImageError = props.onImageError
-  self.onImageErrorDeferred = props.onImageErrorDeferred or false
-
+  -- Image properties (imagePath/image/objectFit/objectPosition/imageOpacity/
+  -- imageRepeat/imageTint/onImageLoad[+Deferred]/onImageError[+Deferred] are bound
+  -- by _applyProps; only the load side-effect remains here).
   -- Auto-load image if imagePath is provided
   if self.imagePath and not self.image then
     -- Check cache first (no I/O). Set _loadedImage immediately if cached
@@ -936,15 +932,8 @@ function Element.new(props)
   local scaleX, scaleY = Element._Context.getScaleFactors()
   local _ctx = { vw = viewportWidth, vh = viewportHeight, sx = scaleX, sy = scaleY }
 
-  self.minTextSize = props.minTextSize
-  self.maxTextSize = props.maxTextSize
-
-  -- Set autoScaleText BEFORE textSize processing (needed for correct initialization)
-  if props.autoScaleText == nil then
-    self.autoScaleText = true
-  else
-    self.autoScaleText = props.autoScaleText
-  end
+  -- minTextSize/maxTextSize/autoScaleText are bound by _applyProps (autoScaleText
+  -- defaults true). They are needed before textSize processing below.
 
   -- Handle fontFamily (can be font name from theme or direct path to font file)
   -- Priority: explicit props.fontFamily > parent fontFamily > theme default
@@ -1640,7 +1629,7 @@ function Element.new(props)
     _resolveUnit(self, props.rowGap, "rowGap", self.height, _ctx, { default = 0 })
   end
 
-  self.alignSelf = props.alignSelf or Element._utils.enums.AlignSelf.AUTO
+  -- alignSelf is bound by _applyProps (default "auto").
 
   if self._selectState and props.selectParent and props.selectParent.selectFrame ~= nil then
     Element._Select.adoptSelectFrame(self, props.selectParent.selectFrame)
@@ -1681,9 +1670,8 @@ function Element.new(props)
     self._layoutEngine.rowGap = self.rowGap
   end
 
-  -- transform is already set at line 424 (props.transform or nil)
-  -- Don't overwrite it here
-  self.transition = props.transition or {}
+  -- transform is bound by _applyProps; transition is bound by _applyProps (default {}).
+  -- (Previously set inline here; both are now registry-driven.)
 
   if props.overflow or props.overflowX or props.overflowY then
     self._scrollManager = Element._ScrollManager.new({

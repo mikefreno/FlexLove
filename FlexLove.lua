@@ -62,6 +62,8 @@ local ImageScaler = safeReq("ImageScaler", true)
 local NinePatch = safeReq("NinePatch", true)
 local ImageCache = safeReq("ImageCache", true)
 local GestureRecognizer = safeReq("GestureRecognizer", true)
+---@type PropertySchema
+local PropertySchema = req("PropertySchema")
 ---@type Animation
 local Animation = safeReq("Animation", true)
 ---@type Theme
@@ -303,6 +305,7 @@ function flexlove.init(config)
     Animation = Animation,
     ZIndex = ZIndex,
     Select = Select,
+    PropertySchema = PropertySchema,
   }
 
   -- Initialize Element module with dependencies

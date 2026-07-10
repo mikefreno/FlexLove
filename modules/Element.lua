@@ -4286,34 +4286,15 @@ function Element:setProperty(property, value)
     shouldTransition = transitionConfig ~= nil
   end
 
-  -- Properties that affect layout and require invalidation
-  local layoutProperties = {
-    width = true,
-    height = true,
-    padding = true,
-    margin = true,
-    gap = true,
-    flexDirection = true,
-    flexWrap = true,
-    justifyContent = true,
-    alignItems = true,
-    alignContent = true,
-    positioning = true,
-    gridRows = true,
-    gridColumns = true,
-
-    top = true,
-    right = true,
-    bottom = true,
-    left = true,
-  }
-
-  -- Dimension properties that accept unit strings and need resolution
-  local dimensionProperties = { width = true, height = true }
+  -- Lookup tables (layoutProperties / dimensionProperties) were previously rebuilt
+  -- in-function on every setProperty call. Membership is now driven by the
+  -- PropertySchema registry flags (`affectsLayout` / `isDimension`) via O(1)
+  -- module-scope lookups — no per-call table allocation.
+  local schema = Element._PropertySchema
 
   -- For dimension properties with unit strings, resolve to pixels
   local isUnitValue = type(value) == "string" or (Element._Calc and Element._Calc.isCalc(value))
-  if dimensionProperties[property] and isUnitValue then
+  if schema.isDimension(property) and isUnitValue then
     -- Check if the unit specification is the same (compare against stored units)
     local currentUnits = self.units[property]
     local newValue, newUnit = Element._Units.parse(value)
@@ -4390,8 +4371,8 @@ function Element:setProperty(property, value)
       self[property] = value
     end
 
-    -- Invalidate layout if this property affects layout
-    if layoutProperties[property] then
+    -- Invalidate layout if this property affects layout (registry-driven)
+    if schema.affectsLayout(property) then
       self:invalidateLayout()
     end
   end

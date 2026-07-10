@@ -227,6 +227,27 @@ function PropertySchema.has(name)
   return registry[name] ~= nil
 end
 
+--- True if setting this prop invalidates layout (legacy `layoutProperties` set).
+--- O(1) registry lookup — no per-call table construction. Unknown props return false,
+--- matching the legacy `layoutProperties[name]` nil-lookup behavior exactly.
+---@param name string prop name
+---@return boolean
+function PropertySchema.affectsLayout(name)
+  local meta = registry[name]
+  return meta ~= nil and meta.affectsLayout == true
+end
+
+--- True for dimension props (width/height) that `setProperty` routes through
+--- `_resolveDimensionProperty` (unit-string resolution + border-box sync).
+--- O(1) registry lookup — no per-call table construction. Unknown props return false,
+--- matching the legacy `dimensionProperties[name]` nil-lookup behavior exactly.
+---@param name string prop name
+---@return boolean
+function PropertySchema.isDimension(name)
+  local meta = registry[name]
+  return meta ~= nil and meta.isDimension == true
+end
+
 -- ---------------------------------------------------------------------------
 -- Default schema (covers every prop handled in Element.new lines 259-1909 and
 -- Element:setProperty lines 4291-4417 of the Task-01 baseline).

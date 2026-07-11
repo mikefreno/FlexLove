@@ -103,7 +103,7 @@ end
 -- attached (no-op / returns false).
 --
 -- `animatedBehavior` is the shared behavior instance resolved lazily by
--- Element (see Element._ensureAnimatedAttached). The behavior is looked up
+-- Element (see Element._resolveAnimatedBehavior). The behavior is looked up
 -- from the registry once and cached on the class.
 --
 -- Returns true if the behavior was attached this call, false otherwise.

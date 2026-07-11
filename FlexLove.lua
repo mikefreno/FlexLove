@@ -352,16 +352,19 @@ function flexlove.init(config)
     ZIndex = ZIndex,
     Select = Select,
     PropertySchema = PropertySchema,
-    -- Behavior registry (behavior-mode-unification task 08). Order matters for
-    -- onDraw layering: Themed (core Renderer:draw) before Clickable (pressed
-    -- overlay) before Imageable (image layer via Renderer:draw command buffer).
-    -- 7 entries: Themed, Clickable, Imageable, Animated, Selectable,
-    -- TextEditable, Scrollable. (The task-08 spec narrative lists Clickable
-    -- first for update-ordering, but the locked onDraw dispatch iterates the
-    -- registry in order, so Themed-first preserves the pressed-overlay layering
-    -- locked by task 02. ScrollManager has no onDraw yet — task 09.)
+    -- Behavior registry (behavior-mode-unification task 09). Two ordering
+    -- invariants:
+    --   * Update: Animated (geometry) → Scrollable (scroll interaction) →
+    --     Clickable (hit-testing) — animated geometry must be current for
+    --     hit-testing, and scrollbar press state must be set before Clickable's
+    --     EventHandler processes mouse events.
+    --   * Draw: Themed (core Renderer:draw) runs before Clickable (pressed-state
+    --     overlay); Scrollable (drawLayer="overlay") is dispatched AFTER children
+    --     for scrollbar-on-top. Imageable/Animated/Selectable/TextEditable onDraw
+    --     are no-ops, so their position is unconstrained for layering.
+    -- 7 entries. (task 09 reordered Animated+Scrollable ahead of Clickable.)
     clickableBehaviors = { Themed, Clickable, Imageable },
-    behaviors = { Themed, Clickable, Imageable, Animated, Selectable, TextEditable, Scrollable },
+    behaviors = { Themed, Animated, Scrollable, Clickable, Imageable, Selectable, TextEditable },
     TextEditable = TextEditable,
   }
 

@@ -169,25 +169,89 @@ local function onAttach(element)
   end
 end
 
--- ----------------------------------------------------------------------------
--- onUpdate / onDraw / saveState / restoreState — deferred to tasks 09 / 12.
--- The ScrollManager update / interaction / scrollbar drawing / state save-restore
--- currently stay inline in Element:update / Element:draw / Element:saveState /
--- Element:restoreState as unconditional 1-line delegates (no behavioral
--- `if self._scrollManager` branching in update/draw), so leaving them inline does
--- not regress the behavior-dispatch goals. Task 09 will fold them into these
--- hooks. Kept as no-ops here so the behavior conforms to the lifecycle contract.
--- ----------------------------------------------------------------------------
+-- --------------------------------------------------------------------------
+-- onUpdate — scroll-position momentum + scrollbar hover/drag/press interaction
+-- (formerly the inline ScrollManager blocks in Element:update).
+-- Runs BEFORE Clickable.onUpdate in the registry so the scrollbar press flag
+-- is set before Clickable's EventHandler processes mouse events.
+-- --------------------------------------------------------------------------
+
+local function onUpdate(element, dt)
+  local Element = ElementClass(element)
+  local sm = element._scrollManager
+  if not sm then
+    return
+  end
+  -- Restore scrollbar interaction state from StateManager in immediate mode
+  -- (no-op outside immediate mode / when no state is stored).
+  Element._ScrollManager.restoreImmediateState(element)
+
+  -- Smooth-scroll / momentum interpolation.
+  sm:update(dt)
+  element:_syncScrollManagerState()
+
+  -- Scrollbar hover / drag / press interaction. Captures the mouse here so the
+  -- interaction state is consistent across the rest of the frame's behaviors.
+  local mx, my = love.mouse.getPosition()
+  Element._ScrollManager.updateInteraction(element, mx, my)
+end
+
+-- --------------------------------------------------------------------------
+-- onDraw — scrollbar rendering (post-children overlay). Marked
+-- `drawLayer = "overlay"` so Element:draw dispatches it AFTER children, so
+-- scrollbars paint on top of clipped child content and without parent clipping.
+-- --------------------------------------------------------------------------
+
+local function onDraw(element, _ctx)
+  local overflowX = element.overflowX or element.overflow
+  local overflowY = element.overflowY or element.overflow
+  if overflowX ~= "scroll" and overflowX ~= "auto" and overflowY ~= "scroll" and overflowY ~= "auto" then
+    return
+  end
+  local scrollbarDims = element:_calculateScrollbarDimensions()
+  if not (scrollbarDims.vertical.visible or scrollbarDims.horizontal.visible) then
+    return
+  end
+  -- Clear any parent scissor clipping before drawing scrollbars so they render
+  -- fully visible (scrollbars must not be clipped by ancestor overflow).
+  love.graphics.setScissor()
+  element._renderer:drawScrollbars(element, element.x, element.y, element.width, element.height, scrollbarDims)
+end
+
+-- --------------------------------------------------------------------------
+-- saveState / restoreState — ScrollManager state snapshot for immediate-mode
+-- recreation (formerly the inline blocks in Element:saveState/
+-- Element:restoreState). Returns a table merged under the `scrollManager` key
+-- by Element:saveState's behavior loop, mirroring the legacy contract.
+-- --------------------------------------------------------------------------
+
+local function saveState(element)
+  local sm = element._scrollManager
+  if not sm then
+    return nil
+  end
+  return { scrollManager = sm:getState() }
+end
+
+local function restoreState(element, state)
+  if not state then
+    return
+  end
+  local sm = element._scrollManager
+  local smState = state.scrollManager
+  if sm and smState then
+    sm:setState(smState)
+  end
+end
 
 local Scrollable = Behavior.new({
   onAttach = onAttach,
   onDetach = function() end,
-  onUpdate = function() end,
-  onDraw = function() end,
-  saveState = function()
-    return nil
-  end,
-  restoreState = function() end,
+  onUpdate = onUpdate,
+  onDraw = onDraw,
+  saveState = saveState,
+  restoreState = restoreState,
+  drawLayer = "overlay",
 })
 
 -- Expose the predicate at module level so callers/tests can reference it

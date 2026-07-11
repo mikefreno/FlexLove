@@ -706,75 +706,13 @@ function Element:_attachBehaviors(props)
   end
 end
 
---- Idempotently attach the Animated behavior to an element that just gained an
---- animation (animateTo / fadeIn / direct assignment / a firing transition
---- in setProperty). Resolves the Animated behavior instance from the registry
---- lazily (cached on the class as Element._animatedBehavior) and delegates to
---- `Animated.ensureAttached`, which no-ops if already attached. Lets animation
---- be opt-in while ensuring subsequent Element:update frames dispatch to
---- Animated.onUpdate without Element:update branching on `if self.animation`.
---- (behavior-mode-unification task 06.)
-function Element._ensureAnimatedAttached(element)
-  if not element then
-    return
-  end
-  -- Resolve + cache the Animated behavior from the registry (once per class.
-  -- Behaviors are optional in minimal builds, so cache nil too to avoid
-  -- re-scanning the registry every call.)
-  local animated = Element._animatedBehavior
-  if animated == nil then
-    local registry = Element._behaviorRegistry
-    if registry then
-      for _, behavior in ipairs(registry) do
-        -- Animated exposes ensureAttached; Clickable/Themed/Imageable do not.
-        if type(behavior.ensureAttached) == "function" then
-          animated = behavior
-          break
-        end
-      end
-    end
-    Element._animatedBehavior = animated or false
-  end
-  if animated then
-    animated.ensureAttached(element, animated)
-  end
-end
-
---- Dispatch the Animated behavior's onUpdate at its historical position in
---- Element:update (before mouse-position capture / scroll interaction) so
---- animated geometry is current for Clickable hit-testing and ScrollManager
---- interaction this frame. No-op when the element has no Animated behavior
---- attached (non-animated elements). The general behavior-dispatch loop later
---- in Element:update skips Animated via `_isAnimatedBehavior` to avoid
---- double-execution. (behavior-mode-unification task 06.)
-function Element._dispatchAnimatedUpdate(element, dt)
-  local behaviors = element.behaviors
-  if not behaviors then
-    return
-  end
-  for i = 1, #behaviors do
-    local b = behaviors[i]
-    -- Animated is the behavior that exposes `ensureAttached` (Clickable /
-    -- Themed / Imageable do not).
-    if type(b.ensureAttached) == "function" then
-      b.onUpdate(element, dt)
-      return
-    end
-  end
-end
-
---- Predicate: true if `behavior` is the Animated behavior (identified by its
---- `ensureAttached` field). Used by the general behavior-dispatch loop in
---- Element:update to skip Animated, since it is dispatched earlier via
---- `_dispatchAnimatedUpdate` to preserve frame ordering.
-function Element._isAnimatedBehavior(behavior)
-  return behavior ~= nil and type(behavior.ensureAttached) == "function"
-end
-
 --- Resolve the (lazily cached) Animated behavior instance from the registry.
---- Mirrors the resolution in _ensureAnimatedAttached so the two stay in sync
---- without coupling the dispatch path to the attach path. Returns the behavior
---- instance or `false` (cached nil sentinel). (behavior-mode-unification task 06/07.)
+-- task 09: since the behavior loop no longer excludes Animated, elements WITH
+-- the behavior attached get the loop dispatch and `_dispatchAnimatedUpdate` no-ops
+-- for them.
+-- task 09 consolidation: `_ensureAnimatedAttached` / `_isAnimatedBehavior`
+-- (dead code) were removed; Animated.ensureAttached remains the late-attach
+-- entry point for callers that route through it.
 function Element._resolveAnimatedBehavior()
   local animated = Element._animatedBehavior
   if animated == nil then
@@ -793,18 +731,16 @@ function Element._resolveAnimatedBehavior()
   return animated
 end
 
---- Dispatch the Animated behavior's onUpdate for an element EARLY in
---- Element:update — before mouse-position capture and scroll interaction — so
---- animated geometry (x/y/width/height) is current for Clickable hit-testing
---- and ScrollManager interaction this frame. Dispatches unconditionally (when a
---- cached Animated behavior exists) rather than only when the behavior is
---- attached to the element, because an animation can be installed on an element
---- via `anim:apply(el)` / direct `element.animation = ...` assignment WITHOUT
---- routing through ensureAttached — Animated.onUpdate is stateless and reads
---- `element.animation` directly, so it no-ops for elements with no animation.
---- The general behavior-update loop below skips the cached Animated behavior
---- (when attached) to avoid a double update, since animation:update(dt) is not
---- idempotent within a frame. (behavior-mode-unification task 06/07.)
+--- Dispatch Animated.onUpdate for an element EARLY in Element:update (before
+--- the behavior loop) so animated geometry (x/y/width/height) is current for
+--- Clickable hit-testing and Scrollable interaction this frame. NO-OPS for
+--- elements that already have the Animated behavior attached (the loop
+--- dispatches those) to avoid a double update — animation:update(dt) is not
+--- idempotent within a frame. This handles the direct-assignment path
+--- (`element.animation = ...` / `anim:apply`) that bypasses
+--- Animated.ensureAttached; for elements with no animation the behavior's
+--- onUpdate reads `element.animation` and returns. Not a behavioral capability
+--- branch — iterates `element.behaviors`. (behavior-mode-unification task 09.)
 function Element._dispatchAnimatedUpdate(element, dt)
   if not element then
     return
@@ -812,6 +748,16 @@ function Element._dispatchAnimatedUpdate(element, dt)
   local animated = Element._resolveAnimatedBehavior()
   if not animated then
     return
+  end
+  -- Already attached? The behavior loop will dispatch it; bail to avoid a
+  -- double update (animation:update advances twice if called twice).
+  local behaviors = element.behaviors
+  if behaviors then
+    for i = 1, #behaviors do
+      if behaviors[i] == animated then
+        return
+      end
+    end
   end
   animated.onUpdate(element, dt)
 end
@@ -2591,6 +2537,56 @@ function Element:destroy()
   Element._Select.cleanupDestroy(self)
 end
 
+--- Retry deferred methods queued via `_deferMethod` during this frame. Each
+--- pending entry is invoked through pcall; failures are reported to the
+--- ErrorHandler instead of aborting the frame, and entries that re-defer are
+--- retried next frame with an incremented retry count up to MAX_DEFER_RETRIES.
+--- Extracted from the tail of Element:update so update stays a thin
+--- behavior-dispatch orchestrator (behavior-mode-unification task 09).
+function Element:_processDeferredMethods()
+  if #self._deferredMethods == 0 then
+    return
+  end
+  local pending = self._deferredMethods
+  self._deferredMethods = {}
+  for _, entry in ipairs(pending) do
+    if entry.retryCount >= MAX_DEFER_RETRIES then
+      Element._ErrorHandler:warn("Element", "CORE_004", {
+        element = self.id,
+        method = tostring(entry.methodName),
+        retryCount = entry.retryCount,
+      })
+    else
+      local beforeCount = #self._deferredMethods
+      local callArgs = {}
+      for j = 1, entry.argc do
+        local val = entry.args[j]
+        if val == _DEFERRED_NIL then
+          callArgs[j] = nil
+        else
+          callArgs[j] = val
+        end
+      end
+      local success, err = pcall(function()
+        self[entry.methodName](self, unpack(callArgs, 1, entry.argc))
+      end)
+      if not success then
+        Element._ErrorHandler:warn("Element", "CORE_002", {
+          element = self.id,
+          method = tostring(entry.methodName),
+          error = tostring(err),
+        })
+      end
+      -- Propagate retry count to any new deferred entry for the same method
+      for i = beforeCount + 1, #self._deferredMethods do
+        if self._deferredMethods[i].methodName == entry.methodName then
+          self._deferredMethods[i].retryCount = entry.retryCount + 1
+        end
+      end
+    end
+  end
+end
+
 --- Draw element and its children
 function Element:draw(backdropCanvas)
   -- Early exit if element is display:none or invisible (optimization)
@@ -2598,29 +2594,51 @@ function Element:draw(backdropCanvas)
     return
   end
 
-  -- Cache border box dimensions for this draw call (optimization)
-  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
-  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
-
-  -- LAYERS 0.5-5: Visual rendering (blur, bg, image, theme, borders, text,
-  -- customDraw) is now dispatched via behavior iteration — the Themed behavior's
-  -- onDraw owns the single `Renderer:draw` call (behavior-mode-unification task 07).
-  -- The draw loop below dispatches onDraw to every attached behavior in registry
-  -- order: Themed (core Renderer:draw) → Clickable (pressed-state overlay) →
-  -- Imageable (image layer via the integrated Renderer:draw command buffer).
+  -- Background behaviors (drawLayer ~= "overlay") render BEFORE children in
+  -- registry order: Themed (core Renderer:draw), Clickable (pressed overlay),
+  -- ... Overlay behaviors (Scrollable scrollbars) render AFTER children below.
   local drawCtx = { backdropCanvas = backdropCanvas }
-  for i = 1, #self.behaviors do
-    self.behaviors[i].onDraw(self, drawCtx)
+  local behaviors = self.behaviors
+  for i = 1, #behaviors do
+    local b = behaviors[i]
+    if b.drawLayer ~= "overlay" then
+      b.onDraw(self, drawCtx)
+    end
   end
 
-  -- Sort children by z-index before drawing
+  -- Core child hierarchy rendering (clipping, sorting, scroll offset, blur).
+  -- Stays in Element: it is structural, not a per-capability behavior.
+  self:_drawChildren(backdropCanvas)
+
+  -- Overlay behaviors (drawLayer == "overlay") render AFTER children so they
+  -- paint on top, e.g. Scrollable's scrollbars (behavior-mode-unification 09).
+  for i = 1, #behaviors do
+    local b = behaviors[i]
+    if b.drawLayer == "overlay" then
+      b.onDraw(self, drawCtx)
+    end
+  end
+end
+
+--- Core child-drawing pipeline extracted from Element:draw so the draw entry
+--- point stays a thin behavior-dispatch orchestrator (task 09). Owns z-sort,
+--- rounded-corner/overflow clipping (stencil > scissor), scroll/content offset,
+--- optional content-blur application, and recursive child:draw. Not a behavior
+--- — this is structural hierarchy rendering shared by every element.
+function Element:_drawChildren(backdropCanvas)
   local sortedChildren = {}
   for _, child in ipairs(self.children) do
     table.insert(sortedChildren, child)
   end
+  if #sortedChildren == 0 then
+    return
+  end
   table.sort(sortedChildren, function(a, b)
     return a.z < b.z
   end)
+
+  local borderBoxWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right)
+  local borderBoxHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom)
 
   -- Check if we need to clip children to rounded corners
   local hasRoundedCorners = false
@@ -2635,12 +2653,10 @@ function Element:draw(backdropCanvas)
     end
   end
 
-  -- Helper function to draw children (with or without clipping)
-  local function drawChildren()
-    if #sortedChildren == 0 then
-      return
-    end
-
+  -- Render the (possibly clipped + offset) child layer, applying content blur
+  -- when configured. The inner closure performs clipping/offset/draw; blur
+  -- wraps it in a region pass when a blur instance is available.
+  local function renderChildLayer()
     local contentOffsetX, contentOffsetY = self:getContentStateOffset()
 
     -- Determine overflow behavior per axis (matches HTML/CSS behavior)
@@ -2697,7 +2713,7 @@ function Element:draw(backdropCanvas)
   end
 
   -- Apply content blur if configured
-  if self.contentBlur and self.contentBlur.radius > 0 and #sortedChildren > 0 then
+  if self.contentBlur and self.contentBlur.radius > 0 then
     local blurInstance = self:getBlurInstance()
     if blurInstance then
       Element._Blur.applyToRegion(
@@ -2707,27 +2723,13 @@ function Element:draw(backdropCanvas)
         self.y,
         borderBoxWidth,
         borderBoxHeight,
-        drawChildren
+        renderChildLayer
       )
     else
-      drawChildren()
+      renderChildLayer()
     end
   else
-    drawChildren()
-  end
-
-  -- Draw scrollbars if overflow is scroll or auto
-  -- IMPORTANT: Scrollbars must be drawn without parent clipping
-  local overflowX = self.overflowX or self.overflow
-  local overflowY = self.overflowY or self.overflow
-  if overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto" then
-    local scrollbarDims = self:_calculateScrollbarDimensions()
-    if scrollbarDims.vertical.visible or scrollbarDims.horizontal.visible then
-      -- Clear any parent scissor clipping before drawing scrollbars
-      love.graphics.setScissor()
-      -- Delegate scrollbar rendering to Renderer module
-      self._renderer:drawScrollbars(self, self.x, self.y, self.width, self.height, scrollbarDims)
-    end
+    renderChildLayer()
   end
 end
 
@@ -2737,102 +2739,19 @@ function Element:update(dt)
   if self.display == false then
     return
   end
-  -- Track active animations for performance warnings (only on root elements)
   if not self.parent then
     self:_trackActiveAnimations()
   end
-
-  -- Restore scrollbar state from StateManager in immediate mode
-  Element._ScrollManager.restoreImmediateState(self)
-
   for _, child in ipairs(self.children) do
     child:update(dt)
   end
-
-  -- Text editor cursor blink is owned by the TextEditable behavior's
-  -- onUpdate (behavior-mode-unification task 04), dispatched via the behavior
-  -- loop below — Element:update contains zero text-editor references.
-
-  -- Update scroll manager for smooth scrolling and momentum
-  if self._scrollManager then
-    self._scrollManager:update(dt)
-    self:_syncScrollManagerState()
-  end
-
-  -- Animation update + interpolation + chain resolution. Now dispatched via
-  -- the Animated behavior (behavior-mode-unification task 06) instead of an
-  -- inline `if self.animation` block. Stays BEFORE mouse-position capture /
-  -- scroll interaction so animated geometry (x/y/width/height) is current for
-  -- Clickable hit-testing and ScrollManager interaction this frame. The Animated
-  -- behavior's onUpdate is a no-op when there is no active animation, so this
-  -- is safe for non-animated elements. We dispatch it here explicitly (rather
-  -- than in the general behavior loop below) to preserve frame ordering.
+  -- Advance direct-assignment animations before the loop so geometry is current
+  -- for hit-testing; no-ops when the Animated behavior is already attached.
   Element._dispatchAnimatedUpdate(self, dt)
-
-  local mx, my = love.mouse.getPosition()
-
-  -- Handle scrollbar hover, drag, and press interaction
-  Element._ScrollManager.updateInteraction(self, mx, my)
-
-  -- Dispatch to attached behaviors (Clickable mouse/touch + pressed-state,
-  -- TextEditable cursor blink, Selectable frame sync, ...). Replaces the
-  -- former capability-gated event-processing block in Element:update
-  -- (behavior-mode-unification task 02). The Animated behavior is EXCLUDED
-  -- here: its onUpdate was already dispatched above via
-  -- Element._dispatchAnimatedUpdate (early, before mouse capture) so animated
-  -- geometry is current for hit-testing; animation:update(dt) is not
-  -- idempotent, so a second dispatch here would double-advance the animation.
-  local behaviors = self.behaviors
-  local animated = Element._animatedBehavior or false
-  for i = 1, #behaviors do
-    local behavior = behaviors[i]
-    if behavior ~= animated then
-      behavior.onUpdate(self, dt)
-    end
+  for _, b in ipairs(self.behaviors) do
+    b.onUpdate(self, dt)
   end
-
-  -- Retry any deferred methods (methods that deferred their execution
-  -- because preconditions weren't met, e.g. scroll before layout)
-  if #self._deferredMethods > 0 then
-    local pending = self._deferredMethods
-    self._deferredMethods = {}
-    for _, entry in ipairs(pending) do
-      if entry.retryCount >= MAX_DEFER_RETRIES then
-        Element._ErrorHandler:warn("Element", "CORE_004", {
-          element = self.id,
-          method = tostring(entry.methodName),
-          retryCount = entry.retryCount,
-        })
-      else
-        local beforeCount = #self._deferredMethods
-        local callArgs = {}
-        for j = 1, entry.argc do
-          local val = entry.args[j]
-          if val == _DEFERRED_NIL then
-            callArgs[j] = nil
-          else
-            callArgs[j] = val
-          end
-        end
-        local success, err = pcall(function()
-          self[entry.methodName](self, unpack(callArgs, 1, entry.argc))
-        end)
-        if not success then
-          Element._ErrorHandler:warn("Element", "CORE_002", {
-            element = self.id,
-            method = tostring(entry.methodName),
-            error = tostring(err),
-          })
-        end
-        -- Propagate retry count to any new deferred entry for the same method
-        for i = beforeCount + 1, #self._deferredMethods do
-          if self._deferredMethods[i].methodName == entry.methodName then
-            self._deferredMethods[i].retryCount = entry.retryCount + 1
-          end
-        end
-      end
-    end
-  end
+  self:_processDeferredMethods()
 end
 
 --- Handle a touch event directly (for external touch routing)
@@ -3782,9 +3701,8 @@ function Element:saveState()
   -- _textDragOccurred) are saved by the TextEditable behavior's saveState hook
   -- (task 04), dispatched via the behavior loop above and merged under the
   -- `textEditor` / top-level keys to match the legacy restoreState contract.
-  if self._scrollManager then
-    state.scrollManager = self._scrollManager:getState()
-  end
+  -- ScrollManager state is saved by the Scrollable behavior's saveState hook
+  -- (task 09), merged under the `scrollManager` key above.
   if self.backdropBlur or self.contentBlur then
     state.blur = {
       _blurX = self.x,
@@ -3845,11 +3763,8 @@ function Element:restoreState(state)
   -- TextEditor state + cursor/selection field sync + text-selection drag
   -- tracking are restored by the TextEditable behavior's restoreState hook
   -- (task 04), dispatched via the behavior loop above.
-
-  -- Restore ScrollManager state (if exists)
-  if self._scrollManager and state.scrollManager then
-    self._scrollManager:setState(state.scrollManager)
-  end
+  -- ScrollManager state is restored by the Scrollable behavior's restoreState
+  -- hook (task 09), dispatched above.
 
   -- Apply persisted public properties (immediate mode)
   -- These override constructor props to persist event-driven mutations across frames
@@ -3908,32 +3823,19 @@ function Element:isFocusable()
   if self.disabled then
     return false
   end
-
-  -- Editable elements are always focusable
-  if self.editable then
-    return true
-  end
-
-  -- Elements with onEvent handlers are focusable (buttons, sliders, inputs, etc.)
-  if type(self.onEvent) == "function" then
-    return true
-  end
-
-  if self._selectState or self.selectOption then
-    return true
-  end
-
-  -- Elements with onTextInput are focusable (inputs)
-  if self.onTextInput then
-    return true
-  end
-
-  -- Touch-enabled interactive elements with callbacks
-  if self.touchEnabled and (self.onTouchEvent or self.onGesture) then
-    return true
-  end
-
-  return false
+  -- Capability query: an element is keyboard-focusable when it is editable, has
+  -- an event/text handler, participates in the Select subsystem, or is a
+  -- touch-interactive element with callbacks. Expressed as a single boolean
+  -- expression (not a dispatch branch) because focusability is a query, not a
+  -- per-frame behavior.
+  return not not (
+    self.editable
+    or type(self.onEvent) == "function"
+    or self._selectState
+    or self.selectOption
+    or self.onTextInput
+    or (self.touchEnabled and (self.onTouchEvent or self.onGesture))
+  )
 end
 
 --- Get all focusable children in DOM/document order (depth-first traversal)

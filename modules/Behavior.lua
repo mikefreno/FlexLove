@@ -78,6 +78,8 @@ Behavior.HOOK_NAMES = {
 
 -- Allowlist of spec keys accepted by Behavior.new. Anything else is rejected so
 -- a typo (e.g. `onUpdat`) surfaces immediately instead of silently no-op'ing.
+-- Hook keys (HOOK_NAMES + shouldAttach) MUST be functions; metadata keys
+-- (drawLayer) may hold any value.
 local ALLOWED_KEYS = {
   onAttach = true,
   onDetach = true,
@@ -86,6 +88,13 @@ local ALLOWED_KEYS = {
   saveState = true,
   restoreState = true,
   shouldAttach = true,
+  drawLayer = true,
+}
+
+-- Spec keys whose values are NOT required to be functions (passive metadata
+-- consumed by dispatch sites, e.g. Element:draw's pre/post-children split).
+local NON_FUNCTION_KEYS = {
+  drawLayer = true,
 }
 
 -- Default no-op hook. Behaviors override only the hooks they need; every other
@@ -125,7 +134,7 @@ function Behavior.new(spec)
     if not ALLOWED_KEYS[key] then
       error(string.format("Behavior.new: unknown spec key '%s'", tostring(key)), 2)
     end
-    if type(value) ~= "function" then
+    if not NON_FUNCTION_KEYS[key] and type(value) ~= "function" then
       error(string.format("Behavior.new: spec key '%s' must be a function, got %s", tostring(key), type(value)), 2)
     end
   end
@@ -140,6 +149,11 @@ function Behavior.new(spec)
 
   -- shouldAttach defaults to always-false; behaviors opt in by supplying one.
   instance.shouldAttach = spec.shouldAttach or defaultShouldAttach
+
+  -- drawLayer: optional metadata field (default nil = "background"/pre-children).
+  -- Dispatch sites (Element:draw) use it to split rendering into pre-children
+  -- (background layers) and post-children (overlay layers, e.g. scrollbars).
+  instance.drawLayer = spec.drawLayer
 
   -- Freeze: prevent adding new fields. Behavior instances are shared, stateless
   -- objects; runtime state belongs on the element, never on the behavior.

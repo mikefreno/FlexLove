@@ -113,6 +113,7 @@ local testFiles = {
   "testing/__tests__/touch_test.lua",
   "testing/__tests__/transition_test.lua",
   "testing/__tests__/units_test.lua",
+  "testing/__tests__/update_draw_dispatch_test.lua",
   "testing/__tests__/utils_test.lua",
 }
 

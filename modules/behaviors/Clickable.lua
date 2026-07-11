@@ -111,9 +111,16 @@ local function onAttach(element)
 end
 
 local function onDetach(element)
-  -- Release the EventHandler reference so the element can be GC'd cleanly in
-  -- immediate mode. Recreated each attach.
-  element._eventHandler = nil
+  -- Clear focus callbacks read by KeyboardNavigation / TextEditor:focus so the
+  -- element's closure references can be collected in immediate mode (formerly
+  -- part of Element:_cleanup). The EventHandler instance itself is INTENTIONALLY
+  -- kept: Element:_cleanup preserves element structure for inspection (the
+  -- stale-element refs are released when the element is GC'd). onEvent,
+  -- onTouchEvent, onGesture are also left intact — the Renderer/EventHandler
+  -- read those directly from the element (not the cache), so clearing them
+  -- would break retained mode.
+  element.onFocus = nil
+  element.onBlur = nil
 end
 
 -- ----------------------------------------------------------------------------

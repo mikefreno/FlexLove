@@ -95,6 +95,16 @@ local TextEditable = req("behaviors.TextEditable")
 -- unconditional 1-line delegates (task 09 folds them into hooks).
 local Scrollable = req("behaviors.Scrollable")
 
+-- Behavior: generic public-property persistence across the immediate-mode
+-- recreation cycle (task 12). Owns the `_props` snapshot (event-driven mutations
+-- to `text` / `display` / `opacity` / ... that must survive per-frame Element
+-- recreation). Auto-attaches to every element; placed LAST in the registry so
+-- its restoreState overrides subsystem-hydrated state, preserving the legacy
+-- restore ordering (behaviors first, `_props` tail). With this behavior in
+-- place, Element:saveState / Element:restoreState collapse to a pure
+-- behavior-dispatch loop and Element owns zero property-extraction logic.
+local Persistable = req("behaviors.Persistable")
+
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
 ---@type Performance
@@ -364,7 +374,10 @@ function flexlove.init(config)
     --     are no-ops, so their position is unconstrained for layering.
     -- 7 entries. (task 09 reordered Animated+Scrollable ahead of Clickable.)
     clickableBehaviors = { Themed, Clickable, Imageable },
-    behaviors = { Themed, Animated, Scrollable, Clickable, Imageable, Selectable, TextEditable },
+    -- Persistable is the registry tail (task 12): its restoreState applies the
+    -- `_props` override AFTER every subsystem behavior has hydrated, preserving
+    -- the legacy restore ordering (behaviors first, `_props` last).
+    behaviors = { Themed, Animated, Scrollable, Clickable, Imageable, Selectable, TextEditable, Persistable },
     TextEditable = TextEditable,
   }
 

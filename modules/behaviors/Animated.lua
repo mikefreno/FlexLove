@@ -35,7 +35,8 @@
 -- props (`opacity`, `x`, ...) survive via Element.saveState's `_props` block,
 -- not via the animation.
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Resolve the Element class from an element instance.
 -- Element instances are created via `setmetatable({}, Element)` in _construct,

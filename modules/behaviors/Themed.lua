@@ -31,14 +31,24 @@
 -- `renderer:setThemeState`). Themed only READS that state for rendering, so it has
 -- no per-frame update work.
 --
+-- saveState owns the blur-region snapshot (`state.blur`): the per-frame blur
+-- geometry + radius/quality used by the Blur cache for invalidation (formerly
+-- the inline `if self.backdropBlur or self.contentBlur` block of
+-- Element:saveState — behavior-mode-unification task 12). restoreState is a
+-- no-op: blur cache data is used for invalidation, not restoration (the Blur
+-- cache is keyed by element id and cleared via `Blur.clearElementCache` from
+-- FlexLove.endFrame, not replayed through restoreState).
+--
 -- State ownership (per the locked Behavior contract):
 --   * Per-element runtime state lives ON THE ELEMENT (`element._renderer`,
---     `element._themeState`). The behavior instance is stateless and shared.
---   * No saveState/restoreState: theme state is recomputed each frame by
---     Clickable (from persistent EventHandler state) and is not itself
---     behavior-persisted. `element._renderer` is recreated on attach.
+--     `element._themeState`, `element.backdropBlur`, `element.contentBlur`).
+--     The behavior instance is stateless and shared.
+--   * `element._renderer` is recreated on attach; onDetach is a no-op — the
+--     reference is released when the element is GC'd (Element:_cleanup keeps
+--     element structure for inspection).
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Resolve the Element class from an element instance (mirrors Clickable).
 -- Element instances are created via `setmetatable({}, Element)`, so their
@@ -105,18 +115,59 @@ local function onDraw(element, ctx)
 end
 
 -- ----------------------------------------------------------------------------
+-- onDetach — no-op. Element:_cleanup preserves element structure for
+-- inspection (the original invariant), so the Renderer reference is released
+-- when the element is GC'd rather than torn down here. Present as an explicit
+-- hook so the behavior conforms to the full lifecycle contract.
+-- ----------------------------------------------------------------------------
+
+local function onDetach() end
+
+-- ----------------------------------------------------------------------------
+-- saveState — blur-region snapshot (formerly the `blur` branch of
+-- Element:saveState). Returns `{ blur = {...} }` when the element configures a
+-- backdrop or content blur, so the Blur cache can invalidate by element id;
+-- nil otherwise. Mode-agnostic to match the legacy contract (the snapshot is
+-- only read back by the cache-invalidation path, which itself is
+-- immediate-mode-only via FlexLove.endFrame).
+-- ----------------------------------------------------------------------------
+
+local function saveState(element)
+  if not (element.backdropBlur or element.contentBlur) then
+    return nil
+  end
+  local blur = {
+    _blurX = element.x,
+    _blurY = element.y,
+    _blurWidth = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right),
+    _blurHeight = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom),
+  }
+  if element.backdropBlur then
+    blur._backdropBlurRadius = element.backdropBlur.radius
+    blur._backdropBlurQuality = element.backdropBlur.quality or 5
+  end
+  if element.contentBlur then
+    blur._contentBlurRadius = element.contentBlur.radius
+    blur._contentBlurQuality = element.contentBlur.quality or 5
+  end
+  return { blur = blur }
+end
+
+-- restoreState — no-op: blur cache data is used for invalidation, not
+-- restoration (see file header). Present so the behavior conforms to the
+-- lifecycle contract without replaying geometry that the cache recomputes.
+
+-- ----------------------------------------------------------------------------
 -- Build the (stateless, shared, immutable) behavior instance.
 -- ----------------------------------------------------------------------------
 
 local Themed = Behavior.new({
   onAttach = onAttach,
-  -- onDetach: the Renderer is recreated each attach (immediate mode per-frame);
-  -- no explicit teardown needed beyond releasing the `element._renderer`
-  -- reference, which happens naturally when the element is GC'd.
+  onDetach = onDetach,
   onUpdate = function() end,
   onDraw = onDraw,
-  -- saveState/restoreState: no-op (see file header — theme state is recomputed
-  -- by Clickable each frame, not persisted by Themed).
+  saveState = saveState,
+  restoreState = function() end,
 })
 
 -- Expose the predicate at module level so callers/tests can reference it

@@ -138,9 +138,14 @@ local function onAttach(element)
 end
 
 local function onDetach(element)
-  -- Release the TextEditor reference so the element can be GC'd cleanly in
-  -- immediate mode. Recreated each attach.
-  element._textEditor = nil
+  -- Clear text-input callback closures read by TextEditor / KeyboardNavigation
+  -- so the element's closure references can be collected in immediate mode
+  -- (formerly part of Element:_cleanup). The TextEditor instance itself is
+  -- INTENTIONALLY kept: Element:_cleanup preserves element structure for
+  -- inspection (released when the element is GC'd).
+  element.onTextInput = nil
+  element.onTextChange = nil
+  element.onEnter = nil
 end
 
 -- ============================================================================

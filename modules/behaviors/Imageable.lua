@@ -36,7 +36,8 @@
 --     so the image renders even if the ImageCache is cleared between frames and
 --     so the renderer's loaded-image cache survives element recreation.
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Lua 5.4 removed the global `unpack`; mirror Element's alias.
 local unpack = table.unpack or unpack
@@ -202,11 +203,24 @@ local function restoreState(element, state)
 end
 
 -- ----------------------------------------------------------------------------
+-- onDetach — release image-load callback closures so the element can be GC'd
+-- cleanly in immediate mode (formerly part of Element:_cleanup). The cached
+-- `_loadedImage` is reproduced on the next attach via the Imageable saveState
+-- -> restoreState cycle, so dropping the live references is always safe.
+-- ----------------------------------------------------------------------------
+
+local function onDetach(element)
+  element.onImageLoad = nil
+  element.onImageError = nil
+end
+
+-- ----------------------------------------------------------------------------
 -- Build the (stateless, shared, immutable) behavior instance.
 -- ----------------------------------------------------------------------------
 
 local Imageable = Behavior.new({
   onAttach = onAttach,
+  onDetach = onDetach,
   onUpdate = function() end,
   onDraw = function() end,
   saveState = saveState,

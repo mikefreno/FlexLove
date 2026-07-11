@@ -3677,142 +3677,60 @@ function Element:_syncThemeAndRenderer(property, value)
 end
 
 -- ====================
--- State Persistence
+-- State Persistence (behavior-mode-unification task 12)
 -- ====================
 
---- Save all element state for immediate mode persistence
---- Collects state from all sub-modules and returns consolidated state
+--- Save all element state for immediate-mode persistence.
+--- Each attached behavior owns its own state extraction (saveState hook) and
+--- returns a snapshot (or nil) merged into the consolidated state table:
+--- Clickable → `eventHandler`, Scrollable → `scrollManager`, TextEditable →
+--- `textEditor` + drag tracking, Selectable → `select`, Themed → `blur`,
+--- Persistable → `_props` (public scalar mutations). Element owns ZERO
+--- per-subsystem extraction logic — this method is a pure dispatch loop.
 ---@return ElementStateData state Complete state snapshot
 function Element:saveState()
   local state = {}
-  -- Behavior-driven state (EventHandler state from Clickable, ...).
   for i = 1, #self.behaviors do
     local bstate = self.behaviors[i].saveState(self)
     if bstate ~= nil then
-      -- Merge behavior snapshots under their behavior's key; Clickable uses
-      -- `eventHandler` to match the legacy restoreState contract.
       for k, v in pairs(bstate) do
         state[k] = v
       end
     end
   end
-  local selectState = Element._Select.saveState(self)
-  if selectState then
-    state.select = selectState
-  end
-  -- TextEditor state + text-selection drag tracking (_mouseDownPosition /
-  -- _textDragOccurred) are saved by the TextEditable behavior's saveState hook
-  -- (task 04), dispatched via the behavior loop above and merged under the
-  -- `textEditor` / top-level keys to match the legacy restoreState contract.
-  -- ScrollManager state is saved by the Scrollable behavior's saveState hook
-  -- (task 09), merged under the `scrollManager` key above.
-  if self.backdropBlur or self.contentBlur then
-    state.blur = {
-      _blurX = self.x,
-      _blurY = self.y,
-      _blurWidth = self._borderBoxWidth or (self.width + self.padding.left + self.padding.right),
-      _blurHeight = self._borderBoxHeight or (self.height + self.padding.top + self.padding.bottom),
-    }
-
-    if self.backdropBlur then
-      state.blur._backdropBlurRadius = self.backdropBlur.radius
-      state.blur._backdropBlurQuality = self.backdropBlur.quality or 5
-    end
-
-    if self.contentBlur then
-      state.blur._contentBlurRadius = self.contentBlur.radius
-      state.blur._contentBlurQuality = self.contentBlur.quality or 5
-    end
-  end
-
-  -- Persist public scalar properties across immediate-mode frames
-  -- This captures event-driven mutations (text, display, opacity, etc.)
-  -- so they survive element recreation in the next frame. saveState only
-  -- runs in the immediate-mode frame lifecycle, and the mode check is routed
-  -- through StateManager.isImmediateMode (behavior-mode-unification task 11).
-  if Element._StateManager.isImmediateMode() then
-    local props = {}
-    for k, v in pairs(self) do
-      if type(k) == "string" and k:sub(1, 1) ~= "_" and type(v) ~= "table" and type(v) ~= "function" then
-        props[k] = v
-      end
-    end
-    if next(props) then
-      state._props = props
-    end
-  end
-
-  -- Drag-tracking state (_mouseDownPosition / _textDragOccurred) is saved AND
-  -- restored by the TextEditable behavior (task 04) via the behavior-dispatch
-  -- loops above; no inline handling needed here.
-
   return state
 end
 
---- Restore all element state from StateManager
---- Distributes state to all sub-modules
+--- Restore all element state from StateManager.
+--- Each attached behavior owns its own hydration (restoreState hook) and reads
+--- only its own slice from the full state table. Registry order places
+--- Persistable last so `_props` overrides subsystem-hydrated state, preserving
+--- the legacy restore ordering. Element owns ZERO per-subsystem hydration.
 ---@param state ElementStateData State to restore
 function Element:restoreState(state)
   if not state then
     return
   end
-  -- Behavior-driven restore (EventHandler state via Clickable, ...).
   for i = 1, #self.behaviors do
     self.behaviors[i].restoreState(self, state)
   end
-
-  if state.select then
-    Element._Select.restoreState(self, state.select)
-  end
-
-  -- TextEditor state + cursor/selection field sync + text-selection drag
-  -- tracking are restored by the TextEditable behavior's restoreState hook
-  -- (task 04), dispatched via the behavior loop above.
-  -- ScrollManager state is restored by the Scrollable behavior's restoreState
-  -- hook (task 09), dispatched above.
-
-  -- Apply persisted public properties (immediate mode)
-  -- These override constructor props to persist event-driven mutations across frames
-  if state._props then
-    for k, v in pairs(state._props) do
-      self[k] = v
-    end
-  end
-
-  -- Note: Blur cache data is used for invalidation, not restoration
-  -- Drag-tracking state (_mouseDownPosition / _textDragOccurred) is restored by
-  -- the TextEditable behavior (task 04) via the behavior-dispatch loop above.
 end
 
---- Cleanup method to break circular references (for immediate mode)
---- Note: Cleans internal module state but keeps structure for inspection
---- Note: Does NOT clear onEvent, onTouchEvent, onGesture — the Renderer/EventHandler
---- read these directly from the element (not the cache), so clearing them here would
---- break retained mode. The cache copies still hold references for GC accounting.
+--- Cleanup method to break circular references (immediate-mode frame end).
+--- Iterates each attached behavior's `onDetach` hook so every behavior tears
+--- down what its `onAttach` created (Clickable releases the EventHandler,
+--- TextEditable the TextEditor, Themed the Renderer, Selectable the select
+--- fields, Imageable the image callbacks), then clears the behaviors list and
+--- unregisters from StateManager. Does NOT clear onEvent / onTouchEvent /
+--- onGesture — the Renderer/EventHandler read those directly from the element
+--- (not the cache), so clearing them here would break retained mode.
 function Element:_cleanup()
-  -- Clear focus/text callbacks (not read directly from element at draw/dispatch time)
-  self.onFocus = nil
-  self.onBlur = nil
-  self.onTextInput = nil
-  self.onTextChange = nil
-  self.onEnter = nil
-  self.onImageLoad = nil
-  self.onImageError = nil
+  for i = 1, #self.behaviors do
+    self.behaviors[i].onDetach(self)
+  end
+  self.behaviors = {}
+  -- onCreate fires once at construction (already invoked by now); release it.
   self.onCreate = nil
-  if self.selectParent then
-    self.selectParent.onChange = nil
-  end
-  if self._selectState then
-    self._selectState = nil
-  end
-  self._managedSelectOwner = nil
-  self._managedSelectFrame = nil
-  self._managedSelectAnchor = nil
-  self._managedSelectBaseOpacity = nil
-  self._managedSelectBaseVisibility = nil
-  self._managedSelectBaseDisabled = nil
-
-  -- Unregister from StateManager
   if self._stateId and self._stateId ~= "" then
     Element._StateManager.unregisterStateful(self._stateId)
   end

@@ -528,12 +528,14 @@ function TestBehaviorAttachment:testPlainElement_AttachesNoCapabilityBehaviors()
   luaunit.assertNil(el._scrollManager)
 end
 
-function TestBehaviorAttachment:testRegistryHasSevenEntries()
-  -- Spec acceptance criterion: Element._behaviorRegistry has 7 entries
-  -- (Clickable, Scrollable, TextEditable, Selectable, Animated, Themed, Imageable).
+function TestBehaviorAttachment:testRegistryHasEightEntries()
+  -- Spec acceptance criterion: Element._behaviorRegistry has 8 entries
+  -- (Clickable, Scrollable, TextEditable, Selectable, Animated, Themed,
+  --  Imageable, Persistable). Persistable was added in task 12
+  --  (unified-save-restore-lifecycle) to own the `_props` persistence slice.
   local Element = require("modules.Element")
   luaunit.assertNotNil(Element._behaviorRegistry)
-  luaunit.assertEquals(#Element._behaviorRegistry, 7, "behavior registry must have 7 entries")
+  luaunit.assertEquals(#Element._behaviorRegistry, 8, "behavior registry must have 8 entries")
 end
 
 -- Run tests if this file is executed directly.

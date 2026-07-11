@@ -36,7 +36,8 @@
 --     (which IS the Element class set by Element._construct), so the hook
 --     signature stays exactly `(element, ...)` with no DI parameters.
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Resolve the Element class from an element instance.
 -- `setmetatable({}, Element)` in `_construct` makes the instance metatable BE
@@ -116,10 +117,20 @@ local function onAttach(element)
 end
 
 local function onDetach(element)
-  -- No-op for select teardown: Element._cleanup and Element.destroy already
-  -- route select-field cleanup through Select.cleanupDestroy / the Select
-  -- teardown helper. Keep this hook present (no-op) so the behavior conforms to
-  -- the lifecycle contract without duplicating teardown logic.
+  -- Clear select-managed fields so the element can be GC'd cleanly in immediate
+  -- mode (formerly part of Element:_cleanup). This mirrors the select-clearing
+  -- block that lived in Element:_cleanup; Element:destroy separately routes
+  -- through Select.cleanupDestroy for full teardown (idempotent with this).
+  if element.selectParent then
+    element.selectParent.onChange = nil
+  end
+  element._selectState = nil
+  element._managedSelectOwner = nil
+  element._managedSelectFrame = nil
+  element._managedSelectAnchor = nil
+  element._managedSelectBaseOpacity = nil
+  element._managedSelectBaseVisibility = nil
+  element._managedSelectBaseDisabled = nil
 end
 
 -- ============================================================================

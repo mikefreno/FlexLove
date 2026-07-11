@@ -85,6 +85,16 @@ local Selectable = req("behaviors.Selectable")
 -- text-editor delegate methods, eliminating the `if self._textEditor` guards.
 local TextEditable = req("behaviors.TextEditable")
 
+-- Behavior: ScrollManager lifecycle (task 03, landed via the task 08 capstone).
+-- Owns ScrollManager creation + immediate-mode scrollbar interaction-state
+-- restore (formerly Element:_initScrollManager). Auto-attaches to elements that
+-- declare overflow / overflowX / overflowY. Placed late in the registry: its
+-- onAttach creates the ScrollManager, which no other behavior's onAttach
+-- depends on. The ScrollManager update / scrollbar draw / state save-restore
+-- stay inline in Element:update / Element:draw / Element:saveState as
+-- unconditional 1-line delegates (task 09 folds them into hooks).
+local Scrollable = req("behaviors.Scrollable")
+
 -- Optional modules (can be excluded in minimal builds)
 local Blur = safeReq("Blur", true)
 ---@type Performance
@@ -342,8 +352,16 @@ function flexlove.init(config)
     ZIndex = ZIndex,
     Select = Select,
     PropertySchema = PropertySchema,
+    -- Behavior registry (behavior-mode-unification task 08). Order matters for
+    -- onDraw layering: Themed (core Renderer:draw) before Clickable (pressed
+    -- overlay) before Imageable (image layer via Renderer:draw command buffer).
+    -- 7 entries: Themed, Clickable, Imageable, Animated, Selectable,
+    -- TextEditable, Scrollable. (The task-08 spec narrative lists Clickable
+    -- first for update-ordering, but the locked onDraw dispatch iterates the
+    -- registry in order, so Themed-first preserves the pressed-overlay layering
+    -- locked by task 02. ScrollManager has no onDraw yet — task 09.)
     clickableBehaviors = { Themed, Clickable, Imageable },
-    behaviors = { Themed, Clickable, Imageable, Animated, Selectable, TextEditable },
+    behaviors = { Themed, Clickable, Imageable, Animated, Selectable, TextEditable, Scrollable },
     TextEditable = TextEditable,
   }
 

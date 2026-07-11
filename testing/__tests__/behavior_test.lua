@@ -453,6 +453,89 @@ function TestSelectableBehavior:testAutoAttach_PlainElementFalse()
   luaunit.assertFalse(found, "Selectable behavior should NOT attach to plain elements")
 end
 
+-- ============================================================================
+-- Behavior attachment (task 08 capstone): verifies _attachBehaviors routes
+-- the right behaviors to the right elements via shouldAttach. NOTE: the Themed
+-- render behavior attaches to EVERY element (mirrors the pre-refactor invariant
+-- that every element has a Renderer), so the counts below assert the presence /
+-- absence of SPECIFIC capability behaviors, not the total behaviors-table size.
+-- ============================================================================
+
+TestBehaviorAttachment = {}
+
+function TestBehaviorAttachment:setUp()
+  FlexLove.init()
+  FlexLove.beginFrame()
+end
+
+function TestBehaviorAttachment:tearDown()
+  FlexLove.endFrame()
+  FlexLove.destroy()
+end
+
+local function hasBehavior(element, behavior)
+  for _, b in ipairs(element.behaviors) do
+    if b == behavior then
+      return true
+    end
+  end
+  return false
+end
+
+function TestBehaviorAttachment:testOnEvent_AttachesClickable()
+  -- Spec acceptance case: Element.new({onEvent = fn}) attaches the Clickable
+  -- behavior (of the right type) — interactive elements own an EventHandler.
+  local Clickable = require("modules.behaviors.Clickable")
+  local el = FlexLove.new({ id = "attach-onEvent", width = 100, height = 50, onEvent = function() end })
+  luaunit.assertTrue(hasBehavior(el, Clickable), "onEvent element must attach Clickable")
+  luaunit.assertNotNil(el._eventHandler, "Clickable.onAttach creates the EventHandler")
+end
+
+function TestBehaviorAttachment:testEditableAndOverflow_AttachTextEditableAndScrollable()
+  -- Spec acceptance case: Element.new({editable = true, overflow = "scroll"})
+  -- attaches BOTH the TextEditable and Scrollable behaviors.
+  local TextEditable = require("modules.behaviors.TextEditable")
+  local Scrollable = require("modules.behaviors.Scrollable")
+  local el = FlexLove.new({
+    id = "attach-edit-scroll",
+    width = 100,
+    height = 50,
+    editable = true,
+    overflow = "scroll",
+  })
+  luaunit.assertTrue(hasBehavior(el, TextEditable), "editable element must attach TextEditable")
+  luaunit.assertTrue(hasBehavior(el, Scrollable), "overflow element must attach Scrollable")
+  luaunit.assertNotNil(el._textEditor, "TextEditable.onAttach creates the TextEditor")
+  luaunit.assertNotNil(el._scrollManager, "Scrollable.onAttach creates the ScrollManager")
+end
+
+function TestBehaviorAttachment:testPlainElement_AttachesNoCapabilityBehaviors()
+  -- Spec acceptance case: Element.new({width = 100}) attaches NO capability
+  -- behaviors — only the always-on Themed render behavior. No Clickable /
+  -- TextEditable / Scrollable / Selectable / Imageable.
+  local Clickable = require("modules.behaviors.Clickable")
+  local TextEditable = require("modules.behaviors.TextEditable")
+  local Scrollable = require("modules.behaviors.Scrollable")
+  local Selectable = require("modules.behaviors.Selectable")
+  local Imageable = require("modules.behaviors.Imageable")
+  local el = FlexLove.new({ id = "attach-plain", width = 100, height = 50 })
+  luaunit.assertFalse(hasBehavior(el, Clickable), "plain element must not attach Clickable")
+  luaunit.assertFalse(hasBehavior(el, TextEditable), "plain element must not attach TextEditable")
+  luaunit.assertFalse(hasBehavior(el, Scrollable), "plain element must not attach Scrollable")
+  luaunit.assertFalse(hasBehavior(el, Selectable), "plain element must not attach Selectable")
+  luaunit.assertFalse(hasBehavior(el, Imageable), "plain element must not attach Imageable")
+  luaunit.assertNil(el._eventHandler)
+  luaunit.assertNil(el._scrollManager)
+end
+
+function TestBehaviorAttachment:testRegistryHasSevenEntries()
+  -- Spec acceptance criterion: Element._behaviorRegistry has 7 entries
+  -- (Clickable, Scrollable, TextEditable, Selectable, Animated, Themed, Imageable).
+  local Element = require("modules.Element")
+  luaunit.assertNotNil(Element._behaviorRegistry)
+  luaunit.assertEquals(#Element._behaviorRegistry, 7, "behavior registry must have 7 entries")
+end
+
 -- Run tests if this file is executed directly.
 if not _G.RUNNING_ALL_TESTS then
   os.exit(luaunit.LuaUnit.run())

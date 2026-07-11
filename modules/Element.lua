@@ -136,6 +136,16 @@
 local Element = {}
 Element.__index = Element
 
+-- Forward declarations for the special-handler binding helpers used by
+-- Element:_applyProps (behavior-mode-unification task 08 capstone). These
+-- absorb the former subsystem-init and visual-state phase bodies (ThemeManager
+-- creation + theme-field exposure + editable/text/scroll/autoGrow/select-field
+-- defaults + parent assignment, and border/cornerRadius/display/text/textAlign
+-- normalization). They are now private implementation of the props-binding phase
+-- rather than standalone Element methods, so there are no longer per-capability
+-- init phases on Element.
+local bindThemeAndFields, bindVisualState
+
 -- NOTE: There is intentionally NO custom Element.__newindex for dimension properties.
 -- Lua's __newindex fires ONLY when the key is ABSENT from the raw table, but width/
 -- height/x/y are all assigned during Element.new, so they already exist post-
@@ -352,7 +362,8 @@ end
 
 -- Emit a VAL_001 invalid-enum warn for a textAlign sub-field and return the
 -- fallback. textAlign's schema entry is type "any" (string | table | compound),
--- so this IS the boundary validator for the 4 parse branches in _initVisualState.
+-- so this IS the boundary validator for the 4 textAlign parse branches in the
+-- props-phase visual-state helper.
 local function _warnTextAlign(field, expected, got, fallback)
   Element._ErrorHandler:warn("Element", "VAL_001", {
     property = field,
@@ -585,6 +596,21 @@ function Element:_applyProps(props)
       end
     end
   end
+
+  -- Special-handler binding (behavior-mode-unification task 08 capstone): the
+  -- props below need side-effects, ordering relative to subsystems, non-literal
+  -- defaults, or unit resolution, so they cannot be bound by the generic schema
+  -- loop above. The two helpers below fold in the former subsystem-init phase
+  -- (ThemeManager creation + theme-field exposure + editable/multiline/
+  -- passwordMode validation + textWrap/scrollable/autoGrow defaults +
+  -- selectParent/selectOption/_selectState + parent assignment) and visual-state
+  -- phase (border/cornerRadius/display/text/textAlign normalization). Subsystem
+  -- CREATION (EventHandler / TextEditor / ScrollManager / Renderer) is owned by
+  -- behavior onAttach hooks dispatched in _attachBehaviors; these helpers only
+  -- bind FIELDS that the core sizing/box/positioning phases and the behavior
+  -- onAttach hooks read.
+  bindThemeAndFields(self, props)
+  bindVisualState(self, props)
 end
 
 ---@param props ElementProps
@@ -592,18 +618,21 @@ end
 --- Construct a new Element. Orchestrator only; real work is in the staged
 --- initializers below (Task 10). No single phase exceeds ~400 LOC.
 function Element.new(props)
-  -- Staged initializers: each phase is independently testable and <= ~400 LOC.
-  -- Subsystem deps tables are hoisted to Element.init (built once).
+  -- Staged initializers (behavior-mode-unification task 08 capstone). The
+  -- orchestrator is a thin dispatcher: it runs core-data phases only
+  -- (construct → props → sizing → box model → positioning → finalize), then
+  -- attaches behaviors. The former behavioral phases (subsystem-init, visual-
+  -- state, image/renderer, scroll-manager) are deleted: their field-binding logic
+  -- folded into _applyProps and their subsystem creation logic moved into
+  -- behavior onAttach hooks (Clickable / TextEditable / Selectable / Themed /
+  -- Imageable / Scrollable). _attachBehaviors runs at the tail so
+  -- Selectable.onAttach can re-scan declarative children built by
+  -- _finalizeConstruction and so onAttach sees all element fields bound.
   local self = Element:_construct(props)
-  -- Schema-driven prop binding (defaults, normalizers, validators, onX/Deferred).
   self:_applyProps(props)
-  self:_initSubSystems(props)
-  self:_initVisualState(props)
-  self:_initImageAndRenderer()
   self:_initSizingContext(props)
   self:_initBoxModel(props)
   self:_initPositioning(props)
-  self:_initScrollManager(props)
   self:_finalizeConstruction(props)
   self:_attachBehaviors(props)
   return self
@@ -614,6 +643,13 @@ end
 --- Schema-driven binding (_applyProps) is invoked separately by Element.new.
 function Element:_construct(props)
   local instance = setmetatable({}, Element)
+
+  -- Stash the construction props so behavior onAttach hooks (which receive only
+  -- the element per the locked `(element, ...)` signature) can read SPECIAL_PROPS
+  -- config that is NOT bound onto the element by the schema-driven _applyProps
+  -- loop (e.g. the scrollbar config consumed by Scrollable.onAttach). Prefixed
+  -- with `_` so the immediate-mode saveState public-prop scan skips it.
+  instance._initProps = props
 
   -- Apply schema-driven shape normalizers to props for the special-handler
   -- props (padding/margin/flexDirection) whose downstream unit-resolution logic
@@ -655,9 +691,9 @@ end
 --- Attach behaviors whose shouldAttach(props) predicate matches this element's
 --- props. Runs after prop binding + subsystem init (so Deferred flags and the
 --- Select subsystem are in place) and dispatches onAttach for each match. The
---- EventHandler (Clickable) is created here rather than in _initSubSystems so
---- Element never needs to know what an individual behavior does — it only
---- iterates the registry (behavior-mode-unification task 02).
+--- EventHandler (Clickable) is created here rather than in the former subsystem-
+--- init phase so Element never needs to know what an individual behavior does —
+--- it only iterates the registry (behavior-mode-unification task 02).
 function Element:_attachBehaviors(props)
   local registry = Element._behaviorRegistry
   if registry then
@@ -780,13 +816,16 @@ function Element._dispatchAnimatedUpdate(element, dt)
   animated.onUpdate(element, dt)
 end
 
---- Phase 3: ThemeManager, text editing defaults, Select subsystem,
---- and parent assignment. EventHandler creation (with immediate-mode state
---- restore) is owned by the Clickable behavior (_attachBehaviors / onAttach);
---- TextEditor creation (with immediate-mode state restore) is owned by the
---- TextEditable behavior (_attachBehaviors / onAttach, task 04) — both run at
---- the tail of Element.new, so this phase no longer touches either subsystem.
-function Element:_initSubSystems(props)
+--- Special-handler binding helper for the props phase (behavior-mode-
+--- unification task 08). Formerly the Element subsystem-init phase. Binds the
+--- ThemeManager (or no-op fallback) + exposes theme fields, validates
+--- editable/multiline/passwordMode combos, sets textWrap/scrollable/autoGrow
+--- defaults, initializes selectParent/selectOption/_selectState fields (the
+--- Select subsystem itself is initialized by Selectable.onAttach), and assigns
+--- self.parent. EventHandler creation is owned by Clickable.onAttach and
+--- TextEditor creation by TextEditable.onAttach — both run in _attachBehaviors at
+--- the tail of Element.new, so this helper does not touch either subsystem.
+bindThemeAndFields = function(self, props)
   if Element._Theme then
     self._themeManager = Element._Theme.Manager.new({
       theme = props.theme or Element._Context.defaultTheme,
@@ -928,16 +967,20 @@ function Element:_initSubSystems(props)
 
   -- TextEditor creation + immediate-mode state restore is owned by the
   -- TextEditable behavior's onAttach (task 04), which runs in _attachBehaviors
-  -- at the tail of Element.new (after _initVisualState has bound self.text
-  -- and the schema-driven callback fields). Element:_initSubSystems no longer
-  -- touches the TextEditor.
+  -- at the tail of Element.new (after this helper has bound self.text and the
+  -- schema-driven callback fields). This subsystem-init helper no longer	touches
+  -- the TextEditor.
 
   -- Set parent first so it's available for size calculations
   self.parent = props.parent
 end
 
---- Phase 4: border/cornerRadius/display/text/textAlign normalization.
-function Element:_initVisualState(props)
+--- Special-handler binding helper for the props phase (behavior-mode-
+--- unification task 08). Formerly the Element visual-state phase. Normalizes
+--- border/cornerRadius/display/text/textAlign. The branch count comment below
+--- refers to the 4 textAlign parse branches (table / simple-string / compound-
+--- string / invalid).
+bindVisualState = function(self, props)
   local schema = Element._PropertySchema
   ------ add non-hereditary ------
   --- self drawing ---
@@ -1066,15 +1109,12 @@ function Element:_initVisualState(props)
   end
 end
 
---- Phase 5: image + renderer initialization is now owned by the Themed and
---- Imageable behaviors (modules/behaviors/), attached in _attachBehaviors.
---- Themed.onAttach creates the Renderer (theme/blur config); Imageable.onAttach
---- enriches it with image config + deferred image loading. This method is kept
---- as a thin (no-op) phase so the staged-init orchestrator contract and tests
---- (which assert the phase method exists and is called) remain stable; the real
---- renderer-creation logic no longer lives in Element init phases
---- (behavior-mode-unification task 07). See behaviors/Themed.lua + Imageable.lua.
-function Element:_initImageAndRenderer() end
+--- Phase 5 (image + renderer init) is owned by the Themed and Imageable
+--- behaviors (modules/behaviors/), attached in _attachBehaviors. Themed.onAttach
+--- creates the Renderer (theme/blur config); Imageable.onAttach enriches it with
+--- image config + deferred image loading. There is no longer a stub Element
+--- phase for this — the behavior onAttach hooks ARE the phase
+--- (behavior-mode-unification task 07/08).
 
 --- Phase 6a: viewport/scale context, LayoutEngine (defaults), unit specs table,
 --- fontFamily, and textSize resolution.
@@ -1782,91 +1822,16 @@ function Element:_initPositioning(props)
   -- (Previously set inline here; both are now registry-driven.)
 end
 
---- Phase 8: ScrollManager instantiation with immediate-mode scrollbar restore.
-function Element:_initScrollManager(props)
-  if props.overflow or props.overflowX or props.overflowY then
-    self._scrollManager = Element._ScrollManager.new({
-      overflow = props.overflow,
-      overflowX = props.overflowX,
-      overflowY = props.overflowY,
-      scrollbarWidth = props.scrollbarWidth,
-      scrollbarColor = props.scrollbarColor,
-      scrollbarTrackColor = props.scrollbarTrackColor,
-      scrollbarRadius = props.scrollbarRadius,
-      scrollbarPadding = props.scrollbarPadding,
-      scrollSpeed = props.scrollSpeed,
-      invertScroll = props.invertScroll,
-      smoothScrollEnabled = props.smoothScrollEnabled,
-      scrollBarStyle = props.scrollBarStyle,
-      scrollbarKnobOffset = props.scrollbarKnobOffset,
-      hideScrollbars = props.hideScrollbars,
-      scrollbarPlacement = props.scrollbarPlacement,
-      scrollbarBalance = props.scrollbarBalance,
-      _scrollX = props._scrollX,
-      _scrollY = props._scrollY,
-    }, Element._scrollManagerDeps)
-
-    -- Expose ScrollManager properties for backward compatibility (Renderer access)
-    self.overflow = self._scrollManager.overflow
-    self.overflowX = self._scrollManager.overflowX
-    self.overflowY = self._scrollManager.overflowY
-    self.scrollbarWidth = self._scrollManager.scrollbarWidth
-    self.scrollbarColor = self._scrollManager.scrollbarColor
-    self.scrollbarTrackColor = self._scrollManager.scrollbarTrackColor
-    self.scrollbarRadius = self._scrollManager.scrollbarRadius
-    self.scrollbarPadding = self._scrollManager.scrollbarPadding
-    self.scrollSpeed = self._scrollManager.scrollSpeed
-    self.invertScroll = self._scrollManager.invertScroll
-    self.scrollBarStyle = self._scrollManager.scrollBarStyle
-    self.scrollbarKnobOffset = self._scrollManager.scrollbarKnobOffset
-    self.hideScrollbars = self._scrollManager.hideScrollbars
-    self.scrollbarPlacement = self._scrollManager.scrollbarPlacement
-    self.scrollbarBalance = self._scrollManager.scrollbarBalance
-
-    -- Initialize state properties (will be synced from ScrollManager)
-    self._overflowX = false
-    self._overflowY = false
-    self._contentWidth = 0
-    self._contentHeight = 0
-    self._scrollX = 0
-    self._scrollY = 0
-    self._maxScrollX = 0
-    self._maxScrollY = 0
-    self._scrollbarHoveredVertical = false
-    self._scrollbarHoveredHorizontal = false
-    self._scrollbarDragging = false
-    self._hoveredScrollbar = nil
-    self._scrollbarDragOffset = 0
-
-    -- Restore scrollbar state from StateManager in immediate mode (must happen before layout)
-    if Element._Context._immediateMode and self._stateId and self._stateId ~= "" then
-      local state = Element._StateManager.getState(self._stateId)
-      if state and state.scrollManager then
-        -- Restore from nested scrollManager state (saved via saveState())
-        self._scrollbarHoveredVertical = state.scrollManager._scrollbarHoveredVertical or false
-        self._scrollbarHoveredHorizontal = state.scrollManager._scrollbarHoveredHorizontal or false
-        self._scrollbarDragging = state.scrollManager._scrollbarDragging or false
-        self._hoveredScrollbar = state.scrollManager._hoveredScrollbar
-        self._scrollbarDragOffset = state.scrollManager._scrollbarDragOffset or 0
-
-        -- Apply to ScrollManager immediately
-        self._scrollManager._scrollbarHoveredVertical = self._scrollbarHoveredVertical
-        self._scrollManager._scrollbarHoveredHorizontal = self._scrollbarHoveredHorizontal
-        self._scrollManager._scrollbarDragging = self._scrollbarDragging
-        self._scrollManager._hoveredScrollbar = self._hoveredScrollbar
-        self._scrollManager._scrollbarDragOffset = self._scrollbarDragOffset
-
-        -- Restore drag start positions for relative movement tracking
-        self._scrollManager._dragStartMouseX = state.scrollManager._dragStartMouseX or 0
-        self._scrollManager._dragStartMouseY = state.scrollManager._dragStartMouseY or 0
-        self._scrollManager._dragStartScrollX = state.scrollManager._dragStartScrollX or 0
-        self._scrollManager._dragStartScrollY = state.scrollManager._dragStartScrollY or 0
-      end
-    end
-  else
-    self._scrollManager = nil
-  end
-end
+--- Phase 8 (ScrollManager instantiation + immediate-mode scrollbar restore) is
+--- owned by the Scrollable behavior (modules/behaviors/Scrollable.lua), attached
+--- in _attachBehaviors. There is no longer an Element phase for this — the
+--- behavior onAttach hook IS the phase (behavior-mode-unification task 03/08).
+--- `overflow` / `overflowX` / `overflowY` are bound onto the element as plain
+--- fields by bindThemeAndFields/`_applyProps` so that `Element:addChild`'s
+--- scroll-container auto-size guard sees them during declarative-children
+--- processing in _finalizeConstruction (which runs before _attachBehaviors);
+--- Scrollable.onAttach then overwrites them with the ScrollManager's normalized
+--- values, matching the legacy field-exposure order.
 
 --- Phase 9: immediate-mode registration, dirty flags, debug draw color,
 --- declarative children tree, onCreate callback, and constructed flag.

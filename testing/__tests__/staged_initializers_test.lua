@@ -23,16 +23,18 @@ local Element = require("modules.Element")
 TestStagedInit = {}
 
 local PHASE_METHODS = {
+  -- Core-data phases (behavior-mode-unification task 08 capstone). The former
+  -- behavioral phases (_initSubSystems / _initVisualState / _initImageAndRenderer
+  -- / _initScrollManager) are deleted: field-binding folded into _applyProps
+  -- (bindThemeAndFields + bindVisualState local helpers) and subsystem creation
+  -- moved into behavior onAttach hooks dispatched from _attachBehaviors.
   "_construct",
   "_applyProps",
-  "_initSubSystems",
-  "_initVisualState",
-  "_initImageAndRenderer",
   "_initSizingContext",
   "_initBoxModel",
   "_initPositioning",
-  "_initScrollManager",
   "_finalizeConstruction",
+  "_attachBehaviors",
 }
 
 local HOISTED_DEPS = {

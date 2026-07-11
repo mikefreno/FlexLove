@@ -1364,7 +1364,11 @@ end
 --- Restore scrollbar state from StateManager in immediate mode.
 ---@param element table Element instance
 function ScrollManager.restoreImmediateState(element)
-  if not element._stateId or not ScrollManager._Context._immediateMode then
+  -- Mode-aware guard: only immediate-mode frames keep state in StateManager;
+  -- in retained mode the element (and its ScrollManager) persist between
+  -- frames, so there is nothing to restore. Routed through StateManager so no
+  -- raw mode check lives here (behavior-mode-unification task 11).
+  if not element._stateId or not ScrollManager._StateManager.isImmediateMode() then
     return
   end
   local state = ScrollManager._StateManager.getState(element._stateId)
@@ -1410,7 +1414,7 @@ function ScrollManager.updateInteraction(element, mx, my)
       sm:handleMouseRelease(1)
       ScrollManager.syncToElement(element)
     end
-    if element._stateId and ScrollManager._Context._immediateMode then
+    if element._stateId and ScrollManager._StateManager.isImmediateMode() then
       ScrollManager._StateManager.updateState(element._stateId, {
         scrollbarDragging = false,
       })

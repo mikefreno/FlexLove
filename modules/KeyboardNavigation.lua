@@ -171,7 +171,7 @@ function KeyboardNavigation:nextFocusable()
   end
 
   local nextElem
-  if Context._immediateMode then
+  if Context.isImmediateMode() then
     nextElem = self:_findNextInZIndexOrder(current)
   else
     local container = Context.getNavigationContainer() or Context.topElements[1]
@@ -198,7 +198,7 @@ function KeyboardNavigation:previousFocusable()
   local current = Context.getFocused()
 
   local prevElem
-  if Context._immediateMode then
+  if Context.isImmediateMode() then
     prevElem = self:_findPreviousInZIndexOrder(current)
   else
     local container = Context.getNavigationContainer() or Context.topElements[1]
@@ -424,7 +424,7 @@ function KeyboardNavigation:_findDirectionalNeighbor(current, direction)
     end
   end
 
-  if Context._immediateMode and Context._zIndexOrderedElements then
+  if Context.isImmediateMode() and Context._zIndexOrderedElements then
     -- In immediate mode: only consider focusables within the highest-z-index root
     local root = self:_getNavigationRoot()
     if root then

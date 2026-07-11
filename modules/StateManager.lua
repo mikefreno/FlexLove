@@ -585,6 +585,17 @@ function StateManager.isImmediateMode()
   return _immediateMode
 end
 
+--- Whether at-construction layout / eager initialization should run now.
+--- Returns true in retained mode (layout eagerly), false in immediate mode
+--- (layout is deferred to `FlexLove.endFrame` / FlexLove so it runs once all
+--- elements for the frame have been created). This replaces the scattered
+--- `if not _immediateMode then layoutChildren()` mode checks with a single
+--- mode-aware query (behavior-mode-unification task 11).
+---@return boolean
+function StateManager.shouldLayout()
+  return not _immediateMode
+end
+
 -- ====================
 -- Cleanup & Maintenance
 -- ====================

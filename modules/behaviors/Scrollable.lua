@@ -52,7 +52,8 @@
 --     are resolved from the owning element's metatable (the Element class set by
 --     `Element:_construct`).
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Resolve the Element class from an element instance.
 -- `setmetatable({}, Element)` in `_construct` makes the instance metatable BE
@@ -144,7 +145,8 @@ local function onAttach(element)
 
   -- Restore scrollbar state from StateManager in immediate mode (must happen
   -- before layout). Mirrors the legacy _initScrollManager restore block.
-  if Element._Context._immediateMode and element._stateId and element._stateId ~= "" then
+  -- Mode-aware via Context.isImmediateMode (behavior-mode-unification task 11).
+  if Element._Context.isImmediateMode() and element._stateId and element._stateId ~= "" then
     local state = Element._StateManager.getState(element._stateId)
     if state and state.scrollManager then
       element._scrollbarHoveredVertical = state.scrollManager._scrollbarHoveredVertical or false

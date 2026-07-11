@@ -28,7 +28,9 @@ function Select.initSelectParent(element, selectParentConfig)
     frameAdopted = false,
   }
 
-  if Select._Context._immediateMode and element._stateId and element._stateId ~= "" then
+  -- Restore select state from StateManager. Mode-aware via
+  -- Context.isImmediateMode (behavior-mode-unification task 11).
+  if Select._Context.isImmediateMode() and element._stateId and element._stateId ~= "" then
     local state = Select._StateManager.getState(element._stateId)
     if state and state._selectOpen ~= nil then
       element._selectState.open = state._selectOpen
@@ -244,7 +246,9 @@ function Select.adoptSelectFrame(element, frame)
   Select.applyManagedFrameLayout(element, frame)
   Select.syncManagedFrameVisibility(element)
 
-  if not Select._Context._immediateMode then
+  -- Layout is deferred to endFrame in immediate mode. shouldLayout()
+  -- encapsulates the mode check (behavior-mode-unification task 11).
+  if Select._StateManager.shouldLayout() then
     anchor:layoutChildren()
     element:layoutChildren()
   end
@@ -402,7 +406,9 @@ function Select.attachOptionToManagedFrame(element)
     end
 
     element:setParent(selectFrame)
-    if not Select._Context._immediateMode then
+    -- Ensure frame geometry eagerly only in retained mode; deferred to the
+    -- per-frame update in immediate mode (behavior-mode-unification task 11).
+    if Select._StateManager.shouldLayout() then
       Select.ensureFrameState(selectParent)
     end
   end
@@ -433,7 +439,7 @@ function Select.saveStateToStateManager(element)
   if not element._selectState then
     return
   end
-  if element._stateId and Select._Context._immediateMode and element._stateId ~= "" then
+  if element._stateId and Select._Context.isImmediateMode() and element._stateId ~= "" then
     Select._StateManager.updateState(element._stateId, {
       _selectOpen = element._selectState.open,
       _selectValue = element._selectState.value,

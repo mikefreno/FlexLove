@@ -48,7 +48,8 @@
 -- double-render text, since the Renderer command buffer already emits a "text"
 -- layer for every element.
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Resolve the Element class from an element instance (mirrors Clickable /
 -- Selectable). `setmetatable({}, Element)` in `_construct` makes the instance
@@ -126,8 +127,9 @@ local function onAttach(element)
   -- Restore TextEditor state from StateManager in immediate mode. Mirrors the
   -- legacy _initSubSystems immediate-mode restore. Safe to run here (after
   -- _construct registered the element with StateManager) — the StateManager
-  -- lookup is sparse and returns nil for a fresh element.
-  if Element._Context._immediateMode and element._stateId and element._stateId ~= "" then
+  -- lookup is sparse and returns nil for a fresh element. Mode-aware via
+  -- Context.isImmediateMode (behavior-mode-unification task 11).
+  if Element._Context.isImmediateMode() and element._stateId and element._stateId ~= "" then
     local state = Element._StateManager.getState(element._stateId)
     if state and state.textEditor then
       element._textEditor:setState(state.textEditor, element)

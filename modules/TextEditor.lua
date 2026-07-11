@@ -183,8 +183,10 @@ end
 ---Restore state from StateManager (for immediate mode)
 ---@param element table The parent Element instance
 function TextEditor:restoreState(element)
-  -- Restore state from StateManager if in immediate mode
-  if element._stateId and self._Context._immediateMode then
+  -- Restore state from StateManager. Mode-aware via Context.isImmediateMode:
+  -- in retained mode the TextEditor persists between frames so nothing to
+  -- restore (behavior-mode-unification task 11).
+  if element._stateId and self._Context.isImmediateMode() then
     local state = self._StateManager.getState(element._stateId)
     if state then
       if state._focused then
@@ -1751,7 +1753,10 @@ end
 ---Save state to StateManager (for immediate mode)
 ---@param element Element? The parent element
 function TextEditor:_saveState(element)
-  if not element or not element._stateId or not self._Context._immediateMode then
+  -- Mode-aware guard: in retained mode the TextEditor persists, so state only
+  -- needs persisting to StateManager in immediate mode. Routed through
+  -- Context.isImmediateMode (behavior-mode-unification task 11).
+  if not element or not element._stateId or not self._Context.isImmediateMode() then
     return
   end
 

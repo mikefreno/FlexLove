@@ -213,7 +213,7 @@ function MemoryScanner.scanContext()
   report.frameElementCount = #MemoryScanner._Context._currentFrameElements
 
   -- Check for stale z-index elements (should be cleared each frame)
-  if MemoryScanner._Context._immediateMode then
+  if MemoryScanner._Context.isImmediateMode() then
     -- In immediate mode, _zIndexOrderedElements should be cleared at frame start
     -- If it has elements outside of frame rendering, that's a leak
     if not MemoryScanner._Context._frameStarted and report.zIndexElementCount > 0 then

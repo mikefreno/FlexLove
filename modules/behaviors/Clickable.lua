@@ -33,7 +33,8 @@
 --     avoiding a dependency-injection parameter that would violate the locked
 --     6-hook signature `(element, ...)`.
 
-local Behavior = require("modules.Behavior")
+local _pkg = (...):match("^(.-)behaviors%.") or "modules."
+local Behavior = require(_pkg .. "Behavior")
 
 -- Resolve the Element class from an element instance.
 -- Element instances are created via `setmetatable({}, Element)` in _construct,
@@ -88,7 +89,9 @@ local function onAttach(element)
 
   -- In immediate mode, restore EventHandler state from StateManager so pressed
   -- / hovered / click-count survive the per-frame element recreation cycle.
-  if Element._Context._immediateMode and element._stateId and element._stateId ~= "" then
+  -- Mode-aware via Context.isImmediateMode (behavior-mode-unification task 11):
+  -- in retained mode the eventHandler persists, so nothing to restore.
+  if Element._Context.isImmediateMode() and element._stateId and element._stateId ~= "" then
     local state = Element._StateManager.getState(element._stateId)
     if state then
       -- Restore EventHandler state from StateManager (sparse storage — provide defaults)
@@ -167,7 +170,7 @@ local function onUpdate(element, dt)
   -- ordering). This prevents occluded elements from receiving interactions or
   -- visual feedback.
   local isActiveElement
-  if Element._Context._immediateMode then
+  if Element._Context.isImmediateMode() then
     -- In immediate mode, use z-index occlusion detection
     local topElement = Element._Context.getTopElementAt(mx, my)
     isActiveElement = (topElement == element or topElement == nil)
@@ -185,7 +188,7 @@ local function onUpdate(element, dt)
 
   -- In immediate mode, save EventHandler state to StateManager after
   -- processing events so it survives the per-frame recreation.
-  if element._stateId and Element._Context._immediateMode and element._stateId ~= "" then
+  if element._stateId and Element._Context.isImmediateMode() and element._stateId ~= "" then
     local eventHandlerState = eventHandler:getState()
     Element._StateManager.updateState(element._stateId, {
       _pressed = eventHandlerState._pressed,
@@ -212,7 +215,7 @@ local function onUpdate(element, dt)
     local newThemeState =
       element._themeManager:updateState(isHovering and isActiveElement, anyPressed, isFocused, element.disabled)
 
-    if element._stateId and Element._Context._immediateMode then
+    if element._stateId and Element._Context.isImmediateMode() then
       local hover = newThemeState == "hover"
       local pressed = newThemeState == "pressed"
       local focused = isFocused

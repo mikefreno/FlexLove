@@ -336,7 +336,7 @@ local function checkLargeBlurWarning(elementId, width, height, blurType)
   end
 
   -- Skip if not in immediate mode
-  if not Blur._immediateModeOptimizations then
+  if not Blur._blurOptimizations then
     return
   end
 
@@ -564,7 +564,7 @@ end
 ---@param elementId string|nil Element ID for caching (nil disables caching)
 function Blur:applyBackdropCached(radius, x, y, width, height, backdropCanvas, elementId)
   -- If caching is disabled or no element ID, fall back to regular apply
-  if not Blur._immediateModeOptimizations or not elementId then
+  if not Blur._blurOptimizations or not elementId then
     return self:applyBackdrop(radius, x, y, width, height, backdropCanvas)
   end
 
@@ -676,7 +676,7 @@ end
 function Blur.init(deps)
   if type(deps) == "table" then
     Blur._ErrorHandler = deps.ErrorHandler
-    Blur._immediateModeOptimizations = deps.immediateModeOptimizations or false
+    Blur._blurOptimizations = deps.immediateModeOptimizations or false
   end
 end
 

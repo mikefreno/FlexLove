@@ -8,7 +8,7 @@
 -- Scrollable, TextEditable, Selectable, ...) each live in their own module and
 -- are attached to an Element. The Element's `update`/`draw`/save-restore paths
 -- iterate `element.behaviors` and dispatch to the appropriate hooks, replacing
--- the swarm of `if self.scrollable` / `if _immediateMode` branches currently
+-- the swarm of `if self.scrollable` / immediate-mode-branch checks previously
 -- hard-coded in Element.lua.
 --
 -- Element.new iterates a registry of behavior prototypes and auto-attaches

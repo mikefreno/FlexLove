@@ -20,6 +20,9 @@ local utils = require("modules.utils")
 -- Mock Context
 local MockContext = {}
 MockContext._immediateMode = false
+MockContext.isImmediateMode = function()
+  return MockContext._immediateMode
+end
 MockContext._focusedElement = nil
 MockContext.setFocused = function(element)
   if MockContext._focusedElement and MockContext._focusedElement ~= element then
@@ -1899,6 +1902,9 @@ function TestTextEditorStateSaving:test_initialize_immediate_mode_with_state()
   local mockContext = {}
   mockContext._immediateMode = true
   mockContext._focusedElement = nil
+  mockContext.isImmediateMode = function()
+    return mockContext._immediateMode
+  end
   mockContext.setFocused = function(element)
     mockContext._focusedElement = element
   end
@@ -1944,6 +1950,9 @@ function TestTextEditorStateSaving:test_saveState_immediate_mode()
     _immediateMode = true,
     _focusedElement = nil,
   }
+  mockContext.isImmediateMode = function()
+    return mockContext._immediateMode
+  end
 
   local editor = TextEditor.new({ text = "Test" }, {
     Context = mockContext,
@@ -1987,6 +1996,9 @@ function TestTextEditorStateSaving:test_saveState_not_immediate_mode()
       mockContext._focusedElement = nil
     end,
   }
+  mockContext.isImmediateMode = function()
+    return mockContext._immediateMode
+  end
 
   local editor = TextEditor.new({ text = "Test" }, {
     Context = mockContext,

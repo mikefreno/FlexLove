@@ -46,6 +46,18 @@ local Context = {
   _initQueue = {},
 }
 
+--- Check whether immediate mode is active.
+--- This is the single canonical accessor for the mode flag consumed throughout
+--- the framework. Mode-aware branches elsewhere call this instead of reading
+--- `Context._immediateMode` directly, so the literal mode flag only appears
+--- here (its definition) and in StateManager (its mirrored storage) — never
+--- scattered across Element / behaviors / managers (behavior-mode-unification
+--- task 11).
+---@return boolean
+function Context.isImmediateMode()
+  return Context._immediateMode
+end
+
 ---@return number, number -- scaleX, scaleY
 function Context.getScaleFactors()
   return Context.scaleFactors.x, Context.scaleFactors.y
@@ -54,7 +66,7 @@ end
 --- Register an element in the z-index ordered tree (for immediate mode)
 ---@param element Element The element to register
 function Context.registerElement(element)
-  if not Context._immediateMode then
+  if not Context.isImmediateMode() then
     return
   end
 
@@ -171,7 +183,7 @@ end
 ---@param y number Screen Y coordinate
 ---@return Element|nil The topmost element at the position, or nil if none
 function Context.getTopElementAt(x, y)
-  if not Context._immediateMode then
+  if not Context.isImmediateMode() then
     return nil
   end
 
@@ -300,7 +312,7 @@ end
 --- Get the currently focused element
 ---@return Element|nil The focused element, or nil if none
 function Context.getFocused()
-  if Context._immediateMode then
+  if Context.isImmediateMode() then
     Context._rehydrateFocus()
   end
   return Context._focusedElement

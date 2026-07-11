@@ -1782,10 +1782,10 @@ end
 --- Phase 9: immediate-mode registration, dirty flags, debug draw color,
 --- declarative children tree, onCreate callback, and constructed flag.
 function Element:_finalizeConstruction(props)
-  -- Register element in z-index tracking for immediate mode
-  if Element._Context._immediateMode then
-    Element._Context.registerElement(self)
-  end
+  -- Register element in z-index tracking. registerElement is a mode-aware
+  -- no-op outside immediate mode, so no mode check is needed here
+  -- (behavior-mode-unification task 11).
+  Element._Context.registerElement(self)
 
   -- Performance optimization: dirty flags for layout tracking
   -- These flags help skip unnecessary layout recalculations
@@ -1846,9 +1846,11 @@ function Element:_finalizeConstruction(props)
           childCopy.parent = self
           local child = Element.new(childCopy)
 
-          -- In immediate mode, set up state management for declarative children
-          -- so mutations made in event callbacks persist across frames
-          if Element._Context._immediateMode then
+          -- Set up state management for declarative children so mutations
+          -- made in event callbacks persist across frames. Mode-aware via
+          -- StateManager.isImmediateMode (behavior-mode-unification task 11):
+          -- this whole block is immediate-mode-only frame bookkeeping.
+          if Element._StateManager.isImmediateMode() then
             if not child.id or child.id == "" then
               child.id = Element._StateManager.generateID(childCopy, self)
             end
@@ -2252,9 +2254,10 @@ function Element:addChild(child)
     end
   end
 
-  -- In immediate mode, defer layout until endFrame() when all elements are created
-  -- This prevents premature overflow detection with incomplete children
-  if not Element._Context._immediateMode then
+  -- Layout is deferred to FlexLove.endFrame in immediate mode (all elements
+  -- for the frame must exist before layout). shouldLayout() encapsulates the
+  -- mode check (behavior-mode-unification task 11).
+  if Element._StateManager.shouldLayout() then
     self:layoutChildren()
   end
 
@@ -2293,8 +2296,8 @@ function Element:removeChild(child)
         end
       end
 
-      -- Re-layout children after removal
-      if not Element._Context._immediateMode then
+      -- Re-layout children after removal (deferred in immediate mode).
+      if Element._StateManager.shouldLayout() then
         self:layoutChildren()
       end
 
@@ -2385,8 +2388,8 @@ function Element:clearChildren()
     end
   end
 
-  -- Re-layout (though there are no children now)
-  if not Element._Context._immediateMode then
+  -- Re-layout (though there are no children now; deferred in immediate mode).
+  if Element._StateManager.shouldLayout() then
     self:layoutChildren()
   end
 end
@@ -3724,8 +3727,10 @@ function Element:saveState()
 
   -- Persist public scalar properties across immediate-mode frames
   -- This captures event-driven mutations (text, display, opacity, etc.)
-  -- so they survive element recreation in the next frame
-  if Element._Context._immediateMode then
+  -- so they survive element recreation in the next frame. saveState only
+  -- runs in the immediate-mode frame lifecycle, and the mode check is routed
+  -- through StateManager.isImmediateMode (behavior-mode-unification task 11).
+  if Element._StateManager.isImmediateMode() then
     local props = {}
     for k, v in pairs(self) do
       if type(k) == "string" and k:sub(1, 1) ~= "_" and type(v) ~= "table" and type(v) ~= "function" then

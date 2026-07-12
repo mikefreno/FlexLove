@@ -115,6 +115,87 @@ end
 Context._test.pointHitsElement = pointHitsElement
 Context._test.elementHasScrollableOverflow = elementHasScrollableOverflow
 
+--- Find the first scrollable element at a screen position, regardless of mode.
+--- This is the mode-agnostic successor to the two duplicated scrollable lookups
+--- that previously lived inline in `flexlove.wheelmoved`:
+---   * immediate mode — walked `Context._zIndexOrderedElements` in reverse and
+---     re-implemented bounds + parent-chain clipping + scroll-offset math; and
+---   * retained mode — recursed through `Context.topElements` with a private
+---     `findScrollableAtPosition(elements, x, y)` helper.
+--- Both paths now collapse into this single function, which routes every
+--- hit test through `pointHitsElement` (the single place `display == false`
+--- is guarded) and every scroll-offset decision through
+--- `elementHasScrollableOverflow`. As a result display:none elements are never
+--- returned in either mode, fixing the latent bug where the immediate-mode
+--- path's `isPointInElement` did not skip display:none elements.
+---
+--- The retained-mode branch intentionally mirrors the original
+--- `findScrollableAtPosition` helper's tree walk (deepest scrollable wins,
+--- children checked before self) but is upgraded to thread accumulated scroll
+--- offsets through `pointHitsElement` so nested scrolled containers are tested
+--- against their visible position. The original helper is removed once
+--- `flexlove.wheelmoved` is rerouted onto this function in task 04.
+---@param x number Screen X coordinate
+---@param y number Screen Y coordinate
+---@return Element|nil The scrollable element, or nil
+function Context.findScrollableAtPosition(x, y)
+  if Context.isImmediateMode() then
+    -- Immediate mode: iterate the z-index ordered list (reverse order =
+    -- topmost first). pointHitsElement supplies the bounds + display guard.
+    for i = #Context._zIndexOrderedElements, 1, -1 do
+      local element = Context._zIndexOrderedElements[i]
+      if pointHitsElement(element, x, y) then
+        local overflowX = element.overflowX or element.overflow
+        local overflowY = element.overflowY or element.overflow
+        if
+          (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
+          and (element._overflowX or element._overflowY)
+        then
+          return element
+        end
+      end
+    end
+    return nil
+  else
+    -- Retained mode: recursive tree walk from topElements. Children are
+    -- checked before self (deepest scrollable wins); accumulated scroll
+    -- offsets are threaded through pointHitsElement so descendants of
+    -- scrolled containers are hit-tested against their translated position.
+    local function findInTree(elements, scrollOffsetX, scrollOffsetY)
+      scrollOffsetX = scrollOffsetX or 0
+      scrollOffsetY = scrollOffsetY or 0
+      for i = #elements, 1, -1 do
+        local element = elements[i]
+        if pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
+          if #element.children > 0 then
+            local childScrollOffsetX = scrollOffsetX
+            local childScrollOffsetY = scrollOffsetY
+            if elementHasScrollableOverflow(element) then
+              childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
+              childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
+            end
+            local childResult = findInTree(element.children, childScrollOffsetX, childScrollOffsetY)
+            if childResult then
+              return childResult
+            end
+          end
+          -- No descendant was scrollable — check self.
+          local overflowX = element.overflowX or element.overflow
+          local overflowY = element.overflowY or element.overflow
+          if
+            (overflowX == "scroll" or overflowX == "auto" or overflowY == "scroll" or overflowY == "auto")
+            and (element._overflowX or element._overflowY)
+          then
+            return element
+          end
+        end
+      end
+      return nil
+    end
+    return findInTree(Context.topElements)
+  end
+end
+
 --- Check whether immediate mode is active.
 --- This is the single canonical accessor for the mode flag consumed throughout
 --- the framework. Mode-aware branches elsewhere call this instead of reading
@@ -287,6 +368,57 @@ function Context.getTopElementAt(x, y)
   end
 
   return fallback
+end
+
+--- Find the topmost interactive element at a screen position, regardless of mode.
+--- In immediate mode this replaces Context.getTopElementAt() (which only worked
+--- in immediate mode). In retained mode this provides the same role as the
+--- _activeEventElement set by flexlove.getElementAtPosition().
+---
+--- An element is "interactive" if it has an onEvent handler, themeComponent, or is editable.
+---@param x number Screen X coordinate
+---@param y number Screen Y coordinate
+---@return Element|nil The topmost interactive element, or nil
+function Context.findInteractiveAtPosition(x, y)
+  local interactiveCandidates = {}
+
+  local function collectInteractive(element, scrollOffsetX, scrollOffsetY)
+    scrollOffsetX = scrollOffsetX or 0
+    scrollOffsetY = scrollOffsetY or 0
+
+    if not pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
+      return
+    end
+
+    -- Check if this element is interactive
+    if element.onEvent or element.themeComponent or element.editable then
+      table.insert(interactiveCandidates, element)
+    end
+
+    -- Recurse into children with accumulated scroll offset
+    local childScrollOffsetX = scrollOffsetX
+    local childScrollOffsetY = scrollOffsetY
+    if elementHasScrollableOverflow(element) then
+      childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
+      childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
+    end
+
+    for _, child in ipairs(element.children) do
+      collectInteractive(child, childScrollOffsetX, childScrollOffsetY)
+    end
+  end
+
+  -- Always traverse the tree (works in both modes — topElements exists always)
+  for _, element in ipairs(Context.topElements) do
+    collectInteractive(element)
+  end
+
+  -- Sort by z-index descending — topmost wins
+  table.sort(interactiveCandidates, function(a, b)
+    return (a.z or 0) > (b.z or 0)
+  end)
+
+  return interactiveCandidates[1]
 end
 
 --- Set the focused element (centralizes focus management)

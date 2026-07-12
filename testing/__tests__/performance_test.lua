@@ -191,7 +191,6 @@ function TestPerformanceWarnings:testHierarchyDepthWarning()
       height = 50,
       parent = current,
     }, Element.defaultDependencies)
-    table.insert(current.children, child)
     current = child
   end
 
@@ -214,13 +213,12 @@ function TestPerformanceWarnings:testElementCountWarning()
 
   -- Add many child elements
   for i = 1, 50 do -- Keep test fast, just verify the counting logic works
-    local child = Element.new({
+    Element.new({
       id = "child_" .. i,
       width = 20,
       height = 20,
       parent = root,
     }, Element.defaultDependencies)
-    table.insert(root.children, child)
   end
 
   local count = root:countElements()
@@ -254,8 +252,6 @@ function TestPerformanceWarnings:testAnimationTracking()
         return { width = 20, height = 20 }
       end,
     }
-
-    table.insert(root.children, child)
   end
 
   local animCount = root:_countActiveAnimations()
@@ -282,7 +278,6 @@ function TestPerformanceWarnings:testWarningsCanBeDisabled()
       height = 50,
       parent = current,
     }, Element.defaultDependencies)
-    table.insert(current.children, child)
     current = child
   end
 
@@ -303,7 +298,7 @@ function TestPerformanceWarnings:testLayoutRecalculationTracking()
   }, Element.defaultDependencies)
 
   -- Layout multiple times (simulating layout thrashing)
-  for i = 1, 5 do
+  for _ = 1, 5 do
     root:layoutChildren()
   end
 

@@ -35,6 +35,17 @@ local Context = {
 
   initialized = false,
 
+  -- Expose internal hit-testing helpers for unit testing only.
+  -- These are populated below after their local definitions. They are NOT part
+  -- of the public API and must not be relied on by callers; they exist so the
+  -- shared hit-test core (the single place display:none guarding lives) can be
+  -- exercised directly by the test suite. Subsequent unified-event-routing
+  -- tasks consume these locals through the mode-agnostic query functions.
+  _test = {
+    pointHitsElement = nil,
+    elementHasScrollableOverflow = nil,
+  },
+
   -- Debug draw overlay
   _debugDraw = false,
   _debugDrawKey = nil,
@@ -45,6 +56,64 @@ local Context = {
   ---@type table[] Queue of {props: ElementProps, callback: function(element)|nil}
   _initQueue = {},
 }
+
+--- Check if a point hits an element, accounting for scroll offsets and display:none.
+--- All mode-agnostic query functions use this as their single hit-test entry point,
+--- ensuring fixes like display:none guarding apply everywhere.
+---
+--- This is the single canonical place where `element.display == false` short-
+--- circuits hit testing. Parent-chain clipping/scroll-offset accumulation is
+--- the caller's responsibility: callers walk the parent chain (using
+--- `elementHasScrollableOverflow` to decide which ancestors clip) and pass the
+--- accumulated scroll offset in here. Keeping the parent walk outside this core
+--- lets retained-mode (recursive tree descent) and immediate-mode (flat
+--- z-index list) callers share the exact same primitive bounds/display logic.
+---@param element Element
+---@param mx number Screen X coordinate
+---@param my number Screen Y coordinate
+---@param scrollOffsetX number? Accumulated scroll offset from parent chain
+---@param scrollOffsetY number? Accumulated scroll offset from parent chain
+---@return boolean hits
+local function pointHitsElement(element, mx, my, scrollOffsetX, scrollOffsetY)
+  scrollOffsetX = scrollOffsetX or 0
+  scrollOffsetY = scrollOffsetY or 0
+
+  -- Skip display:none elements entirely
+  if element.display == false then
+    return false
+  end
+
+  local bx = element.x
+  local by = element.y
+  local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
+  local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
+
+  local adjustedX = mx + scrollOffsetX
+  local adjustedY = my + scrollOffsetY
+
+  return adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh
+end
+
+--- Check if an element has scrollable/clipped overflow (for scroll offset accumulation).
+--- Returns true for `scroll`, `auto`, and `hidden` on either axis. These are the
+--- overflow values that clip/translate descendant content and therefore require
+--- scroll-offset compensation when hit testing descendants.
+---@param element Element
+---@return boolean
+local function elementHasScrollableOverflow(element)
+  local overflowX = element.overflowX or element.overflow
+  local overflowY = element.overflowY or element.overflow
+  return overflowX == "scroll"
+    or overflowX == "auto"
+    or overflowY == "scroll"
+    or overflowY == "auto"
+    or overflowX == "hidden"
+    or overflowY == "hidden"
+end
+
+-- Expose the two core helpers for unit testing only (see Context._test above).
+Context._test.pointHitsElement = pointHitsElement
+Context._test.elementHasScrollableOverflow = elementHasScrollableOverflow
 
 --- Check whether immediate mode is active.
 --- This is the single canonical accessor for the mode flag consumed throughout

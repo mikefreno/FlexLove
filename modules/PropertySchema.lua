@@ -339,7 +339,21 @@ local function defineDefaults()
     selectionColor = { type = "color" },
     cursorBlinkRate = { type = "number", default = 0.5 },
     text = { type = "string" },
-    textAlign = { type = "string", default = "start" },
+    textAlign = {
+      type = "string",
+      default = "start",
+      validator = enumValidator({ "start", "center", "end", "justify" }),
+    },
+    -- textAlignVertical is a derived storage field split out from textAlign
+    -- (bindVisualState resolves table/compound-string input into H + V). Its
+    -- validator is exposed for bindVisualState to validate the V component; the
+    -- prop itself stays in SPECIAL_PROPS because compound parsing needs
+    -- ErrorHandler warnings (schema is pure-Lua, cannot warn).
+    textAlignVertical = {
+      type = "string",
+      default = "start",
+      validator = enumValidator({ "start", "center", "end" }),
+    },
     textColor = { type = "color" },
     fontFamily = { type = "string" },
     textSize = { type = "any" }, -- number | preset string; resolved by special handler

@@ -440,18 +440,48 @@ end
 -- ---------------------------------------------------------------------------
 -- Data-driven prop binding (Task 03)
 -- ---------------------------------------------------------------------------
--- Props that CANNOT be bound generically by _applyProps because they need
--- side-effects, ordering relative to constructed sub-systems, non-literal
--- (theme/parent/viewport-derived) defaults, or unit resolution. Each is still
--- handled explicitly in Element.new (or its own special handler). Adding a new
--- SIMPLE prop requires only a PropertySchema entry; adding a prop that needs
--- side-effects additionally requires listing it here.
+-- SPECIAL_PROPS is the documented boundary of the schema-driven _applyProps
+-- loop. Props listed here are bound explicitly by bindThemeAndFields /
+-- bindVisualState / the staged initializers instead of the generic registry
+-- loop, for one of five load-bearing reasons (none represent unfinished
+-- migration — moving them into the generic loop would require extending the
+-- PropertySchema DSL, which is deliberately kept small and declarative):
 --
--- Props NOT listed here (e.g. callbacks, editable, multiline, passwordMode,
--- autoScaleText, cursorColor, selectionColor, opacity, visibility, transform,
--- imagePath/objectFit/..., minTextSize/maxTextSize, alignSelf, transition) are
--- bound generically by _applyProps (defaults + normalizers + validators +
--- onX/onXDeferred auto-wiring).
+--   1. SUBSYSTEM ORDERING — the prop needs a subsystem constructed first.
+--      Theme props (theme/themeComponent/disabled/active/...) depend on the
+--      ThemeManager being alive so their defaults can be read from it; the
+--      generic loop runs before subsystem creation in _attachBehaviors.
+--
+--   2. NON-LITERAL DEFAULTS — the default is not a static value the schema's
+--      `default:` field can express. borderColor/backgroundColor/textColor
+--      default to Color.new(...); text defaults to "" only when editable;
+--      scrollable/autoGrow default from multiline. The schema only stores
+--      literal defaults (pure-Lua constraint; see PropertySchema.lua header).
+--
+--   3. UNIT RESOLUTION / VIEWPORT CONTEXT — dimension props (width/height/x/y
+--      /gap/padding/...) accept unit strings ("50%", "10px") or CalcObjects that
+--      resolve against parent size and viewport, which a pure-Lua schema cannot
+--      see. setProperty routes these via the `isDimension` flag at runtime, but
+--      construction-time binding needs the sizing context from _initSizingContext.
+--
+--   4. WARN-AND-FALLBACK vs. THROW — display and the flex props validate with a
+--      non-throwing warn+fallback path; the schema's `validator` field throws
+--      (VAL_001) for invalid enum/range values. These need their own boundary
+--      validators (_warnFlexInvalid / the display type-check).
+--
+--   5. SUBSYSTEM OWNERSHIP — overflow/scrollbar* are owned by ScrollManager,
+--      selectParent/selectOption by the Select subsystem, border/cornerRadius
+--      use schema normalizers but bind with a special shape (all-false→nil).
+--      These props' storage is owned by their subsystem, not the element core.
+--
+-- Adding a new SIMPLE prop requires only a PropertySchema entry; adding a prop
+-- that needs any of the above additionally requires listing it here and binding
+-- it in the matching special-handler phase. Props NOT listed here (e.g.
+-- callbacks, editable, multiline, passwordMode, autoScaleText, cursorColor,
+-- selectionColor, opacity, visibility, transform, imagePath/objectFit/...,
+-- minTextSize/maxTextSize, alignSelf, transition) are bound generically by
+-- _applyProps (defaults + normalizers + validators + onX/onXDeferred
+-- auto-wiring).
 local function _set(...)
   local t = {}
   for _, name in ipairs({ ... }) do
@@ -964,62 +994,40 @@ bindVisualState = function(self, props)
     self.text = props.text
   end
 
-  -- Validate and set textAlign (supports simple string, compound string, or table format)
-  local textAlignDefault = Element._utils.enums.TextAlign.START
+  -- Validate and set textAlign (supports simple string, compound string, or
+  -- table format). Enum membership is checked via PropertySchema validators
+  -- (the valid H/V sets live there, matching the objectFit/imageRepeat pattern);
+  -- compound-string parsing and warn+fallback stay here because they need
+  -- ErrorHandler, which the pure-Lua schema cannot depend on.
+  local textAlignMeta = schema.get("textAlign")
+  local textVAlignMeta = schema.get("textAlignVertical")
+  local textAlignDefault = textAlignMeta.default
+  local vAlignDefault = textVAlignMeta.default
+
   self.textAlign = props.textAlign or textAlignDefault
   self.textAlignHorizontal = textAlignDefault
-  self.textAlignVertical = Element._utils.enums.TextAlignVertical.START
+  self.textAlignVertical = vAlignDefault
 
   if props.textAlign ~= nil then
     if type(props.textAlign) == "table" then
       -- Table format: {horizontal = "start", vertical = "center"}
       local hAlign = props.textAlign.horizontal or textAlignDefault
-      local vAlign = props.textAlign.vertical or Element._utils.enums.TextAlignVertical.START
+      local vAlign = props.textAlign.vertical or vAlignDefault
 
-      -- Validate horizontal value
-      local validH = false
-      for _, v in pairs(Element._utils.enums.TextAlign) do
-        if hAlign == v then
-          validH = true
-          break
-        end
-      end
-      if not validH then
+      if not textAlignMeta.validator(hAlign) then
         hAlign = _warnTextAlign("textAlign.horizontal", "valid TextAlign value", hAlign, textAlignDefault)
       end
-
-      -- Validate vertical value
-      local validV = false
-      for _, v in pairs(Element._utils.enums.TextAlignVertical) do
-        if vAlign == v then
-          validV = true
-          break
-        end
-      end
-      if not validV then
-        vAlign = _warnTextAlign(
-          "textAlign.vertical",
-          "valid TextAlignVertical value",
-          vAlign,
-          Element._utils.enums.TextAlignVertical.START
-        )
+      if not textVAlignMeta.validator(vAlign) then
+        vAlign = _warnTextAlign("textAlign.vertical", "valid TextAlignVertical value", vAlign, vAlignDefault)
       end
 
       self.textAlignHorizontal = hAlign
       self.textAlignVertical = vAlign
     elseif type(props.textAlign) == "string" then
-      -- Check if it's a known simple value (backward compatible)
-      local isSimple = false
-      for _, v in pairs(Element._utils.enums.TextAlign) do
-        if props.textAlign == v then
-          isSimple = true
-          break
-        end
-      end
-
-      if isSimple then
+      if textAlignMeta.validator(props.textAlign) then
+        -- Known simple TextAlign value (backward compatible)
         self.textAlignHorizontal = props.textAlign
-        self.textAlignVertical = Element._utils.enums.TextAlignVertical.START
+        self.textAlignVertical = vAlignDefault
       else
         -- Treat as compound string: "top-left" through "bottom-right"
         local parts = {}

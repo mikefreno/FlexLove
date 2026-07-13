@@ -173,18 +173,18 @@ local function onUpdate(element, dt)
   local adjustedMy = my + scrollOffsetY
   local isHovering = adjustedMx >= bx and adjustedMx <= bx + bw and adjustedMy >= by and adjustedMy <= by + bh
 
-  -- Check if this is the topmost element at the mouse position (z-index
-  -- ordering). This prevents occluded elements from receiving interactions or
-  -- visual feedback.
-  local isActiveElement
-  if Element._Context.isImmediateMode() then
-    -- In immediate mode, use z-index occlusion detection
-    local topElement = Element._Context.getTopElementAt(mx, my)
-    isActiveElement = (topElement == element or topElement == nil)
-  else
-    -- In retained mode, use the old _activeEventElement mechanism
-    isActiveElement = (Element._Context._activeEventElement == nil or Element._Context._activeEventElement == element)
-  end
+  -- Check if this is the topmost interactive element at the mouse position
+  -- (z-index ordering). This prevents blocked/occluded elements from
+  -- receiving interactions or visual feedback. A single mode-agnostic lookup
+  -- via `Context.findInteractiveAtPosition` (unified-event-routing task 05)
+  -- replaces the previous immediate/retained-mode split that used
+  -- `getTopElementAt` in immediate mode and `_activeEventElement` in retained
+  -- mode. `findInteractiveAtPosition` routes every hit test through
+  -- `pointHitsElement` (the single canonical `display == false` guard) and
+  -- resolves occlusion by z-index in both modes, so the active element is the
+  -- same one that would receive a hit under the cursor.
+  local topElement = Element._Context.findInteractiveAtPosition(mx, my)
+  local isActiveElement = (topElement == element or topElement == nil)
 
   -- Reset scrollbar press flag at start of each frame
   eventHandler:resetScrollbarPressFlag()

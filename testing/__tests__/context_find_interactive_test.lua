@@ -19,10 +19,12 @@
 -- `Element._initPositioning` regardless of mode) and resolves occlusion by
 -- sorting candidates on `z` descending.
 --
--- Parity tests below cross-check the new function against the original
--- immediate-mode `Context.getTopElementAt()` and the retained-mode
--- `flexlove.getElementAtPosition()` (the source of `_activeEventElement`) on
--- shared fixtures built with the real `FlexLove.new` constructor.
+-- The immediate-mode tests below were originally parity cross-checks against
+-- `Context.getTopElementAt()` (the immediate-mode mechanism this function
+-- replaced). `getTopElementAt` was removed in unified-event-routing task 05 once
+-- the occlusion check in `behaviors/Clickable.lua` was rerouted to
+-- `findInteractiveAtPosition`; the retained-mode tests still cross-check against
+-- `flexlove.getElementAtPosition()` (the source of `_activeEventElement`).
 
 package.path = package.path .. ";./?.lua;./modules/?.lua"
 local originalSearchers = package.searchers or package.loaders
@@ -301,7 +303,7 @@ function TestFindInteractiveAtPosition:testModeAgnosticIdenticalResult()
 end
 
 -- =====================
--- Parity with Context.getTopElementAt() (immediate mode)
+-- Immediate-mode behavior (originally parity vs Context.getTopElementAt)
 -- =====================
 
 TestFindInteractiveImmediateParity = {}
@@ -320,13 +322,13 @@ function TestFindInteractiveImmediateParity:tearDown()
   FlexLove.destroy()
 end
 
--- Cross-check: Context.findInteractiveAtPosition returns the same element as
--- Context.getTopElementAt() in immediate mode, across fixtures built with the
--- real FlexLove.new constructor (so elements are registered in both
--- _zIndexOrderedElements and topElements). Fixtures are restricted to onEvent
--- interactive elements with no non-interactive overlays so the two functions'
--- semantics coincide (getTopElementAt's fallback for non-interactive hits is
--- not exercised).
+-- Immediate-mode behavior: Context.findInteractiveAtPosition returns the
+-- expected element across fixtures built with the real FlexLove.new
+-- constructor (so elements are registered in both _zIndexOrderedElements and
+-- topElements). Fixtures are restricted to onEvent interactive elements with no
+-- non-interactive overlays. (Originally a parity cross-check against the now-
+-- removed `Context.getTopElementAt()`; the assertions against `c.expect` are
+-- preserved.)
 function TestFindInteractiveImmediateParity:testParityWithGetTopElementAt()
   -- Fixture 1: single interactive element.
   local e1 = FlexLove.new({ x = 0, y = 0, width = 100, height = 100, onEvent = function() end })
@@ -339,19 +341,20 @@ function TestFindInteractiveImmediateParity:testParityWithGetTopElementAt()
 
   for i, c in ipairs(cases) do
     local got = Context.findInteractiveAtPosition(c.x, c.y)
-    local want = Context.getTopElementAt(c.x, c.y)
-    luaunit.assertTrue(
-      got == want,
-      string.format("fixture 1 case %d: findInteractive=%s getTopElementAt=%s", i, tostring(got), tostring(want))
-    )
     if c.expect ~= nil then
-      luaunit.assertTrue(got == c.expect, string.format("fixture 1 case %d: expected the element", i))
+      luaunit.assertTrue(
+        got == c.expect,
+        string.format("fixture 1 case %d: findInteractive=%s expected the element", i, tostring(got))
+      )
+    else
+      luaunit.assertNil(got, string.format("fixture 1 case %d: expected nil off-element", i))
     end
   end
 end
 
 -- Fixture 2: two overlapping interactive siblings with different z; the
--- higher-z one must be returned by both functions.
+-- higher-z one must be returned. (Originally a parity cross-check against the
+-- now-removed `Context.getTopElementAt()`.)
 function TestFindInteractiveImmediateParity:testParityTopmostOverlap()
   FlexLove.beginFrame()
   local low = FlexLove.new({ x = 0, y = 0, width = 100, height = 100, z = 1, onEvent = function() end })
@@ -361,9 +364,8 @@ function TestFindInteractiveImmediateParity:testParityTopmostOverlap()
   FlexLove.endFrame()
 
   local got = Context.findInteractiveAtPosition(50, 50)
-  local want = Context.getTopElementAt(50, 50)
-  luaunit.assertTrue(got == want, "both functions agree on the topmost overlapping interactive element")
-  luaunit.assertTrue(got == high, "both functions return the higher-z element")
+  luaunit.assertNotNil(got, "returns an element under the cursor")
+  luaunit.assertTrue(got == high, "returns the higher-z overlapping interactive element")
 end
 
 -- =====================

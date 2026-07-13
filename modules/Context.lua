@@ -1,6 +1,7 @@
 ---@class Context
 local modulePath = (...):match("(.-)[^%.]+$")
 local ZIndex = require(modulePath .. "ZIndex")
+local Element = require(modulePath .. "Element")
 local Context = {
   topElements = {},
   -- Base scale configuration
@@ -328,49 +329,11 @@ local function isPointInElement(element, x, y)
   return adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh
 end
 
---- Get the topmost element at a screen position
----@param x number Screen X coordinate
----@param y number Screen Y coordinate
----@return Element|nil The topmost element at the position, or nil if none
-function Context.getTopElementAt(x, y)
-  if not Context.isImmediateMode() then
-    return nil
-  end
-
-  -- Helper function to find the first interactive ancestor (including self)
-  local function findInteractiveAncestor(elem)
-    local current = elem
-    while current do
-      -- An element is interactive if it has an onEvent handler, themeComponent, or is editable
-      if current.onEvent or current.themeComponent or current.editable then
-        return current
-      end
-      current = current.parent
-    end
-    return nil
-  end
-
-  local fallback = nil
-  for i = #Context._zIndexOrderedElements, 1, -1 do
-    local element = Context._zIndexOrderedElements[i]
-
-    if isPointInElement(element, x, y) then
-      local interactive = findInteractiveAncestor(element)
-      if interactive then
-        return interactive
-      end
-      -- Non-interactive element hit: remember as fallback but keep looking
-      -- for interactive children/siblings at same or lower z-index
-      if not fallback then
-        fallback = element
-      end
-    end
-  end
-
-  return fallback
-end
-
 --- Find the topmost interactive element at a screen position, regardless of mode.
+--- Replaces the former immediate-mode-only `Context.getTopElementAt()` (removed
+--- in unified-event-routing task 05) and the retained-mode `_activeEventElement`
+--- mechanism — both are now funneled through this single entry point.
+---
 --- In immediate mode this replaces Context.getTopElementAt() (which only worked
 --- in immediate mode). In retained mode this provides the same role as the
 --- _activeEventElement set by flexlove.getElementAtPosition().
@@ -523,6 +486,49 @@ end
 function Context.clearFocus()
   Context._focusedElementId = nil
   Context.setFocused(nil)
+end
+
+--- Get all focusable elements in tab order, regardless of mode.
+--- In immediate mode this extracts from _zIndexOrderedElements (flat, z-sorted).
+--- In retained mode it walks the element tree (DOM order).
+--- In both modes, display:none elements are excluded.
+---@return table<Element> List of focusable elements in tab order
+function Context.getFocusableElements()
+  local focusable = {}
+
+  local function isFocusable(elem)
+    if elem.display == false then
+      return false
+    end
+    -- Use Element:isFocusable() for consistent behavior
+    return Element.isFocusable(elem)
+  end
+
+  local function collectFromTree(elements)
+    for _, elem in ipairs(elements) do
+      if isFocusable(elem) then
+        table.insert(focusable, elem)
+      end
+      if #elem.children > 0 then
+        collectFromTree(elem.children)
+      end
+    end
+  end
+
+  if Context._immediateMode then
+    -- Immediate mode: _zIndexOrderedElements is already in z-index order (lowest first),
+    -- which approximates tab order for most UIs.
+    for _, elem in ipairs(Context._zIndexOrderedElements) do
+      if isFocusable(elem) then
+        table.insert(focusable, elem)
+      end
+    end
+  else
+    -- Retained mode: walk the top element trees in DOM order
+    collectFromTree(Context.topElements)
+  end
+
+  return focusable
 end
 
 -- ====================

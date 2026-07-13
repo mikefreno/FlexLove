@@ -11,6 +11,7 @@ The easiest way to create a release is using the automated script:
 ```
 
 This interactive script will:
+
 1. Show your current version
 2. Ask you to select: Major / Minor / Patch / Custom version bump
 3. Calculate the new version (resetting lower components to 0)
@@ -22,6 +23,7 @@ This interactive script will:
 9. Push changes and tag to GitHub
 
 After pushing the tag, GitHub Actions automatically:
+
 - Archives previous documentation
 - Generates new documentation  
 - Creates 4 build profile packages (minimal, slim, default, full) with SHA256 checksums
@@ -53,9 +55,10 @@ New version: v0.3.0
 
 This will:
   1. Update FlexLove.lua → flexlove._VERSION = "0.3.0"
-  2. Update README.md → first line version
-  3. Stage changes for commit
-  4. Create git tag v0.3.0
+  2. Update docs/index.html → footer version
+  3. Create/update rockspec → flexlove-0.3.0-1.rockspec
+  4. Stage changes for commit
+  5. Create git tag v0.3.0
 
 Proceed? (y/n) y
 
@@ -84,15 +87,24 @@ Edit `FlexLove.lua` and update the version:
 flexlove._VERSION = "0.3.0"  -- Update this line
 ```
 
-Also update `README.md` first line:
-```markdown
-# FlexLöve v0.3.0
+Update `docs/index.html` footer version (search for `FlexLöve v`):
+
+```bash
+sed -i -E "s/FlexLöve v[0-9]+\.[0-9]+\.[0-9]+/FlexLöve v0.3.0/g" docs/index.html
+```
+
+Create the new rockspec from the previous one:
+
+```bash
+cp flexlove-0.2.0-1.rockspec flexlove-0.3.0-1.rockspec
+sed -i 's/^version = ".*"/version = "0.3.0-1"/' flexlove-0.3.0-1.rockspec
+sed -i 's/tag = "v.*"/tag = "v0.3.0"/' flexlove-0.3.0-1.rockspec
 ```
 
 ### 2. Commit and Tag
 
 ```bash
-git add FlexLove.lua README.md
+git add FlexLove.lua docs/index.html flexlove-0.3.0-1.rockspec
 git commit -m "v0.3.0 release"
 git tag -a v0.3.0 -m "Release version 0.3.0"
 git push && git push origin v0.3.0
@@ -111,6 +123,7 @@ To create local release packages without GitHub Actions:
 ```
 
 Output files (for version 0.3.0):
+
 - `releases/flexlove-minimal-v0.3.0.zip` + `.sha256`
 - `releases/flexlove-slim-v0.3.0.zip` + `.sha256`
 - `releases/flexlove-default-v0.3.0.zip` + `.sha256`
@@ -156,6 +169,7 @@ FlexLöve is released as **4 separate profile packages**, each optimized for dif
 Each profile package includes:
 
 ✅ **Included:**
+
 - `FlexLove.lua` - Main library
 - `modules/` - Profile-specific module files only
 - `LICENSE` - License terms
@@ -163,6 +177,7 @@ Each profile package includes:
 - `themes/` - (default and full profiles only)
 
 ❌ **Not included:**
+
 - `docs/` - Documentation (hosted on GitHub Pages)
 - `examples/` - Example code (available in repository)
 - `testing/` - Test suite
@@ -172,10 +187,10 @@ Each profile package includes:
 
 | Profile | Modules | Approximate Size |
 |---------|---------|------------------|
-| **Minimal** | 19 core modules | ~70% of full |
-| **Slim** | 24 modules | ~80% of full |
-| **Default** | 28 modules + theme examples | ~95% of full |
-| **Full** | 30 modules + theme examples | 100% |
+| **Minimal** | 28 core modules | ~78% of full |
+| **Slim** | 35 modules | ~88% of full |
+| **Default** | 38 modules + themes | ~96% of full |
+| **Full** | 40 modules + themes | 100% |
 
 Users who want examples, documentation source, or development tools should clone the full repository.
 
@@ -225,6 +240,7 @@ After creating a GitHub release, publish to LuaRocks for easy installation:
 1. Create a LuaRocks account at [https://luarocks.org/register](https://luarocks.org/register)
 2. Get your API key from [https://luarocks.org/settings/api-keys](https://luarocks.org/settings/api-keys)
 3. Configure it locally:
+
    ```bash
    luarocks config api-key YOUR_API_KEY_HERE
    ```
@@ -256,6 +272,7 @@ For detailed instructions, see [LUAROCKS_PUBLISHING.md](LUAROCKS_PUBLISHING.md).
 ## Automated Releases (Future)
 
 Consider adding GitHub Actions workflow to automate:
+
 - Version extraction
 - Release package creation
 - Documentation deployment

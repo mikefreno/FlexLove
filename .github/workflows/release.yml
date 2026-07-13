@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -58,11 +58,13 @@ jobs:
       - name: Install lua-language-server
         run: |
           LLS_VERSION="3.7.4"
-          wget -q "https://github.com/LuaLS/lua-language-server/releases/download/${LLS_VERSION}/lua-language-server-${LLS_VERSION}-linux-x64.tar.gz"
+          LLS_URL="https://github.com/LuaLS/lua-language-server/releases/download/${LLS_VERSION}"
+          LLS_TARBALL="lua-language-server-${LLS_VERSION}-linux-x64.tar.gz"
+          wget -q "${LLS_URL}/${LLS_TARBALL}"
           mkdir -p ~/.local/bin/lua-language-server
-          tar -xzf "lua-language-server-${LLS_VERSION}-linux-x64.tar.gz" -C ~/.local/bin/lua-language-server
+          tar -xzf "$LLS_TARBALL" -C ~/.local/bin/lua-language-server
           echo "$HOME/.local/bin/lua-language-server/bin" >> $GITHUB_PATH
-          rm "lua-language-server-${LLS_VERSION}-linux-x64.tar.gz"
+          rm "$LLS_TARBALL"
 
       - name: Verify lua-language-server installation
         run: |
@@ -71,8 +73,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: docs/package.json
 
       - name: Install Node.js dependencies
@@ -89,14 +91,17 @@ jobs:
       - name: Archive previous documentation version
         run: |
           if [ -f "docs/api.html" ]; then
-            OLD_VERSION=$(grep -o 'FlexLöve v[0-9.]*' docs/api.html | head -1 | sed 's/FlexLöve v//')
+            OLD_VERSION=$(grep -o 'FlexLöve v[0-9.]*' docs/api.html \
+              | head -1 | sed 's/FlexLöve v//')
             if [ -n "$OLD_VERSION" ]; then
               echo "Found previous version: v${OLD_VERSION}"
               mkdir -p "docs/versions/v${OLD_VERSION}"
               cp docs/api.html "docs/versions/v${OLD_VERSION}/api.html"
               # Fix back link to use correct relative path for archived version
-              sed -i 's|href="index.html">← Back to Home|href="../../index.html">← Back to Home|g' "docs/versions/v${OLD_VERSION}/api.html"
-              echo "✓ Archived previous documentation to docs/versions/v${OLD_VERSION}/"
+              sed -i 's|href="index.html">← Back to Home|href="../../index.html">← Back to Home|g' \
+                "docs/versions/v${OLD_VERSION}/api.html"
+              echo "✓ Archived previous documentation to" \
+                "docs/versions/v${OLD_VERSION}/"
             else
               echo "No previous version found, skipping archival"
             fi
@@ -120,7 +125,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/versions/ docs/api.html docs/doc.json docs/doc.md
-          git commit -m "Archive previous documentation and generate v${{ steps.version.outputs.version }} docs [skip ci]" || echo "No changes to commit"
+          MSG="Archive previous documentation and generate"
+          MSG="${MSG} v${{ steps.version.outputs.version }} docs [skip ci]"
+          git commit -m "$MSG" || echo "No changes to commit"
           git push origin HEAD:main || echo "Nothing to push"
 
       - name: Create release packages
@@ -137,13 +144,14 @@ jobs:
           # Verify all packages were created
           VERSION="${{ steps.version.outputs.version }}"
           for profile in minimal slim default full; do
-            if [ ! -f "releases/flexlove-${profile}-v${VERSION}.zip" ]; then
+            ZIP="releases/flexlove-${profile}-v${VERSION}.zip"
+            if [ ! -f "$ZIP" ]; then
               echo "Error: ${profile} profile package was not created"
               echo "Contents of releases directory:"
               ls -la releases/ || echo "releases directory does not exist"
               exit 1
             fi
-            if [ ! -f "releases/flexlove-${profile}-v${VERSION}.zip.sha256" ]; then
+            if [ ! -f "${ZIP}.sha256" ]; then
               echo "Error: ${profile} checksum file was not created"
               exit 1
             fi
@@ -154,10 +162,10 @@ jobs:
         id: checksums
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          MINIMAL_CHECKSUM=$(cat "releases/flexlove-minimal-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
-          SLIM_CHECKSUM=$(cat "releases/flexlove-slim-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
-          DEFAULT_CHECKSUM=$(cat "releases/flexlove-default-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
-          FULL_CHECKSUM=$(cat "releases/flexlove-full-v${VERSION}.zip.sha256" | cut -d ' ' -f 1)
+          MINIMAL_CHECKSUM=$(cut -d ' ' -f1 "releases/flexlove-minimal-v${VERSION}.zip.sha256")
+          SLIM_CHECKSUM=$(cut -d ' ' -f1 "releases/flexlove-slim-v${VERSION}.zip.sha256")
+          DEFAULT_CHECKSUM=$(cut -d ' ' -f1 "releases/flexlove-default-v${VERSION}.zip.sha256")
+          FULL_CHECKSUM=$(cut -d ' ' -f1 "releases/flexlove-full-v${VERSION}.zip.sha256")
 
           echo "minimal=$MINIMAL_CHECKSUM" >> $GITHUB_OUTPUT
           echo "slim=$SLIM_CHECKSUM" >> $GITHUB_OUTPUT
@@ -183,17 +191,22 @@ jobs:
           CURRENT_TAG="v${VERSION}"
           REPO="${{ github.repository }}"
 
-          # Get the previous tag (exclude current tag if it exists)
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1)
+          # Get the previous tag (exclude the current tag if it exists)
+          PREVIOUS_TAG=$(git tag --sort=-version:refname \
+            | grep -v "^${CURRENT_TAG}$" | head -1)
 
           # Generate changelog
           if [ -n "$PREVIOUS_TAG" ]; then
             echo "## Changes since $PREVIOUS_TAG" > release_notes.md
             echo "" >> release_notes.md
-            # Get commits between tags with links, excluding [skip ci] commits and version release commits
-            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- [%s](https://github.com/${REPO}/commit/%H)" --no-merges | \
+            # Get commits between tags with links, excluding [skip ci] commits
+            # and version release commits
+            git log ${PREVIOUS_TAG}..HEAD \
+              --pretty=format:"- [%s](https://github.com/${REPO}/commit/%H)" \
+              --no-merges | \
               grep -v "\[skip ci\]" | \
-              grep -v " release\]" >> release_notes.md || echo "- No notable changes" >> release_notes.md
+              grep -v " release\]" >> release_notes.md \
+              || echo "- No notable changes" >> release_notes.md
             echo "" >> release_notes.md
             echo "" >> release_notes.md
           else
@@ -212,9 +225,9 @@ jobs:
 
           | Profile | Size | Description | Package |
           |---------|------|-------------|---------|
-          | **Minimal** | ~55% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
-          | **Slim** | ~62.5% | + Animation and Image support | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
-          | **Default** | ~95% | + Theme, Calc, Blur effects | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
+          | **Minimal** | ~78% | Core functionality only | `flexlove-minimal-v${{ steps.version.outputs.version }}.zip` |
+          | **Slim** | ~88% | + Animation, Image, Keyboard nav and Focus | `flexlove-slim-v${{ steps.version.outputs.version }}.zip` |
+          | **Default** | ~96% | + Theme, Blur and Gesture | `flexlove-default-v${{ steps.version.outputs.version }}.zip` |
           | **Full** | 100% | All modules including debugging tools | `flexlove-full-v${{ steps.version.outputs.version }}.zip` |
 
           **Choose the profile that matches your needs!** See the [Build Profiles Documentation](https://github.com/${{ github.repository }}/blob/main/docs/BUILD_PROFILES.md) for detailed module listings.
@@ -269,7 +282,7 @@ jobs:
           cat release_notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: FlexLöve v${{ steps.version.outputs.version }}

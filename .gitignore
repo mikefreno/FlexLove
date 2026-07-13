@@ -14,5 +14,4 @@ memory_scan*
 *_report*
 *.key
 *.rock
-*.rockspec
 testing-demos/

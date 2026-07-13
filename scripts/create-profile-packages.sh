@@ -44,9 +44,9 @@ fi
 # Function to get profile description
 get_description() {
   case "$1" in
-    minimal) echo "Core modules only - smallest bundle size (~60%)" ;;
-    slim) echo "Minimal + Animation and Image support (~80%)" ;;
-    default) echo "Slim + Theme and Blur (~95%)" ;;
+    minimal) echo "Core modules only - smallest bundle size (~78%)" ;;
+    slim) echo "Minimal + Animation, Image, Keyboard nav and Focus (~88%)" ;;
+    default) echo "Slim + Theme, Blur and Gesture (~96%)" ;;
     full) echo "All modules including debugging tools (100%)" ;;
   esac
 }
@@ -57,7 +57,8 @@ get_description() {
 get_excluded_modules() {
   case "$1" in
     minimal)
-      # Exclude: image support, animation, themes, blur, gesture, calc, keyboard nav and debug tools
+      # Exclude: image support, animation, themes, blur, gesture, keyboard nav, focus indicator and debug tools.
+      # NOTE: Calc is a core module (hard-required via req()) and must NOT be excluded.
       echo "Animation.lua NinePatch.lua ImageRenderer.lua ImageScaler.lua ImageCache.lua Theme.lua Blur.lua GestureRecognizer.lua Performance.lua MemoryScanner.lua KeyboardNavigation.lua FocusIndicator.lua"
       ;;
     slim)

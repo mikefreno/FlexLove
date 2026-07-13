@@ -1,0 +1,15 @@
+# yamllint configuration for FlexLöve
+# The project enforces a 120-column standard for Lua (see stylua.toml and
+# .luacheckrc, both max_line_length = 120). YAML is not held to a strict
+# column limit because GitHub Actions workflow files legitimately contain
+# long, unwrappable lines: shell commands in `run:` blocks, release-note
+# heredoc markdown tables with interpolated package paths, and `files:`
+# glob lists. Disabling line-length here keeps the remaining structural
+# YAML checks (indentation, trailing spaces, document-start, etc.) active.
+extends: default
+
+rules:
+  line-length: disable
+  document-start: disable
+  truthy:
+    check-keys: false

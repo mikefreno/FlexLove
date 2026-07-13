@@ -6,13 +6,13 @@ The documentation automatically pulls the version from `FlexLove.lua` and displa
 
 1. **Version Source**: `FlexLove.lua` contains the authoritative version:
    ```lua
-   flexlove._VERSION = "0.2.0"
+   flexlove._VERSION = "0.13.0"
    ```
 
 2. **Automatic Detection**: The build script reads this value and injects it into:
-   - Page title: `FlexLöve v0.2.0 - API Reference`
-   - Sidebar header: `FlexLöve v0.2.0`
-   - Landing page: `FlexLöve v0.2.0`
+   - Page title: `FlexLöve v0.13.0 - API Reference`
+   - Sidebar header: `FlexLöve v0.13.0`
+   - Landing page: `FlexLöve v0.13.0`
 
 3. **Single Source of Truth**: Update the version in ONE place (`FlexLove.lua`) and docs auto-update
 
@@ -21,7 +21,7 @@ The documentation automatically pulls the version from `FlexLove.lua` and displa
 ### Option 1: Manual Update
 Edit `FlexLove.lua`:
 ```lua
-flexlove._VERSION = "0.3.0"  -- Change here
+flexlove._VERSION = "0.14.0"  -- Change here
 ```
 
 Then regenerate docs:
@@ -43,7 +43,7 @@ NEW_VERSION=$1
 
 if [ -z "$NEW_VERSION" ]; then
   echo "Usage: ./release.sh <version>"
-  echo "Example: ./release.sh 0.3.0"
+  echo "Example: ./release.sh 0.14.0"
   exit 1
 fi
 
@@ -69,7 +69,7 @@ echo "Don't forget to: git push && git push --tags"
   - Sidebar header (smaller, grayed out)
   
 - **Landing Page** (`index.html`):
-  - Footer: "FlexLöve v0.2.0 | MIT License"
+  - Footer: "FlexLöve v0.13.0 | MIT License"
 
 ## Future Enhancements
 

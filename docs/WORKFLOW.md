@@ -15,7 +15,7 @@ When you update annotations without bumping the version:
 ```
 
 **What happens:**
-- Script detects current version (e.g., v0.2.0) from `docs/api.html`
+- Script detects current version (e.g., v0.13.0) from `docs/api.html`
 - Compares with `FlexLove.lua` version
 - If versions match: **Overwrites** `docs/api.html` (same version)
 - Previous archived version remains unchanged
@@ -28,31 +28,31 @@ When you bump the version in `FlexLove.lua`:
 
 ```bash
 # 1. Update version in FlexLove.lua
-# flexlove._VERSION = "0.3.0"
+# flexlove._VERSION = "0.14.0"
 
 # 2. Generate documentation
 ./scripts/generate_docs.sh
 ```
 
 **What happens:**
-- Script detects old version (v0.2.0) from `docs/api.html`
-- Compares with new version (v0.3.0) from `FlexLove.lua`
-- **Archives** old `docs/api.html` → `docs/versions/v0.2.0/api.html`
-- Generates new `docs/api.html` for v0.3.0
+- Script detects old version (v0.13.0) from `docs/api.html`
+- Compares with new version (v0.14.0) from `FlexLove.lua`
+- **Archives** old `docs/api.html` → `docs/versions/v0.13.0/api.html`
+- Generates new `docs/api.html` for v0.14.0
 
 ### 3. Automated Release (via GitHub Actions)
 
 When you push a git tag:
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.14.0
+git push origin v0.14.0
 ```
 
 **What happens:**
 1. GitHub Actions workflow triggers
 2. Archives previous documentation version
-3. Generates new documentation for v0.3.0
+3. Generates new documentation for v0.14.0
 4. Commits both archived and new docs to repository
 5. Creates release package with checksums
 6. Creates GitHub release with assets
@@ -66,25 +66,25 @@ docs/
 └── versions/
     ├── v0.1.0/
     │   └── api.html           # Documentation for v0.1.0
-    ├── v0.2.0/
-    │   └── api.html           # Documentation for v0.2.0
-    └── v0.3.0/
-        └── api.html           # Documentation for v0.3.0
+    ├── v0.13.0/
+    │   └── api.html           # Documentation for v0.13.0
+    └── v0.14.0/
+        └── api.html           # Documentation for v0.14.0
 ```
 
 ## Version Detection
 
 The system automatically detects versions by:
-1. **Current docs version**: Reads from `docs/api.html` header (`FlexLöve v0.2.0`)
-2. **Code version**: Reads from `FlexLove.lua` (`flexlove._VERSION = "0.2.0"`)
+1. **Current docs version**: Reads from `docs/api.html` header (`FlexLöve v0.13.0`)
+2. **Code version**: Reads from `FlexLove.lua` (`flexlove._VERSION = "0.13.0"`)
 
 ### Behavior Matrix
 
 | Old Version | New Version | Action |
 |-------------|-------------|--------|
-| v0.2.0      | v0.2.0      | Overwrite current (same version update) |
-| v0.2.0      | v0.3.0      | Archive v0.2.0, generate v0.3.0 |
-| None        | v0.2.0      | Generate v0.2.0 (first time) |
+| v0.13.0      | v0.13.0      | Overwrite current (same version update) |
+| v0.13.0      | v0.14.0      | Archive v0.13.0, generate v0.14.0 |
+| None        | v0.13.0      | Generate v0.13.0 (first time) |
 
 ## Examples
 
@@ -92,10 +92,10 @@ The system automatically detects versions by:
 
 ```bash
 # Fix typo in annotations
-# Version still 0.2.0 in FlexLove.lua
+# Version still 0.13.0 in FlexLove.lua
 
 ./scripts/generate_docs.sh
-# Output: "Same version (v0.2.0), will overwrite current documentation"
+# Output: "Same version (v0.13.0), will overwrite current documentation"
 # Result: docs/api.html updated, no archival
 ```
 
@@ -103,26 +103,26 @@ The system automatically detects versions by:
 
 ```bash
 # Update FlexLove.lua
-# flexlove._VERSION = "0.3.0"
+# flexlove._VERSION = "0.14.0"
 
 ./scripts/generate_docs.sh
-# Output: "Found previous version v0.2.0, archiving before generating new docs..."
-# Output: "✓ Archived previous documentation to docs/versions/v0.2.0/"
+# Output: "Found previous version v0.13.0, archiving before generating new docs..."
+# Output: "✓ Archived previous documentation to docs/versions/v0.13.0/"
 # Result: 
-#   - docs/versions/v0.2.0/api.html (archived)
-#   - docs/api.html (new v0.3.0)
+#   - docs/versions/v0.13.0/api.html (archived)
+#   - docs/api.html (new v0.14.0)
 ```
 
 ### Scenario 3: Automated Release
 
 ```bash
 # Tag and push
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.14.0
+git push origin v0.14.0
 
 # GitHub Actions will:
-# 1. Archive v0.2.0 automatically
-# 2. Generate v0.3.0 docs
+# 1. Archive v0.13.0 automatically
+# 2. Generate v0.14.0 docs
 # 3. Commit both to repository
 # 4. Create GitHub release
 ```

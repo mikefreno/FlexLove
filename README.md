@@ -11,12 +11,14 @@ Built for developers who know CSS and want that same power (and more) in their g
 ## Features
 
 **Layout**
+
 - **Flexbox & Grid**: CSS-familiar flexbox and grid layouts with full property support
 - **Advanced Positioning**: Absolute, relative, flex, and grid positioning modes
 - **Responsive Units**: Viewport-relative units (vw, vh, %), calc(), and auto-sizing
 - **Corner Radius**: Rounded corners with individual corner control
 
 **Rendering**
+
 - **Theme System**: 9-patch (NinePatch) theming with state support (normal, hover, pressed, disabled)
 - **Android 9-Patch Auto-Parsing**: Automatic parsing of *.9.png files with multi-region support
 - **Animations**: Built-in animation with easing curves, keyframes, and sequencing
@@ -25,12 +27,14 @@ Built for developers who know CSS and want that same power (and more) in their g
 - **Blur Effects**: Backdrop blur for glassmorphic UI effects
 
 **Interaction**
+
 - **Event System**: Click, press, hover, release with modifier key detection
 - **Keyboard Navigation**: Tab/Shift+Tab sequential focus and arrow key directional navigation
 - **Input Fields**: Text input with cursor, selection, clipboard, and UTF-8 support
 - **Multi-Touch & Gestures** *(Alpha - not yet tested)*: Touch tracking, gesture recognition (tap, double-tap, long-press, swipe, pan, pinch, rotate), touch scrolling with momentum/bounce
 
 **Developer Experience**
+
 - **Debug Overlay**: Element boundary visualization for layout debugging
 - **Immediate & Retained Modes**: Choose per-project between declarative and persistent UI
 - **Build Profiles**: Optional modules let you trim bundle size for different use cases
@@ -88,12 +92,12 @@ luarocks install flexlove
 
 Going this route, you will need to link the luarocks path to your project:
 (for mac/linux)
+
 ```lua
 package.path = package.path .. ";/Users/<username>/.luarocks/share/lua/<version>/?.lua"
 package.path = package.path .. ";/Users/<username>/.luarocks/share/lua/<version>/?/init.lua"
 package.cpath = package.cpath .. ";/Users/<username>/.luarocks/lib/lua/<version>/?.so"
 ```
-
 
 ```lua
 local FlexLove = require("FlexLove")
@@ -116,30 +120,31 @@ end
 ```
 
 ## Quick Demos
+
 All of the following use the [metal theme](./themes/metal.lua)
 ![Basic Layout](./resources/basic.png)
 
-https://github.com/user-attachments/assets/39d958ce-f9e6-4ac6-9920-ac512f4612e9
+<https://github.com/user-attachments/assets/39d958ce-f9e6-4ac6-9920-ac512f4612e9>
 
-https://github.com/user-attachments/assets/00984a74-c59b-4030-b6eb-65d08b9655e6
+<https://github.com/user-attachments/assets/00984a74-c59b-4030-b6eb-65d08b9655e6>
 
-https://github.com/user-attachments/assets/922b38eb-a186-4a1a-b748-aa7815203f1a
+<https://github.com/user-attachments/assets/922b38eb-a186-4a1a-b748-aa7815203f1a>
 
-https://github.com/user-attachments/assets/9840f61b-4f60-4f63-ab3b-912c7da7ad14
+<https://github.com/user-attachments/assets/9840f61b-4f60-4f63-ab3b-912c7da7ad14>
 
-https://github.com/user-attachments/assets/388e0f59-8f93-420a-8b4c-efb9bccab251
+<https://github.com/user-attachments/assets/388e0f59-8f93-420a-8b4c-efb9bccab251>
 
 ![Backdrop Blur](./resources/backdropblur.png)
 
 ## Build Profiles
 
-FlexLöve supports optional modules to reduce bundle size for different use cases. Simply exclude module files you don't need - the library handles missing modules gracefully with null-object stubs.
+FlexLöve supports optional modules to reduce bundle size for different use cases. The library handles missing modules gracefully with null-object stubs. See [Build Profiles](docs/BUILD_PROFILES.md) for the full module matrix, or use the prebuilt profile packages from the [releases page](https://github.com/mikefreno/FlexLove/releases).
 
 ### Available Profiles
 
-- **Minimal (~60%)** - Core functionality only (layouts, basic elements, text)
-- **Slim (~80%)** - Adds animations and image support
-- **Default (~95%)** - Adds themes, blur effects, and gestures
+- **Minimal (~78%)** - Core functionality only (layouts, basic elements, text)
+- **Slim (~88%)** - Adds animations, image support, keyboard nav and focus
+- **Default (~96%)** - Adds themes, blur effects, and gestures
 - **Full (100%)** - Everything including performance monitoring
 
 ## Documentation
@@ -156,6 +161,7 @@ Complete API reference with all classes, methods, and properties is available on
 ### Documentation Versions
 
 Access documentation for specific versions:
+
 - **Latest:** [https://mikefreno.github.io/FlexLove/api.html](https://mikefreno.github.io/FlexLove/api.html)
 - **Specific version:** `https://mikefreno.github.io/FlexLove/versions/v0.2.0/api.html`
 
@@ -171,6 +177,7 @@ being a `<div>` in html. The `Element` can be anything you need - a container wi
 FlexLöve supports both **immediate mode** and **retained mode** UI paradigms, giving you flexibility in how you structure your UI code:
 
 #### Retained Mode (Default)
+
 In retained mode, create elements once and they persist across frames. Update element properties directly in response to events.
 
 ```lua
@@ -192,6 +199,7 @@ local button2 = FlexLove.new({
 ```
 
 #### Immediate Mode
+
 In immediate mode, recreate UI elements every frame inside `FlexLove.draw()`. State is read fresh each frame:
 
 ```lua
@@ -209,6 +217,7 @@ end
 ### Layout Modes
 
 #### Absolute Positioning
+
 ```lua
 local element = FlexLove.new({
   positioning = "absolute",
@@ -220,6 +229,7 @@ local element = FlexLove.new({
 ```
 
 #### Flexbox Layout
+
 ```lua
 local container = FlexLove.new({
   positioning = "flex",
@@ -233,6 +243,7 @@ local container = FlexLove.new({
 #### Grid Layout
 
 Uniform grid (all cells equal size):
+
 ```lua
 local grid = FlexLove.new({
   positioning = "grid",
@@ -244,6 +255,7 @@ local grid = FlexLove.new({
 ```
 
 Variable column widths / row heights with `gridColumns` / `gridRows`:
+
 ```lua
 local grid = FlexLove.new({
   positioning = "grid",
@@ -257,6 +269,7 @@ local grid = FlexLove.new({
 `gridColumns` and `gridRows` accept either a **number** (equal `1fr` tracks) or an **array** of track specs. For example, `gridColumns = 3` gives three equal-width columns, while `gridColumns = {"1fr", "2fr", "100px"}` gives explicit track sizing with track count inferred from the array length.
 
 Track size units:
+
 - **`px` / number** — Fixed pixel size (`100`, `"100px"`, `200`)
 - **`%`** — Percentage of available container space (`"25%"`)
 - **`fr`** — Fractional unit: distributes remaining space proportionally (`"1fr"`, `"2fr"`, `"3fr"`)
@@ -265,7 +278,7 @@ Track size units:
 When `gridColumns` / `gridRows` are arrays, track count is inferred from the array length. When they are numbers or nil, the layout falls back to equal `1fr` tracks.
 
 ### Theme System
- 
+
 To create a theme explore themes/space.lua as a reference
 
 Load and apply themes for consistent styling:
@@ -314,6 +327,7 @@ FlexLove automatically parses Android-style 9-patch (*.9.png) files:
 ```
 
 **9-Patch Format:**
+
 - Files ending in `.9.png` are automatically detected and parsed
 - **Guide pixels are automatically removed** - the 1px border is stripped during loading
 - Top/left borders define stretchable regions (black pixels)
@@ -322,6 +336,7 @@ FlexLove automatically parses Android-style 9-patch (*.9.png) files:
 - Manual insets override auto-parsing when specified
 
 **Scaling Corners:**
+
 ```lua
 {
   button = {
@@ -330,11 +345,13 @@ FlexLove automatically parses Android-style 9-patch (*.9.png) files:
   }
 }
 ```
+
 - `scaleCorners` accepts a number (e.g., 2 = 2x size, 0.5 = half size)
 - Default: `nil` (no scaling, 1:1 pixel perfect)
 - Corners scale uniformly while edges stretch as defined by guides
 
 Themes support state-based rendering:
+
 - `normal` - Default state
 - `hover` - Mouse over element
 - `pressed` - Element being clicked
@@ -371,6 +388,7 @@ end
 **Multi-Touch Support:**
 
 FlexLöve provides multi-touch event tracking and gesture recognition with built-in gesture types:
+
 - Touch event handling (`touchpress`, `touchmove`, `touchrelease`, `touchcancel`)
 - 7 gesture types (tap, double-tap, long-press, swipe, pan, pinch, rotate)
 - Touch scrolling with momentum and bounce effects
@@ -395,6 +413,7 @@ local label = FlexLove.new({
 ### Custom Rendering
 
 Each element supports a `customDraw` callback function that executes after the element's standard rendering but before visual feedback. This is useful for:
+
 - Adding custom graphics on top of elements
 - Creating complex visual effects
 - Utilize flex love positioning to place whatever you need
@@ -430,6 +449,7 @@ local panel = FlexLove.new({
 ### Debug View
 
 Enable the debug draw overlay to visualize element boundaries, hit areas, and layout structure during development. This helps identify:
+
 - Element positioning and sizing
 - Overlapping elements
 - Hidden or transparent elements
@@ -456,6 +476,7 @@ local isEnabled = FlexLove.getDebugDraw()
 ```
 
 **Features:**
+
 - Each element displays with a unique random color
 - Full opacity border (1px) and 0.5 opacity fill
 - Renders regardless of element visibility or opacity
@@ -519,6 +540,7 @@ end
 ```
 
 **Input Properties:**
+
 - `editable` - Enable text input (default: false)
 - `multiline` - Allow multiple lines (default: false)
 - `placeholder` - Placeholder text when empty
@@ -527,6 +549,7 @@ end
 - `selectOnFocus` - Select all text when focused
 
 **Input Callbacks:**
+
 - `onTextChange(element, newText, oldText)` - Called when text changes
 - `onTextInput(element, text)` - Called for each character input
 - `onEnter(element)` - Called when Enter is pressed (single-line only)
@@ -534,6 +557,7 @@ end
 - `onBlur(element)` - Called when input loses focus
 
 **Features:**
+
 - Cursor positioning and blinking
 - Text selection (mouse and keyboard)
 - Copy/Cut/Paste (Ctrl+C/X/V)
@@ -632,6 +656,7 @@ local imageBox = FlexLove.new({
 ```
 
 **Object-fit modes:**
+
 - `fill` - Stretch to fill (may distort)
 - `contain` - Fit within bounds (preserves aspect ratio)
 - `cover` - Cover bounds (preserves aspect ratio, may crop)
@@ -639,12 +664,14 @@ local imageBox = FlexLove.new({
 - `none` - Natural size (no scaling)
 
 **Object-position examples:**
+
 - `"center center"` - Center both axes
 - `"top left"` - Top-left corner
 - `"bottom right"` - Bottom-right corner
 - `"50% 20%"` - Custom percentage positioning
 
 **Image tiling:**
+
 ```lua
 {
   imagePath = "pattern.png",
@@ -653,6 +680,7 @@ local imageBox = FlexLove.new({
 ```
 
 **Image effects:**
+
 ```lua
 {
   imageTint = Color.new(1, 0, 0, 1),  -- Red tint overlay
@@ -713,6 +741,7 @@ local semiTransparent = Color.fromHex("#FF000080")
 ## Changelog
 
 ### Removed
+
 - **Per-element mode override**: The `mode` property (`"immediate"` / `"retained"`) on individual elements has been removed. Mode is now purely global — set once via `FlexLove.init({ immediateMode = true })`.
 - **FFI module**: The FFI optimization module has been removed. All layout and rendering computations now use pure Lua.
 - **`ew`/`eh` units**: Element-relative width/height units have been removed. Use `vw`, `vh`, `%`, or `px` instead.
@@ -720,6 +749,7 @@ local semiTransparent = Color.fromHex("#FF000080")
 ## Compatibility
 
 **Compatibility:**
+
 - **Lua**: 5.1+
 - **LÖVE**: 11.x (tested)
 - **LuaJIT**: Compatible

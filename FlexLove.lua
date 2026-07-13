@@ -1088,29 +1088,27 @@ function flexlove.getElementAtPosition(x, y)
   -- rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ key as
   -- Context.sortElementsByZIndex / findInteractiveAtPosition so the hit-test
   -- topmost matches the visual draw order across overlapping windows.
-  local function effectiveZ(elem)
-    local rootZ = elem.z or 0
-    local current = elem.parent
-    while current do
-      rootZ = current.z or 0
-      current = current.parent
+  -- Skip the precompute + sort when there is 0 or 1 element (the common case
+  -- for getElementAtPosition which is called on every love.mousemoved event).
+  if #candidates > 1 then
+    local candidateZ = {}
+    for i = 1, #candidates do
+      candidateZ[candidates[i]] = Context.getEffectiveZIndex(candidates[i])
     end
-    local depth = 0
-    local walk = elem.parent
-    while walk do
-      depth = depth + 1
-      walk = walk.parent
-    end
-    return rootZ * ZIndex.ROOT_WEIGHT + depth * ZIndex.DEPTH_WEIGHT + (elem.z or 0)
+    table.sort(candidates, function(a, b)
+      return candidateZ[a] > candidateZ[b]
+    end)
   end
 
-  table.sort(candidates, function(a, b)
-    return effectiveZ(a) > effectiveZ(b)
-  end)
-
-  table.sort(blockingElements, function(a, b)
-    return effectiveZ(a) > effectiveZ(b)
-  end)
+  if #blockingElements > 1 then
+    local blockerZ = {}
+    for i = 1, #blockingElements do
+      blockerZ[blockingElements[i]] = Context.getEffectiveZIndex(blockingElements[i])
+    end
+    table.sort(blockingElements, function(a, b)
+      return blockerZ[a] > blockerZ[b]
+    end)
+  end
 
   -- If we have interactive elements, return the topmost one
   -- But only if there's no blocking element with higher z-index (that isn't an ancestor)
@@ -1160,10 +1158,9 @@ function flexlove.update(dt)
   -- + re-sorting the tree per element (unified-event-routing task 05 fix).
   flexlove.clearInteractiveCache()
 
-  local mx, my = love.mouse.getPosition()
-  local topElement = flexlove.getElementAtPosition(mx, my)
-
-  flexlove._activeEventElement = topElement
+  -- Select-pointer dismissal: if the left mouse button was just pressed,
+  -- check whether any open Select dropdowns should be closed (click-outside).
+  -- This calls getElementAtPosition ONLY on the click frame, not every frame.
   flexlove._handleSelectPointerDismissal()
 
   -- In immediate mode, accumulate dt and skip updating here - elements will be updated in endFrame after layout
@@ -1174,8 +1171,6 @@ function flexlove.update(dt)
       win:update(dt)
     end
   end
-
-  flexlove._activeEventElement = nil
 
   -- Note: State saving happens in endFrame() after element:update() is called
   -- This ensures all state changes (including cursor blink) are captured once per frame

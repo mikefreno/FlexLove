@@ -255,19 +255,6 @@ function Context.clearFrameElements()
   Context.clearInteractiveCache()
 end
 
---- Calculate the depth (nesting level) of an element
----@param elem Element
----@return number
-local function getElementDepth(elem)
-  local depth = 0
-  local current = elem.parent
-  while current do
-    depth = depth + 1
-    current = current.parent
-  end
-  return depth
-end
-
 --- Compute the composite z-index key for an element.
 --- rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ
 ---
@@ -286,26 +273,34 @@ end
 --- draw order — a button in a z=50 MainMenu window must occlude a button in a
 --- z=0 BottomBar even when both buttons default to own z=0.
 local function getEffectiveZIndex(elem)
-  local rootZ = elem.z or 0
+  local ownZ = elem.z or 0
+  local rootZ = ownZ
+  local depth = 0
   local current = elem.parent
   while current do
     rootZ = current.z or 0
+    depth = depth + 1
     current = current.parent
   end
-  local depth = getElementDepth(elem)
-  local ownZ = elem.z or 0
   return rootZ * ZIndex.ROOT_WEIGHT + depth * ZIndex.DEPTH_WEIGHT + ownZ
 end
 
+-- Public exposure so FlexLove.getElementAtPosition shares the single
+-- implementation instead of duplicating the parent-chain walk as a closure.
+Context.getEffectiveZIndex = getEffectiveZIndex
+
 --- Sort elements by z-index (called after all elements are registered)
 function Context.sortElementsByZIndex()
-  table.sort(Context._zIndexOrderedElements, function(a, b)
-    local za = getEffectiveZIndex(a)
-    local zb = getEffectiveZIndex(b)
-    if za ~= zb then
-      return za < zb
-    end
-    return getElementDepth(a) < getElementDepth(b)
+  -- Precompute the composite key ONCE per element so the sort comparator is a
+  -- pure table lookup (O(1)) instead of re-walking the parent chain on every
+  -- O(N log N) comparison. This function runs every frame in immediate mode.
+  local elements = Context._zIndexOrderedElements
+  local zIndices = {}
+  for i = 1, #elements do
+    zIndices[elements[i]] = getEffectiveZIndex(elements[i])
+  end
+  table.sort(elements, function(a, b)
+    return zIndices[a] < zIndices[b]
   end)
 end
 

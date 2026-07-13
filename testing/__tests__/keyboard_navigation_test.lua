@@ -478,8 +478,21 @@ local tests = {
   end,
 
   testImmediateModeNavigation = function()
+    -- Save state for cleanup
+    local savedMode = Context._immediateMode
+    local savedTopElements = Context.topElements
+    local savedZIndex = Context._zIndexOrderedElements
+    local savedFocused = Context._focusedElement
+    local savedFocusedId = Context._focusedElementId
+    local savedNavContainer = Context._navigationContext.containerElement
+
     -- Switch to immediate mode
     FlexLove.setMode("immediate")
+    Context.topElements = {}
+    Context._zIndexOrderedElements = {}
+    Context._focusedElement = nil
+    Context._focusedElementId = nil
+    Context._navigationContext.containerElement = nil
 
     -- Track elements created in immediate mode
     local btn1, btn2, btn3
@@ -522,8 +535,14 @@ local tests = {
     success = KeyboardNavigation:previousFocusable()
     assert(success == true, "Shift+Tab should succeed in immediate mode")
 
-    -- Restore retained mode
+    -- Restore retained mode and clean up
     FlexLove.setMode("retained")
+    Context._immediateMode = savedMode
+    Context.topElements = savedTopElements
+    Context._zIndexOrderedElements = savedZIndex
+    Context._focusedElement = savedFocused
+    Context._focusedElementId = savedFocusedId
+    Context._navigationContext.containerElement = savedNavContainer
 
     print("[PASS] testImmediateModeNavigation")
   end,
@@ -622,6 +641,155 @@ local tests = {
     KeyboardNavigation.enableSpatialIndex(false)
 
     print("[PASS] testSpatialIndex")
+  end,
+
+  -- getFocusableElements tests
+  testGetFocusableElementsReturnsFocusableInRetainedMode = function()
+    -- Save state for isolation
+    local savedTopElements = Context.topElements
+    local savedMode = Context._immediateMode
+    Context.topElements = {}
+    Context._immediateMode = false
+
+    -- Create focusable top-level elements (onEvent makes them focusable)
+    local elem1 = Element.new({ id = "f1", onEvent = function() end })
+    local elem2 = Element.new({ id = "f2", onEvent = function() end })
+
+    local focusable = Context.getFocusableElements()
+    assert(#focusable == 2, "Should return 2 focusable elements")
+    assert(focusable[1].id == "f1", "First should be f1")
+    assert(focusable[2].id == "f2", "Second should be f2")
+
+    -- Restore state
+    Context.topElements = savedTopElements
+    Context._immediateMode = savedMode
+
+    print("[PASS] testGetFocusableElementsReturnsFocusableInRetainedMode")
+  end,
+
+  testGetFocusableElementsReturnsFocusableInImmediateMode = function()
+    -- Save state for isolation
+    local savedMode = Context._immediateMode
+    local savedZIndex = Context._zIndexOrderedElements
+    Context._immediateMode = true
+    Context._zIndexOrderedElements = {}
+
+    -- Create focusable elements (onEvent makes them focusable)
+    local elem1 = Element.new({ id = "i1", onEvent = function() end })
+    local elem2 = Element.new({ id = "i2", onEvent = function() end })
+
+    local focusable = Context.getFocusableElements()
+    assert(#focusable == 2, "Should return 2 focusable elements in immediate mode")
+    assert(focusable[1].id == "i1", "First should be i1")
+    assert(focusable[2].id == "i2", "Second should be i2")
+
+    -- Restore state
+    Context._immediateMode = savedMode
+    Context._zIndexOrderedElements = savedZIndex
+
+    print("[PASS] testGetFocusableElementsReturnsFocusableInImmediateMode")
+  end,
+
+  testGetFocusableElementsExcludesDisplayNone = function()
+    -- Save state for isolation
+    local savedTopElements = Context.topElements
+    local savedMode = Context._immediateMode
+    Context.topElements = {}
+    Context._immediateMode = false
+
+    local visible = Element.new({ id = "vis", onEvent = function() end })
+    local hidden = Element.new({ id = "hid", display = false, onEvent = function() end })
+
+    local focusable = Context.getFocusableElements()
+    assert(#focusable == 1, "Should return only 1 focusable element (display:none excluded)")
+    assert(focusable[1].id == "vis", "Should return visible element")
+
+    -- Restore state
+    Context.topElements = savedTopElements
+    Context._immediateMode = savedMode
+
+    print("[PASS] testGetFocusableElementsExcludesDisplayNone")
+  end,
+
+  testGetFocusableElementsExcludesDisabled = function()
+    -- Save state for isolation
+    local savedTopElements = Context.topElements
+    local savedMode = Context._immediateMode
+    Context.topElements = {}
+    Context._immediateMode = false
+
+    local enabled = Element.new({ id = "en", onEvent = function() end })
+    local disabled = Element.new({ id = "dis", disabled = true, onEvent = function() end })
+
+    local focusable = Context.getFocusableElements()
+    assert(#focusable == 1, "Should return only 1 focusable element (disabled excluded)")
+    assert(focusable[1].id == "en", "Should return enabled element")
+
+    -- Restore state
+    Context.topElements = savedTopElements
+    Context._immediateMode = savedMode
+
+    print("[PASS] testGetFocusableElementsExcludesDisabled")
+  end,
+
+  testGetFocusableElementsExcludesNonFocusable = function()
+    -- Save state for isolation
+    local savedTopElements = Context.topElements
+    local savedMode = Context._immediateMode
+    Context.topElements = {}
+    Context._immediateMode = false
+
+    local focusableElem = Element.new({ id = "foc", onEvent = function() end })
+    local nonFocusable = Element.new({ id = "nfoc" }) -- no onEvent, not focusable
+
+    local result = Context.getFocusableElements()
+    assert(#result == 1, "Should return only 1 focusable element")
+    assert(result[1].id == "foc", "Should return focusable element")
+
+    -- Restore state
+    Context.topElements = savedTopElements
+    Context._immediateMode = savedMode
+
+    print("[PASS] testGetFocusableElementsExcludesNonFocusable")
+  end,
+
+  testGetFocusableElementsReturnsEmptyList = function()
+    -- Ensure no top elements
+    local saved = Context.topElements
+    Context.topElements = {}
+
+    local focusable = Context.getFocusableElements()
+    assert(#focusable == 0, "Should return empty list when no focusable elements")
+
+    -- Restore
+    Context.topElements = saved
+
+    print("[PASS] testGetFocusableElementsReturnsEmptyList")
+  end,
+
+  testGetFocusableElementsRecursiveInRetainedMode = function()
+    -- Save state for isolation
+    local savedTopElements = Context.topElements
+    local savedMode = Context._immediateMode
+    Context.topElements = {}
+    Context._immediateMode = false
+
+    -- Create nested structure (onEvent makes them focusable)
+    local parent = Element.new({ id = "parent", onEvent = function() end })
+    local child1 = Element.new({ parent = parent, id = "child1", onEvent = function() end })
+    local child2 = Element.new({ parent = parent, id = "child2", onEvent = function() end })
+
+    local focusable = Context.getFocusableElements()
+    assert(#focusable == 3, "Should return 3 focusable elements (parent + 2 children)")
+    assert(focusable[1].id == "parent", "First should be parent")
+    assert(focusable[2].id == "child1", "Second should be child1")
+    assert(focusable[3].id == "child2", "Third should be child2")
+
+    -- Restore state
+    Context.topElements = savedTopElements
+    Context._immediateMode = savedMode
+
+    print("[PASS] testGetFocusableElementsRecursiveInRetainedMode")
   end,
 }
 

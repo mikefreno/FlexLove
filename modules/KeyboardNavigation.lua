@@ -157,11 +157,49 @@ function KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
   return false
 end
 
+--- Find next focusable element in the focusable list
+---@param focusableList table<Element> List of focusable elements in tab order
+---@param current Element? Currently focused element
+---@return Element?
+function KeyboardNavigation:_findNextInList(focusableList, current)
+  local currentIndex = 0
+  if current then
+    for i, elem in ipairs(focusableList) do
+      if elem.id == current.id then
+        currentIndex = i
+        break
+      end
+    end
+  end
+
+  -- Search forward
+  if currentIndex < #focusableList then
+    return focusableList[currentIndex + 1]
+  end
+
+  -- Wrap around if enabled
+  if KeyboardNavigation.config.wrapAround and #focusableList > 0 then
+    return focusableList[1]
+  end
+
+  return nil
+end
+
+--- Get the focusable element list scoped to the navigation container
+---@return Element[]
+function KeyboardNavigation:_getScopedFocusableList()
+  local Context = KeyboardNavigation._Context
+  local container = Context.getNavigationContainer()
+  if container then
+    return container:getFocusableChildren()
+  end
+  return Context.getFocusableElements()
+end
+
 --- Navigate to next focusable element (Tab)
 ---@return boolean success
 function KeyboardNavigation:nextFocusable()
   local Context = KeyboardNavigation._Context
-  local Element = KeyboardNavigation._Element
 
   local current = Context.getFocused()
   if KeyboardNavigation.config.debugMode then
@@ -170,16 +208,8 @@ function KeyboardNavigation:nextFocusable()
     )
   end
 
-  local nextElem
-  if Context.isImmediateMode() then
-    nextElem = self:_findNextInZIndexOrder(current)
-  else
-    local container = Context.getNavigationContainer() or Context.topElements[1]
-    if not container then
-      return false
-    end
-    nextElem = Element.getNextFocusable(container, current, KeyboardNavigation.config.wrapAround)
-  end
+  local focusableList = self:_getScopedFocusableList()
+  local nextElem = self:_findNextInList(focusableList, current)
 
   if nextElem then
     self:_focusElement(nextElem)
@@ -189,24 +219,43 @@ function KeyboardNavigation:nextFocusable()
   return false
 end
 
+--- Find previous focusable element in the focusable list
+---@param focusableList table<Element> List of focusable elements in tab order
+---@param current Element? Currently focused element
+---@return Element?
+function KeyboardNavigation:_findPreviousInList(focusableList, current)
+  local currentIndex = #focusableList + 1
+  if current then
+    for i, elem in ipairs(focusableList) do
+      if elem.id == current.id then
+        currentIndex = i
+        break
+      end
+    end
+  end
+
+  -- Search backward
+  if currentIndex - 1 >= 1 then
+    return focusableList[currentIndex - 1]
+  end
+
+  -- Wrap around if enabled
+  if KeyboardNavigation.config.wrapAround and #focusableList > 0 then
+    return focusableList[#focusableList]
+  end
+
+  return nil
+end
+
 --- Navigate to previous focusable element (Shift+Tab)
 ---@return boolean success
 function KeyboardNavigation:previousFocusable()
   local Context = KeyboardNavigation._Context
-  local Element = KeyboardNavigation._Element
 
   local current = Context.getFocused()
 
-  local prevElem
-  if Context.isImmediateMode() then
-    prevElem = self:_findPreviousInZIndexOrder(current)
-  else
-    local container = Context.getNavigationContainer() or Context.topElements[1]
-    if not container then
-      return false
-    end
-    prevElem = Element.getPreviousFocusable(container, current, KeyboardNavigation.config.wrapAround)
-  end
+  local focusableList = self:_getScopedFocusableList()
+  local prevElem = self:_findPreviousInList(focusableList, current)
 
   if prevElem then
     self:_focusElement(prevElem)
@@ -214,167 +263,6 @@ function KeyboardNavigation:previousFocusable()
   end
 
   return false
-end
-
---- Get the highest z-index top-level root element (no parent) for navigation scoping.
---- Keyboard navigation is restricted to the topmost visible screen.
----@return Element?
-function KeyboardNavigation:_getNavigationRoot()
-  local Context = KeyboardNavigation._Context
-
-  -- Gather all top-level elements (no parent) from the z-index ordered list
-  local topRoots = {}
-  local seen = {}
-  for _, elem in ipairs(Context._zIndexOrderedElements) do
-    -- Walk to the true root
-    local root = elem
-    while root.parent do
-      root = root.parent
-    end
-    if not seen[root] then
-      seen[root] = true
-      table.insert(topRoots, root)
-    end
-  end
-
-  if #topRoots == 0 then
-    return nil
-  end
-
-  -- Return the root with the highest z-index (last one when sorted ascending)
-  local best = topRoots[1]
-  for i = 2, #topRoots do
-    if (topRoots[i].z or 0) >= (best.z or 0) then
-      best = topRoots[i]
-    end
-  end
-  return best
-end
-
---- Collect focusable elements in document/flex-flow order from a root element.
---- Follows web-standard tabIndex behavior:
----   tabIndex > 0: Element is focusable and appears in tab order BEFORE tabIndex=0 elements (sorted by value)
----   tabIndex = 0 or nil: Element is focusable and appears in natural document order
----   tabIndex = -1: Element is excluded from keyboard navigation (but can be focused programmatically)
----@param root Element
----@return Element[]
-function KeyboardNavigation:_collectFocusablesInOrder(root)
-  local withPositiveTabIndex = {} -- tabIndex > 0
-  local withZeroTabIndex = {} -- tabIndex = 0 or nil (natural order)
-
-  local function collect(elem)
-    for _, child in ipairs(elem.children) do
-      if child:isFocusable() then
-        local tabIndex = child.tabIndex
-        -- Exclude elements with tabIndex = -1 from keyboard navigation
-        if tabIndex == -1 then
-          goto continue
-        end
-
-        if tabIndex and tabIndex > 0 then
-          -- Positive tabIndex: explicit order, visited first
-          table.insert(withPositiveTabIndex, child)
-        else
-          -- tabIndex = 0 or nil: natural document order
-          table.insert(withZeroTabIndex, child)
-        end
-      end
-      ::continue::
-      collect(child)
-    end
-  end
-
-  collect(root)
-
-  -- Sort elements with positive tabIndex by their value
-  table.sort(withPositiveTabIndex, function(a, b)
-    return (a.tabIndex or 0) < (b.tabIndex or 0)
-  end)
-
-  -- Merge: positive tabIndex elements first (explicit order), then document-order elements
-  local result = {}
-  for _, elem in ipairs(withPositiveTabIndex) do
-    table.insert(result, elem)
-  end
-  for _, elem in ipairs(withZeroTabIndex) do
-    table.insert(result, elem)
-  end
-
-  return result
-end
-
---- Find next focusable in document/flex-flow order (immediate mode)
----@param current Element?
----@return Element?
-function KeyboardNavigation:_findNextInZIndexOrder(current)
-  local root = self:_getNavigationRoot()
-  if not root then
-    return nil
-  end
-
-  local elements = self:_collectFocusablesInOrder(root)
-  local startIndex = 0
-
-  if current then
-    for i, elem in ipairs(elements) do
-      if elem.id == current.id then
-        startIndex = i
-        break
-      end
-    end
-  end
-
-  -- Search forward
-  if startIndex < #elements then
-    return elements[startIndex + 1]
-  end
-
-  -- Wrap around
-  if KeyboardNavigation.config.wrapAround and startIndex > 0 then
-    if #elements > 0 then
-      return elements[1]
-    end
-  elseif KeyboardNavigation.config.wrapAround and startIndex == 0 then
-    if #elements > 0 then
-      return elements[1]
-    end
-  end
-
-  return nil
-end
-
---- Find previous focusable in document/flex-flow order (immediate mode)
----@param current Element?
----@return Element?
-function KeyboardNavigation:_findPreviousInZIndexOrder(current)
-  local root = self:_getNavigationRoot()
-  if not root then
-    return nil
-  end
-
-  local elements = self:_collectFocusablesInOrder(root)
-  local startIndex = #elements + 1
-
-  if current then
-    for i, elem in ipairs(elements) do
-      if elem.id == current.id then
-        startIndex = i
-        break
-      end
-    end
-  end
-
-  -- Search backward
-  if startIndex - 1 >= 1 then
-    return elements[startIndex - 1]
-  end
-
-  -- Wrap around
-  if KeyboardNavigation.config.wrapAround and #elements > 0 then
-    return elements[#elements]
-  end
-
-  return nil
 end
 
 --- Navigate using arrow keys
@@ -424,26 +312,11 @@ function KeyboardNavigation:_findDirectionalNeighbor(current, direction)
     end
   end
 
-  if Context.isImmediateMode() and Context._zIndexOrderedElements then
-    -- In immediate mode: only consider focusables within the highest-z-index root
-    local root = self:_getNavigationRoot()
-    if root then
-      local function collectFocusable(elem)
-        if elem ~= current and elem:isFocusable() then
-          table.insert(focusable, elem)
-        end
-        for _, child in ipairs(elem.children) do
-          collectFocusable(child)
-        end
-      end
-      collectFocusable(root)
-    end
-  else
-    -- Retained mode: walk element trees
-    local container = Context.getNavigationContainer()
-    local roots = container and { container } or Context.topElements
-    for _, root in ipairs(roots) do
-      collectFocusable(root)
+  -- Mode-agnostic: collect from Context's focusable list
+  local allFocusable = Context.getFocusableElements()
+  for _, elem in ipairs(allFocusable) do
+    if elem ~= current then
+      table.insert(focusable, elem)
     end
   end
 

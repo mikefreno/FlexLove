@@ -116,6 +116,14 @@ end
 Context._test.pointHitsElement = pointHitsElement
 Context._test.elementHasScrollableOverflow = elementHasScrollableOverflow
 
+-- Public exposure of the canonical hit-test primitive so other modules
+-- (e.g. FlexLove's `getElementAtPosition` / `_getTouchElementAtPosition`
+-- tree walks) can share the single implementation of bounds + display:none
+-- guarding instead of duplicating the `display == false` check inline.
+-- This keeps "display == false" in exactly one place for hit-testing.
+Context.pointHitsElement = pointHitsElement
+Context.elementHasScrollableOverflow = elementHasScrollableOverflow
+
 --- Find the first scrollable element at a screen position, regardless of mode.
 --- This is the mode-agnostic successor to the two duplicated scrollable lookups
 --- that previously lived inline in `flexlove.wheelmoved`:

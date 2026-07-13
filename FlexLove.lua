@@ -1034,20 +1034,9 @@ function flexlove.getElementAtPosition(x, y)
     scrollOffsetX = scrollOffsetX or 0
     scrollOffsetY = scrollOffsetY or 0
 
-    local bx = element.x
-    local by = element.y
-    local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
-    local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-
-    -- Adjust mouse position by accumulated scroll offset for hit testing
-    local adjustedX = x + scrollOffsetX
-    local adjustedY = y + scrollOffsetY
-
-    if adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh then
-      -- Skip display:none elements and their entire subtree
-      if element.display == false then
-        return
-      end
+    -- pointHitsElement is the single canonical bounds + display:none guard.
+    if Context.pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
+      -- Skip invisible/transparent elements and their entire subtree
       if element.visibility == "hidden" or element.opacity <= 0 then
         return
       end
@@ -1348,20 +1337,8 @@ function flexlove._getTouchElementAtPosition(x, y)
     scrollOffsetX = scrollOffsetX or 0
     scrollOffsetY = scrollOffsetY or 0
 
-    local bx = element.x
-    local by = element.y
-    local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
-    local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-
-    -- Adjust touch position by accumulated scroll offset for hit testing
-    local adjustedX = x + scrollOffsetX
-    local adjustedY = y + scrollOffsetY
-
-    if adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh then
-      -- Skip display:none elements and their entire subtree
-      if element.display == false then
-        return
-      end
+    -- pointHitsElement is the single canonical bounds + display:none guard.
+    if Context.pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
       -- Check if element is touch-enabled and interactive
       if
         element.touchEnabled

@@ -28,6 +28,21 @@
 local LayoutEngine = {}
 LayoutEngine.__index = LayoutEngine
 
+--- Recursively shift an element and all its descendants by (dx, dy).
+--- Used by the row-reverse mirror pass and the `position: relative` offset
+--- pass: both run after the rest of layout has placed the subtree, so a single
+--- delta walk keeps descendants visually anchored to the parent.
+---@param elem Element
+---@param dx number
+---@param dy number
+local function shiftSubtree(elem, dx, dy)
+  elem.x = elem.x + dx
+  elem.y = elem.y + dy
+  for _, c in ipairs(elem.children) do
+    shiftSubtree(c, dx, dy)
+  end
+end
+
 --- Initialize module with shared dependencies
 ---@param deps table Dependencies {ErrorHandler, Performance, utils}
 function LayoutEngine.init(deps)
@@ -118,6 +133,24 @@ end
 ---@param element Element The parent element
 function LayoutEngine:initialize(element)
   self.element = element
+end
+
+--- True for flex-direction `horizontal` or `horizontal-reverse` (and their
+--- `row`/`row-reverse` aliases, which normalize to those at construction).
+--- Routes every main-axis orientation check so reverse directions are
+--- correctly classified as horizontal.
+---@return boolean
+function LayoutEngine:_isHorizontal()
+  return self.flexDirection == self._FlexDirection.HORIZONTAL
+    or self.flexDirection == self._FlexDirection.HORIZONTAL_REVERSE
+end
+
+--- True for flex-direction `horizontal-reverse` or `vertical-reverse`
+--- (and their `row-reverse`/`column-reverse` aliases).
+---@return boolean
+function LayoutEngine:_isReverse()
+  return self.flexDirection == self._FlexDirection.HORIZONTAL_REVERSE
+    or self.flexDirection == self._FlexDirection.VERTICAL_REVERSE
 end
 
 --- Apply CSS positioning offsets (top, right, bottom, left) to a child element
@@ -429,7 +462,7 @@ function LayoutEngine:layoutChildren()
     scrollbarReservedWidth, scrollbarReservedHeight = self.element._scrollManager:getReservedSpace(self.element)
   end
 
-  if self.flexDirection == self._FlexDirection.HORIZONTAL then
+  if self:_isHorizontal() then
     availableMainSize = self.element.width - scrollbarReservedWidth
     availableCrossSize = self.element.height - scrollbarReservedHeight
   else
@@ -440,7 +473,7 @@ function LayoutEngine:layoutChildren()
   -- Keep percentage-sized children in sync when container dimensions change.
   -- Managed select frames rely on this so `width = "100%"` options expand with the dropdown.
   if scrollbarReservedWidth > 0 or scrollbarReservedHeight > 0 or self.element:_shouldSyncPercentageDimensions() then
-    local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+    local isHorizontal = self:_isHorizontal()
     for _, child in ipairs(flexChildren) do
       if isHorizontal then
         -- Horizontal flex: main-axis is width, cross-axis is height
@@ -503,7 +536,7 @@ function LayoutEngine:layoutChildren()
     local currentLineSize = 0
 
     -- Performance optimization: hoist enum comparisons outside loop
-    local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+    local isHorizontal = self:_isHorizontal()
     local gapSize = self.gap
     local viewportWidth, viewportHeight = self._Units.getViewport()
 
@@ -577,9 +610,9 @@ function LayoutEngine:layoutChildren()
 
   -- Apply flex sizing to each line BEFORE calculating line heights
   -- Performance optimization: hoist enum comparison outside loop
-  local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+  local isHorizontal = self:_isHorizontal()
   local mainAxisOverflow = nil
-  if isHorizontal then
+  if self:_isHorizontal() then
     mainAxisOverflow = self.element.overflowX or self.element.overflow
   else
     mainAxisOverflow = self.element.overflowY or self.element.overflow
@@ -728,7 +761,7 @@ function LayoutEngine:layoutChildren()
     -- Calculate total size of children in this line (including padding and margins)
     -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
     -- Performance optimization: hoist flexDirection check outside loop
-    local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+    local isHorizontal = self:_isHorizontal()
     local totalChildrenSize = 0
     for _, child in ipairs(line) do
       local childMargin = child.margin
@@ -800,7 +833,7 @@ function LayoutEngine:layoutChildren()
         effectiveAlign = alignItems
       end
 
-      if self.flexDirection == self._FlexDirection.HORIZONTAL then
+      if self:_isHorizontal() then
         -- Horizontal layout: main axis is X, cross axis is Y
         -- Position child at border box (x, y represents top-left including padding)
         -- CSS-compliant: absolute children don't affect flex positioning, so no reserved space offset
@@ -918,6 +951,66 @@ function LayoutEngine:layoutChildren()
     end
   end
 
+  -- flex-direction: row-reverse / column-reverse — mirror the main-axis
+  -- position of each flex child relative to the container content area, and
+  -- shift the child's subtree by the same delta so descendants follow.
+  -- Cross-axis positions and absolute children are not affected.
+  if self:_isReverse() then
+    local parent = self.element
+    local padLeft = parent.padding.left
+    local padTop = parent.padding.top
+    local contentW = parent.width
+    local contentH = parent.height
+    local mirrorHorizontal = self:_isHorizontal()
+
+    for _, child in ipairs(flexChildren) do
+      if mirrorHorizontal then
+        local distFromLeft = child.x - parent.x - padLeft
+        local childW = child:getBorderBoxWidth()
+        local newDistFromLeft = contentW - distFromLeft - childW
+        local dx = newDistFromLeft - distFromLeft
+        if dx ~= 0 then
+          shiftSubtree(child, dx, 0)
+        end
+      else
+        local distFromTop = child.y - parent.y - padTop
+        local childH = child:getBorderBoxHeight()
+        local newDistFromTop = contentH - distFromTop - childH
+        local dy = newDistFromTop - distFromTop
+        if dy ~= 0 then
+          shiftSubtree(child, 0, dy)
+        end
+      end
+    end
+  end
+
+  -- position: relative — shift each in-flow child by (left or -right,
+  -- top or -bottom) after the flex flow (and row-reverse mirroring) has
+  -- placed it, so the offset is a pure visual delta that doesn't influence
+  -- siblings' flow positions. Per CSS, `top` wins over `bottom` and `left`
+  -- over `right` when both are set. Static/absolute children are unaffected
+  -- (absolute uses applyPositioningOffsets; flex-participating children
+  -- dropped the offsets and emitted LAY_011 at construction). Runs for every
+  -- container type so relative children in relative containers also honor offsets.
+  for _, child in ipairs(self.element.children) do
+    if child.positioning == self._Positioning.RELATIVE and child.display ~= false then
+      local dx, dy = 0, 0
+      if child.top then
+        dy = child.top
+      elseif child.bottom then
+        dy = -child.bottom
+      end
+      if child.left then
+        dx = child.left
+      elseif child.right then
+        dx = -child.right
+      end
+      if dx ~= 0 or dy ~= 0 then
+        shiftSubtree(child, dx, dy)
+      end
+    end
+  end
+
   -- Detect overflow after children are laid out
   if self.element._detectOverflow then
     self.element:_detectOverflow()
@@ -1004,7 +1097,7 @@ function LayoutEngine:calculateAutoWidth()
     return contentWidth
   end
 
-  local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
+  local isHorizontal = self:_isHorizontal()
 
   if isHorizontal then
     -- HORIZONTAL flex with potential wrapping
@@ -1087,7 +1180,7 @@ function LayoutEngine:calculateAutoHeight()
     return height
   end
 
-  local isVertical = self.flexDirection == self._FlexDirection.VERTICAL
+  local isVertical = not self:_isHorizontal()
 
   if isVertical then
     -- VERTICAL flex with potential wrapping
@@ -1324,7 +1417,7 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
 
   -- Recalculate gap if using viewport or percentage units
   if self.element.units.gap.unit ~= "px" then
-    local containerSize = (self.flexDirection == self._FlexDirection.HORIZONTAL)
+    local containerSize = (self:_isHorizontal())
         and (self.element.parent and self.element.parent.width or newViewportWidth)
       or (self.element.parent and self.element.parent.height or newViewportHeight)
     self.element.gap = Units.resolve(
@@ -1346,7 +1439,8 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     -- flexBasis uses parent main-axis size for percentage resolution.
     local parentMainIsHorizontal = true
     if self.element.parent and self.element.parent.flexDirection then
-      parentMainIsHorizontal = self.element.parent.flexDirection == self._FlexDirection.HORIZONTAL
+      local pd = self.element.parent.flexDirection
+      parentMainIsHorizontal = pd == self._FlexDirection.HORIZONTAL or pd == self._FlexDirection.HORIZONTAL_REVERSE
     end
     local parentSize = newViewportWidth
     if self.element.parent then

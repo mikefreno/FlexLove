@@ -1295,7 +1295,9 @@ function Element:_initBoxModel(props)
   --- child positioning ---
   if props.gap then
     local flexDir = props.flexDirection or Element._utils.enums.FlexDirection.HORIZONTAL
-    local containerSize = (flexDir == Element._utils.enums.FlexDirection.HORIZONTAL) and self.width or self.height
+    local isHorizontalDir = flexDir == Element._utils.enums.FlexDirection.HORIZONTAL
+      or flexDir == Element._utils.enums.FlexDirection.HORIZONTAL_REVERSE
+    local containerSize = isHorizontalDir and self.width or self.height
     _resolveUnit(self, props.gap, "gap", containerSize, _ctx)
   else
     self.gap = 0
@@ -1557,8 +1559,16 @@ function Element:_initPositioning(props)
     end
 
     -- Handle positioning properties for elements without parent
-    -- Warn if CSS positioning properties are used without absolute positioning
-    if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
+    -- Warn if CSS positioning properties are supplied but will be ignored.
+    -- Relative elements honor the offsets as visual deltas (see
+    -- _applyRelativeOffsets); absolute elements use applyPositioningOffsets.
+    -- Only flex-participating children (positioning coerced to ABSOLUTE but not
+    -- explicitly absolute) actually drop the offsets and warrant the warning.
+    if
+      (props.top or props.bottom or props.left or props.right)
+      and not self._explicitlyAbsolute
+      and self.positioning ~= Element._utils.enums.Positioning.RELATIVE
+    then
       _warnCssPositioningWithoutAbsolute(self, props)
     end
 
@@ -1575,6 +1585,10 @@ function Element:_initPositioning(props)
     if props.left then
       _resolveUnit(self, props.left, "left", viewportWidth, _ctx)
     end
+
+    -- position: relative offsets are applied as visual deltas in
+    -- LayoutEngine:layoutChildren (after the flex flow places children), so
+    -- they survive the addChild -> layoutChildren re-entry here.
   else
     -- Set positioning first and track if explicitly set
     self._originalPositioning = props.positioning -- Track original intent
@@ -1655,8 +1669,16 @@ function Element:_initPositioning(props)
     end
 
     -- Handle positioning properties BEFORE adding to parent (so they're available during layout)
-    -- Warn if CSS positioning properties are used without absolute positioning
-    if (props.top or props.bottom or props.left or props.right) and not self._explicitlyAbsolute then
+    -- Warn if CSS positioning properties are supplied but will be ignored.
+    -- Relative elements honor the offsets as visual deltas (see
+    -- _applyRelativeOffsets); absolute elements use applyPositioningOffsets.
+    -- Only flex-participating children (positioning coerced to ABSOLUTE but not
+    -- explicitly absolute) actually drop the offsets and warrant the warning.
+    if
+      (props.top or props.bottom or props.left or props.right)
+      and not self._explicitlyAbsolute
+      and self.positioning ~= Element._utils.enums.Positioning.RELATIVE
+    then
       _warnCssPositioningWithoutAbsolute(self, props)
     end
 
@@ -1673,6 +1695,10 @@ function Element:_initPositioning(props)
     if props.left then
       _resolveUnit(self, props.left, "left", viewportWidth, _ctx)
     end
+
+    -- position: relative offsets are applied as visual deltas in
+    -- LayoutEngine:layoutChildren (after the flex flow places children), so
+    -- they survive the addChild -> layoutChildren re-entry here.
 
     props.parent:addChild(self)
   end
@@ -3255,9 +3281,6 @@ end
 ---@param color Color Color to tint the image
 function Element:setImageTint(color)
   self.imageTint = color
-  if self._renderer then
-    self._renderer.imageTint = color
-  end
 end
 
 --- Adjust image transparency independently from the element for fade effects
@@ -3268,9 +3291,6 @@ function Element:setImageOpacity(opacity)
     Element._utils.validateRange(opacity, 0, 1, "imageOpacity")
   end
   self.imageOpacity = opacity
-  if self._renderer then
-    self._renderer.imageOpacity = opacity
-  end
 end
 
 --- Set image repeat mode
@@ -3286,9 +3306,6 @@ function Element:setImageRepeat(repeatMode)
   }
   Element._utils.validateEnum(repeatMode, validImageRepeat, "imageRepeat")
   self.imageRepeat = repeatMode
-  if self._renderer then
-    self._renderer.imageRepeat = repeatMode
-  end
 end
 
 --- Apply rotation transform to create spinning animations or rotated layouts
@@ -3603,15 +3620,36 @@ local _specialSetHandlers = {
     self:_syncThemeAndRenderer("themeComponent", value)
     return true
   end,
+  -- imagePath / image: setting these must re-run the Imageable load pipeline
+  -- (recompute `_loadedImage`, fire onImageLoad/onImageError, defer I/O). The
+  -- Imageable behavior installs `element._reloadImage` at construction; if it
+  -- is absent the element has no image concern (Imageable only attaches when
+  -- imagePath/image is declared at construction), so the field is set but no
+  -- load occurs — late image-concern acquisition requires re-attaching the
+  -- behavior, which is outside the attach-at-construction contract.
+  imagePath = function(self, value)
+    self.imagePath = value
+    if self._reloadImage then
+      self:_reloadImage()
+    end
+    return true
+  end,
+  image = function(self, value)
+    self.image = value
+    if self._reloadImage then
+      self:_reloadImage()
+    end
+    return true
+  end,
 }
 
 --- Set property with automatic transition.
 --- Dispatch is registry-driven: dimension/unit props route through
---- `_setDimensionWithUnit`, the two genuinely-special props (parent,
---- themeComponent) route through `_specialSetHandlers`, and everything else is
---- a single generic path that consults schema flags (`affectsLayout` /
---- `syncsTheme`) for layout invalidation and theme sync. No inline hardcoded
---- property-name branches and no per-call table allocation.
+--- `_setDimensionWithUnit`, the genuinely-special props (parent,
+--- themeComponent, imagePath, image) route through `_specialSetHandlers`, and
+--- everything else is a single generic path that consults schema flags
+--- (`affectsLayout` / `syncsTheme`) for layout invalidation and theme sync. No
+--- inline hardcoded property-name branches and no per-call table allocation.
 ---@param property string Property name
 ---@param value any New value
 function Element:setProperty(property, value)

@@ -46,6 +46,11 @@ local Element = req("Element")
 ---@type Color
 local Color = req("Color")
 
+-- Lua 5.2+ compatibility for unpack (bare global `unpack` is nil under
+-- Lua 5.4, which the stock test runner uses). mirrors the shim in
+-- modules/Blur.lua:2 and modules/Element.lua:162.
+local unpack = table.unpack or unpack
+
 ---@type Select
 local Select = req("Select")
 

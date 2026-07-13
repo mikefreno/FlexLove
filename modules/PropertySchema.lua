@@ -63,12 +63,18 @@ local function expandSides(value)
 end
 
 --- Normalize flex direction aliases to internal enum names.
---- "row" -> "horizontal", "column" -> "vertical"; everything else passes through.
+--- "row" -> "horizontal", "column" -> "vertical",
+--- "row-reverse" -> "horizontal-reverse", "column-reverse" -> "vertical-reverse";
+--- everything else passes through.
 local function normalizeFlexDirection(value)
   if value == "row" then
     return "horizontal"
   elseif value == "column" then
     return "vertical"
+  elseif value == "row-reverse" then
+    return "horizontal-reverse"
+  elseif value == "column-reverse" then
+    return "vertical-reverse"
   end
   return value
 end

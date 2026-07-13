@@ -103,7 +103,7 @@ local Transform = {}
 ---@field fontFamily string? -- Font family name from theme or path to font file (default: theme default or system default, inherits from parent)
 ---@field autoScaleText boolean? -- Whether text should auto-scale with window size (default: true)
 ---@field positioning Positioning? -- Layout positioning mode: "absolute"|"relative"|"flex"|"grid" (default: RELATIVE)
----@field flexDirection FlexDirection? -- Direction of flex layout: "horizontal"|"vertical"|"row"|"column" (row→horizontal, column→vertical, default: HORIZONTAL)
+---@field flexDirection FlexDirection? -- Direction of flex layout: "horizontal"|"vertical"|"row"|"column"|"row-reverse"|"column-reverse"|"horizontal-reverse"|"vertical-reverse" (row→horizontal, column→vertical, row-reverse→horizontal-reverse, column-reverse→vertical-reverse, default: HORIZONTAL)
 ---@field justifyContent JustifyContent? -- Alignment of items along main axis (default: FLEX_START)
 ---@field alignItems AlignItems? -- Alignment of items along cross axis (default: STRETCH)
 ---@field alignContent AlignContent? -- Alignment of lines in multi-line flex containers (default: STRETCH)

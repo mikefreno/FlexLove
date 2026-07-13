@@ -917,6 +917,179 @@ function TestFlexLove:testEnumsAccessible()
   luaunit.assertNotNil(FlexLove.enums.AlignItems)
 end
 
+-- Tests: flex-direction row-reverse / column-reverse (ported from fork cbf6454).
+-- Reverse directions compute layout exactly as row/column, then mirror the
+-- main-axis position of each flex child relative to the container content area.
+function TestFlexLove:testFlexDirectionHorizontalReverse()
+  local parent = FlexLove.new({
+    id = "hr-parent",
+    positioning = "flex",
+    flexDirection = "horizontal-reverse",
+    justifyContent = "flex-start",
+    width = 300,
+    height = 50,
+    gap = 0,
+  })
+  local a = FlexLove.new({ id = "hr-a", width = 50, height = 50, parent = parent })
+  local b = FlexLove.new({ id = "hr-b", width = 50, height = 50, parent = parent })
+  local c = FlexLove.new({ id = "hr-c", width = 50, height = 50, parent = parent })
+  parent:layoutChildren()
+  -- With horizontal-reverse + flex-start, the first child sits flush against the right edge.
+  luaunit.assertEquals(a.x, parent.x + parent.width - a.width)
+  luaunit.assertEquals(b.x, a.x - b.width)
+  luaunit.assertEquals(c.x, b.x - c.width)
+  -- Cross axis unchanged.
+  luaunit.assertEquals(a.y, parent.y)
+end
+
+function TestFlexLove:testFlexDirectionVerticalReverse()
+  local parent = FlexLove.new({
+    id = "vr-parent",
+    positioning = "flex",
+    flexDirection = "vertical-reverse",
+    justifyContent = "flex-start",
+    width = 50,
+    height = 300,
+    gap = 0,
+  })
+  local a = FlexLove.new({ id = "vr-a", width = 50, height = 50, parent = parent })
+  local b = FlexLove.new({ id = "vr-b", width = 50, height = 50, parent = parent })
+  local c = FlexLove.new({ id = "vr-c", width = 50, height = 50, parent = parent })
+  parent:layoutChildren()
+  -- With vertical-reverse + flex-start, the first child sits flush against the bottom edge.
+  luaunit.assertEquals(a.y, parent.y + parent.height - a.height)
+  luaunit.assertEquals(b.y, a.y - b.height)
+  luaunit.assertEquals(c.y, b.y - c.height)
+  -- Cross axis unchanged.
+  luaunit.assertEquals(a.x, parent.x)
+end
+
+function TestFlexLove:testFlexDirectionHorizontalReverseShiftsDescendants()
+  local parent = FlexLove.new({
+    id = "hrd-parent",
+    positioning = "flex",
+    flexDirection = "horizontal-reverse",
+    width = 200,
+    height = 50,
+    gap = 0,
+  })
+  local outer = FlexLove.new({
+    id = "hrd-outer",
+    width = 80,
+    height = 50,
+    positioning = "flex",
+    flexDirection = "horizontal",
+    parent = parent,
+  })
+  local inner = FlexLove.new({ id = "hrd-inner", width = 40, height = 50, parent = outer })
+  parent:layoutChildren()
+  -- outer should be mirrored to the right edge of parent (delta propagated to subtree).
+  luaunit.assertEquals(outer.x, parent.x + parent.width - outer.width)
+  -- inner stays flush against outer's left edge (normal row-direction inside).
+  luaunit.assertEquals(inner.x, outer.x)
+end
+
+-- Test: CSS aliases "row-reverse" / "column-reverse" normalize to the canonical
+-- reverse values, matching how "row"->"horizontal" / "column"->"vertical" work.
+function TestFlexLove:testFlexDirectionRowReverseAliasNormalizes()
+  local parent = FlexLove.new({
+    positioning = "flex",
+    flexDirection = "row-reverse",
+    width = 300,
+    height = 50,
+    gap = 0,
+  })
+  local a = FlexLove.new({ id = "alias-a", width = 50, height = 50, parent = parent })
+  parent:layoutChildren()
+  luaunit.assertEquals(parent.flexDirection, "horizontal-reverse")
+  luaunit.assertEquals(a.x, parent.x + parent.width - a.width)
+end
+
+-- Tests: position: relative honors top/right/bottom/left as visual deltas.
+-- A relative element stays in flow (at its resolved x/y) but is visually
+-- shifted by the offsets; `top` wins over `bottom`, `left` over `right` (CSS).
+function TestFlexLove:testRelativeTopLeftOffsetsShiftInFlowPosition()
+  local container = FlexLove.new({
+    id = "rel-container",
+    x = 100,
+    y = 100,
+    width = 400,
+    height = 400,
+    positioning = "relative",
+  })
+  local child = FlexLove.new({
+    id = "rel-child",
+    parent = container,
+    positioning = "relative",
+    top = 50,
+    left = 30,
+    width = 100,
+    height = 100,
+  })
+  -- In-flow position is the parent's content origin (padding is 0); offsets shift visually.
+  luaunit.assertEquals(child.x, container.x + 30)
+  luaunit.assertEquals(child.y, container.y + 50)
+end
+
+function TestFlexLove:testRelativeBottomRightOffsetsShiftNegatively()
+  local container = FlexLove.new({
+    id = "rel-br-container",
+    x = 100,
+    y = 100,
+    width = 400,
+    height = 400,
+    positioning = "relative",
+  })
+  local child = FlexLove.new({
+    id = "rel-br-child",
+    parent = container,
+    positioning = "relative",
+    bottom = 20,
+    right = 40,
+    width = 100,
+    height = 100,
+  })
+  luaunit.assertEquals(child.x, container.x - 40)
+  luaunit.assertEquals(child.y, container.y - 20)
+end
+
+function TestFlexLove:testRelativeTopWinsOverBottom()
+  local container = FlexLove.new({
+    id = "rel-tb-container",
+    x = 0,
+    y = 0,
+    width = 400,
+    height = 400,
+    positioning = "relative",
+  })
+  local child = FlexLove.new({
+    id = "rel-tb-child",
+    parent = container,
+    positioning = "relative",
+    top = 50,
+    bottom = 200, -- ignored: top wins per CSS
+    left = 10,
+    right = 999, -- ignored: left wins per CSS
+    width = 50,
+    height = 50,
+  })
+  luaunit.assertEquals(child.y, 50)
+  luaunit.assertEquals(child.x, 10)
+end
+function TestFlexLove:testFlexDirectionRowReverseAliasNormalizes()
+  local parent = FlexLove.new({
+    positioning = "flex",
+    flexDirection = "row-reverse",
+    width = 300,
+    height = 50,
+    gap = 0,
+  })
+  local a = FlexLove.new({ id = "alias-a", width = 50, height = 50, parent = parent })
+  parent:layoutChildren()
+  luaunit.assertEquals(parent.flexDirection, "horizontal-reverse")
+  luaunit.assertEquals(a.x, parent.x + parent.width - a.width)
+end
+
 -- ==========================================
 -- UNHAPPY PATH TESTS
 -- ==========================================

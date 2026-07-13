@@ -56,6 +56,24 @@ local Context = {
   _initState = "uninitialized",
   ---@type table[] Queue of {props: ElementProps, callback: function(element)|nil}
   _initQueue = {},
+
+  -- Per-frame cache for findInteractiveAtPosition so Clickable.onUpdate's
+  -- per-element call (unified-event-routing task 05) doesn't re-walk the tree
+  -- + realloc + sort for every interactive element sharing the same cursor.
+  -- Invalidated explicitly by Context.clearInteractiveCache() at the start of
+  -- each flexlove.update (both modes) and in clearFrameElements (immediate
+  -- mid-frame rebuild). It also self-invalidates when the topElements table
+  -- reference changes (tests replace it per-case; immediate-mode beginFrame
+  -- reassigns it each frame), so direct callers that never go through
+  -- flexlove.update still see fresh results across tree swaps.
+  _interactiveLookupCache = {
+    valid = false,
+    x = nil,
+    y = nil,
+    result = nil,
+    topElementsRef = nil,
+    frameNumber = -1,
+  },
 }
 
 --- Check if a point hits an element, accounting for scroll offsets and display:none.
@@ -234,6 +252,7 @@ end
 
 function Context.clearFrameElements()
   Context._zIndexOrderedElements = {}
+  Context.clearInteractiveCache()
 end
 
 --- Calculate the depth (nesting level) of an element
@@ -249,9 +268,8 @@ local function getElementDepth(elem)
   return depth
 end
 
---- Sort elements by z-index (called after all elements are registered)
----
---- Sorting uses a composite key: rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ
+--- Compute the composite z-index key for an element.
+--- rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ
 ---
 --- ROOT_WEIGHT (10^10) gives the top-level ancestor's z-index 10 digits of significance.
 --- DEPTH_WEIGHT (10^3) gives nesting depth 3 digits, ensuring children always sort above
@@ -260,20 +278,28 @@ end
 ---
 --- These weights assume |z| <= ZIndex.MAX_Z and practical tree depths (< 10^7), which
 --- keeps the composite key well within Lua's exact integer range (2^53 ≈ 9 × 10^15).
+---
+--- This is the SINGLE canonical z-index ordering function, used by both
+--- sortElementsByZIndex (the immediate-mode flat list sort) and
+--- findInteractiveAtPosition (the mode-agnostic occlusion sort). Keeping them
+--- on the same key ensures the interactive topmost element matches the visual
+--- draw order — a button in a z=50 MainMenu window must occlude a button in a
+--- z=0 BottomBar even when both buttons default to own z=0.
+local function getEffectiveZIndex(elem)
+  local rootZ = elem.z or 0
+  local current = elem.parent
+  while current do
+    rootZ = current.z or 0
+    current = current.parent
+  end
+  local depth = getElementDepth(elem)
+  local ownZ = elem.z or 0
+  return rootZ * ZIndex.ROOT_WEIGHT + depth * ZIndex.DEPTH_WEIGHT + ownZ
+end
+
+--- Sort elements by z-index (called after all elements are registered)
 function Context.sortElementsByZIndex()
   table.sort(Context._zIndexOrderedElements, function(a, b)
-    local function getEffectiveZIndex(elem)
-      local rootZ = elem.z or 0
-      local current = elem.parent
-      while current do
-        rootZ = current.z or 0
-        current = current.parent
-      end
-      local depth = getElementDepth(elem)
-      local ownZ = elem.z or 0
-      return rootZ * ZIndex.ROOT_WEIGHT + depth * ZIndex.DEPTH_WEIGHT + ownZ
-    end
-
     local za = getEffectiveZIndex(a)
     local zb = getEffectiveZIndex(b)
     if za ~= zb then
@@ -281,60 +307,6 @@ function Context.sortElementsByZIndex()
     end
     return getElementDepth(a) < getElementDepth(b)
   end)
-end
-
---- Check if a point is inside an element's bounds, respecting scroll and clipping
----@param element Element The element to check
----@param x number Screen X coordinate
----@param y number Screen Y coordinate
----@return boolean True if point is inside element bounds
-local function isPointInElement(element, x, y)
-  local bx = element.x
-  local by = element.y
-  local bw = element._borderBoxWidth or (element.width + element.padding.left + element.padding.right)
-  local bh = element._borderBoxHeight or (element.height + element.padding.top + element.padding.bottom)
-
-  -- Calculate scroll offset from parent chain
-  local scrollOffsetX = 0
-  local scrollOffsetY = 0
-
-  -- Walk up parent chain to check clipping and accumulate scroll offsets
-  local current = element.parent
-  while current do
-    local overflowX = current.overflowX or current.overflow
-    local overflowY = current.overflowY or current.overflow
-
-    -- Check if parent clips content (overflow: hidden, scroll, auto)
-    if
-      overflowX == "hidden"
-      or overflowX == "scroll"
-      or overflowX == "auto"
-      or overflowY == "hidden"
-      or overflowY == "scroll"
-      or overflowY == "auto"
-    then
-      local parentX = current.x + current.padding.left
-      local parentY = current.y + current.padding.top
-      local parentW = current.width
-      local parentH = current.height
-
-      if x < parentX or x > parentX + parentW or y < parentY or y > parentY + parentH then
-        return false -- Point is clipped by parent
-      end
-
-      -- Accumulate scroll offset
-      scrollOffsetX = scrollOffsetX + (current._scrollX or 0)
-      scrollOffsetY = scrollOffsetY + (current._scrollY or 0)
-    end
-
-    current = current.parent
-  end
-
-  -- Adjust mouse position by scroll offset for hit testing
-  local adjustedX = x + scrollOffsetX
-  local adjustedY = y + scrollOffsetY
-
-  return adjustedX >= bx and adjustedX <= bx + bw and adjustedY >= by and adjustedY <= by + bh
 end
 
 --- Find the topmost interactive element at a screen position, regardless of mode.
@@ -351,6 +323,24 @@ end
 ---@param y number Screen Y coordinate
 ---@return Element|nil The topmost interactive element, or nil
 function Context.findInteractiveAtPosition(x, y)
+  -- Per-frame cache: Clickable.onUpdate runs this for every interactive
+  -- element under the same cursor, but the result for a given (x,y) is
+  -- identical across all of them within a single update pass. Returning a
+  -- cached element restores the old 1x/frame cost of the _activeEventElement
+  -- mechanism that task 05 replaced. Cache auto-invalidates when the
+  -- topElements table reference changes (so tests and mid-frame rebuilds get
+  -- fresh results) and is cleared explicitly per-frame in flexlove.update.
+  local cache = Context._interactiveLookupCache
+  if
+    cache.valid
+    and cache.x == x
+    and cache.y == y
+    and cache.topElementsRef == Context.topElements
+    and cache.frameNumber == Context._frameNumber
+  then
+    return cache.result
+  end
+
   local interactiveCandidates = {}
 
   local function collectInteractive(element, scrollOffsetX, scrollOffsetY)
@@ -384,12 +374,47 @@ function Context.findInteractiveAtPosition(x, y)
     collectInteractive(element)
   end
 
-  -- Sort by z-index descending — topmost wins
+  -- Sort by composite z-index descending — topmost wins. The composite key
+  -- (rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ) matches the ordering
+  -- used by sortElementsByZIndex / _zIndexOrderedElements, so the interactive
+  -- topmost element matches the visual draw order. This is critical for the
+  -- game's multi-window layout: a button inside a z=50 MainMenu window must
+  -- occlude a button inside a z=0 BottomBar even when both buttons default to
+  -- own z=0. Sorting by own-z alone (the original implementation) couldn't
+  -- distinguish them, so the wrong window's button could win, leaving the
+  -- visible button's isActiveElement=false and clicks/hover dead.
+  local zIndices = {}
+  for _, el in ipairs(interactiveCandidates) do
+    zIndices[el] = getEffectiveZIndex(el)
+  end
   table.sort(interactiveCandidates, function(a, b)
-    return (a.z or 0) > (b.z or 0)
+    return zIndices[a] > zIndices[b]
   end)
 
-  return interactiveCandidates[1]
+  local result = interactiveCandidates[1]
+
+  cache.x = x
+  cache.y = y
+  cache.result = result
+  cache.topElementsRef = Context.topElements
+  cache.frameNumber = Context._frameNumber
+  cache.valid = true
+
+  return result
+end
+
+--- Invalidate the per-frame `findInteractiveAtPosition` cache.
+--- Called once at the top of `flexlove.update` (the natural per-frame boundary
+--- in both modes) and from `clearFrameElements` (immediate-mode mid-frame
+--- rebuild). After invalidation the next lookup recomputes fresh.
+function Context.clearInteractiveCache()
+  local cache = Context._interactiveLookupCache
+  cache.valid = false
+  cache.x = nil
+  cache.y = nil
+  cache.result = nil
+  cache.topElementsRef = nil
+  cache.frameNumber = -1
 end
 
 --- Set the focused element (centralizes focus management)

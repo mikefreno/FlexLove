@@ -1084,13 +1084,32 @@ function flexlove.getElementAtPosition(x, y)
     collectHits(element)
   end
 
-  -- Sort both lists by z-index (highest first)
+  -- Sort both lists by composite z-index (highest first). Uses the same
+  -- rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ key as
+  -- Context.sortElementsByZIndex / findInteractiveAtPosition so the hit-test
+  -- topmost matches the visual draw order across overlapping windows.
+  local function effectiveZ(elem)
+    local rootZ = elem.z or 0
+    local current = elem.parent
+    while current do
+      rootZ = current.z or 0
+      current = current.parent
+    end
+    local depth = 0
+    local walk = elem.parent
+    while walk do
+      depth = depth + 1
+      walk = walk.parent
+    end
+    return rootZ * ZIndex.ROOT_WEIGHT + depth * ZIndex.DEPTH_WEIGHT + (elem.z or 0)
+  end
+
   table.sort(candidates, function(a, b)
-    return a.z > b.z
+    return effectiveZ(a) > effectiveZ(b)
   end)
 
   table.sort(blockingElements, function(a, b)
-    return a.z > b.z
+    return effectiveZ(a) > effectiveZ(b)
   end)
 
   -- If we have interactive elements, return the topmost one
@@ -1133,6 +1152,13 @@ function flexlove.update(dt)
 
   -- Garbage collection management
   flexlove._manageGC()
+
+  -- Invalidate the per-frame findInteractiveAtPosition cache so Clickable's
+  -- per-element occlusion lookup (one per interactive element per frame) is
+  -- recomputed fresh for this frame's tree. Within the frame every
+  -- Clickable.onUpdate then shares one cached result instead of re-walking
+  -- + re-sorting the tree per element (unified-event-routing task 05 fix).
+  flexlove.clearInteractiveCache()
 
   local mx, my = love.mouse.getPosition()
   local topElement = flexlove.getElementAtPosition(mx, my)

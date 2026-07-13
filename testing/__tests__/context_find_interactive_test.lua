@@ -262,6 +262,144 @@ function TestFindInteractiveAtPosition:testInteractiveParentOfNonInteractiveChil
   luaunit.assertTrue(hit == parent, "interactive parent returned when cursor is over non-interactive child")
 end
 
+-- Regression: when an interactive element is nested inside another
+-- interactive element at the SAME z-index (the common case — buttons inside
+-- themed panels both default to z=0), the descendant (the button) must win
+-- over the ancestor (the panel). The previous z-only sort left this tie to
+-- Lua's unstable table.sort, so the root panel could shadow its own button,
+-- leaving the button's isActiveElement=false and clicks/hover dead inside
+-- the panel. Depth-aware tiebreak (descendant wins) restored parity with the
+-- removed getTopElementAt, which baked nesting depth into its z-ordered
+-- composite key.
+function TestFindInteractiveAtPosition:testEqualZDescendantBeatsAncestor()
+  local button = mkElement({
+    x = 10,
+    y = 10,
+    width = 30,
+    height = 30,
+    onEvent = function() end,
+  })
+  button.id = "button"
+  local panel = mkElement({
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+    onEvent = function() end,
+    children = { button },
+  })
+  panel.id = "panel"
+  button.parent = panel -- mkElement doesn't set the back-link; real Element.new does
+  Context.topElements = { panel }
+
+  local hit = Context.findInteractiveAtPosition(20, 20)
+  luaunit.assertTrue(hit == button, "descendant interactive wins over interactive ancestor at equal z")
+end
+
+-- Regression: consecutive calls with the same (x,y) repeat the cached result
+-- even when each call would otherwise recompute against the same tree. This is
+-- the hot path in Clickable.onUpdate where every interactive element queries
+-- the same cursor position within a frame.
+function TestFindInteractiveAtPosition:testCachesRepeatLookupsPerPosition()
+  local a = mkElement({
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+    onEvent = function() end,
+  })
+  a.id = "a"
+  Context.topElements = { a }
+
+  local first = Context.findInteractiveAtPosition(25, 25)
+  local second = Context.findInteractiveAtPosition(25, 25)
+  luaunit.assertTrue(first == a, "first lookup returns the element")
+  luaunit.assertTrue(second == a, "second lookup returns the cached element")
+end
+
+-- The cache must self-invalidate when topElements is reassigned (the per-test
+-- reset path AND immediate-mode beginFrame do this each frame).
+function TestFindInteractiveAtPosition:testCacheInvalidatesOnTopElementsSwap()
+  local a = mkElement({
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+    onEvent = function() end,
+  })
+  a.id = "a"
+  Context.topElements = { a }
+  Context.findInteractiveAtPosition(25, 25) -- populate cache
+
+  local b = mkElement({
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+    onEvent = function() end,
+  })
+  b.id = "b"
+  Context.topElements = { b } -- swap the table reference
+
+  local hit = Context.findInteractiveAtPosition(25, 25)
+  luaunit.assertTrue(hit == b, "cache invalidates when topElements reference changes")
+end
+
+-- Regression (multi-window z-stacking): the game uses different root z-indices
+-- per window (BottomBar=0, MainMenu=50, etc.) while buttons inside those
+-- windows default to own z=0. findInteractiveAtPosition must sort by the
+-- composite z-index (rootZ * ROOT_WEIGHT + depth * DEPTH_WEIGHT + ownZ) — the
+-- SAME key used by sortElementsByZIndex — not by own-z alone. Without this, a
+-- button in a z=0 window and a button in a z=50 window both sort at z=0 and the
+-- wrong one can win, leaving the visible (higher-window) button's
+-- isActiveElement=false and clicks/hover dead.
+function TestFindInteractiveAtPosition:testRootZStackingCompositeKey()
+  local bottomButton = mkElement({
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+    onEvent = function() end,
+  })
+  bottomButton.id = "bottomButton"
+  local bottomWindow = mkElement({
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    z = 0,
+    onEvent = function() end,
+    children = { bottomButton },
+  })
+  bottomWindow.id = "bottomWindow"
+  bottomButton.parent = bottomWindow
+
+  local topButton = mkElement({
+    x = 0,
+    y = 0,
+    width = 50,
+    height = 50,
+    onEvent = function() end,
+  })
+  topButton.id = "topButton"
+  local topWindow = mkElement({
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    z = 50,
+    onEvent = function() end,
+    children = { topButton },
+  })
+  topWindow.id = "topWindow"
+  topButton.parent = topWindow
+
+  Context.topElements = { bottomWindow, topWindow }
+
+  local hit = Context.findInteractiveAtPosition(25, 25)
+  luaunit.assertTrue(hit == topButton, "button in higher-z window wins over button in lower-z window")
+end
+
 -- Mode-agnostic: the function ignores the mode flag entirely and walks
 -- topElements in both modes. The same fixture must yield the identical result
 -- with _immediateMode true and false.
@@ -392,7 +530,9 @@ end
 -- disabled, no select state) so both functions' interactivity criteria
 -- coincide and no blocking-element divergence occurs.
 function TestFindInteractiveRetainedParity:testParityWithGetElementAtPosition()
-  local e1 = FlexLove.new({ x = 0, y = 0, width = 100, height = 100, onEvent = function() end })
+  -- Created for its topElements registration side-effect (the parity checks
+  -- below walk topElements via both functions). No binding needed.
+  FlexLove.new({ x = 0, y = 0, width = 100, height = 100, onEvent = function() end })
   local cases = {
     { x = 50, y = 50 },
     { x = 200, y = 200 },

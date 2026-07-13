@@ -297,9 +297,9 @@ if [ -f "$NEW_ROCKSPEC" ]; then
   echo -e "${BLUE}Next steps for LuaRocks publishing:${NC}"
   echo "  1. Wait for GitHub Actions to complete"
   echo "  2. Upload to LuaRocks:"
-  echo "     ${CYAN}luarocks upload ${NEW_ROCKSPEC}${NC}"
+  echo -e "     ${CYAN}luarocks upload ${NEW_ROCKSPEC}${NC}"
   echo ""
   echo -e "${YELLOW}Note: Ensure you have your LuaRocks API key configured${NC}"
-  echo "  ${CYAN}luarocks config api-key YOUR_API_KEY${NC}"
+  echo -e "  ${CYAN}luarocks config api-key YOUR_API_KEY${NC}"
   echo ""
 fi

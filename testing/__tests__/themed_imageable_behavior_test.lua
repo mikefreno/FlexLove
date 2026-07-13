@@ -204,9 +204,15 @@ function TestImageableIntegration:testImageElement_AttachesImageableAndConfigure
     end
   end
   luaunit.assertTrue(imageableAttached, "image element must attach the Imageable behavior")
-  luaunit.assertEquals(el._renderer.imagePath, "test/x.png")
-  luaunit.assertEquals(el._renderer.objectFit, el.objectFit)
-  luaunit.assertEquals(el._renderer.imageOpacity, el.imageOpacity)
+  -- Image value props live on the ELEMENT as source of truth (read at draw
+  -- time); Imageable no longer mirrors them onto the renderer. Only the
+  -- resolved _loadedImage cache is renderer-mirrored. Assert the source-of-
+  -- truth contract directly.
+  luaunit.assertEquals(el.imagePath, "test/x.png")
+  luaunit.assertEquals(el.objectFit, "fill")
+  luaunit.assertEquals(el.imageOpacity, 1)
+  luaunit.assertNotNil(el._loadImage, "Imageable must install the deferred _loadImage hook")
+  luaunit.assertNotNil(el._reloadImage, "Imageable must install the _reloadImage hook")
 end
 
 function TestImageableIntegration:testCachedImage_LoadsImmediatelyAndDeferredCallback()
@@ -292,6 +298,146 @@ function TestImageableIntegration:testSaveRestoreState_RoundTripsLoadedImage()
   el2:restoreState(snapshot)
   luaunit.assertEquals(el2._loadedImage, mockImage, "restoreState must reapply _loadedImage")
   luaunit.assertEquals(el2._renderer._loadedImage, mockImage, "restoreState must sync renderer._loadedImage")
+end
+
+-- ===========================================================================
+-- setProperty(imagePath / image) reload pipeline
+--
+-- setProperty must re-run the Imageable load pipeline so changing an image at
+-- runtime actually swaps what draws. Direct `image` wins over `imagePath`; nil
+-- for both clears the cache. Mirrors the consistency contract for visual props.
+-- (Added alongside wiring imagePath/image into Element._specialSetHandlers.)
+-- ===========================================================================
+
+function TestImageableIntegration:test_setProperty_imagePath_swaps_loaded_image_deferred()
+  -- Start with a cached image A, then setProperty("imagePath", B-path) where B
+  -- is also cached: cache check populates _loadedImage immediately (B), the
+  -- deferred load fires onImageLoad for B after update.
+  local imgA = makeMockImage()
+  local imgB = makeMockImage()
+  ImageCache._cache["path/a.png"] = { image = imgA, imageData = nil }
+  ImageCache._cache["path/b.png"] = { image = imgB, imageData = nil }
+
+  local loaded = nil
+  local onLoadCalls = 0
+  local el = FlexLove.new({
+    id = "img-swap-path",
+    width = 100,
+    height = 100,
+    imagePath = "path/a.png",
+    onImageLoad = function(_, img)
+      onLoadCalls = onLoadCalls + 1
+      loaded = img
+    end,
+  })
+  -- initial cache check populated A immediately
+  luaunit.assertEquals(el._loadedImage, imgA, "initial cache check should populate imgA")
+
+  el:setProperty("imagePath", "path/b.png")
+  luaunit.assertEquals(el.imagePath, "path/b.png")
+  luaunit.assertEquals(el._loadedImage, imgB, "setProperty(imagePath) cache-check must swap _loadedImage immediately")
+  luaunit.assertEquals(el._renderer._loadedImage, imgB, "renderer cache must mirror the swapped image")
+
+  el:update(0)
+  luaunit.assertTrue(onLoadCalls >= 1, "deferred onImageLoad must fire for the new path")
+  luaunit.assertEquals(loaded, imgB, "onImageLoad must deliver the new image")
+
+  ImageCache._cache["path/a.png"] = nil
+  ImageCache._cache["path/b.png"] = nil
+end
+
+function TestImageableIntegration:test_setProperty_image_direct_swaps_synchronously()
+  local imgA = makeMockImage()
+  local direct = makeMockImage()
+  ImageCache._cache["path/direct.png"] = { image = imgA, imageData = nil }
+
+  local loaded = nil
+  local onLoadCalls = 0
+  local el = FlexLove.new({
+    id = "img-swap-direct",
+    width = 100,
+    height = 100,
+    imagePath = "path/direct.png",
+    onImageLoad = function(_, img)
+      onLoadCalls = onLoadCalls + 1
+      loaded = img
+    end,
+  })
+  luaunit.assertEquals(el._loadedImage, imgA)
+
+  -- Setting a direct image takes precedence over imagePath and fires sync.
+  el:setProperty("image", direct)
+  luaunit.assertEquals(el.image, direct)
+  luaunit.assertEquals(el._loadedImage, direct, "direct image via setProperty must win over imagePath")
+  luaunit.assertEquals(el._renderer._loadedImage, direct)
+  luaunit.assertTrue(onLoadCalls >= 1, "direct image must fire onImageLoad synchronously")
+  luaunit.assertEquals(loaded, direct)
+
+  ImageCache._cache["path/direct.png"] = nil
+end
+
+function TestImageableIntegration:test_setProperty_image_nil_falls_back_to_imagePath()
+  local direct = makeMockImage()
+  local cached = makeMockImage()
+  ImageCache._cache["path/fallback.png"] = { image = cached, imageData = nil }
+
+  local el = FlexLove.new({
+    id = "img-fallback",
+    width = 100,
+    height = 100,
+    image = direct,
+    imagePath = "path/fallback.png",
+  })
+  luaunit.assertEquals(el._loadedImage, direct, "direct image wins at construction")
+
+  -- Clearing the direct image falls back to the path load pipeline.
+  el:setProperty("image", nil)
+  luaunit.assertNil(el.image)
+  luaunit.assertEquals(el._loadedImage, cached, "clearing image must fall back to imagePath cache check")
+  luaunit.assertEquals(el._renderer._loadedImage, cached)
+
+  ImageCache._cache["path/fallback.png"] = nil
+end
+
+function TestImageableIntegration:test_setProperty_clears_loadedImage_when_both_nil()
+  local direct = makeMockImage()
+  local el = FlexLove.new({
+    id = "img-clear",
+    width = 100,
+    height = 100,
+    image = direct,
+  })
+  luaunit.assertEquals(el._loadedImage, direct)
+
+  el:setProperty("image", nil)
+  luaunit.assertNil(el.image)
+  luaunit.assertNil(el._loadedImage, "clearing the only image source must nil _loadedImage")
+  luaunit.assertNil(el._renderer._loadedImage)
+end
+
+function TestImageableIntegration:test_bare_imagePath_write_matches_setProperty_reload()
+  -- Bare `element.imagePath = ...` does NOT trigger the load pipeline (Lua
+  -- __newindex cannot intercept existing keys, and imagePath is not a tracked
+  -- dimension). This locks in that reloading requires setProperty, mirroring the
+  -- dimension-prop contract.
+  local imgA = makeMockImage()
+  local imgB = makeMockImage()
+  ImageCache._cache["bare/a.png"] = { image = imgA, imageData = nil }
+  ImageCache._cache["bare/b.png"] = { image = imgB, imageData = nil }
+
+  local el = FlexLove.new({ id = "img-bare", width = 100, height = 100, imagePath = "bare/a.png" })
+  luaunit.assertEquals(el._loadedImage, imgA)
+
+  el.imagePath = "bare/b.png" -- bare write: field changes, NO reload
+  luaunit.assertEquals(el.imagePath, "bare/b.png")
+  luaunit.assertEquals(el._loadedImage, imgA, "bare imagePath write must NOT reload")
+
+  -- setProperty is the correct path: it reloads.
+  el:setProperty("imagePath", "bare/b.png")
+  luaunit.assertEquals(el._loadedImage, imgB)
+
+  ImageCache._cache["bare/a.png"] = nil
+  ImageCache._cache["bare/b.png"] = nil
 end
 
 -- Run tests if this file is executed directly.

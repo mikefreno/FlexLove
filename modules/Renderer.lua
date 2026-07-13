@@ -169,13 +169,30 @@ function Renderer:_executeDrawCommand(cmd, ctx)
     love.graphics.setColor(c:toRGBA())
     self._RoundedRect.draw("fill", ctx.x, ctx.y, ctx.borderBoxWidth, ctx.borderBoxHeight, ctx.cornerRadius)
   elseif cmd.type == "image" then
+    -- Image value props (imageOpacity/imageRepeat/imageTint/objectFit/
+    -- objectPosition) and imagePath are read from the element as the single
+    -- source of truth, so retained-mode bare writes (`element.imageOpacity = 0.5`),
+    -- the setImage* setters, and setProperty(...) are all immediately
+    -- consistent. The renderer's own config is a fallback for standalone
+    -- Renderer usage with a sparse element (mirrors `element.onEvent or
+    -- self.onEvent`); the integrated path always supplies an element whose
+    -- _applyProps-bound values take precedence. _loadedImage intentionally
+    -- remains on the renderer (the resolved love.Image from the Imageable load
+    -- pipeline). See TestRetainedPropertyConsistency.
+    local el = self._element
+    local imageOpacity = (el and el.imageOpacity) or self.imageOpacity
+    local imageRepeat = (el and el.imageRepeat) or self.imageRepeat
+    local imageTint = (el and el.imageTint) or self.imageTint
+    local objectFit = (el and el.objectFit) or self.objectFit
+    local objectPosition = (el and el.objectPosition) or self.objectPosition
+    local imagePath = (el and el.imagePath) or self.imagePath
     if not self._loadedImage then
       return
     end
     local img = self._loadedImage
     local imageX = ctx.x + ctx.paddingLeft
     local imageY = ctx.y + ctx.paddingTop
-    local finalOpacity = ctx.opacity * self.imageOpacity
+    local finalOpacity = ctx.opacity * imageOpacity
     local hasCornerRadius = false
     if ctx.cornerRadius then
       if type(ctx.cornerRadius) == "number" then
@@ -202,7 +219,7 @@ function Renderer:_executeDrawCommand(cmd, ctx)
           Renderer._ErrorHandler:warn(
             "Renderer",
             "IMG_001",
-            { imagePath = self.imagePath or "unknown", cornerRadius = crStr, error = tostring(err) }
+            { imagePath = imagePath or "unknown", cornerRadius = crStr, error = tostring(err) }
           )
           hasCornerRadius = false
         else
@@ -210,16 +227,16 @@ function Renderer:_executeDrawCommand(cmd, ctx)
         end
       end
     end
-    if self.imageRepeat and self.imageRepeat ~= "no-repeat" then
+    if imageRepeat and imageRepeat ~= "no-repeat" then
       self._ImageRenderer.drawTiled(
         img,
         imageX,
         imageY,
         ctx.contentWidth,
         ctx.contentHeight,
-        self.imageRepeat,
+        imageRepeat,
         finalOpacity,
-        self.imageTint
+        imageTint
       )
     else
       self._ImageRenderer.draw(
@@ -228,10 +245,10 @@ function Renderer:_executeDrawCommand(cmd, ctx)
         imageY,
         ctx.contentWidth,
         ctx.contentHeight,
-        self.objectFit,
-        self.objectPosition,
+        objectFit,
+        objectPosition,
         finalOpacity,
-        self.imageTint
+        imageTint
       )
     end
     if hasCornerRadius then

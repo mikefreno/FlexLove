@@ -4453,6 +4453,100 @@ function TestRetainedPropertyConsistency:test_redundant_disabled_setProperty_sti
   element._renderer.setThemeState = origSet
 end
 
+-- Image value props (imageOpacity/imageRepeat/imageTint/objectFit/objectPosition)
+-- are read from the element at draw time (Renderer._executeDrawCommand image
+-- branch), so bare writes behave identically to setProperty / setImage* setters.
+-- These tests capture the args passed to ImageRenderer.draw / drawTiled to
+-- prove the renderer resolves live values from the element, not a stale cache.
+
+function TestRetainedPropertyConsistency:test_bare_image_value_writes_take_effect_at_draw()
+  local Color = FlexLove.Color
+  local tint = Color.new(0.2, 0.4, 0.6, 1)
+  local element = createBasicElement({
+    id = "bare_img_vals",
+    image = {}, -- attaches Imageable + populates _loadedImage so the image branch runs
+    imageOpacity = 1,
+    imageRepeat = "no-repeat",
+    objectFit = "fill",
+  })
+  luaunit.assertNotNil(element._loadedImage, "expected _loadedImage populated for direct image prop")
+
+  local captured = {}
+  local renderer = element._renderer
+  local origIR = renderer._ImageRenderer
+  renderer._ImageRenderer = {
+    draw = function(img, x, y, w, h, objectFit, objectPosition, finalOpacity, imageTint)
+      captured.objectFit = objectFit
+      captured.objectPosition = objectPosition
+      captured.finalOpacity = finalOpacity
+      captured.imageTint = imageTint
+    end,
+    drawTiled = function(img, x, y, w, h, imageRepeat, finalOpacity, imageTint)
+      captured.imageRepeat = imageRepeat
+      captured.finalOpacity = finalOpacity
+      captured.imageTint = imageTint
+    end,
+  }
+
+  -- Bare writes — no setProperty, no setImage* setters.
+  element.imageOpacity = 0.25
+  element.imageTint = tint
+  element.objectFit = "contain"
+  element.objectPosition = "left top"
+  element:draw()
+
+  renderer._ImageRenderer = origIR
+  luaunit.assertEquals(captured.finalOpacity, 0.25, "bare imageOpacity write must reach draw (ctx.opacity=1 * 0.25)")
+  luaunit.assertEquals(captured.imageTint, tint, "bare imageTint write must reach draw")
+  luaunit.assertEquals(captured.objectFit, "contain", "bare objectFit write must reach draw")
+  luaunit.assertEquals(captured.objectPosition, "left top", "bare objectPosition write must reach draw")
+end
+
+function TestRetainedPropertyConsistency:test_bare_imageRepeat_write_routes_to_drawTiled()
+  local element = createBasicElement({
+    id = "bare_imgrep",
+    image = {},
+    imageRepeat = "no-repeat",
+  })
+
+  local captured = {}
+  local renderer = element._renderer
+  local origIR = renderer._ImageRenderer
+  renderer._ImageRenderer = {
+    draw = function()
+      captured.nonTiled = true
+    end,
+    drawTiled = function(img, x, y, w, h, imageRepeat, finalOpacity, imageTint)
+      captured.imageRepeat = imageRepeat
+    end,
+  }
+
+  element.imageRepeat = "repeat" -- bare write; must route through the tiled path
+  element:draw()
+
+  renderer._ImageRenderer = origIR
+  luaunit.assertEquals(captured.imageRepeat, "repeat", "bare imageRepeat write must reach drawTiled")
+  luaunit.assertNil(captured.nonTiled, "must NOT take the non-tiled draw path for a repeating image")
+end
+
+function TestRetainedPropertyConsistency:test_bare_image_write_matches_setProperty()
+  local Color = FlexLove.Color
+  local tint = Color.new(0.1, 0.2, 0.3, 1)
+  local a = createBasicElement({ id = "cmp_img_a", image = {}, imageOpacity = 1, objectFit = "fill" })
+  local b = createBasicElement({ id = "cmp_img_b", image = {}, imageOpacity = 1, objectFit = "fill" })
+
+  a.imageOpacity = 0.5
+  a.imageTint = tint
+  a.objectFit = "cover"
+  b:setProperty("imageOpacity", 0.5)
+  b:setProperty("imageTint", tint)
+  b:setProperty("objectFit", "cover")
+
+  luaunit.assertEquals(a.imageOpacity, b.imageOpacity)
+  luaunit.assertEquals(a.imageTint, b.imageTint)
+  luaunit.assertEquals(a.objectFit, b.objectFit)
+end
+
 function TestRetainedPropertyConsistency:test_dimension_string_bare_write_warns_lazily()
   -- Lua __newindex cannot intercept writes to existing keys (width/height are
   -- set during construction), so a bare `element.width = "42%"` stores a raw

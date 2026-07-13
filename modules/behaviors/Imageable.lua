@@ -2,13 +2,26 @@
 --
 -- Concrete behavior: image loading + image rendering config.
 --
--- Imageable owns the image side of the Renderer: it enriches the shared
--- `element._renderer` with image config (imagePath/image/objectFit/...), runs
--- the deferred image-load pipeline (cache check → defer → load → fire
--- onImageLoad/onImageError callbacks), and persists the loaded-image cache
--- across immediate-mode recreation. It is the behavior-mode-unification
--- replacement for the image-loading half of Element:_initImageAndRenderer and
--- the deferred Element:_loadImage method (behavior-mode-unification task 07).
+-- Imageable owns the image side of the Renderer: it runs the deferred image-
+-- load pipeline (cache check → defer → load → fire onImageLoad/onImageError
+-- callbacks), populates the resolved `_loadedImage` cache on both the element
+-- and the shared renderer, and persists that cache across immediate-mode
+-- recreation. It is the behavior-mode-unification replacement for the image-
+-- loading half of Element:_initImageAndRenderer and the deferred
+-- Element:_loadImage method (behavior-mode-unification task 07).
+--
+-- Image value props (imagePath/image/objectFit/objectPosition/imageOpacity/
+-- imageRepeat/imageTint) are bound on the ELEMENT by Element:_applyProps and read
+-- from the element at draw time (Renderer._executeDrawCommand image branch) —
+-- Imageable does NOT mirror them onto the renderer, so bare writes and
+-- setProperty(...) are immediately consistent. Only the resolved _loadedImage
+-- cache (the love.Image produced by the load pipeline) is renderer-mirrored,
+-- because Renderer:draw reads `self._loadedImage`.
+--
+-- Runtime reload: setProperty("imagePath", ...) / setProperty("image", ...) and
+-- the bare-write-equivalent setImage* flows route through element._reloadImage
+-- (installed below) which re-runs the load pipeline. See
+-- TestRetainedPropertyConsistency (image props) and TestImageableIntegration.
 --
 -- Attachment rule (shouldAttach): an element owns image concern exactly when it
 -- declares an `imagePath` (load-from-path) or a direct `image` (already-loaded
@@ -116,6 +129,58 @@ local function loadImage(element)
 end
 
 -- ----------------------------------------------------------------------------
+-- reloadImage — recompute the loaded-image cache from the current image/imagePath.
+--
+-- This is the single entry point for (re)loading after either initial attach or
+-- a runtime property change (see Element._specialSetHandlers.imagePath/image,
+-- which call element:_reloadImage()). Precedence matches onAttach: a direct
+-- `image` wins over `imagePath`; `nil` for both clears the cache.
+--
+--   * direct image  → set _loadedImage immediately, fire onImageLoad SYNC (the
+--                     image is already loaded; honorDeferred=false preserves the
+--                     original synchronous init contract).
+--   * imagePath     → cache CHECK only (no I/O) so a cached image can draw this
+--                     frame, then defer the loader (_loadImage) for the actual
+--                     I/O + deferred callbacks. load bails if `image` is later set.
+--   * neither      → clear _loadedImage on both element + renderer.
+--
+-- Image value props (objectFit/imageOpacity/imageRepeat/imageTint/objectPosition)
+-- and imagePath/image themselves live on the ELEMENT as source of truth; the
+-- renderer reads them at draw time, so reloadImage does NOT mirror them onto the
+-- renderer — only the resolved _loadedImage cache is pushed.
+-- ----------------------------------------------------------------------------
+
+local function reloadImage(element)
+  local Element = ElementClass(element)
+  local renderer = element._renderer
+  if element.image then
+    element._loadedImage = element.image
+    if renderer then
+      renderer._loadedImage = element.image
+    end
+    fireImageCallback(element, "onImageLoad", false, element.image)
+  elseif element.imagePath then
+    -- Cache check (no I/O). Populate both caches immediately if cached so the
+    -- image can draw this frame without waiting for the deferred load.
+    local cached = Element._ImageCache.get(element.imagePath)
+    element._loadedImage = cached
+    if renderer then
+      renderer._loadedImage = cached
+    end
+    -- Kick off the deferred I/O load + callbacks (idempotent: loadImage bails
+    -- if image is set or imagePath is nil by the time it runs).
+    if element._loadImage then
+      element:_deferMethod("_loadImage")
+    end
+  else
+    element._loadedImage = nil
+    if renderer then
+      renderer._loadedImage = nil
+    end
+  end
+end
+
+-- ----------------------------------------------------------------------------
 -- onAttach — enrich the shared renderer with image config + kick off loading
 -- (formerly the image block of Element:_initImageAndRenderer).
 -- ----------------------------------------------------------------------------
@@ -124,8 +189,7 @@ local function onAttach(element)
   local Element = ElementClass(element)
 
   -- Ensure the renderer exists (Thamed normally creates it; this create-or-reuse
-  -- guard is defensive for the Imageable-attaches-first ordering). Image config
-  -- is then written onto the shared renderer instance.
+  -- guard is defensive for the Imageable-attaches-first ordering).
   if not element._renderer then
     element._renderer = Element._Renderer.new({
       theme = element.theme,
@@ -136,42 +200,22 @@ local function onAttach(element)
     }, Element._rendererDeps)
   end
 
-  local renderer = element._renderer
-  -- Image config (imagePath/image/objectFit/objectPosition/imageOpacity/
-  -- imageRepeat/imageTint are bound on the element by _applyProps; mirror them
-  -- onto the renderer which owns the image draw layer).
-  renderer.imagePath = element.imagePath
-  renderer.image = element.image
-  renderer.objectFit = element.objectFit
-  renderer.objectPosition = element.objectPosition
-  renderer.imageOpacity = element.imageOpacity
-  renderer.imageRepeat = element.imageRepeat
-  renderer.imageTint = element.imageTint
-
-  -- Image load pipeline (formerly Element:_initImageAndRenderer image block).
-  if element.imagePath and not element.image then
-    -- Cache check (no I/O). Populate both caches immediately if cached so the
-    -- image can draw this frame without waiting for the deferred load.
-    element._loadedImage = Element._ImageCache.get(element.imagePath)
-    renderer._loadedImage = element._loadedImage
-    -- Install the deferred loader as an instance method so Element's
-    -- deferred-method dispatcher (which resolves `self[methodName]`) can invoke
-    -- the behavior's loader without Element needing a behavior reference. This
-    -- keeps Element decoupled from the Imageable behavior (mirrors the
-    -- stateless-behavior + element-owned-state contract).
-    element._loadImage = function(el)
-      loadImage(el)
-    end
-    -- Defer the actual I/O + callbacks (avoids I/O / callbacks in constructor).
-    element:_deferMethod("_loadImage")
-  elseif element.image then
-    -- Direct image prop (already loaded): set immediately and fire synchronously.
-    element._loadedImage = element.image
-    renderer._loadedImage = element.image
-    fireImageCallback(element, "onImageLoad", false, element.image)
-  else
-    element._loadedImage = nil
+  -- Install the (re)load hooks as instance methods so Element's
+  -- deferred-method dispatcher / setProperty special handlers can trigger a
+  -- reload without Element needing a behavior reference. This keeps Element
+  -- decoupled from the Imageable behavior (mirrors the stateless-behavior +
+  -- element-owned-state contract). Image value props and imagePath/image live
+  -- on the element as source of truth (read at draw time); only the resolved
+  -- _loadedImage cache is mirrored onto the renderer by reloadImage.
+  element._loadImage = function(el)
+    loadImage(el)
   end
+  element._reloadImage = function(el)
+    reloadImage(el)
+  end
+
+  -- Initial load: compute _loadedImage + defer the I/O load.
+  reloadImage(element)
 end
 
 -- ----------------------------------------------------------------------------

@@ -59,25 +59,38 @@ Or enable later with `FlexLove.enableKeyboardNavigation({...})`.
 | `Arrow Keys` | Directional (spatial) navigation |
 | `Enter` / `Space` | Activate focused element |
 | `Escape` | Dismiss/close focused element |
-| `F12` | Toggle developer tools |
 
 Elements are automatically focusable if they have `editable = true`, an `onEvent` handler, or a `themeComponent`. Customize behavior at runtime via the `KeyboardNavigation` and `FocusIndicator` modules:
 
+Configure behavior, key bindings, and the focus indicator via the config table (at init or with `enableKeyboardNavigation`):
+
 ```lua
+FlexLove.enableKeyboardNavigation({
+  directionalNavigation = true,
+  wrapAround = true,
+  -- keys = { next = "f1" },  -- override any binding from the defaults above
+  dropFocusOnSelection = false,
+  focusIndicator = {
+    color = { 0.2, 0.6, 1.0, 0.8 },
+    lineWidth = 2,
+    pulseEnabled = true,
+  },
+})
+
+-- Performance: enable the spatial index for directional navigation
+-- when you have >50 focusable elements.
 local KeyboardNavigation = require("modules.KeyboardNavigation")
+KeyboardNavigation.enableSpatialIndex(true)
+
+-- Focus indicator color and width can also be changed at runtime:
 local FocusIndicator = require("modules.FocusIndicator")
-
-KeyboardNavigation.setDirectionalNavigation(true)
-KeyboardNavigation.setWrapAround(true)
-KeyboardNavigation.setKeyBinding("next", "f1")
-KeyboardNavigation.enableSpatialIndex(true)  -- Recommended for >50 focusable elements
-
 FocusIndicator.setColor(0.2, 0.6, 1.0, 0.8)
 FocusIndicator.setLineWidth(2)
-FocusIndicator.setPulseEnabled(true)
 ```
 
-Navigation containers (`Context.setNavigationContainer`) scope focus to modals/dialogs; focus stack (`pushFocus`/`popFocus`) preserves focus across modals. Type annotations for ARIA roles (`ariaRole`, `ariaLabel`, `ariaDescribedBy`) are defined in the type system; runtime support is pending.
+`enableKeyboardNavigation` accepts: `directionalNavigation`, `wrapAround`, `dropFocusOnSelection`, `keys` (a table overriding any default key binding), and `focusIndicator` (with `color`, `lineWidth`, `draw` (custom draw fn), `pulseEnabled`). Key bindings default to the values listed above; pass a `keys` table to override specific ones (e.g. `keys = { next = "f1" }`).
+
+Navigation containers (`Context.setNavigationContainer`) scope focus to modals/dialogs; the focus stack (`KeyboardNavigation:pushFocus(element)` / `KeyboardNavigation:popFocus()`) preserves focus across modals. Type annotations for ARIA roles (`ariaRole`, `ariaLabel`, `ariaDescribedBy`) are defined in the type system; runtime support is pending.
 
 ## Quick Start
 
@@ -94,10 +107,20 @@ Going this route, you will need to link the luarocks path to your project:
 (for mac/linux)
 
 ```lua
+-- mac/linux
 package.path = package.path .. ";/Users/<username>/.luarocks/share/lua/<version>/?.lua"
 package.path = package.path .. ";/Users/<username>/.luarocks/share/lua/<version>/?/init.lua"
 package.cpath = package.cpath .. ";/Users/<username>/.luarocks/lib/lua/<version>/?.so"
 ```
+
+```lua
+-- windows
+package.path = package.path .. ";C:/Users/<username>/luarocks/share/lua/<version>/?.lua"
+package.path = package.path .. ";C:/Users/<username>/luarocks/share/lua/<version>/?/init.lua"
+package.cpath = package.cpath .. ";C:/Users/<username>/luarocks/lib/lua/<version>/?.dll"
+```
+
+> Replace `<version>` with your Lua version (e.g. `5.1`, `5.3`, `5.4`). LuaJIT targets Lua 5.1.
 
 ```lua
 local FlexLove = require("FlexLove")
@@ -108,6 +131,7 @@ function love.load()
     theme = "space",
     immediateMode = true
   })
+  love.keyboard.setKeyRepeat(true)  -- needed for text editing (arrows, backspace, etc.)
 end
 
 function love.update(dt)
@@ -117,7 +141,20 @@ end
 function love.draw()
   FlexLove.draw()
 end
+
+-- Wire these hooks to enable responsive layout, text input, scrolling,
+-- keyboard navigation, and touch. Each FlexLove.* function here mirrors
+-- the corresponding love callback and is safe to call even if unused.
+function love.resize(w, h) FlexLove.resize(w, h) end
+function love.textinput(text) FlexLove.textinput(text) end
+function love.keypressed(key, sc, rep) FlexLove.keypressed(key, sc, rep) end
+function love.wheelmoved(dx, dy) FlexLove.wheelmoved(dx, dy) end
+function love.touchpressed(id, x, y, dx, dy, p) FlexLove.touchpressed(id, x, y, dx, dy, p) end
+function love.touchmoved(id, x, y, dx, dy, p) FlexLove.touchmoved(id, x, y, dx, dy, p) end
+function love.touchreleased(id, x, y, dx, dy, p) FlexLove.touchreleased(id, x, y, dx, dy, p) end
 ```
+
+See the relevant sections below for what each input hook enables (Input Fields, Debug View, Keyboard Navigation, Multi-Touch).
 
 ## Quick Demos
 
@@ -365,11 +402,11 @@ Enhanced event handling with detailed event information:
 ```lua
 onEvent = function(element, event)
   -- Mouse events:
-  -- event.type: "click", "press", "release", "rightclick", "middleclick"
+  -- event.type: "click", "press", "release", "drag", "hover", "rightclick", "middleclick"
   -- event.button: 1 (left), 2 (right), 3 (middle)
   -- event.x, event.y: Mouse position
   -- event.clickCount: Number of clicks (for double-click detection)
-  -- event.modifiers: { shift, ctrl, alt, gui }
+  -- event.modifiers: { shift, ctrl, alt, super }
   
   -- Touch events:
   -- event.type: "touchpress", "touchmove", "touchrelease", "touchcancel"
@@ -501,7 +538,7 @@ Call `FlexLove.executeDeferredCallbacks()` at the very end of `love.draw()` afte
 
 ### Input Fields
 
-FlexLöve provides text input support with single-line (and multi-line coming soon) fields:
+FlexLöve provides text input support with single-line and multi-line fields:
 
 ```lua
 -- Create a text input field

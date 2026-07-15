@@ -30,6 +30,7 @@ themes/
 ```
 
 **Theme definition:**
+
 ```lua
 return {
   name = "My Theme",
@@ -66,6 +67,7 @@ themes/
 ```
 
 **Theme definition:**
+
 ```lua
 return {
   name = "My Theme",
@@ -174,7 +176,7 @@ local Color = FlexLove.Color
 
 FlexLove.init({
   baseScale = { width = 1920, height = 1080 },
-  theme = "my_theme" -- only supports autoload of one theme
+  theme = "my_theme", -- only supports autoload of one theme
   immediateMode = true -- Optional: enable immediate mode (default: false)
 })
 
@@ -227,6 +229,7 @@ Elements with themes render in this order:
 4. **Text** - Rendered last (on top of everything)
 
 This allows you to:
+
 - Tint themed elements with backgroundColor
 - Add custom borders on top of themes
 - Layer visual effects
@@ -356,6 +359,7 @@ return {
 ```
 
 **`scaleCorners` values:**
+
 - Number (e.g., `2`, `1.5`, `0.5`) - Direct scale multiplier
   - `2` = double size
   - `0.5` = half size
@@ -412,6 +416,7 @@ button = {
 ## Example Themes
 
 See the `space/` directory for a complete theme example with:
+
 - Panel component
 - Button component with states (normal, hover, pressed, disabled)
 - Compressed and uncompressed versions

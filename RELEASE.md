@@ -29,7 +29,7 @@ After pushing the tag, GitHub Actions automatically:
 - Creates 4 build profile packages (minimal, slim, default, full) with SHA256 checksums
 - Publishes GitHub release with all profile packages
 
-The script will display next steps for publishing to LuaRocks (see [LUAROCKS_PUBLISHING.md](LUAROCKS_PUBLISHING.md)).
+The script will display next steps for publishing to LuaRocks (see the **Publishing to LuaRocks** section below).
 
 ### Example Usage
 
@@ -267,7 +267,7 @@ luarocks search flexlove
 luarocks install flexlove
 ```
 
-For detailed instructions, see [LUAROCKS_PUBLISHING.md](LUAROCKS_PUBLISHING.md).
+For detailed instructions, see the **Publishing to LuaRocks** section above.
 
 ## Automated Releases (Future)
 

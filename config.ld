@@ -5,7 +5,8 @@ description = 'UI Library for LÖVE Framework based on flexbox'
 format = 'discount' -- Use markdown formatting
 
 -- Source files and directories
-file = 'modules/'
+-- Document the top-level public API (FlexLove.* functions) alongside module internals.
+file = { 'modules/', 'FlexLove.lua' }
 
 -- Output directory
 dir = 'docs'

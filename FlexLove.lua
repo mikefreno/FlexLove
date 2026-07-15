@@ -470,26 +470,8 @@ function flexlove.init(config)
   end
 end
 
---- Enable keyboard navigation after initialization (for deferred or conditional setup)
---- Useful when you need to conditionally enable keyboard navigation based on runtime conditions
---- Automatically initializes KeyboardNavigation and FocusIndicator modules if not already initialized
----@param config KeyboardNavigationConfig? Optional configuration table
---- @usage
---- -- Enable with defaults
---- FlexLove.enableKeyboardNavigation()
----
---- -- Enable with custom configuration
---- FlexLove.enableKeyboardNavigation({
----   directionalNavigation = true,
----   wrapAround = false,
----   focusIndicator = {
----     enabled = true,
----     color = {1, 0.8, 0, 0.8},
----     lineWidth = 3,
----   },
---- })
 --- Enable debug mode for keyboard navigation
---- Use this to troubleshoot keyboard navigation issues
+--- Use this to troubleshoot keyboard navigation issues (logs focus changes, key handling, and navigation decisions)
 ---@param enabled boolean
 function flexlove.setKeyboardNavigationDebug(enabled)
   if KeyboardNavigation and KeyboardNavigation.config then

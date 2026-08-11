@@ -167,9 +167,10 @@ flexlove._LICENSE = [[
 ---@type GCConfig
 flexlove._gcConfig = {
   strategy = "auto", -- "auto", "periodic", "manual", "disabled"
-  memoryThreshold = 100, -- MB before forcing GC
+  memoryThreshold = 256, -- MB before forcing GC
   interval = 60, -- Frames between GC steps (for periodic mode)
   stepSize = 200, -- Work units per GC step (higher = more aggressive)
+  fullGCInterval = 30, -- Frames between full collects while over threshold
 }
 ---@type GCState
 flexlove._gcState = {
@@ -437,6 +438,9 @@ function flexlove.init(config)
   end
   if config.gcStepSize then
     flexlove._gcConfig.stepSize = config.gcStepSize
+  end
+  if config.gcFullGCInterval then
+    flexlove._gcConfig.fullGCInterval = config.gcFullGCInterval
   end
 
   if config.stateRetentionFrames or config.maxStateEntries then
@@ -1177,10 +1181,19 @@ function flexlove._manageGC()
 
   -- Check memory threshold (applies to all strategies except disabled)
   if currentMemory > flexlove._gcConfig.memoryThreshold then
-    -- Force full GC when exceeding threshold
-    collectgarbage("collect")
-    flexlove._gcState.gcCount = flexlove._gcState.gcCount + 1
-    flexlove._gcState.framesSinceLastGC = 0
+    -- Over threshold: run incremental steps every frame instead of a full
+    -- stop-the-world collect. A synchronous `collect` on a large heap blocks
+    -- for hundreds of milliseconds, so doing it every frame collapses the
+    -- frame rate once memory exceeds the threshold. The full collect is
+    -- throttled to only run when memory stays over threshold for a sustained
+    -- period (fullGCInterval frames).
+    if flexlove._gcState.framesSinceLastGC >= flexlove._gcConfig.fullGCInterval then
+      collectgarbage("collect")
+      flexlove._gcState.gcCount = flexlove._gcState.gcCount + 1
+      flexlove._gcState.framesSinceLastGC = 0
+    else
+      collectgarbage("step", flexlove._gcConfig.stepSize)
+    end
     return
   end
 

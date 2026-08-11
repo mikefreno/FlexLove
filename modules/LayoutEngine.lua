@@ -352,54 +352,18 @@ function LayoutEngine:_calculateFlexSizes(children, availableMainSize, gap, isHo
   return mainSizes
 end
 
---- Layout children within this element according to positioning mode
-function LayoutEngine:layoutChildren()
-  -- Start performance timing first (before any early returns)
-  local timerName = nil
-  if LayoutEngine._Performance and LayoutEngine._Performance.enabled and self.element then
-    -- Use memory address to make timer name unique per element instance
-    timerName = "layout_" .. (self.element.id or tostring(self.element):match("0x%x+") or "unknown")
-    LayoutEngine._Performance:startTimer(timerName)
+--- Stop the layout timer if it was started (early-return safe)
+---@param timerName string|nil Unique timer name from layoutChildren
+function LayoutEngine:_stopTimerIfRunning(timerName)
+  if timerName and LayoutEngine._Performance then
+    LayoutEngine._Performance:stopTimer(timerName)
   end
+end
 
-  if self.element == nil then
-    return
-  end
-
-  -- Check if layout can be skipped (memoization optimization)
-  if self:_canSkipLayout() then
-    if timerName and LayoutEngine._Performance then
-      LayoutEngine._Performance:stopTimer(timerName)
-    end
-    return
-  end
-
-  -- Track layout recalculations for performance warnings
-  self:_trackLayoutRecalculation()
-
-  -- Handle grid layout
-  if self.positioning == self._Positioning.GRID then
-    self._Grid.layoutGridItems(self.element)
-
-    -- Stop performance timing
-    if timerName and LayoutEngine._Performance then
-      LayoutEngine._Performance:stopTimer(timerName)
-    end
-    return
-  end
-
-  local childCount = #self.element.children
-
-  if childCount == 0 then
-    -- Stop performance timing
-    if timerName and LayoutEngine._Performance then
-      LayoutEngine._Performance:stopTimer(timerName)
-    end
-    return
-  end
-
-  -- Get flex children (children that participate in flex layout)
-  -- Exclude display=false (CSS display:none) and explicitly absolute children
+--- Collect children that participate in flex layout, warning when percentage
+--- sizing is used against an auto-sizing parent
+---@return table flexChildren Array of flex-participating children
+function LayoutEngine:_filterFlexChildren()
   local flexChildren = {}
   for _, child in ipairs(self.element.children) do
     local isFlexChild = not (child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute)
@@ -420,199 +384,177 @@ function LayoutEngine:layoutChildren()
       end
     end
   end
+  return flexChildren
+end
 
-  -- CSS-compliant behavior: absolutely positioned elements are completely removed from normal flow
-  -- They do NOT reserve space or affect flex layout calculations at all
+--- Position explicitly absolute children (offsets + recursive layout)
+function LayoutEngine:_positionAbsoluteChildren()
+  for i, child in ipairs(self.element.children) do
+    if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute and child.display ~= false then
+      -- Apply positioning offsets (top, right, bottom, left)
+      self:applyPositioningOffsets(child)
 
-  -- If no flex children, skip flex layout but still position absolute children
-  if #flexChildren == 0 then
-    -- Position absolutely positioned children even when there are no flex children
-    for i, child in ipairs(self.element.children) do
-      if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute and child.display ~= false then
-        self:applyPositioningOffsets(child)
-
-        -- If child has children, layout them after position change
-        if #child.children > 0 then
-          child:layoutChildren()
-        end
-      end
-    end
-
-    -- Detect overflow after children positioning
-    if self.element._detectOverflow then
-      self.element:_detectOverflow()
-    end
-
-    -- Stop performance timing
-    if timerName and LayoutEngine._Performance then
-      LayoutEngine._Performance:stopTimer(timerName)
-    end
-    return
-  end
-
-  -- Calculate available space (accounting for padding only, NOT absolute children)
-  -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
-  local availableMainSize = 0
-  local availableCrossSize = 0
-
-  -- Reserve space for scrollbars if needed (reserve-space mode)
-  local scrollbarReservedWidth = 0
-  local scrollbarReservedHeight = 0
-  if self.element._scrollManager and self.element._scrollManager.scrollbarPlacement == "reserve-space" then
-    scrollbarReservedWidth, scrollbarReservedHeight = self.element._scrollManager:getReservedSpace(self.element)
-  end
-
-  if self:_isHorizontal() then
-    availableMainSize = self.element.width - scrollbarReservedWidth
-    availableCrossSize = self.element.height - scrollbarReservedHeight
-  else
-    availableMainSize = self.element.height - scrollbarReservedHeight
-    availableCrossSize = self.element.width - scrollbarReservedWidth
-  end
-
-  -- Keep percentage-sized children in sync when container dimensions change.
-  -- Managed select frames rely on this so `width = "100%"` options expand with the dropdown.
-  if scrollbarReservedWidth > 0 or scrollbarReservedHeight > 0 or self.element:_shouldSyncPercentageDimensions() then
-    local isHorizontal = self:_isHorizontal()
-    for _, child in ipairs(flexChildren) do
-      if isHorizontal then
-        -- Horizontal flex: main-axis is width, cross-axis is height
-        -- Adjust main-axis width if percentage-based
-        if child.units and child.units.width and child.units.width.unit == "%" then
-          local newBorderBoxWidth = LayoutEngine._Utils.clamp(
-            (child.units.width.value / 100) * availableMainSize,
-            child.minWidth,
-            child.maxWidth
-          )
-          child._borderBoxWidth = newBorderBoxWidth
-          child.width = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
-        end
-        -- Adjust cross-axis height if percentage-based
-        if child.units and child.units.height and child.units.height.unit == "%" then
-          local newBorderBoxHeight = LayoutEngine._Utils.clamp(
-            (child.units.height.value / 100) * availableCrossSize,
-            child.minHeight,
-            child.maxHeight
-          )
-          child._borderBoxHeight = newBorderBoxHeight
-          child.height = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
-        end
-      else
-        -- Vertical flex: main-axis is height, cross-axis is width
-        -- Adjust main-axis height if percentage-based
-        if child.units and child.units.height and child.units.height.unit == "%" then
-          local newBorderBoxHeight = LayoutEngine._Utils.clamp(
-            (child.units.height.value / 100) * availableMainSize,
-            child.minHeight,
-            child.maxHeight
-          )
-          child._borderBoxHeight = newBorderBoxHeight
-          child.height = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
-        end
-        -- Adjust cross-axis width if percentage-based
-        if child.units and child.units.width and child.units.width.unit == "%" then
-          local rawBorderBoxWidth = (child.units.width.value / 100) * availableCrossSize
-          local newBorderBoxWidth = LayoutEngine._Utils.clamp(
-            self.element:_adjustCrossAxisPercentageWidth(child, rawBorderBoxWidth),
-            child.minWidth,
-            child.maxWidth
-          )
-          child._borderBoxWidth = newBorderBoxWidth
-          child.width = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
-        end
+      -- If child has children, layout them after position change
+      if #child.children > 0 then
+        child:layoutChildren()
       end
     end
   end
+end
 
-  -- Handle flex wrap: create lines of children
+--- Keep percentage-sized children in sync when container dimensions change.
+--- Managed select frames rely on this so `width = "100%"` options expand with the dropdown.
+---@param availableMainSize number
+---@param availableCrossSize number
+---@param isHorizontal boolean
+function LayoutEngine:_syncPercentageChildren(availableMainSize, availableCrossSize, isHorizontal)
+  for _, child in ipairs(self:_filterFlexChildren()) do
+    if isHorizontal then
+      -- Horizontal flex: main-axis is width, cross-axis is height
+      -- Adjust main-axis width if percentage-based
+      if child.units and child.units.width and child.units.width.unit == "%" then
+        local newBorderBoxWidth =
+          LayoutEngine._Utils.clamp((child.units.width.value / 100) * availableMainSize, child.minWidth, child.maxWidth)
+        child._borderBoxWidth = newBorderBoxWidth
+        child.width = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
+      end
+      -- Adjust cross-axis height if percentage-based
+      if child.units and child.units.height and child.units.height.unit == "%" then
+        local newBorderBoxHeight = LayoutEngine._Utils.clamp(
+          (child.units.height.value / 100) * availableCrossSize,
+          child.minHeight,
+          child.maxHeight
+        )
+        child._borderBoxHeight = newBorderBoxHeight
+        child.height = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
+      end
+    else
+      -- Vertical flex: main-axis is height, cross-axis is width
+      -- Adjust main-axis height if percentage-based
+      if child.units and child.units.height and child.units.height.unit == "%" then
+        local newBorderBoxHeight = LayoutEngine._Utils.clamp(
+          (child.units.height.value / 100) * availableMainSize,
+          child.minHeight,
+          child.maxHeight
+        )
+        child._borderBoxHeight = newBorderBoxHeight
+        child.height = math.max(0, newBorderBoxHeight - child.padding.top - child.padding.bottom)
+      end
+      -- Adjust cross-axis width if percentage-based
+      if child.units and child.units.width and child.units.width.unit == "%" then
+        local rawBorderBoxWidth = (child.units.width.value / 100) * availableCrossSize
+        local newBorderBoxWidth = LayoutEngine._Utils.clamp(
+          self.element:_adjustCrossAxisPercentageWidth(child, rawBorderBoxWidth),
+          child.minWidth,
+          child.maxWidth
+        )
+        child._borderBoxWidth = newBorderBoxWidth
+        child.width = math.max(0, newBorderBoxWidth - child.padding.left - child.padding.right)
+      end
+    end
+  end
+end
+
+--- Split flex children into wrapped lines (or a single line for NOWRAP)
+---@param flexChildren table Array of flex-participating children
+---@param availableMainSize number
+---@return table lines Array of lines (each line is an array of children)
+function LayoutEngine:_wrapLines(flexChildren, availableMainSize)
   local lines = {}
 
   if self.flexWrap == self._FlexWrap.NOWRAP then
     -- All children go on one line
     lines[1] = flexChildren
-  else
-    -- Wrap children into multiple lines
-    local currentLine = {}
-    local currentLineSize = 0
+    return lines
+  end
 
-    -- Performance optimization: hoist enum comparisons outside loop
-    local isHorizontal = self:_isHorizontal()
-    local gapSize = self.gap
-    local viewportWidth, viewportHeight = self._Units.getViewport()
+  -- Wrap children into multiple lines
+  local currentLine = {}
+  local currentLineSize = 0
 
-    local function resolveDeclaredMainSizeForWrap(child)
-      local axisUnits = nil
-      if child.units then
-        axisUnits = isHorizontal and child.units.width or child.units.height
-      end
+  -- Performance optimization: hoist enum comparisons outside loop
+  local isHorizontal = self:_isHorizontal()
+  local gapSize = self.gap
+  local viewportWidth, viewportHeight = self._Units.getViewport()
 
-      if not axisUnits or axisUnits.unit == "auto" or axisUnits.value == nil then
-        return nil
-      end
+  local function resolveDeclaredMainSizeForWrap(child)
+    local axisUnits = nil
+    if child.units then
+      axisUnits = isHorizontal and child.units.width or child.units.height
+    end
 
-      local resolved =
-        self._Units.resolve(axisUnits.value, axisUnits.unit, viewportWidth, viewportHeight, availableMainSize)
-
-      if type(resolved) == "number" then
-        return math.max(0, resolved)
-      end
-
+    if not axisUnits or axisUnits.unit == "auto" or axisUnits.value == nil then
       return nil
     end
 
-    for _, child in ipairs(flexChildren) do
-      -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
-      -- Include margins in size calculations
-      -- Performance optimization: hoist margin table access
-      local childMargin = child.margin
-      local childMainSize = 0
-      local childMainMargin = 0
-      local declaredMainSize = resolveDeclaredMainSizeForWrap(child)
-      if isHorizontal then
-        childMainSize = declaredMainSize or child:getBorderBoxWidth()
-        childMainMargin = childMargin.left + childMargin.right
-      else
-        childMainSize = declaredMainSize or child:getBorderBoxHeight()
-        childMainMargin = childMargin.top + childMargin.bottom
-      end
-      local childTotalMainSize = childMainSize + childMainMargin
+    local resolved =
+      self._Units.resolve(axisUnits.value, axisUnits.unit, viewportWidth, viewportHeight, availableMainSize)
 
-      -- Check if adding this child would exceed the available space
-      local lineSpacing = #currentLine > 0 and gapSize or 0
-      if #currentLine > 0 and currentLineSize + lineSpacing + childTotalMainSize > availableMainSize then
-        -- Start a new line
-        if #currentLine > 0 then
-          table.insert(lines, currentLine)
-        end
-        currentLine = { child }
-        currentLineSize = childTotalMainSize
-      else
-        -- Add to current line
-        table.insert(currentLine, child)
-        currentLineSize = currentLineSize + lineSpacing + childTotalMainSize
-      end
+    if type(resolved) == "number" then
+      return math.max(0, resolved)
     end
 
-    -- Add the last line if it has children
-    if #currentLine > 0 then
-      table.insert(lines, currentLine)
-    end
+    return nil
+  end
 
-    -- Handle wrap-reverse: reverse the order of lines
-    if self.flexWrap == self._FlexWrap.WRAP_REVERSE then
-      local reversedLines = {}
-      for i = #lines, 1, -1 do
-        table.insert(reversedLines, lines[i])
+  for _, child in ipairs(flexChildren) do
+    -- BORDER-BOX MODEL: Use border-box dimensions for layout calculations
+    -- Include margins in size calculations
+    -- Performance optimization: hoist margin table access
+    local childMargin = child.margin
+    local childMainSize = 0
+    local childMainMargin = 0
+    local declaredMainSize = resolveDeclaredMainSizeForWrap(child)
+    if isHorizontal then
+      childMainSize = declaredMainSize or child:getBorderBoxWidth()
+      childMainMargin = childMargin.left + childMargin.right
+    else
+      childMainSize = declaredMainSize or child:getBorderBoxHeight()
+      childMainMargin = childMargin.top + childMargin.bottom
+    end
+    local childTotalMainSize = childMainSize + childMainMargin
+
+    -- Check if adding this child would exceed the available space
+    local lineSpacing = #currentLine > 0 and gapSize or 0
+    if #currentLine > 0 and currentLineSize + lineSpacing + childTotalMainSize > availableMainSize then
+      -- Start a new line
+      if #currentLine > 0 then
+        table.insert(lines, currentLine)
       end
-      lines = reversedLines
+      currentLine = { child }
+      currentLineSize = childTotalMainSize
+    else
+      -- Add to current line
+      table.insert(currentLine, child)
+      currentLineSize = currentLineSize + lineSpacing + childTotalMainSize
     end
   end
 
-  -- Apply flex sizing to each line BEFORE calculating line heights
+  -- Add the last line if it has children
+  if #currentLine > 0 then
+    table.insert(lines, currentLine)
+  end
+
+  -- Handle wrap-reverse: reverse the order of lines
+  if self.flexWrap == self._FlexWrap.WRAP_REVERSE then
+    local reversedLines = {}
+    for i = #lines, 1, -1 do
+      table.insert(reversedLines, lines[i])
+    end
+    lines = reversedLines
+  end
+
+  return lines
+end
+
+--- Apply flex grow/shrink sizing to each line
+---@param lines table Array of lines
+---@param availableMainSize number
+---@param isHorizontal boolean
+function LayoutEngine:_applyFlexSizing(lines, availableMainSize, isHorizontal)
   -- Performance optimization: hoist enum comparison outside loop
-  local isHorizontal = self:_isHorizontal()
   local mainAxisOverflow = nil
-  if self:_isHorizontal() then
+  if isHorizontal then
     mainAxisOverflow = self.element.overflowX or self.element.overflow
   else
     mainAxisOverflow = self.element.overflowY or self.element.overflow
@@ -668,14 +610,17 @@ function LayoutEngine:layoutChildren()
       end
     end
   end
+end
 
-  -- Calculate line positions and heights (including child padding)
+--- Compute per-line cross sizes and the total lines height
+---@param lines table Array of lines
+---@param isHorizontal boolean
+---@param availableCrossSize number
+---@return table lineHeights, number totalLinesHeight
+function LayoutEngine:_computeLineHeights(lines, isHorizontal, availableCrossSize)
   -- Performance optimization: preallocate array if possible
   local lineHeights = table.create and table.create(#lines) or {}
   local totalLinesHeight = 0
-
-  -- Performance optimization: hoist enum comparison outside loop (already hoisted above)
-  -- local isHorizontal = self.flexDirection == self._FlexDirection.HORIZONTAL
 
   for lineIndex, line in ipairs(lines) do
     local maxCrossSize = 0
@@ -700,10 +645,6 @@ function LayoutEngine:layoutChildren()
     totalLinesHeight = totalLinesHeight + maxCrossSize
   end
 
-  -- Account for gaps between lines
-  local lineGaps = math.max(0, #lines - 1) * self.gap
-  totalLinesHeight = totalLinesHeight + lineGaps
-
   -- For single line layouts, CENTER, FLEX_END and STRETCH should use full cross size
   if #lines == 1 then
     if
@@ -719,7 +660,15 @@ function LayoutEngine:layoutChildren()
     -- and only affect positioning within the available space
   end
 
-  -- Calculate starting position for lines based on alignContent
+  return lineHeights, totalLinesHeight
+end
+
+--- Resolve line start position and spacing from alignContent
+---@param lineHeights table Line heights (may be mutated for STRETCH)
+---@param totalLinesHeight number
+---@param availableCrossSize number
+---@return number lineStartPos, number lineSpacing
+function LayoutEngine:_resolveAlignContent(lineHeights, totalLinesHeight, availableCrossSize)
   local lineStartPos = 0
   local lineSpacing = self.gap
   local freeLineSpace = availableCrossSize - totalLinesHeight
@@ -733,26 +682,43 @@ function LayoutEngine:layoutChildren()
     lineStartPos = freeLineSpace
   elseif self.alignContent == self._AlignContent.SPACE_BETWEEN then
     lineStartPos = 0
-    if #lines > 1 then
-      lineSpacing = self.gap + (freeLineSpace / (#lines - 1))
+    if #lineHeights > 1 then
+      lineSpacing = self.gap + (freeLineSpace / (#lineHeights - 1))
     end
   elseif self.alignContent == self._AlignContent.SPACE_AROUND then
-    local spaceAroundEach = freeLineSpace / #lines
+    local spaceAroundEach = freeLineSpace / #lineHeights
     lineStartPos = spaceAroundEach / 2
     lineSpacing = self.gap + spaceAroundEach
   elseif self.alignContent == self._AlignContent.STRETCH then
     lineStartPos = 0
-    if #lines > 1 and freeLineSpace > 0 then
-      lineSpacing = self.gap + (freeLineSpace / #lines)
+    if #lineHeights > 1 and freeLineSpace > 0 then
+      lineSpacing = self.gap + (freeLineSpace / #lineHeights)
       -- Distribute extra space to line heights (only if positive)
-      local extraPerLine = freeLineSpace / #lines
+      local extraPerLine = freeLineSpace / #lineHeights
       for i = 1, #lineHeights do
         lineHeights[i] = lineHeights[i] + extraPerLine
       end
     end
   end
 
-  -- Position children within each line
+  return lineStartPos, lineSpacing
+end
+
+--- Position children within each line (justifyContent + per-child alignment)
+---@param lines table Array of lines
+---@param lineHeights table Computed line heights
+---@param availableMainSize number
+---@param availableCrossSize number
+---@param lineStartPos number
+---@param lineSpacing number
+function LayoutEngine:_positionLines(
+  lines,
+  lineHeights,
+  availableMainSize,
+  availableCrossSize,
+  lineStartPos,
+  lineSpacing
+)
   local currentCrossPos = lineStartPos
 
   for lineIndex, line in ipairs(lines) do
@@ -937,51 +903,121 @@ function LayoutEngine:layoutChildren()
     -- Move to next line position
     currentCrossPos = currentCrossPos + lineHeight + lineSpacing
   end
+end
 
-  -- Position explicitly absolute children after flex layout
-  for i, child in ipairs(self.element.children) do
-    if child.positioning == self._Positioning.ABSOLUTE and child._explicitlyAbsolute and child.display ~= false then
-      -- Apply positioning offsets (top, right, bottom, left)
-      self:applyPositioningOffsets(child)
-
-      -- If child has children, layout them after position change
-      if #child.children > 0 then
-        child:layoutChildren()
-      end
-    end
+--- Layout children within this element according to positioning mode
+function LayoutEngine:layoutChildren()
+  -- Start performance timing first (before any early returns)
+  local timerName = nil
+  if LayoutEngine._Performance and LayoutEngine._Performance.enabled and self.element then
+    -- Use memory address to make timer name unique per element instance
+    timerName = "layout_" .. (self.element.id or tostring(self.element):match("0x%x+") or "unknown")
+    LayoutEngine._Performance:startTimer(timerName)
   end
 
+  if self.element == nil then
+    return
+  end
+
+  -- Check if layout can be skipped (memoization optimization)
+  if self:_canSkipLayout() then
+    self:_stopTimerIfRunning(timerName)
+    return
+  end
+
+  -- Track layout recalculations for performance warnings
+  self:_trackLayoutRecalculation()
+
+  -- Handle grid layout
+  if self.positioning == self._Positioning.GRID then
+    self._Grid.layoutGridItems(self.element)
+
+    -- Stop performance timing
+    self:_stopTimerIfRunning(timerName)
+    return
+  end
+
+  if #self.element.children == 0 then
+    -- Stop performance timing
+    self:_stopTimerIfRunning(timerName)
+    return
+  end
+
+  -- Get flex children (children that participate in flex layout)
+  -- Exclude display=false (CSS display:none) and explicitly absolute children
+  local flexChildren = self:_filterFlexChildren()
+
+  -- CSS-compliant behavior: absolutely positioned elements are completely removed from normal flow
+  -- They do NOT reserve space or affect flex layout calculations at all
+
+  -- If no flex children, skip flex layout but still position absolute children
+  if #flexChildren == 0 then
+    -- Position absolutely positioned children even when there are no flex children
+    self:_positionAbsoluteChildren()
+
+    -- Detect overflow after children positioning
+    if self.element._detectOverflow then
+      self.element:_detectOverflow()
+    end
+
+    -- Stop performance timing
+    self:_stopTimerIfRunning(timerName)
+    return
+  end
+
+  -- Calculate available space (accounting for padding only, NOT absolute children)
+  -- BORDER-BOX MODEL: element.width and element.height are already content dimensions (padding subtracted)
+  local availableMainSize = 0
+  local availableCrossSize = 0
+
+  -- Reserve space for scrollbars if needed (reserve-space mode)
+  local scrollbarReservedWidth = 0
+  local scrollbarReservedHeight = 0
+  if self.element._scrollManager and self.element._scrollManager.scrollbarPlacement == "reserve-space" then
+    scrollbarReservedWidth, scrollbarReservedHeight = self.element._scrollManager:getReservedSpace(self.element)
+  end
+
+  if self:_isHorizontal() then
+    availableMainSize = self.element.width - scrollbarReservedWidth
+    availableCrossSize = self.element.height - scrollbarReservedHeight
+  else
+    availableMainSize = self.element.height - scrollbarReservedHeight
+    availableCrossSize = self.element.width - scrollbarReservedWidth
+  end
+
+  -- Keep percentage-sized children in sync when container dimensions change.
+  -- Managed select frames rely on this so `width = "100%"` options expand with the dropdown.
+  if scrollbarReservedWidth > 0 or scrollbarReservedHeight > 0 or self.element:_shouldSyncPercentageDimensions() then
+    self:_syncPercentageChildren(availableMainSize, availableCrossSize, self:_isHorizontal())
+  end
+
+  -- Handle flex wrap: create lines of children
+  local lines = self:_wrapLines(flexChildren, availableMainSize)
+
+  -- Apply flex sizing to each line BEFORE calculating line heights
+  self:_applyFlexSizing(lines, availableMainSize, self:_isHorizontal())
+
+  -- Calculate line positions and heights (including child padding)
+  local lineHeights, totalLinesHeight = self:_computeLineHeights(lines, self:_isHorizontal(), availableCrossSize)
+
+  -- Account for gaps between lines
+  local lineGaps = math.max(0, #lines - 1) * self.gap
+  totalLinesHeight = totalLinesHeight + lineGaps
+
+  -- Calculate starting position for lines based on alignContent
+  local lineStartPos, lineSpacing = self:_resolveAlignContent(lineHeights, totalLinesHeight, availableCrossSize)
+
+  -- Position children within each line
+  self:_positionLines(lines, lineHeights, availableMainSize, availableCrossSize, lineStartPos, lineSpacing)
+
+  -- Position explicitly absolute children after flex layout
+  self:_positionAbsoluteChildren()
   -- flex-direction: row-reverse / column-reverse — mirror the main-axis
   -- position of each flex child relative to the container content area, and
   -- shift the child's subtree by the same delta so descendants follow.
   -- Cross-axis positions and absolute children are not affected.
   if self:_isReverse() then
-    local parent = self.element
-    local padLeft = parent.padding.left
-    local padTop = parent.padding.top
-    local contentW = parent.width
-    local contentH = parent.height
-    local mirrorHorizontal = self:_isHorizontal()
-
-    for _, child in ipairs(flexChildren) do
-      if mirrorHorizontal then
-        local distFromLeft = child.x - parent.x - padLeft
-        local childW = child:getBorderBoxWidth()
-        local newDistFromLeft = contentW - distFromLeft - childW
-        local dx = newDistFromLeft - distFromLeft
-        if dx ~= 0 then
-          shiftSubtree(child, dx, 0)
-        end
-      else
-        local distFromTop = child.y - parent.y - padTop
-        local childH = child:getBorderBoxHeight()
-        local newDistFromTop = contentH - distFromTop - childH
-        local dy = newDistFromTop - distFromTop
-        if dy ~= 0 then
-          shiftSubtree(child, 0, dy)
-        end
-      end
-    end
+    self:_mirrorReverseChildren(flexChildren)
   end
 
   -- position: relative — shift each in-flow child by (left or -right,
@@ -992,6 +1028,50 @@ function LayoutEngine:layoutChildren()
   -- (absolute uses applyPositioningOffsets; flex-participating children
   -- dropped the offsets and emitted LAY_011 at construction). Runs for every
   -- container type so relative children in relative containers also honor offsets.
+  self:_applyRelativeOffsets()
+
+  -- Detect overflow after children are laid out
+  if self.element._detectOverflow then
+    self.element:_detectOverflow()
+  end
+
+  -- Stop performance timing
+  self:_stopTimerIfRunning(timerName)
+end
+
+--- Mirror each flex child's main-axis position for row-reverse/column-reverse
+---@param flexChildren table Flex-participating children
+function LayoutEngine:_mirrorReverseChildren(flexChildren)
+  local parent = self.element
+  local padLeft = parent.padding.left
+  local padTop = parent.padding.top
+  local contentW = parent.width
+  local contentH = parent.height
+  local mirrorHorizontal = self:_isHorizontal()
+
+  for _, child in ipairs(flexChildren) do
+    if mirrorHorizontal then
+      local distFromLeft = child.x - parent.x - padLeft
+      local childW = child:getBorderBoxWidth()
+      local newDistFromLeft = contentW - distFromLeft - childW
+      local dx = newDistFromLeft - distFromLeft
+      if dx ~= 0 then
+        shiftSubtree(child, dx, 0)
+      end
+    else
+      local distFromTop = child.y - parent.y - padTop
+      local childH = child:getBorderBoxHeight()
+      local newDistFromTop = contentH - distFromTop - childH
+      local dy = newDistFromTop - distFromTop
+      if dy ~= 0 then
+        shiftSubtree(child, 0, dy)
+      end
+    end
+  end
+end
+
+--- Shift relative children by their CSS top/bottom/left/right offsets
+function LayoutEngine:_applyRelativeOffsets()
   for _, child in ipairs(self.element.children) do
     if child.positioning == self._Positioning.RELATIVE and child.display ~= false then
       local dx, dy = 0, 0
@@ -1009,16 +1089,6 @@ function LayoutEngine:layoutChildren()
         shiftSubtree(child, dx, dy)
       end
     end
-  end
-
-  -- Detect overflow after children are laid out
-  if self.element._detectOverflow then
-    self.element:_detectOverflow()
-  end
-
-  -- Stop performance timing
-  if timerName and LayoutEngine._Performance then
-    LayoutEngine._Performance:stopTimer(timerName)
   end
 end
 
@@ -1264,17 +1334,12 @@ function LayoutEngine:calculateAutoHeight()
   end
 end
 
---- Recalculate units based on new viewport dimensions (for vw, vh, % units)
+--- Recalculate border-box width from viewport/percentage units
 ---@param newViewportWidth number
 ---@param newViewportHeight number
-function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
-  if self.element == nil then
-    return
-  end
+---@param scaleX number X scale factor
+function LayoutEngine:_recalcBoxWidth(newViewportWidth, newViewportHeight, scaleX)
   local Units = self._Units
-
-  -- Get updated scale factors
-  local scaleX, scaleY = self._Context.getScaleFactors()
 
   -- Recalculate border-box width if using viewport or percentage units (skip auto-sized)
   -- Store in _borderBoxWidth temporarily, will calculate content width after padding is resolved
@@ -1291,6 +1356,14 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     -- Reapply base scaling to pixel widths (border-box)
     self.element._borderBoxWidth = self.element.units.width.value * scaleX
   end
+end
+
+--- Recalculate border-box height from viewport/percentage units
+---@param newViewportWidth number
+---@param newViewportHeight number
+---@param scaleY number Y scale factor
+function LayoutEngine:_recalcBoxHeight(newViewportWidth, newViewportHeight, scaleY)
+  local Units = self._Units
 
   -- Recalculate border-box height if using viewport or percentage units (skip auto-sized)
   -- Store in _borderBoxHeight temporarily, will calculate content height after padding is resolved
@@ -1307,113 +1380,120 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     -- Reapply base scaling to pixel heights (border-box)
     self.element._borderBoxHeight = self.element.units.height.value * scaleY
   end
+end
 
-  -- Recalculate position if using viewport or percentage units
-  -- Skip position recalculation for flex children (non-explicitly-absolute children with a parent)
-  -- Their x/y is entirely controlled by the parent's layoutChildren() call
-  local isFlexChild = self.element.parent and not self.element._explicitlyAbsolute
-  if not isFlexChild then
-    if self.element.units.x.unit ~= "px" then
-      local parentWidth = self.element.parent and self.element.parent.width or newViewportWidth
-      local baseX = self.element.parent and self.element.parent.x or 0
-      local offsetX = Units.resolve(
-        self.element.units.x.value,
-        self.element.units.x.unit,
-        newViewportWidth,
-        newViewportHeight,
-        parentWidth
-      )
-      self.element.x = baseX + offsetX
-    else
-      -- For pixel units, update position relative to parent's new position (with base scaling)
-      if self.element.parent then
-        local baseX = self.element.parent.x
-        local scaledOffset = self._Context.baseScale and (self.element.units.x.value * scaleX)
-          or self.element.units.x.value
-        self.element.x = baseX + scaledOffset
-      elseif self._Context.baseScale then
-        -- Top-level element with pixel position - apply base scaling
-        self.element.x = self.element.units.x.value * scaleX
-      end
-    end
+--- Recalculate x/y position from viewport/percentage units (non-flex children only)
+---@param newViewportWidth number
+---@param newViewportHeight number
+---@param scaleX number X scale factor
+---@param scaleY number Y scale factor
+function LayoutEngine:_recalcPosition(newViewportWidth, newViewportHeight, scaleX, scaleY)
+  local Units = self._Units
+  local element = self.element
 
-    if self.element.units.y.unit ~= "px" then
-      local parentHeight = self.element.parent and self.element.parent.height or newViewportHeight
-      local baseY = self.element.parent and self.element.parent.y or 0
-      local offsetY = Units.resolve(
-        self.element.units.y.value,
-        self.element.units.y.unit,
-        newViewportWidth,
-        newViewportHeight,
-        parentHeight
-      )
-      self.element.y = baseY + offsetY
-    else
-      -- For pixel units, update position relative to parent's new position (with base scaling)
-      if self.element.parent then
-        local baseY = self.element.parent.y
-        local scaledOffset = self._Context.baseScale and (self.element.units.y.value * scaleY)
-          or self.element.units.y.value
-        self.element.y = baseY + scaledOffset
-      elseif self._Context.baseScale then
-        -- Top-level element with pixel position - apply base scaling
-        self.element.y = self.element.units.y.value * scaleY
-      end
+  if element.units.x.unit ~= "px" then
+    local parentWidth = element.parent and element.parent.width or newViewportWidth
+    local baseX = element.parent and element.parent.x or 0
+    local offsetX =
+      Units.resolve(element.units.x.value, element.units.x.unit, newViewportWidth, newViewportHeight, parentWidth)
+    element.x = baseX + offsetX
+  else
+    -- For pixel units, update position relative to parent's new position (with base scaling)
+    if element.parent then
+      local baseX = element.parent.x
+      local scaledOffset = self._Context.baseScale and (element.units.x.value * scaleX) or element.units.x.value
+      element.x = baseX + scaledOffset
+    elseif self._Context.baseScale then
+      -- Top-level element with pixel position - apply base scaling
+      element.x = element.units.x.value * scaleX
     end
   end
 
-  -- Recalculate textSize if auto-scaling is enabled or using viewport/element-relative units
-  if self.element.autoScaleText and self.element.units.textSize.value then
-    local unit = self.element.units.textSize.unit
-    local value = self.element.units.textSize.value
+  if element.units.y.unit ~= "px" then
+    local parentHeight = element.parent and element.parent.height or newViewportHeight
+    local baseY = element.parent and element.parent.y or 0
+    local offsetY =
+      Units.resolve(element.units.y.value, element.units.y.unit, newViewportWidth, newViewportHeight, parentHeight)
+    element.y = baseY + offsetY
+  else
+    -- For pixel units, update position relative to parent's new position (with base scaling)
+    if element.parent then
+      local baseY = element.parent.y
+      local scaledOffset = self._Context.baseScale and (element.units.y.value * scaleY) or element.units.y.value
+      element.y = baseY + scaledOffset
+    elseif self._Context.baseScale then
+      -- Top-level element with pixel position - apply base scaling
+      element.y = element.units.y.value * scaleY
+    end
+  end
+end
+
+--- Recalculate textSize from auto-scaling or viewport/element-relative units
+---@param newViewportWidth number
+---@param newViewportHeight number
+---@param scaleY number Y scale factor
+function LayoutEngine:_recalcTextSize(newViewportWidth, newViewportHeight, scaleY)
+  local Units = self._Units
+  local element = self.element
+
+  if element.autoScaleText and element.units.textSize.value then
+    local unit = element.units.textSize.unit
+    local value = element.units.textSize.value
 
     if unit == "px" and self._Context.baseScale then
       -- With base scaling: scale pixel values relative to base resolution
-      self.element.textSize = value * scaleY
+      element.textSize = value * scaleY
     elseif unit == "px" then
       -- Without base scaling but auto-scaling enabled: text doesn't scale
-      self.element.textSize = value
+      element.textSize = value
     elseif unit == "%" or unit == "vh" then
       -- Percentage and vh are relative to viewport height
-      self.element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
+      element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportHeight)
     elseif unit == "vw" then
       -- vw is relative to viewport width
-      self.element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportWidth)
+      element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, newViewportWidth)
     else
-      self.element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
+      element.textSize = Units.resolve(value, unit, newViewportWidth, newViewportHeight, nil)
     end
 
     -- Apply min/max constraints (with base scaling)
-    local minSize = self.element.minTextSize
-      and (self._Context.baseScale and (self.element.minTextSize * scaleY) or self.element.minTextSize)
-    local maxSize = self.element.maxTextSize
-      and (self._Context.baseScale and (self.element.maxTextSize * scaleY) or self.element.maxTextSize)
+    local minSize = element.minTextSize
+      and (self._Context.baseScale and (element.minTextSize * scaleY) or element.minTextSize)
+    local maxSize = element.maxTextSize
+      and (self._Context.baseScale and (element.maxTextSize * scaleY) or element.maxTextSize)
 
-    if minSize and self.element.textSize < minSize then
-      self.element.textSize = minSize
+    if minSize and element.textSize < minSize then
+      element.textSize = minSize
     end
-    if maxSize and self.element.textSize > maxSize then
-      self.element.textSize = maxSize
+    if maxSize and element.textSize > maxSize then
+      element.textSize = maxSize
     end
 
     -- Protect against too-small text sizes (minimum 1px)
-    if self.element.textSize < 1 then
-      self.element.textSize = 1 -- Minimum 1px
+    if element.textSize < 1 then
+      element.textSize = 1 -- Minimum 1px
     end
-  elseif self.element.units.textSize.unit == "px" and self.element.units.textSize.value and self._Context.baseScale then
+  elseif element.units.textSize.unit == "px" and element.units.textSize.value and self._Context.baseScale then
     -- No auto-scaling but base scaling is set: reapply base scaling to pixel text sizes
-    self.element.textSize = self.element.units.textSize.value * scaleY
+    element.textSize = element.units.textSize.value * scaleY
 
     -- Protect against too-small text sizes (minimum 1px)
-    if self.element.textSize < 1 then
-      self.element.textSize = 1 -- Minimum 1px
+    if element.textSize < 1 then
+      element.textSize = 1 -- Minimum 1px
     end
   end
 
   -- Final protection: ensure textSize is always at least 1px (catches all edge cases)
-  if self.element.text and self.element.textSize and self.element.textSize < 1 then
-    self.element.textSize = 1 -- Minimum 1px
+  if element.text and element.textSize and element.textSize < 1 then
+    element.textSize = 1 -- Minimum 1px
   end
+end
+
+--- Recalculate gap from viewport/percentage units
+---@param newViewportWidth number
+---@param newViewportHeight number
+function LayoutEngine:_recalcGap(newViewportWidth, newViewportHeight)
+  local Units = self._Units
 
   -- Recalculate gap if using viewport or percentage units
   if self.element.units.gap.unit ~= "px" then
@@ -1428,33 +1508,173 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
       containerSize
     )
   end
+end
+
+--- Recalculate flexBasis from viewport/percentage units
+---@param newViewportWidth number
+---@param newViewportHeight number
+function LayoutEngine:_recalcFlexBasis(newViewportWidth, newViewportHeight)
+  local Units = self._Units
+  local element = self.element
 
   -- Recalculate flexBasis if using viewport or percentage units
-  if
-    self.element.units.flexBasis
-    and self.element.units.flexBasis.unit ~= "auto"
-    and self.element.units.flexBasis.unit ~= "px"
-  then
-    local value, unit = self.element.units.flexBasis.value, self.element.units.flexBasis.unit
+  if element.units.flexBasis and element.units.flexBasis.unit ~= "auto" and element.units.flexBasis.unit ~= "px" then
+    local value, unit = element.units.flexBasis.value, element.units.flexBasis.unit
     -- flexBasis uses parent main-axis size for percentage resolution.
     local parentMainIsHorizontal = true
-    if self.element.parent and self.element.parent.flexDirection then
-      local pd = self.element.parent.flexDirection
+    if element.parent and element.parent.flexDirection then
+      local pd = element.parent.flexDirection
       parentMainIsHorizontal = pd == self._FlexDirection.HORIZONTAL or pd == self._FlexDirection.HORIZONTAL_REVERSE
     end
     local parentSize = newViewportWidth
-    if self.element.parent then
+    if element.parent then
       if parentMainIsHorizontal then
-        parentSize = self.element.parent.width
+        parentSize = element.parent.width
       else
-        parentSize = self.element.parent.height
+        parentSize = element.parent.height
       end
     end
     local resolvedBasis = Units.resolve(value, unit, newViewportWidth, newViewportHeight, parentSize)
     if type(resolvedBasis) == "number" then
-      self.element.flexBasis = resolvedBasis
+      element.flexBasis = resolvedBasis
     end
   end
+end
+
+--- Resolve a spacing shorthand axis (horizontal/vertical), nil when not set
+---@param kind string "padding" or "margin"
+---@param axis string "horizontal" or "vertical"
+---@param parentSize number Percentage base size
+---@param newViewportWidth number
+---@param newViewportHeight number
+---@return number|nil resolved
+function LayoutEngine:_resolveSpacingShorthand(kind, axis, parentSize, newViewportWidth, newViewportHeight)
+  local unitSpec = self.element.units[kind][axis]
+  if not unitSpec then
+    return nil
+  end
+  if unitSpec.unit ~= "px" then
+    return self._Units.resolve(unitSpec.value, unitSpec.unit, newViewportWidth, newViewportHeight, parentSize)
+  elseif unitSpec.value then
+    return unitSpec.value
+  end
+  return nil
+end
+
+--- Resolve all four spacing sides (padding or margin) with shorthand fallback
+---@param kind string "padding" or "margin"
+---@param resolvedHorizontal number|nil Resolved horizontal shorthand
+---@param resolvedVertical number|nil Resolved vertical shorthand
+---@param parentBorderBoxWidth number
+---@param parentBorderBoxHeight number
+---@param newViewportWidth number
+---@param newViewportHeight number
+function LayoutEngine:_resolveSpacingSides(
+  kind,
+  resolvedHorizontal,
+  resolvedVertical,
+  parentBorderBoxWidth,
+  parentBorderBoxHeight,
+  newViewportWidth,
+  newViewportHeight
+)
+  local Units = self._Units
+  local element = self.element
+
+  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
+    -- Check if this side was explicitly set or if we should use shorthand
+    local useShorthand = false
+    if not element.units[kind][side].explicit then
+      -- Not explicitly set, check if we have shorthand
+      if side == "left" or side == "right" then
+        useShorthand = resolvedHorizontal ~= nil
+      elseif side == "top" or side == "bottom" then
+        useShorthand = resolvedVertical ~= nil
+      end
+    end
+
+    if useShorthand then
+      -- Use shorthand value
+      if side == "left" or side == "right" then
+        element[kind][side] = resolvedHorizontal
+      else
+        element[kind][side] = resolvedVertical
+      end
+    elseif element.units[kind][side].unit ~= "px" then
+      -- Recalculate non-pixel units
+      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
+      element[kind][side] = Units.resolve(
+        element.units[kind][side].value,
+        element.units[kind][side].unit,
+        newViewportWidth,
+        newViewportHeight,
+        parentSize
+      )
+    end
+    -- If unit is "px" and not using shorthand, value stays the same
+  end
+end
+
+--- Recalculate content width/height from border-box dimensions
+function LayoutEngine:_recalcContentSize()
+  local element = self.element
+
+  -- BORDER-BOX MODEL: Calculate content dimensions from border-box dimensions
+  -- For explicitly-sized elements (non-auto), _borderBoxWidth/_borderBoxHeight were set earlier
+  -- Now we calculate content width/height by subtracting padding
+  -- Only recalculate if using viewport/percentage units (where _borderBoxWidth actually changed)
+  if element.units.width.unit ~= "auto" and element.units.width.unit ~= "px" then
+    -- _borderBoxWidth was recalculated for viewport/percentage units
+    -- Calculate content width by subtracting padding
+    element.width = math.max(0, element._borderBoxWidth - element.padding.left - element.padding.right)
+  elseif element.units.width.unit == "auto" then
+    -- For auto-sized elements, width is content width (calculated in resize method)
+    -- Update border-box to include padding
+    element._borderBoxWidth = element.width + element.padding.left + element.padding.right
+  end
+  -- For pixel units, width stays as-is (may have been manually modified)
+
+  if element.units.height.unit ~= "auto" and element.units.height.unit ~= "px" then
+    -- _borderBoxHeight was recalculated for viewport/percentage units
+    -- Calculate content height by subtracting padding
+    element.height = math.max(0, element._borderBoxHeight - element.padding.top - element.padding.bottom)
+  elseif element.units.height.unit == "auto" then
+    -- For auto-sized elements, height is content height (calculated in resize method)
+    -- Update border-box to include padding
+    element._borderBoxHeight = element.height + element.padding.top + element.padding.bottom
+  end
+  -- For pixel units, height stays as-is (may have been manually modified)
+end
+
+--- Recalculate units based on new viewport dimensions (for vw, vh, % units)
+---@param newViewportWidth number
+---@param newViewportHeight number
+function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
+  if self.element == nil then
+    return
+  end
+  local scaleX, scaleY = self._Context.getScaleFactors()
+
+  -- Recalculate border-box width/height if using viewport or percentage units
+  self:_recalcBoxWidth(newViewportWidth, newViewportHeight, scaleX)
+  self:_recalcBoxHeight(newViewportWidth, newViewportHeight, scaleY)
+
+  -- Recalculate position if using viewport or percentage units
+  -- Skip position recalculation for flex children (non-explicitly-absolute children with a parent)
+  -- Their x/y is entirely controlled by the parent's layoutChildren() call
+  local isFlexChild = self.element.parent and not self.element._explicitlyAbsolute
+  if not isFlexChild then
+    self:_recalcPosition(newViewportWidth, newViewportHeight, scaleX, scaleY)
+  end
+
+  -- Recalculate textSize if auto-scaling is enabled or using viewport/element-relative units
+  self:_recalcTextSize(newViewportWidth, newViewportHeight, scaleY)
+
+  -- Recalculate gap if using viewport or percentage units
+  self:_recalcGap(newViewportWidth, newViewportHeight)
+
+  -- Recalculate flexBasis if using viewport or percentage units
+  self:_recalcFlexBasis(newViewportWidth, newViewportHeight)
 
   -- Recalculate spacing (padding/margin) if using viewport or percentage units
   -- For percentage-based padding:
@@ -1467,156 +1687,37 @@ function LayoutEngine:recalculateUnits(newViewportWidth, newViewportHeight)
     or self.element._borderBoxHeight
     or newViewportHeight
 
-  -- Handle shorthand properties first (horizontal/vertical)
-  local resolvedHorizontalPadding = nil
-  local resolvedVerticalPadding = nil
+  -- Handle shorthand properties first (horizontal/vertical), then resolve sides
+  local resolvedHorizontalPadding =
+    self:_resolveSpacingShorthand("padding", "horizontal", parentBorderBoxWidth, newViewportWidth, newViewportHeight)
+  local resolvedVerticalPadding =
+    self:_resolveSpacingShorthand("padding", "vertical", parentBorderBoxHeight, newViewportWidth, newViewportHeight)
+  self:_resolveSpacingSides(
+    "padding",
+    resolvedHorizontalPadding,
+    resolvedVerticalPadding,
+    parentBorderBoxWidth,
+    parentBorderBoxHeight,
+    newViewportWidth,
+    newViewportHeight
+  )
 
-  if self.element.units.padding.horizontal and self.element.units.padding.horizontal.unit ~= "px" then
-    resolvedHorizontalPadding = Units.resolve(
-      self.element.units.padding.horizontal.value,
-      self.element.units.padding.horizontal.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxWidth
-    )
-  elseif self.element.units.padding.horizontal and self.element.units.padding.horizontal.value then
-    resolvedHorizontalPadding = self.element.units.padding.horizontal.value
-  end
-
-  if self.element.units.padding.vertical and self.element.units.padding.vertical.unit ~= "px" then
-    resolvedVerticalPadding = Units.resolve(
-      self.element.units.padding.vertical.value,
-      self.element.units.padding.vertical.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxHeight
-    )
-  elseif self.element.units.padding.vertical and self.element.units.padding.vertical.value then
-    resolvedVerticalPadding = self.element.units.padding.vertical.value
-  end
-  -- Resolve individual padding sides (with fallback to shorthand)
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    -- Check if this side was explicitly set or if we should use shorthand
-    local useShorthand = false
-    if not self.element.units.padding[side].explicit then
-      -- Not explicitly set, check if we have shorthand
-      if side == "left" or side == "right" then
-        useShorthand = resolvedHorizontalPadding ~= nil
-      elseif side == "top" or side == "bottom" then
-        useShorthand = resolvedVerticalPadding ~= nil
-      end
-    end
-
-    if useShorthand then
-      -- Use shorthand value
-      if side == "left" or side == "right" then
-        self.element.padding[side] = resolvedHorizontalPadding
-      else
-        self.element.padding[side] = resolvedVerticalPadding
-      end
-    elseif self.element.units.padding[side].unit ~= "px" then
-      -- Recalculate non-pixel units
-      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      self.element.padding[side] = Units.resolve(
-        self.element.units.padding[side].value,
-        self.element.units.padding[side].unit,
-        newViewportWidth,
-        newViewportHeight,
-        parentSize
-      )
-    end
-    -- If unit is "px" and not using shorthand, value stays the same
-  end
-
-  -- Handle margin shorthand properties
-  local resolvedHorizontalMargin = nil
-  local resolvedVerticalMargin = nil
-
-  if self.element.units.margin.horizontal and self.element.units.margin.horizontal.unit ~= "px" then
-    resolvedHorizontalMargin = Units.resolve(
-      self.element.units.margin.horizontal.value,
-      self.element.units.margin.horizontal.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxWidth
-    )
-  elseif self.element.units.margin.horizontal and self.element.units.margin.horizontal.value then
-    resolvedHorizontalMargin = self.element.units.margin.horizontal.value
-  end
-
-  if self.element.units.margin.vertical and self.element.units.margin.vertical.unit ~= "px" then
-    resolvedVerticalMargin = Units.resolve(
-      self.element.units.margin.vertical.value,
-      self.element.units.margin.vertical.unit,
-      newViewportWidth,
-      newViewportHeight,
-      parentBorderBoxHeight
-    )
-  elseif self.element.units.margin.vertical and self.element.units.margin.vertical.value then
-    resolvedVerticalMargin = self.element.units.margin.vertical.value
-  end
-
-  -- Resolve individual margin sides (with fallback to shorthand)
-  for _, side in ipairs({ "top", "right", "bottom", "left" }) do
-    -- Check if this side was explicitly set or if we should use shorthand
-    local useShorthand = false
-    if not self.element.units.margin[side].explicit then
-      -- Not explicitly set, check if we have shorthand
-      if side == "left" or side == "right" then
-        useShorthand = resolvedHorizontalMargin ~= nil
-      elseif side == "top" or side == "bottom" then
-        useShorthand = resolvedVerticalMargin ~= nil
-      end
-    end
-
-    if useShorthand then
-      -- Use shorthand value
-      if side == "left" or side == "right" then
-        self.element.margin[side] = resolvedHorizontalMargin
-      else
-        self.element.margin[side] = resolvedVerticalMargin
-      end
-    elseif self.element.units.margin[side].unit ~= "px" then
-      -- Recalculate non-pixel units
-      local parentSize = (side == "top" or side == "bottom") and parentBorderBoxHeight or parentBorderBoxWidth
-      self.element.margin[side] = Units.resolve(
-        self.element.units.margin[side].value,
-        self.element.units.margin[side].unit,
-        newViewportWidth,
-        newViewportHeight,
-        parentSize
-      )
-    end
-    -- If unit is "px" and not using shorthand, value stays the same
-  end
+  local resolvedHorizontalMargin =
+    self:_resolveSpacingShorthand("margin", "horizontal", parentBorderBoxWidth, newViewportWidth, newViewportHeight)
+  local resolvedVerticalMargin =
+    self:_resolveSpacingShorthand("margin", "vertical", parentBorderBoxHeight, newViewportWidth, newViewportHeight)
+  self:_resolveSpacingSides(
+    "margin",
+    resolvedHorizontalMargin,
+    resolvedVerticalMargin,
+    parentBorderBoxWidth,
+    parentBorderBoxHeight,
+    newViewportWidth,
+    newViewportHeight
+  )
 
   -- BORDER-BOX MODEL: Calculate content dimensions from border-box dimensions
-  -- For explicitly-sized elements (non-auto), _borderBoxWidth/_borderBoxHeight were set earlier
-  -- Now we calculate content width/height by subtracting padding
-  -- Only recalculate if using viewport/percentage units (where _borderBoxWidth actually changed)
-  if self.element.units.width.unit ~= "auto" and self.element.units.width.unit ~= "px" then
-    -- _borderBoxWidth was recalculated for viewport/percentage units
-    -- Calculate content width by subtracting padding
-    self.element.width =
-      math.max(0, self.element._borderBoxWidth - self.element.padding.left - self.element.padding.right)
-  elseif self.element.units.width.unit == "auto" then
-    -- For auto-sized elements, width is content width (calculated in resize method)
-    -- Update border-box to include padding
-    self.element._borderBoxWidth = self.element.width + self.element.padding.left + self.element.padding.right
-  end
-  -- For pixel units, width stays as-is (may have been manually modified)
-
-  if self.element.units.height.unit ~= "auto" and self.element.units.height.unit ~= "px" then
-    -- _borderBoxHeight was recalculated for viewport/percentage units
-    -- Calculate content height by subtracting padding
-    self.element.height =
-      math.max(0, self.element._borderBoxHeight - self.element.padding.top - self.element.padding.bottom)
-  elseif self.element.units.height.unit == "auto" then
-    -- For auto-sized elements, height is content height (calculated in resize method)
-    -- Update border-box to include padding
-    self.element._borderBoxHeight = self.element.height + self.element.padding.top + self.element.padding.bottom
-  end
-  -- For pixel units, height stays as-is (may have been manually modified)
+  self:_recalcContentSize()
 
   -- Detect overflow after layout calculations
   if self.element._detectOverflow then

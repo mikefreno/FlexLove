@@ -34,14 +34,12 @@ local function tokenize(expr)
   while i <= len do
     local char = expr:sub(i, i)
 
-    -- Skip whitespace
     if char:match("%s") then
       i = i + 1
     -- Number (including decimals, but NOT negative - handled separately below)
     elseif char:match("%d") or (char == "." and expr:sub(i + 1, i + 1):match("%d")) then
       local numStr = ""
 
-      -- Parse integer and decimal parts
       while i <= len and (expr:sub(i, i):match("%d") or expr:sub(i, i) == ".") do
         numStr = numStr .. expr:sub(i, i)
         i = i + 1
@@ -52,14 +50,12 @@ local function tokenize(expr)
         return nil, "Invalid number: " .. numStr
       end
 
-      -- Check for unit following the number
       local unitStr = ""
       while i <= len and expr:sub(i, i):match("[%a%%]") do
         unitStr = unitStr .. expr:sub(i, i)
         i = i + 1
       end
 
-      -- Default to px if no unit
       if unitStr == "" then
         unitStr = "px"
       end
@@ -95,7 +91,6 @@ local function tokenize(expr)
         local numStr = "-"
         i = i + 1
 
-        -- Parse integer and decimal parts
         while i <= len and (expr:sub(i, i):match("%d") or expr:sub(i, i) == ".") do
           numStr = numStr .. expr:sub(i, i)
           i = i + 1
@@ -106,13 +101,11 @@ local function tokenize(expr)
           return nil, "Invalid number: " .. numStr
         end
 
-        -- Check for unit following the number
         local unitStr = ""
         while i <= len and expr:sub(i, i):match("[%a%%]") do
           unitStr = unitStr .. expr:sub(i, i)
           i = i + 1
         end
-
         -- Default to px if no unit
         if unitStr == "" then
           unitStr = "px"

@@ -74,7 +74,6 @@ function SliderExample:create_slider(parent, label, min, max, initial_value, dis
     end
     -- In a real app, you'd update the actual setting here
     value = min + (val * (max - min))
-    -- Update the display value
     value_display.text = string.format("%d", value * display_multiplier)
   end
 
@@ -155,4 +154,3 @@ function SliderExample:render_example()
 end
 
 return SliderExample.init()
-

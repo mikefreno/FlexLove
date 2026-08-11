@@ -174,7 +174,6 @@ function Cache.setBlurredCanvas(key, canvas)
   end
 
   if count >= Cache.MAX_BLURRED_CANVAS_CACHE then
-    -- Remove oldest entry
     local oldestKey = nil
     local oldestTime = math.huge
     for k, v in pairs(Cache.blurredCanvases) do
@@ -281,10 +280,10 @@ function ShaderBuilder.build(taps, offset, offsetType, sigma)
 
   local template = "c += %f * ( texture2D(tex, tc + %f * direction)+ texture2D(tex, tc - %f * direction));\n"
   for i = 1, #offsets do
-    local offset = offsets[i]
+    local tapOffset = offsets[i]
     local weight = weights[i]
     norm = norm + weight * 2
-    code[#code + 1] = string.format(template, weight, offset, offset)
+    code[#code + 1] = string.format(template, weight, tapOffset, tapOffset)
   end
   code[#code + 1] = string.format("return c * vec4(%f) * color; }", 1 / norm)
 
@@ -340,7 +339,6 @@ local function checkLargeBlurWarning(elementId, width, height, blurType)
     return
   end
 
-  -- Calculate blur area
   local area = width * height
 
   -- Skip if area is below threshold
@@ -491,7 +489,6 @@ function Blur:applyBackdrop(radius, x, y, width, height, backdropCanvas)
     return
   end
 
-  -- Calculate offset multiplier based on radius and quality
   local offsetMultiplier = radius / self.quality
 
   local canvas1 = Cache.getCanvas(width, height)
@@ -571,10 +568,8 @@ function Blur:applyBackdropCached(radius, x, y, width, height, backdropCanvas, e
   -- Generate cache key
   local cacheKey = Cache.generateBlurCacheKey(elementId, x, y, width, height, radius, self.quality, true)
 
-  -- Check cache
   local cachedCanvas = Cache.getBlurredCanvas(cacheKey)
   if cachedCanvas then
-    -- Draw cached blur
     local prevCanvas = love.graphics.getCanvas()
     local prevShader = love.graphics.getShader()
     local prevColor = { love.graphics.getColor() }
@@ -610,7 +605,6 @@ function Blur:applyBackdropCached(radius, x, y, width, height, backdropCanvas, e
   -- Check for large blur area in immediate mode
   checkLargeBlurWarning(elementId, width, height, "backdrop")
 
-  -- Calculate offset multiplier based on radius and quality
   local offsetMultiplier = radius / self.quality
 
   local canvas1 = Cache.getCanvas(width, height)

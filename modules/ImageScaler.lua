@@ -46,7 +46,6 @@ function ImageScaler.scaleNearest(sourceImageData, srcX, srcY, srcW, srcH, destW
     return fallbackImageData
   end
 
-  -- Create destination ImageData
   local destImageData = love.image.newImageData(destW, destH)
 
   -- Calculate scale ratios (cached outside loops for performance)

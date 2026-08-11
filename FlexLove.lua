@@ -204,25 +204,9 @@ function flexlove.isReady()
   return flexlove._initState == "ready"
 end
 
---- Set up FlexLove for your application's specific needs - configure responsive scaling, theming, rendering mode, and debugging tools
---- Use this to establish a consistent UI foundation that adapts to different screen sizes and provides performance insights
---- After initialization, any queued element creation calls will be automatically processed
+--- Initialize Performance monitoring if available (internal helper)
 ---@param config FlexLoveConfig?
-function flexlove.init(config)
-  flexlove._initState = "initializing"
-  config = config or {}
-
-  flexlove._ErrorHandler = ErrorHandler.init({
-    includeStackTrace = config.includeStackTrace,
-    logLevel = config.reportingLogLevel,
-    logTarget = config.errorLogTarget,
-    logFile = config.errorLogFile,
-    maxLogSize = config.errorLogMaxSize,
-    maxLogFiles = config.maxErrorLogFiles,
-    enableRotation = config.errorLogRotateEnabled,
-  })
-
-  -- Initialize Performance if available
+function flexlove._initPerformance(config)
   if Performance then
     flexlove._Performance = Performance.init({
       enabled = config.performanceMonitoring or true,
@@ -250,69 +234,11 @@ function flexlove.init(config)
   else
     flexlove._Performance = Performance
   end
+end
 
-  -- Initialize optional modules if available
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.ImageRenderer") then
-    ImageRenderer.init({ ErrorHandler = flexlove._ErrorHandler, utils = utils })
-  end
-
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.ImageScaler") then
-    ImageScaler.init({ ErrorHandler = flexlove._ErrorHandler })
-  end
-
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.NinePatch") then
-    NinePatch.init({ ErrorHandler = flexlove._ErrorHandler })
-  end
-
-  -- Initialize Blur module with immediate mode optimization config
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Blur") then
-    local blurOptimizations = config.immediateModeBlurOptimizations
-    if blurOptimizations == nil then
-      blurOptimizations = true -- Default to enabled
-    end
-    Blur.init({
-      ErrorHandler = flexlove._ErrorHandler,
-      immediateModeOptimizations = blurOptimizations and config.immediateMode or false,
-    })
-  end
-
-  -- Initialize required modules
-  StateManager.init({ ErrorHandler = flexlove._ErrorHandler })
-  Calc.init({ ErrorHandler = flexlove._ErrorHandler })
-  Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler, Calc = Calc })
-  Color.init({ ErrorHandler = flexlove._ErrorHandler })
-  utils.init({ ErrorHandler = flexlove._ErrorHandler })
-
-  -- Initialize optional ImageCache module
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.ImageCache") then
-    ImageCache.init({ ErrorHandler = flexlove._ErrorHandler })
-  end
-
-  -- Initialize optional Animation module
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Animation") then
-    Animation.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color })
-  end
-
-  -- Initialize optional Theme module
-  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Theme") then
-    Theme.init({ ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils })
-  end
-
-  LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, utils = utils })
-  EventHandler.init({
-    ErrorHandler = flexlove._ErrorHandler,
-    Performance = flexlove._Performance,
-    InputEvent = InputEvent,
-    utils = utils,
-    Context = Context,
-  })
-
-  -- Initialize shared GestureRecognizer for touch routing
-  if GestureRecognizer then
-    flexlove._gestureRecognizer = GestureRecognizer.new({}, { InputEvent = InputEvent, utils = utils })
-  end
-
-  -- Initialize KeyboardNavigation and FocusIndicator if enabled
+--- Initialize KeyboardNavigation and FocusIndicator if enabled (internal helper)
+---@param config FlexLoveConfig?
+function flexlove._initKeyboardNavigation(config)
   local keyboardConfig = config.keyboardNavigation
   if
     KeyboardNavigation
@@ -335,9 +261,132 @@ function flexlove.init(config)
       -- Mouse clicks and activation clear the indicator
     end
 
-    -- Apply configuration if provided
     flexlove._applyKeyboardNavConfig(keyboardConfig)
   end
+end
+
+--- Load and activate the configured theme (internal helper)
+---@param config FlexLoveConfig?
+function flexlove._initTheme(config)
+  if config.theme and ModuleLoader.isModuleLoaded(modulePath .. "modules.Theme") then
+    local success, err = pcall(function()
+      if type(config.theme) == "string" then
+        Theme.load(config.theme)
+        Theme.setActive(config.theme)
+        flexlove.defaultTheme = config.theme
+      elseif type(config.theme) == "table" then
+        local theme = Theme.new(config.theme)
+        Theme.setActive(theme)
+        flexlove.defaultTheme = theme.name
+      end
+    end)
+
+    if not success then
+      flexlove._ErrorHandler:warn("FlexLove", "THM_005", {
+        error = tostring(err),
+      })
+    end
+  end
+end
+
+--- Apply GC strategy configuration (internal helper)
+---@param config FlexLoveConfig?
+function flexlove._initGcConfig(config)
+  -- Configure GC strategy
+  if config.gcStrategy then
+    flexlove._gcConfig.strategy = config.gcStrategy
+  end
+  if config.gcMemoryThreshold then
+    flexlove._gcConfig.memoryThreshold = config.gcMemoryThreshold
+  end
+  if config.gcInterval then
+    flexlove._gcConfig.interval = config.gcInterval
+  end
+  if config.gcStepSize then
+    flexlove._gcConfig.stepSize = config.gcStepSize
+  end
+  if config.gcFullGCInterval then
+    flexlove._gcConfig.fullGCInterval = config.gcFullGCInterval
+  end
+end
+
+--- Set up FlexLove for your application's specific needs - configure responsive scaling, theming, rendering mode, and debugging tools
+--- Use this to establish a consistent UI foundation that adapts to different screen sizes and provides performance insights
+--- After initialization, any queued element creation calls will be automatically processed
+---@param config FlexLoveConfig?
+function flexlove.init(config)
+  flexlove._initState = "initializing"
+  config = config or {}
+
+  flexlove._ErrorHandler = ErrorHandler.init({
+    includeStackTrace = config.includeStackTrace,
+    logLevel = config.reportingLogLevel,
+    logTarget = config.errorLogTarget,
+    logFile = config.errorLogFile,
+    maxLogSize = config.errorLogMaxSize,
+    maxLogFiles = config.maxErrorLogFiles,
+    enableRotation = config.errorLogRotateEnabled,
+  })
+
+  -- Initialize Performance if available
+  flexlove._initPerformance(config)
+
+  -- Initialize optional modules if available (table-driven so minimal builds
+  -- that exclude a module simply skip it)
+  local optionalModuleInits = {
+    { module = ImageRenderer, name = "ImageRenderer", deps = { ErrorHandler = flexlove._ErrorHandler, utils = utils } },
+    { module = ImageScaler, name = "ImageScaler", deps = { ErrorHandler = flexlove._ErrorHandler } },
+    { module = NinePatch, name = "NinePatch", deps = { ErrorHandler = flexlove._ErrorHandler } },
+    { module = ImageCache, name = "ImageCache", deps = { ErrorHandler = flexlove._ErrorHandler } },
+    { module = Animation, name = "Animation", deps = { ErrorHandler = flexlove._ErrorHandler, Color = Color } },
+    {
+      module = Theme,
+      name = "Theme",
+      deps = { ErrorHandler = flexlove._ErrorHandler, Color = Color, utils = utils },
+    },
+  }
+
+  for _, spec in ipairs(optionalModuleInits) do
+    if spec.module and ModuleLoader.isModuleLoaded(modulePath .. "modules." .. spec.name) then
+      spec.module.init(spec.deps)
+    end
+  end
+
+  -- Initialize Blur module with immediate mode optimization config
+  if ModuleLoader.isModuleLoaded(modulePath .. "modules.Blur") then
+    local blurOptimizations = config.immediateModeBlurOptimizations
+    if blurOptimizations == nil then
+      blurOptimizations = true -- Default to enabled
+    end
+    Blur.init({
+      ErrorHandler = flexlove._ErrorHandler,
+      immediateModeOptimizations = blurOptimizations and config.immediateMode or false,
+    })
+  end
+
+  -- Initialize required modules
+  StateManager.init({ ErrorHandler = flexlove._ErrorHandler })
+  Calc.init({ ErrorHandler = flexlove._ErrorHandler })
+  Units.init({ Context = Context, ErrorHandler = flexlove._ErrorHandler, Calc = Calc })
+  Color.init({ ErrorHandler = flexlove._ErrorHandler })
+  utils.init({ ErrorHandler = flexlove._ErrorHandler })
+
+  LayoutEngine.init({ ErrorHandler = flexlove._ErrorHandler, Performance = flexlove._Performance, utils = utils })
+  EventHandler.init({
+    ErrorHandler = flexlove._ErrorHandler,
+    Performance = flexlove._Performance,
+    InputEvent = InputEvent,
+    utils = utils,
+    Context = Context,
+  })
+
+  -- Initialize shared GestureRecognizer for touch routing
+  if GestureRecognizer then
+    flexlove._gestureRecognizer = GestureRecognizer.new({}, { InputEvent = InputEvent, utils = utils })
+  end
+
+  -- Initialize KeyboardNavigation and FocusIndicator if enabled
+  flexlove._initKeyboardNavigation(config)
 
   flexlove._defaultDependencies = {
     Context = Context,
@@ -401,25 +450,8 @@ function flexlove.init(config)
     flexlove.scaleFactors.y = currentHeight / flexlove.baseScale.height
   end
 
-  if config.theme and ModuleLoader.isModuleLoaded(modulePath .. "modules.Theme") then
-    local success, err = pcall(function()
-      if type(config.theme) == "string" then
-        Theme.load(config.theme)
-        Theme.setActive(config.theme)
-        flexlove.defaultTheme = config.theme
-      elseif type(config.theme) == "table" then
-        local theme = Theme.new(config.theme)
-        Theme.setActive(theme)
-        flexlove.defaultTheme = theme.name
-      end
-    end)
-
-    if not success then
-      flexlove._ErrorHandler:warn("FlexLove", "THM_005", {
-        error = tostring(err),
-      })
-    end
-  end
+  -- Load and activate the configured theme
+  flexlove._initTheme(config)
 
   local immediateMode = config.immediateMode or false
   flexlove.setMode(immediateMode and "immediate" or "retained")
@@ -427,21 +459,7 @@ function flexlove.init(config)
   flexlove._autoFrameManagement = config.autoFrameManagement or false
 
   -- Configure GC strategy
-  if config.gcStrategy then
-    flexlove._gcConfig.strategy = config.gcStrategy
-  end
-  if config.gcMemoryThreshold then
-    flexlove._gcConfig.memoryThreshold = config.gcMemoryThreshold
-  end
-  if config.gcInterval then
-    flexlove._gcConfig.interval = config.gcInterval
-  end
-  if config.gcStepSize then
-    flexlove._gcConfig.stepSize = config.gcStepSize
-  end
-  if config.gcFullGCInterval then
-    flexlove._gcConfig.fullGCInterval = config.gcFullGCInterval
-  end
+  flexlove._initGcConfig(config)
 
   if config.stateRetentionFrames or config.maxStateEntries then
     StateManager.configure({
@@ -457,6 +475,11 @@ function flexlove.init(config)
   flexlove._debugDrawKey = config.debugDrawKey or nil
 
   -- Process all queued element creations
+  flexlove._processInitQueue()
+end
+
+--- Process queued element creations, then clear the queue to prevent re-entry
+function flexlove._processInitQueue()
   local queue = flexlove._initQueue
   flexlove._initQueue = {} -- Clear queue before processing to prevent re-entry issues
 
@@ -555,7 +578,6 @@ function flexlove.enableKeyboardNavigation(config)
   end
   config = config or {}
 
-  -- Check if already initialized
   if KeyboardNavigation.config and KeyboardNavigation._deps then
     -- Already initialized, just apply config if provided
     flexlove._applyKeyboardNavConfig(config)
@@ -694,7 +716,6 @@ function flexlove.beginFrame()
     return
   end
 
-  -- Reset accumulated delta time for new frame
   flexlove._accumulatedDt = 0
 
   -- Start performance frame timing
@@ -746,14 +767,12 @@ function flexlove.endFrame()
 
   flexlove._handleSelectPointerDismissal()
 
-  -- Update all top-level elements created this frame
   for _, element in ipairs(flexlove._currentFrameElements) do
     if not element.parent then
       element:update(flexlove._accumulatedDt)
     end
   end
 
-  -- Save state for all elements created this frame
   for _, element in ipairs(flexlove._currentFrameElements) do
     if element.id and element.id ~= "" then
       local stateUpdate = element:saveState()
@@ -811,7 +830,6 @@ end
 --- Render the debug draw overlay for all elements in the tree
 --- Traverses every element regardless of visibility or opacity
 function flexlove._renderDebugOverlay()
-  -- Save current graphics state
   local prevR, prevG, prevB, prevA = love.graphics.getColor()
   local prevLineWidth = love.graphics.getLineWidth()
 
@@ -938,17 +956,14 @@ function flexlove.draw(gameDrawFunc, postDrawFunc)
     postDrawFunc()
   end
 
-  -- Render performance HUD if enabled
   if flexlove._Performance then
     flexlove._Performance:renderHUD()
   end
 
-  -- Render focus indicator if keyboard navigation is enabled
   if KeyboardNavigation and KeyboardNavigation.config and KeyboardNavigation.config.enabled and FocusIndicator then
     FocusIndicator:draw()
   end
 
-  -- Render debug draw overlay if enabled
   if flexlove._debugDraw then
     flexlove._renderDebugOverlay()
   end

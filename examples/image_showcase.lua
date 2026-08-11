@@ -10,7 +10,6 @@ local lv = love
 FlexLove.setMode("immediate")
 
 function lv.load()
-  -- Set window size
   lv.window.setMode(1200, 800, { resizable = true })
   lv.window.setTitle("FlexLove Image Showcase")
 end

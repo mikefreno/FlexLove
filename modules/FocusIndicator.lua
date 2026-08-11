@@ -192,19 +192,15 @@ function FocusIndicator:draw()
     end
   end
 
-  -- Save current love.graphics state
   local prevBlend, prevAlphaMode = love.graphics.getBlendMode()
   local prevR, prevG, prevB, prevA = love.graphics.getColor()
   local prevLineWidth = love.graphics.getLineWidth()
 
-  -- Set blend mode for transparency
   love.graphics.setBlendMode("alpha")
 
-  -- Draw rounded rectangle border
   love.graphics.setColor(r, g, b, a)
   love.graphics.setLineWidth(FocusIndicator.config.lineWidth)
 
-  -- Draw the rounded rectangle border
   local borderRadius = FocusIndicator.config.borderRadius
   love.graphics.rectangle("line", indicatorX, indicatorY, indicatorW, indicatorH, borderRadius)
 

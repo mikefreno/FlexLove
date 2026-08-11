@@ -760,6 +760,20 @@ function Animation:lerpKeyframes(prevFrame, nextFrame, easedT)
   return result
 end
 
+--- Evaluate an easing function defensively: user-supplied easings must not
+--- crash or produce NaN/Inf; fall back to the raw progress on any failure.
+---@param easingFn function The easing function
+---@param rawT number Raw progress passed to the easing
+---@param fallback number Value to use when the easing result is invalid
+---@return number easedT Valid eased progress
+local function resolveEasedT(easingFn, rawT, fallback)
+  local success, easedT = pcall(easingFn, rawT)
+  if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
+    return fallback
+  end
+  return easedT
+end
+
 --- Calculate the current animated values
 ---@return table result Interpolated values
 function Animation:interpolate()
@@ -787,37 +801,43 @@ function Animation:interpolate()
         end
       end
 
-      local success, easedT = pcall(easingFn, localProgress)
-      if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
-        easedT = localProgress
-      end
-
-      local keyframeResult = self:lerpKeyframes(prevFrame, nextFrame, easedT)
-
-      local result = self._cachedResult
-      for k in pairs(result) do
-        result[k] = nil
-      end
-      for k, v in pairs(keyframeResult) do
-        result[k] = v
-      end
-
-      self._resultDirty = false
-      return result
+      return self:_fillResultFromKeyframes(
+        self:lerpKeyframes(prevFrame, nextFrame, resolveEasedT(easingFn, localProgress, localProgress))
+      )
     end
   end
 
-  local success, easedT = pcall(self.easing, t)
-  if not success or type(easedT) ~= "number" or easedT ~= easedT or easedT == math.huge or easedT == -math.huge then
-    easedT = t
-  end
-
   local result = self._cachedResult
-
   for k in pairs(result) do
     result[k] = nil
   end
+  self:_computeDirectResult(result, resolveEasedT(self.easing, t, t))
 
+  self._resultDirty = false
+  return result
+end
+
+--- Clear the cached result, fill it from an interpolated keyframe table, and
+--- mark the result clean
+---@param keyframeResult table Interpolated keyframe values
+---@return table result The cached result table
+function Animation:_fillResultFromKeyframes(keyframeResult)
+  local result = self._cachedResult
+  for k in pairs(result) do
+    result[k] = nil
+  end
+  for k, v in pairs(keyframeResult) do
+    result[k] = v
+  end
+
+  self._resultDirty = false
+  return result
+end
+
+--- Compute direct (non-keyframe) interpolation into the result table
+---@param result table The cached result table (cleared by caller)
+---@param easedT number Eased time (0-1)
+function Animation:_computeDirectResult(result, easedT)
   local numericProperties = {
     "width",
     "height",
@@ -885,9 +905,6 @@ function Animation:interpolate()
       result[key] = value
     end
   end
-
-  self._resultDirty = false
-  return result
 end
 
 --- Attach animation to an element

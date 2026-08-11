@@ -325,6 +325,254 @@ end
 local themes = {}
 local activeTheme = nil
 
+--- Strip 1-pixel guide border from 9-patch ImageData
+---@param sourceImageData love.ImageData
+---@return love.ImageData? -- New ImageData without guide border, or nil if too small
+local function stripNinePatchBorder(sourceImageData)
+  local srcWidth = sourceImageData:getWidth()
+  local srcHeight = sourceImageData:getHeight()
+
+  -- Content dimensions (excluding 1px border on all sides)
+  local contentWidth = srcWidth - 2
+  local contentHeight = srcHeight - 2
+
+  if contentWidth <= 0 or contentHeight <= 0 then
+    Theme._ErrorHandler:warn("Theme", "RES_002", {
+      width = srcWidth,
+      height = srcHeight,
+      reason = "Image must be larger than 2x2 pixels to have content after stripping 1px border",
+    })
+    return nil
+  end
+
+  -- Create new ImageData for content only
+  local strippedImageData = love.image.newImageData(contentWidth, contentHeight)
+
+  -- Copy pixels from source (1,1) to (width-2, height-2)
+  for y = 0, contentHeight - 1 do
+    for x = 0, contentWidth - 1 do
+      local r, g, b, a = sourceImageData:getPixel(x + 1, y + 1)
+      strippedImageData:setPixel(x, y, r, g, b, a)
+    end
+  end
+
+  return strippedImageData
+end
+
+--- Load an atlas with 9-patch support: parse the guide border and strip it
+---@param comp table Component table receiving _loadedAtlas/_loadedAtlasData
+---@param atlasPath string Atlas image path
+---@param errorContext string Context label for error reporting
+local function loadAtlasWithNinePatch(comp, atlasPath, errorContext)
+  ---@diagnostic disable-next-line
+  local resolvedPath = Theme._utils.resolveImagePath(atlasPath)
+  ---@diagnostic disable-next-line
+  local is9Patch = not comp.insets and atlasPath:match("%.9%.png$")
+
+  if is9Patch then
+    local parseResult, parseErr = parseNinePatch(resolvedPath)
+    if parseResult then
+      comp.insets = parseResult.insets
+      comp._ninePatchData = parseResult
+    else
+      Theme._ErrorHandler:warn("Theme", "RES_003", {
+        context = errorContext,
+        path = resolvedPath,
+        error = tostring(parseErr),
+      })
+    end
+  end
+
+  local image, imageData, loaderr = Theme._utils.safeLoadImage(resolvedPath)
+  if image then
+    -- Strip guide border for 9-patch images
+    if is9Patch and imageData then
+      local strippedImageData = stripNinePatchBorder(imageData)
+      local strippedImage = love.graphics.newImage(strippedImageData)
+      comp._loadedAtlas = strippedImage
+      comp._loadedAtlasData = strippedImageData
+    else
+      comp._loadedAtlas = image
+      comp._loadedAtlasData = imageData
+    end
+  else
+    Theme._ErrorHandler:warn("Theme", "RES_001", {
+      context = errorContext,
+      path = resolvedPath,
+      error = tostring(loaderr),
+    })
+  end
+end
+
+--- Create 9-patch regions from insets
+---@param comp table Component table receiving `regions`
+---@param fallbackAtlas love.Image|nil Atlas image to use when the component has none
+local function createRegionsFromInsets(comp, fallbackAtlas)
+  local atlasImage = comp._loadedAtlas or fallbackAtlas
+  if not atlasImage or type(atlasImage) == "string" then
+    return
+  end
+
+  local imgWidth, imgHeight = atlasImage:getDimensions()
+  local left = comp.insets.left or 0
+  local top = comp.insets.top or 0
+  local right = comp.insets.right or 0
+  local bottom = comp.insets.bottom or 0
+
+  -- No offsets needed - guide border has been stripped for 9-patch images
+  local centerWidth = imgWidth - left - right
+  local centerHeight = imgHeight - top - bottom
+
+  comp.regions = {
+    topLeft = { x = 0, y = 0, w = left, h = top },
+    topCenter = { x = left, y = 0, w = centerWidth, h = top },
+    topRight = { x = left + centerWidth, y = 0, w = right, h = top },
+    middleLeft = { x = 0, y = top, w = left, h = centerHeight },
+    middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
+    middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
+    bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
+    bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
+    bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
+  }
+end
+
+--- Load a component's atlas (and per-state atlases), then build 9-patch regions
+---@param theme table The theme being constructed
+---@param component table Component table to process
+---@param componentName string Component name for error context
+local function loadComponentAtlas(theme, component, componentName)
+  if component.atlas then
+    if type(component.atlas) == "string" then
+      loadAtlasWithNinePatch(component, component.atlas, "for component '" .. componentName .. "'")
+    else
+      -- Direct Image object (no ImageData available - scaleCorners won't work)
+      component._loadedAtlas = component.atlas
+    end
+  end
+
+  if component.insets then
+    createRegionsFromInsets(component, theme.atlas)
+  end
+
+  if component.states then
+    for stateName, stateComponent in pairs(component.states) do
+      if stateComponent.atlas then
+        if type(stateComponent.atlas) == "string" then
+          loadAtlasWithNinePatch(stateComponent, stateComponent.atlas, "for state '" .. stateName .. "'")
+        else
+          -- Direct Image object (no ImageData available - scaleCorners won't work)
+          stateComponent._loadedAtlas = stateComponent.atlas
+        end
+      end
+
+      if stateComponent.insets then
+        createRegionsFromInsets(stateComponent, component._loadedAtlas or theme.atlas)
+      end
+    end
+  end
+end
+
+--- Load a scrollbar's atlases (bar/frame subcomponents or a single component)
+--- and build 9-patch regions
+---@param theme table The theme being constructed
+---@param scrollbarName string Scrollbar name for error context
+---@param scrollbarDef table Scrollbar definition to process
+local function loadScrollbarAtlas(theme, scrollbarName, scrollbarDef)
+  -- Handle scrollbar definitions with bar/frame subcomponents
+  if scrollbarDef.bar or scrollbarDef.frame then
+    -- Process 'bar' subcomponent
+    if scrollbarDef.bar then
+      if type(scrollbarDef.bar) == "string" then
+        -- Convert string path to ThemeComponent structure
+        local barComponent = { atlas = scrollbarDef.bar }
+        -- Copy knobOffset from parent scrollbarDef if it exists
+        if scrollbarDef.knobOffset then
+          barComponent.knobOffset = scrollbarDef.knobOffset
+        end
+        loadAtlasWithNinePatch(barComponent, scrollbarDef.bar, "for scrollbar '" .. scrollbarName .. ".bar'")
+        if barComponent.insets then
+          createRegionsFromInsets(barComponent, barComponent._loadedAtlas or theme.atlas)
+        end
+        scrollbarDef.bar = barComponent
+      elseif type(scrollbarDef.bar) == "table" then
+        -- Already a ThemeComponent structure, process it
+        -- Copy knobOffset from parent if bar component doesn't have one
+        if scrollbarDef.knobOffset and not scrollbarDef.bar.knobOffset then
+          scrollbarDef.bar.knobOffset = scrollbarDef.knobOffset
+        end
+        if scrollbarDef.bar.atlas and type(scrollbarDef.bar.atlas) == "string" then
+          loadAtlasWithNinePatch(
+            scrollbarDef.bar,
+            scrollbarDef.bar.atlas,
+            "for scrollbar '" .. scrollbarName .. ".bar'"
+          )
+        end
+        if scrollbarDef.bar.insets then
+          createRegionsFromInsets(scrollbarDef.bar, scrollbarDef.bar._loadedAtlas or theme.atlas)
+        end
+      end
+    end
+
+    -- Process 'frame' subcomponent
+    if scrollbarDef.frame then
+      if type(scrollbarDef.frame) == "string" then
+        -- Convert string path to ThemeComponent structure
+        local frameComponent = { atlas = scrollbarDef.frame }
+        loadAtlasWithNinePatch(frameComponent, scrollbarDef.frame, "for scrollbar '" .. scrollbarName .. ".frame'")
+        if frameComponent.insets then
+          createRegionsFromInsets(frameComponent, frameComponent._loadedAtlas or theme.atlas)
+        end
+        scrollbarDef.frame = frameComponent
+      elseif type(scrollbarDef.frame) == "table" then
+        -- Already a ThemeComponent structure, process it
+        if scrollbarDef.frame.atlas and type(scrollbarDef.frame.atlas) == "string" then
+          loadAtlasWithNinePatch(
+            scrollbarDef.frame,
+            scrollbarDef.frame.atlas,
+            "for scrollbar '" .. scrollbarName .. ".frame'"
+          )
+        end
+        if scrollbarDef.frame.insets then
+          createRegionsFromInsets(scrollbarDef.frame, scrollbarDef.frame._loadedAtlas or theme.atlas)
+        end
+      end
+    end
+  else
+    -- Treat as a single ThemeComponent (no bar/frame split)
+    if scrollbarDef.atlas then
+      if type(scrollbarDef.atlas) == "string" then
+        loadAtlasWithNinePatch(scrollbarDef, scrollbarDef.atlas, "for scrollbar '" .. scrollbarName .. "'")
+      else
+        scrollbarDef._loadedAtlas = scrollbarDef.atlas
+      end
+    end
+
+    if scrollbarDef.insets then
+      createRegionsFromInsets(scrollbarDef, theme.atlas)
+    end
+
+    if scrollbarDef.states then
+      for stateName, stateComponent in pairs(scrollbarDef.states) do
+        if stateComponent.atlas then
+          if type(stateComponent.atlas) == "string" then
+            loadAtlasWithNinePatch(
+              stateComponent,
+              stateComponent.atlas,
+              "for scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "'"
+            )
+          else
+            stateComponent._loadedAtlas = stateComponent.atlas
+          end
+        end
+
+        if stateComponent.insets then
+          createRegionsFromInsets(stateComponent, scrollbarDef._loadedAtlas or theme.atlas)
+        end
+      end
+    end
+  end
+end
+
 --- Create reusable design systems with consistent styling, 9-patch assets, and component states
 --- Use this to build professional-looking UIs with minimal per-element configuration
 ---@param definition ThemeDefinition Theme definition table
@@ -376,241 +624,15 @@ function Theme.new(definition)
   self.fonts = definition.fonts or {}
   self.contentAutoSizingMultiplier = definition.contentAutoSizingMultiplier or nil
 
-  -- Helper function to strip 1-pixel guide border from 9-patch ImageData
-  ---@param sourceImageData love.ImageData
-  ---@return love.ImageData -- New ImageData without guide border
-  local function stripNinePatchBorder(sourceImageData)
-    local srcWidth = sourceImageData:getWidth()
-    local srcHeight = sourceImageData:getHeight()
-
-    -- Content dimensions (excluding 1px border on all sides)
-    local contentWidth = srcWidth - 2
-    local contentHeight = srcHeight - 2
-
-    if contentWidth <= 0 or contentHeight <= 0 then
-      Theme._ErrorHandler:warn("Theme", "RES_002", {
-        width = srcWidth,
-        height = srcHeight,
-        reason = "Image must be larger than 2x2 pixels to have content after stripping 1px border",
-      })
-      return nil
-    end
-
-    -- Create new ImageData for content only
-    local strippedImageData = love.image.newImageData(contentWidth, contentHeight)
-
-    -- Copy pixels from source (1,1) to (width-2, height-2)
-    for y = 0, contentHeight - 1 do
-      for x = 0, contentWidth - 1 do
-        local r, g, b, a = sourceImageData:getPixel(x + 1, y + 1)
-        strippedImageData:setPixel(x, y, r, g, b, a)
-      end
-    end
-
-    return strippedImageData
-  end
-
-  -- Helper function to load atlas with 9-patch support
-  local function loadAtlasWithNinePatch(comp, atlasPath, errorContext)
-    ---@diagnostic disable-next-line
-    local resolvedPath = Theme._utils.resolveImagePath(atlasPath)
-    ---@diagnostic disable-next-line
-    local is9Patch = not comp.insets and atlasPath:match("%.9%.png$")
-
-    if is9Patch then
-      local parseResult, parseErr = parseNinePatch(resolvedPath)
-      if parseResult then
-        comp.insets = parseResult.insets
-        comp._ninePatchData = parseResult
-      else
-        Theme._ErrorHandler:warn("Theme", "RES_003", {
-          context = errorContext,
-          path = resolvedPath,
-          error = tostring(parseErr),
-        })
-      end
-    end
-
-    local image, imageData, loaderr = Theme._utils.safeLoadImage(resolvedPath)
-    if image then
-      -- Strip guide border for 9-patch images
-      if is9Patch and imageData then
-        local strippedImageData = stripNinePatchBorder(imageData)
-        local strippedImage = love.graphics.newImage(strippedImageData)
-        comp._loadedAtlas = strippedImage
-        comp._loadedAtlasData = strippedImageData
-      else
-        comp._loadedAtlas = image
-        comp._loadedAtlasData = imageData
-      end
-    else
-      Theme._ErrorHandler:warn("Theme", "RES_001", {
-        context = errorContext,
-        path = resolvedPath,
-        error = tostring(loaderr),
-      })
-    end
-  end
-
-  -- Helper function to create regions from insets
-  local function createRegionsFromInsets(comp, fallbackAtlas)
-    local atlasImage = comp._loadedAtlas or fallbackAtlas
-    if not atlasImage or type(atlasImage) == "string" then
-      return
-    end
-
-    local imgWidth, imgHeight = atlasImage:getDimensions()
-    local left = comp.insets.left or 0
-    local top = comp.insets.top or 0
-    local right = comp.insets.right or 0
-    local bottom = comp.insets.bottom or 0
-
-    -- No offsets needed - guide border has been stripped for 9-patch images
-    local centerWidth = imgWidth - left - right
-    local centerHeight = imgHeight - top - bottom
-
-    comp.regions = {
-      topLeft = { x = 0, y = 0, w = left, h = top },
-      topCenter = { x = left, y = 0, w = centerWidth, h = top },
-      topRight = { x = left + centerWidth, y = 0, w = right, h = top },
-      middleLeft = { x = 0, y = top, w = left, h = centerHeight },
-      middleCenter = { x = left, y = top, w = centerWidth, h = centerHeight },
-      middleRight = { x = left + centerWidth, y = top, w = right, h = centerHeight },
-      bottomLeft = { x = 0, y = top + centerHeight, w = left, h = bottom },
-      bottomCenter = { x = left, y = top + centerHeight, w = centerWidth, h = bottom },
-      bottomRight = { x = left + centerWidth, y = top + centerHeight, w = right, h = bottom },
-    }
-  end
-
   -- Load component-specific atlases and process 9-patch definitions
   for componentName, component in pairs(self.components) do
-    if component.atlas then
-      if type(component.atlas) == "string" then
-        loadAtlasWithNinePatch(component, component.atlas, "for component '" .. componentName .. "'")
-      else
-        -- Direct Image object (no ImageData available - scaleCorners won't work)
-        component._loadedAtlas = component.atlas
-      end
-    end
-
-    if component.insets then
-      createRegionsFromInsets(component, self.atlas)
-    end
-
-    if component.states then
-      for stateName, stateComponent in pairs(component.states) do
-        if stateComponent.atlas then
-          if type(stateComponent.atlas) == "string" then
-            loadAtlasWithNinePatch(stateComponent, stateComponent.atlas, "for state '" .. stateName .. "'")
-          else
-            -- Direct Image object (no ImageData available - scaleCorners won't work)
-            stateComponent._loadedAtlas = stateComponent.atlas
-          end
-        end
-
-        if stateComponent.insets then
-          createRegionsFromInsets(stateComponent, component._loadedAtlas or self.atlas)
-        end
-      end
-    end
+    loadComponentAtlas(self, component, componentName)
   end
 
   -- Load scrollbar-specific atlases and process 9-patch definitions
   -- Scrollbars can have 'bar' and 'frame' subcomponents
   for scrollbarName, scrollbarDef in pairs(self.scrollbars) do
-    -- Handle scrollbar definitions with bar/frame subcomponents
-    if scrollbarDef.bar or scrollbarDef.frame then
-      -- Process 'bar' subcomponent
-      if scrollbarDef.bar then
-        if type(scrollbarDef.bar) == "string" then
-          -- Convert string path to ThemeComponent structure
-          local barComponent = { atlas = scrollbarDef.bar }
-          -- Copy knobOffset from parent scrollbarDef if it exists
-          if scrollbarDef.knobOffset then
-            barComponent.knobOffset = scrollbarDef.knobOffset
-          end
-          loadAtlasWithNinePatch(barComponent, scrollbarDef.bar, "for scrollbar '" .. scrollbarName .. ".bar'")
-          if barComponent.insets then
-            createRegionsFromInsets(barComponent, barComponent._loadedAtlas or self.atlas)
-          end
-          scrollbarDef.bar = barComponent
-        elseif type(scrollbarDef.bar) == "table" then
-          -- Already a ThemeComponent structure, process it
-          -- Copy knobOffset from parent if bar component doesn't have one
-          if scrollbarDef.knobOffset and not scrollbarDef.bar.knobOffset then
-            scrollbarDef.bar.knobOffset = scrollbarDef.knobOffset
-          end
-          if scrollbarDef.bar.atlas and type(scrollbarDef.bar.atlas) == "string" then
-            loadAtlasWithNinePatch(
-              scrollbarDef.bar,
-              scrollbarDef.bar.atlas,
-              "for scrollbar '" .. scrollbarName .. ".bar'"
-            )
-          end
-          if scrollbarDef.bar.insets then
-            createRegionsFromInsets(scrollbarDef.bar, scrollbarDef.bar._loadedAtlas or self.atlas)
-          end
-        end
-      end
-
-      -- Process 'frame' subcomponent
-      if scrollbarDef.frame then
-        if type(scrollbarDef.frame) == "string" then
-          -- Convert string path to ThemeComponent structure
-          local frameComponent = { atlas = scrollbarDef.frame }
-          loadAtlasWithNinePatch(frameComponent, scrollbarDef.frame, "for scrollbar '" .. scrollbarName .. ".frame'")
-          if frameComponent.insets then
-            createRegionsFromInsets(frameComponent, frameComponent._loadedAtlas or self.atlas)
-          end
-          scrollbarDef.frame = frameComponent
-        elseif type(scrollbarDef.frame) == "table" then
-          -- Already a ThemeComponent structure, process it
-          if scrollbarDef.frame.atlas and type(scrollbarDef.frame.atlas) == "string" then
-            loadAtlasWithNinePatch(
-              scrollbarDef.frame,
-              scrollbarDef.frame.atlas,
-              "for scrollbar '" .. scrollbarName .. ".frame'"
-            )
-          end
-          if scrollbarDef.frame.insets then
-            createRegionsFromInsets(scrollbarDef.frame, scrollbarDef.frame._loadedAtlas or self.atlas)
-          end
-        end
-      end
-    else
-      -- Treat as a single ThemeComponent (no bar/frame split)
-      if scrollbarDef.atlas then
-        if type(scrollbarDef.atlas) == "string" then
-          loadAtlasWithNinePatch(scrollbarDef, scrollbarDef.atlas, "for scrollbar '" .. scrollbarName .. "'")
-        else
-          scrollbarDef._loadedAtlas = scrollbarDef.atlas
-        end
-      end
-
-      if scrollbarDef.insets then
-        createRegionsFromInsets(scrollbarDef, self.atlas)
-      end
-
-      if scrollbarDef.states then
-        for stateName, stateComponent in pairs(scrollbarDef.states) do
-          if stateComponent.atlas then
-            if type(stateComponent.atlas) == "string" then
-              loadAtlasWithNinePatch(
-                stateComponent,
-                stateComponent.atlas,
-                "for scrollbar '" .. scrollbarName .. "' state '" .. stateName .. "'"
-              )
-            else
-              stateComponent._loadedAtlas = stateComponent.atlas
-            end
-          end
-
-          if stateComponent.insets then
-            createRegionsFromInsets(stateComponent, scrollbarDef._loadedAtlas or self.atlas)
-          end
-        end
-      end
-    end
+    loadScrollbarAtlas(self, scrollbarName, scrollbarDef)
   end
 
   return self
@@ -1304,34 +1326,10 @@ Theme.Manager = ThemeManager
 
 --- Check theme definitions for correctness before use to catch configuration errors early
 --- Use this during development to verify custom themes are properly structured
----@param theme table? The theme to validate
----@param options table? Optional validation options {strict: boolean}
----@return boolean valid, table errors List of validation errors
-function Theme.validateTheme(theme, options)
-  local errors = {}
-  options = options or {}
-
-  -- Basic structure validation
-  if theme == nil then
-    table.insert(errors, "Theme is nil")
-    return false, errors
-  end
-
-  if type(theme) ~= "table" then
-    table.insert(errors, "Theme must be a table")
-    return false, errors
-  end
-
-  -- Name validation (only required field)
-  if not theme.name then
-    table.insert(errors, "Theme must have a 'name' field")
-  elseif type(theme.name) ~= "string" then
-    table.insert(errors, "Theme 'name' must be a string")
-  elseif theme.name == "" then
-    table.insert(errors, "Theme 'name' cannot be empty")
-  end
-
-  -- Colors validation (optional, but if present must be valid)
+--- Validate the theme 'colors' section, appending errors
+---@param theme table The theme to validate
+---@param errors table Error list to append to
+local function validateColors(theme, errors)
   if theme.colors ~= nil then
     if type(theme.colors) ~= "table" then
       table.insert(errors, "Theme 'colors' must be a table")
@@ -1360,8 +1358,12 @@ function Theme.validateTheme(theme, options)
       end
     end
   end
+end
 
-  -- Fonts validation (optional)
+--- Validate the theme 'fonts' section, appending errors
+---@param theme table The theme to validate
+---@param errors table Error list to append to
+local function validateFonts(theme, errors)
   if theme.fonts ~= nil then
     if type(theme.fonts) ~= "table" then
       table.insert(errors, "Theme 'fonts' must be a table")
@@ -1375,8 +1377,12 @@ function Theme.validateTheme(theme, options)
       end
     end
   end
+end
 
-  -- Components validation (optional)
+--- Validate the theme 'components' section, appending errors
+---@param theme table The theme to validate
+---@param errors table Error list to append to
+local function validateComponents(theme, errors)
   if theme.components ~= nil then
     if type(theme.components) ~= "table" then
       table.insert(errors, "Theme 'components' must be a table")
@@ -1446,8 +1452,12 @@ function Theme.validateTheme(theme, options)
       end
     end
   end
+end
 
-  -- Scrollbars validation (optional)
+--- Validate the theme 'scrollbars' section, appending errors
+---@param theme table The theme to validate
+---@param errors table Error list to append to
+local function validateScrollbars(theme, errors)
   if theme.scrollbars ~= nil then
     if type(theme.scrollbars) ~= "table" then
       table.insert(errors, "Theme 'scrollbars' must be a table")
@@ -1515,8 +1525,12 @@ function Theme.validateTheme(theme, options)
       end
     end
   end
+end
 
-  -- contentAutoSizingMultiplier validation (optional)
+--- Validate the theme 'contentAutoSizingMultiplier' section, appending errors
+---@param theme table The theme to validate
+---@param errors table Error list to append to
+local function validateContentAutoSizingMultiplier(theme, errors)
   if theme.contentAutoSizingMultiplier ~= nil then
     if type(theme.contentAutoSizingMultiplier) ~= "table" then
       table.insert(errors, "Theme 'contentAutoSizingMultiplier' must be a table")
@@ -1537,6 +1551,49 @@ function Theme.validateTheme(theme, options)
       end
     end
   end
+end
+
+---@param theme table? The theme to validate
+---@param options table? Optional validation options {strict: boolean}
+---@return boolean valid, table errors List of validation errors
+function Theme.validateTheme(theme, options)
+  local errors = {}
+  options = options or {}
+
+  -- Basic structure validation
+  if theme == nil then
+    table.insert(errors, "Theme is nil")
+    return false, errors
+  end
+
+  if type(theme) ~= "table" then
+    table.insert(errors, "Theme must be a table")
+    return false, errors
+  end
+
+  -- Name validation (only required field)
+  if not theme.name then
+    table.insert(errors, "Theme must have a 'name' field")
+  elseif type(theme.name) ~= "string" then
+    table.insert(errors, "Theme 'name' must be a string")
+  elseif theme.name == "" then
+    table.insert(errors, "Theme 'name' cannot be empty")
+  end
+
+  -- Colors validation (optional, but if present must be valid)
+  validateColors(theme, errors)
+
+  -- Fonts validation (optional)
+  validateFonts(theme, errors)
+
+  -- Components validation (optional)
+  validateComponents(theme, errors)
+
+  -- Scrollbars validation (optional)
+  validateScrollbars(theme, errors)
+
+  -- contentAutoSizingMultiplier validation (optional)
+  validateContentAutoSizingMultiplier(theme, errors)
 
   -- Global atlas validation (optional)
   if theme.atlas ~= nil then

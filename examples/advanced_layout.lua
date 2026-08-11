@@ -107,7 +107,6 @@ FlexLove.new({
 local columnHeaders = { "Mon", "Tue", "Wed" }
 local rowHeaders = { "Task A", "Task B", "Task C" }
 
--- Calculate grid dimensions: +1 for header row and column
 local numRows = #rowHeaders + 1 -- +1 for header row
 local numColumns = #columnHeaders + 1 -- +1 for row labels column
 

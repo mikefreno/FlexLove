@@ -753,7 +753,7 @@ function TestLayoutEdgeCases:tearDown()
   FlexLove.endFrame()
 end
 
--- Percentage sizing warnings (placeholders for future implementation)
+-- Percentage sizing warnings (LAY_004)
 function TestLayoutEdgeCases:test_percentage_width_with_auto_parent_warns()
   local container = FlexLove.new({
     id = "container",
@@ -775,11 +775,18 @@ function TestLayoutEdgeCases:test_percentage_width_with_auto_parent_warns()
   FlexLove.endFrame()
   FlexLove.beginFrame()
 
-  -- Check that a warning was issued
-  luaunit.assertTrue(#self.warnings > 0, "Should issue warning for percentage width with auto-sizing parent")
-
-  -- Note: This warning feature is not yet implemented
-  luaunit.assertTrue(true, "Placeholder - percentage width warning not implemented yet")
+  -- Verify the LAY_004 warning for percentage width with auto-sizing parent
+  local hasPercentageWidthWarning = false
+  for _, w in ipairs(self.warnings) do
+    if w.code == "LAY_004" and w.message:match("percentage width") then
+      hasPercentageWidthWarning = true
+      break
+    end
+  end
+  luaunit.assertTrue(
+    hasPercentageWidthWarning,
+    "Should emit LAY_004 warning for percentage width with auto-sizing parent"
+  )
 end
 
 function TestLayoutEdgeCases:test_percentage_height_with_auto_parent_warns()
@@ -803,11 +810,18 @@ function TestLayoutEdgeCases:test_percentage_height_with_auto_parent_warns()
   FlexLove.endFrame()
   FlexLove.beginFrame()
 
-  -- Check that a warning was issued
-  luaunit.assertTrue(#self.warnings > 0, "Should issue warning for percentage height with auto-sizing parent")
-
-  -- Note: This warning feature is not yet implemented
-  luaunit.assertTrue(true, "Placeholder - percentage height warning not implemented yet")
+  -- Verify the LAY_004 warning for percentage height with auto-sizing parent
+  local hasPercentageHeightWarning = false
+  for _, w in ipairs(self.warnings) do
+    if w.code == "LAY_004" and w.message:match("percentage height") then
+      hasPercentageHeightWarning = true
+      break
+    end
+  end
+  luaunit.assertTrue(
+    hasPercentageHeightWarning,
+    "Should emit LAY_004 warning for percentage height with auto-sizing parent"
+  )
 end
 
 function TestLayoutEdgeCases:test_pixel_width_with_auto_parent_no_warn()

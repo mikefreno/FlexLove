@@ -1222,12 +1222,13 @@ function Element:_initSizingContext(props)
   end
 end
 
---- Phase 6b: width/height/min-max/clamp, gap, flex shorthand/grow/shrink/basis,
---- 9-patch/border-box model, and padding/margin resolution + unit storage.
-function Element:_initBoxModel(props)
-  local viewportWidth, viewportHeight = Element._Units.getViewport()
-  local scaleX, scaleY = Element._Context.getScaleFactors()
-  local _ctx = { vw = viewportWidth, vh = viewportHeight, sx = scaleX, sy = scaleY }
+--- Resolve width/height (auto-aware), min/max constraints, and clamp
+---@param props table Properties
+---@param _ctx table Unit resolution context { vw, vh, sx, sy }
+---@param viewportWidth number
+---@param viewportHeight number
+---@return number tempWidth, number tempHeight Pre-padding width/height
+function Element:_resolveBoxDimensions(props, ctx, viewportWidth, viewportHeight)
   -- Handle width (both w and width properties, prefer w if both exist)
   -- "auto" is treated as content-sized (same as omitting the property), per CSS semantics.
   local widthProp = props.width
@@ -1237,7 +1238,7 @@ function Element:_initBoxModel(props)
   local tempWidth -- Temporary width for padding resolution
   if widthProp then
     local parentWidth = self.parent and self.parent.width or viewportWidth
-    tempWidth = _resolveUnit(self, widthProp, "width", parentWidth, _ctx, { scaleAxis = "x" })
+    tempWidth = _resolveUnit(self, widthProp, "width", parentWidth, ctx, { scaleAxis = "x" })
   else
     self.autosizing.width = true
     -- Special case: if textWrap is enabled and parent exists, constrain width to parent
@@ -1263,7 +1264,7 @@ function Element:_initBoxModel(props)
   local tempHeight -- Temporary height for padding resolution
   if heightProp then
     local parentHeight = self.parent and self.parent.height or viewportHeight
-    tempHeight = _resolveUnit(self, heightProp, "height", parentHeight, _ctx, { scaleAxis = "y" })
+    tempHeight = _resolveUnit(self, heightProp, "height", parentHeight, ctx, { scaleAxis = "y" })
   else
     self.autosizing.height = true
     -- Calculate auto-height without padding first
@@ -1274,10 +1275,10 @@ function Element:_initBoxModel(props)
 
   local constraintParentW = self.parent and self.parent.width or viewportWidth
   local constraintParentH = self.parent and self.parent.height or viewportHeight
-  _resolveUnit(self, props.minWidth, "minWidth", constraintParentW, _ctx, { scaleAxis = "x", nullable = true })
-  _resolveUnit(self, props.maxWidth, "maxWidth", constraintParentW, _ctx, { scaleAxis = "x", nullable = true })
-  _resolveUnit(self, props.minHeight, "minHeight", constraintParentH, _ctx, { scaleAxis = "y", nullable = true })
-  _resolveUnit(self, props.maxHeight, "maxHeight", constraintParentH, _ctx, { scaleAxis = "y", nullable = true })
+  _resolveUnit(self, props.minWidth, "minWidth", constraintParentW, ctx, { scaleAxis = "x", nullable = true })
+  _resolveUnit(self, props.maxWidth, "maxWidth", constraintParentW, ctx, { scaleAxis = "x", nullable = true })
+  _resolveUnit(self, props.minHeight, "minHeight", constraintParentH, ctx, { scaleAxis = "y", nullable = true })
+  _resolveUnit(self, props.maxHeight, "maxHeight", constraintParentH, ctx, { scaleAxis = "y", nullable = true })
 
   if not self.autosizing.width then
     self.width = Element._utils.clamp(tempWidth, self.minWidth, self.maxWidth)
@@ -1292,19 +1293,12 @@ function Element:_initBoxModel(props)
     self.height = Element._utils.clamp(self.height, self.minHeight, self.maxHeight)
   end
 
-  --- child positioning ---
-  if props.gap then
-    local flexDir = props.flexDirection or Element._utils.enums.FlexDirection.HORIZONTAL
-    local isHorizontalDir = flexDir == Element._utils.enums.FlexDirection.HORIZONTAL
-      or flexDir == Element._utils.enums.FlexDirection.HORIZONTAL_REVERSE
-    local containerSize = isHorizontalDir and self.width or self.height
-    _resolveUnit(self, props.gap, "gap", containerSize, _ctx)
-  else
-    self.gap = 0
-    self.units.gap = { value = 0, unit = "px" }
-  end
+  return tempWidth, tempHeight
+end
 
-  -- Handle flex shorthand property (sets flexGrow, flexShrink, flexBasis)
+--- Expand the flex shorthand into grow/shrink/basis (explicit props win)
+---@param props table Properties
+function Element:_expandFlexShorthand(props)
   if props.flex ~= nil then
     local grow, shrink, basis = Element._Units.parseFlexShorthand(props.flex)
 
@@ -1319,7 +1313,11 @@ function Element:_initBoxModel(props)
       props.flexBasis = basis
     end
   end
+end
 
+--- Resolve flexGrow/flexShrink/flexBasis with validation
+---@param props table Properties
+function Element:_resolveFlexProperties(props)
   -- Track whether flex-shrink was explicitly provided (directly or via flex shorthand)
   self._hasExplicitFlexShrink = props.flexShrink ~= nil
 
@@ -1369,11 +1367,15 @@ function Element:_initBoxModel(props)
     self.flexBasis = "auto"
     self.units.flexBasis = { value = nil, unit = "auto" }
   end
+end
 
-  -- BORDER-BOX MODEL: For auto-sizing, we need to add padding to content dimensions
-  -- For explicit sizing, width/height already include padding (border-box)
-
-  -- Check if we should use 9-patch content padding for auto-sizing
+--- Detect whether 9-patch content padding applies (no explicit padding given)
+---@param props table Properties
+---@param tempWidth number Pre-padding width
+---@param tempHeight number Pre-padding height
+---@return boolean use9PatchPadding
+---@return table|nil ninePatchContentPadding
+function Element:_resolveNinePatchPadding(props, tempWidth, tempHeight)
   local use9PatchPadding = false
   local ninePatchContentPadding = nil
   if self._themeManager:hasThemeComponent() then
@@ -1396,6 +1398,91 @@ function Element:_initBoxModel(props)
       end
     end
   end
+  return use9PatchPadding, ninePatchContentPadding
+end
+
+--- Clamp textSize to min/max presets and a 1px floor
+---@param scaleY number Vertical scale factor
+function Element:_clampTextSize(scaleY)
+  -- Re-resolve textSize presets now that width/height are set
+  -- (presets like "vw" need the viewport; others are resolved during constructor)
+
+  -- Apply min/max constraints (also scaled)
+  local minSize = self.minTextSize and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
+  local maxSize = self.maxTextSize and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
+
+  if minSize and self.textSize < minSize then
+    self.textSize = minSize
+  end
+  if maxSize and self.textSize > maxSize then
+    self.textSize = maxSize
+  end
+
+  -- Protect against too-small text sizes (minimum 1px)
+  if self.textSize < 1 then
+    self.textSize = 1 -- Minimum 1px
+  end
+end
+
+--- Store original spacing unit specs (padding + margin share identical structure)
+---@param props table Properties
+function Element:_storeSpacingUnits(props)
+  local sides = { "top", "right", "bottom", "left" }
+  for _, kind in ipairs({ "padding", "margin" }) do
+    local src = props[kind]
+    if src then
+      for _, axis in ipairs({ "horizontal", "vertical" }) do
+        if src[axis] then
+          if type(src[axis]) == "string" then
+            local value, unit = Element._Units.parse(src[axis])
+            self.units[kind][axis] = { value = value, unit = unit }
+          else
+            self.units[kind][axis] = { value = src[axis], unit = "px" }
+          end
+        end
+      end
+    end
+    for _, side in ipairs(sides) do
+      if src and src[side] then
+        if type(src[side]) == "string" then
+          local value, unit = Element._Units.parse(src[side])
+          self.units[kind][side] = { value = value, unit = unit, explicit = true }
+        else
+          self.units[kind][side] = { value = src[side], unit = "px", explicit = true }
+        end
+      else
+        self.units[kind][side] = { value = self[kind][side], unit = "px", explicit = false }
+      end
+    end
+  end
+end
+
+--- Phase 6b: width/height/min-max/clamp, gap, flex shorthand/grow/shrink/basis,
+--- 9-patch/border-box model, and padding/margin resolution + unit storage.
+function Element:_initBoxModel(props)
+  local viewportWidth, viewportHeight = Element._Units.getViewport()
+  local scaleX, scaleY = Element._Context.getScaleFactors()
+  local _ctx = { vw = viewportWidth, vh = viewportHeight, sx = scaleX, sy = scaleY }
+
+  local tempWidth, tempHeight = self:_resolveBoxDimensions(props, _ctx, viewportWidth, viewportHeight)
+
+  --- child positioning ---
+  if props.gap then
+    local flexDir = props.flexDirection or Element._utils.enums.FlexDirection.HORIZONTAL
+    local isHorizontalDir = flexDir == Element._utils.enums.FlexDirection.HORIZONTAL
+      or flexDir == Element._utils.enums.FlexDirection.HORIZONTAL_REVERSE
+    local containerSize = isHorizontalDir and self.width or self.height
+    _resolveUnit(self, props.gap, "gap", containerSize, _ctx)
+  else
+    self.gap = 0
+    self.units.gap = { value = 0, unit = "px" }
+  end
+
+  -- Handle flex shorthand property (sets flexGrow, flexShrink, flexBasis)
+  self:_expandFlexShorthand(props)
+  self:_resolveFlexProperties(props)
+
+  local use9PatchPadding, ninePatchContentPadding = self:_resolveNinePatchPadding(props, tempWidth, tempHeight)
 
   -- First, resolve padding using temporary dimensions
   -- For auto-sized elements, this is content width; for explicit sizing, this is border-box width
@@ -1462,90 +1549,38 @@ function Element:_initBoxModel(props)
 
   -- Re-resolve textSize presets now that width/height are set
   -- (presets like "vw" need the viewport; others are resolved during constructor)
-
-  -- Apply min/max constraints (also scaled)
-  local minSize = self.minTextSize and (Element._Context.baseScale and (self.minTextSize * scaleY) or self.minTextSize)
-  local maxSize = self.maxTextSize and (Element._Context.baseScale and (self.maxTextSize * scaleY) or self.maxTextSize)
-
-  if minSize and self.textSize < minSize then
-    self.textSize = minSize
-  end
-  if maxSize and self.textSize > maxSize then
-    self.textSize = maxSize
-  end
-
-  -- Protect against too-small text sizes (minimum 1px)
-  if self.textSize < 1 then
-    self.textSize = 1 -- Minimum 1px
-  end
+  self:_clampTextSize(scaleY)
 
   -- Store original spacing values for proper resize handling
   -- Store spacing unit specs (padding + margin share identical structure)
-  local sides = { "top", "right", "bottom", "left" }
-  for _, kind in ipairs({ "padding", "margin" }) do
-    local src = props[kind]
-    if src then
-      for _, axis in ipairs({ "horizontal", "vertical" }) do
-        if src[axis] then
-          if type(src[axis]) == "string" then
-            local value, unit = Element._Units.parse(src[axis])
-            self.units[kind][axis] = { value = value, unit = unit }
-          else
-            self.units[kind][axis] = { value = src[axis], unit = "px" }
-          end
-        end
-      end
-    end
-    for _, side in ipairs(sides) do
-      if src and src[side] then
-        if type(src[side]) == "string" then
-          local value, unit = Element._Units.parse(src[side])
-          self.units[kind][side] = { value = value, unit = unit, explicit = true }
-        else
-          self.units[kind][side] = { value = src[side], unit = "px", explicit = true }
-        end
-      else
-        self.units[kind][side] = { value = self[kind][side], unit = "px", explicit = false }
-      end
-    end
-  end
+  self:_storeSpacingUnits(props)
 
   -- Grid properties are set later in the constructor
 end
 
---- Phase 7: hereditary positioning (no-parent and with-parent), flex/grid
---- container properties, select-frame adopt, and LayoutEngine config update.
-function Element:_initPositioning(props)
-  local viewportWidth, viewportHeight = Element._Units.getViewport()
-  local scaleX, scaleY = Element._Context.getScaleFactors()
-  local _ctx = { vw = viewportWidth, vh = viewportHeight, sx = scaleX, sy = scaleY }
-  ------ add hereditary ------
-  if props.parent == nil then
-    table.insert(Element._Context.topElements, self)
-
-    -- Handle x position with units
-    _resolveUnit(self, props.x, "x", viewportWidth, _ctx, { scaleAxis = "x", default = 0 })
-
-    -- Handle y position with units
-    _resolveUnit(self, props.y, "y", viewportHeight, _ctx, { scaleAxis = "y", default = 0 })
-
-    self.z = Element._ZIndex.clamp(props.z or 0)
-    self.tabIndex = props.tabIndex -- nil/0 = document order, >0 = explicit order, -1 = excluded from keyboard nav
-
-    -- Set textColor with priority: props > theme text color > black
-    if props.textColor then
-      self.textColor = props.textColor
+--- Resolve textColor with priority props > parent > theme > black
+---@param props table Properties
+function Element:_resolveTextColor(props)
+  if props.textColor then
+    self.textColor = props.textColor
+  elseif self.parent and self.parent.textColor then
+    self.textColor = self.parent.textColor
+  else
+    -- Try to get text color from theme via ThemeManager
+    local themeToUse = self._themeManager:getTheme()
+    if themeToUse and themeToUse.colors and themeToUse.colors.text then
+      self.textColor = themeToUse.colors.text
     else
-      -- Try to get text color from theme via ThemeManager
-      local themeToUse = self._themeManager:getTheme()
-      if themeToUse and themeToUse.colors and themeToUse.colors.text then
-        self.textColor = themeToUse.colors.text
-      else
-        -- Fallback to black
-        self.textColor = Element._Color.new(0, 0, 0, 1)
-      end
+      -- Fallback to black
+      self.textColor = Element._Color.new(0, 0, 0, 1)
     end
+  end
+end
 
+--- Resolve the positioning mode from props (parent-aware)
+---@param props table Properties
+function Element:_resolvePositioningMode(props)
+  if self.parent == nil then
     -- Track if positioning was explicitly set
     if props.positioning then
       Element._utils.validateEnum(props.positioning, Element._utils.enums.Positioning, "positioning")
@@ -1557,40 +1592,7 @@ function Element:_initPositioning(props)
       self._originalPositioning = nil -- No explicit positioning
       self._explicitlyAbsolute = false
     end
-
-    -- Handle positioning properties for elements without parent
-    -- Warn if CSS positioning properties are supplied but will be ignored.
-    -- Relative elements honor the offsets as visual deltas (see
-    -- _applyRelativeOffsets); absolute elements use applyPositioningOffsets.
-    -- Only flex-participating children (positioning coerced to ABSOLUTE but not
-    -- explicitly absolute) actually drop the offsets and warrant the warning.
-    if
-      (props.top or props.bottom or props.left or props.right)
-      and not self._explicitlyAbsolute
-      and self.positioning ~= Element._utils.enums.Positioning.RELATIVE
-    then
-      _warnCssPositioningWithoutAbsolute(self, props)
-    end
-
-    -- Handle top/right/bottom/left positioning with units
-    if props.top then
-      _resolveUnit(self, props.top, "top", viewportHeight, _ctx)
-    end
-    if props.right then
-      _resolveUnit(self, props.right, "right", viewportWidth, _ctx)
-    end
-    if props.bottom then
-      _resolveUnit(self, props.bottom, "bottom", viewportHeight, _ctx)
-    end
-    if props.left then
-      _resolveUnit(self, props.left, "left", viewportWidth, _ctx)
-    end
-
-    -- position: relative offsets are applied as visual deltas in
-    -- LayoutEngine:layoutChildren (after the flex flow places children), so
-    -- they survive the addChild -> layoutChildren re-entry here.
   else
-    -- Set positioning first and track if explicitly set
     self._originalPositioning = props.positioning -- Track original intent
     if props.positioning == Element._utils.enums.Positioning.ABSOLUTE then
       self.positioning = Element._utils.enums.Positioning.ABSOLUTE
@@ -1615,86 +1617,130 @@ function Element:_initPositioning(props)
         self._explicitlyAbsolute = false -- Default for relative/absolute containers
       end
     end
+  end
+end
+
+--- Resolve the initial x/y position and z-index for a child element
+---@param props table Properties
+---@param ctx table Unit resolution context { vw, vh, sx, sy }
+function Element:_resolveInitialPosition(props, ctx)
+  -- Set initial position
+  local parentPadding = self.parent.padding or { left = 0, top = 0 }
+  if self.positioning == Element._utils.enums.Positioning.ABSOLUTE then
+    -- Absolute positioning is relative to parent's content area (padding box)
+    local baseX = self.parent.x + parentPadding.left
+    local baseY = self.parent.y + parentPadding.top
+
+    -- Handle x/y position with units
+    _resolveUnit(self, props.x, "x", self.parent.width, ctx, { scaleAxis = "x", offset = baseX, default = 0 })
+    _resolveUnit(self, props.y, "y", self.parent.height, ctx, { scaleAxis = "y", offset = baseY, default = 0 })
+
+    self.z = Element._ZIndex.clamp(props.z or 0)
+    self.tabIndex = props.tabIndex
+  else
+    -- Children in flex containers start at parent position but will be repositioned by layoutChildren
+    -- Children in absolute/relative containers start at parent's content area (accounting for padding)
+    local baseX = self.parent.x + parentPadding.left
+    local baseY = self.parent.y + parentPadding.top
+
+    -- Warn if explicit x/y is set on a child that will be positioned by flex layout
+    -- This position will be overridden unless the child has positioning="absolute"
+    local parentWillUseFlex = self.parent.positioning ~= "grid"
+    local childIsRelative = self.positioning ~= "absolute" or not self._explicitlyAbsolute
+    if parentWillUseFlex and childIsRelative and (props.x or props.y) then
+      Element._ErrorHandler:warn("Element", "LAY_008", {
+        element = self.id or "unnamed",
+        parent = self.parent.id or "unnamed",
+        properties = (props.x and props.y) and "x, y" or (props.x and "x" or "y"),
+      })
+    end
+
+    _resolveUnit(self, props.x, "x", self.parent.width, ctx, { scaleAxis = "x", offset = baseX, default = 0 })
+    _resolveUnit(self, props.y, "y", self.parent.height, ctx, { scaleAxis = "y", offset = baseY, default = 0 })
+
+    self.z = Element._ZIndex.clamp(props.z or self.parent.z or 0)
+    self.tabIndex = props.tabIndex
+  end
+end
+
+--- Resolve CSS top/right/bottom/left offsets and warn when they will be ignored
+---@param props table Properties
+---@param ctx table Unit resolution context { vw, vh, sx, sy }
+---@param viewportWidth number
+---@param viewportHeight number
+function Element:_resolveOffsets(props, ctx, viewportWidth, viewportHeight)
+  -- Handle positioning properties BEFORE adding to parent (so they're available during layout)
+  -- Warn if CSS positioning properties are supplied but will be ignored.
+  -- Relative elements honor the offsets as visual deltas (see
+  -- _applyRelativeOffsets); absolute elements use applyPositioningOffsets.
+  -- Only flex-participating children (positioning coerced to ABSOLUTE but not
+  -- explicitly absolute) actually drop the offsets and warrant the warning.
+  if
+    (props.top or props.bottom or props.left or props.right)
+    and not self._explicitlyAbsolute
+    and self.positioning ~= Element._utils.enums.Positioning.RELATIVE
+  then
+    _warnCssPositioningWithoutAbsolute(self, props)
+  end
+
+  -- Handle top/right/bottom/left positioning with units
+  if props.top then
+    _resolveUnit(self, props.top, "top", viewportHeight, ctx)
+  end
+  if props.right then
+    _resolveUnit(self, props.right, "right", viewportWidth, ctx)
+  end
+  if props.bottom then
+    _resolveUnit(self, props.bottom, "bottom", viewportHeight, ctx)
+  end
+  if props.left then
+    _resolveUnit(self, props.left, "left", viewportWidth, ctx)
+  end
+end
+
+--- Phase 7: hereditary positioning (no-parent and with-parent), flex/grid
+--- container properties, select-frame adopt, and LayoutEngine config update.
+function Element:_initPositioning(props)
+  local viewportWidth, viewportHeight = Element._Units.getViewport()
+  local scaleX, scaleY = Element._Context.getScaleFactors()
+  local _ctx = { vw = viewportWidth, vh = viewportHeight, sx = scaleX, sy = scaleY }
+  ------ add hereditary ------
+  if props.parent == nil then
+    table.insert(Element._Context.topElements, self)
+
+    -- Handle x position with units
+    _resolveUnit(self, props.x, "x", viewportWidth, _ctx, { scaleAxis = "x", default = 0 })
+
+    -- Handle y position with units
+    _resolveUnit(self, props.y, "y", viewportHeight, _ctx, { scaleAxis = "y", default = 0 })
+
+    self.z = Element._ZIndex.clamp(props.z or 0)
+    self.tabIndex = props.tabIndex -- nil/0 = document order, >0 = explicit order, -1 = excluded from keyboard nav
+
+    -- Set textColor with priority: props > theme text color > black
+    self:_resolveTextColor(props)
+
+    -- Track if positioning was explicitly set
+    self:_resolvePositioningMode(props)
+
+    -- Handle positioning properties for elements without parent
+    self:_resolveOffsets(props, _ctx, viewportWidth, viewportHeight)
+
+    -- position: relative offsets are applied as visual deltas in
+    -- LayoutEngine:layoutChildren (after the flex flow places children), so
+    -- they survive the addChild -> layoutChildren re-entry here.
+  else
+    -- Set positioning first and track if explicitly set
+    self:_resolvePositioningMode(props)
 
     -- Set initial position
-    local parentPadding = self.parent.padding or { left = 0, top = 0 }
-    if self.positioning == Element._utils.enums.Positioning.ABSOLUTE then
-      -- Absolute positioning is relative to parent's content area (padding box)
-      local baseX = self.parent.x + parentPadding.left
-      local baseY = self.parent.y + parentPadding.top
+    self:_resolveInitialPosition(props, _ctx)
 
-      -- Handle x/y position with units
-      _resolveUnit(self, props.x, "x", self.parent.width, _ctx, { scaleAxis = "x", offset = baseX, default = 0 })
-      _resolveUnit(self, props.y, "y", self.parent.height, _ctx, { scaleAxis = "y", offset = baseY, default = 0 })
-
-      self.z = Element._ZIndex.clamp(props.z or 0)
-      self.tabIndex = props.tabIndex
-    else
-      -- Children in flex containers start at parent position but will be repositioned by layoutChildren
-      -- Children in absolute/relative containers start at parent's content area (accounting for padding)
-      local baseX = self.parent.x + parentPadding.left
-      local baseY = self.parent.y + parentPadding.top
-
-      -- Warn if explicit x/y is set on a child that will be positioned by flex layout
-      -- This position will be overridden unless the child has positioning="absolute"
-      local parentWillUseFlex = self.parent.positioning ~= "grid"
-      local childIsRelative = self.positioning ~= "absolute" or not self._explicitlyAbsolute
-      if parentWillUseFlex and childIsRelative and (props.x or props.y) then
-        Element._ErrorHandler:warn("Element", "LAY_008", {
-          element = self.id or "unnamed",
-          parent = self.parent.id or "unnamed",
-          properties = (props.x and props.y) and "x, y" or (props.x and "x" or "y"),
-        })
-      end
-
-      _resolveUnit(self, props.x, "x", self.parent.width, _ctx, { scaleAxis = "x", offset = baseX, default = 0 })
-      _resolveUnit(self, props.y, "y", self.parent.height, _ctx, { scaleAxis = "y", offset = baseY, default = 0 })
-
-      self.z = Element._ZIndex.clamp(props.z or self.parent.z or 0)
-      self.tabIndex = props.tabIndex
-    end
-
-    if props.textColor then
-      self.textColor = props.textColor
-    elseif self.parent.textColor then
-      self.textColor = self.parent.textColor
-    else
-      local themeToUse = self._themeManager:getTheme()
-      if themeToUse and themeToUse.colors and themeToUse.colors.text then
-        self.textColor = themeToUse.colors.text
-      else
-        -- Fallback to black
-        self.textColor = Element._Color.new(0, 0, 0, 1)
-      end
-    end
+    -- Set textColor with priority: props > parent > theme > black
+    self:_resolveTextColor(props)
 
     -- Handle positioning properties BEFORE adding to parent (so they're available during layout)
-    -- Warn if CSS positioning properties are supplied but will be ignored.
-    -- Relative elements honor the offsets as visual deltas (see
-    -- _applyRelativeOffsets); absolute elements use applyPositioningOffsets.
-    -- Only flex-participating children (positioning coerced to ABSOLUTE but not
-    -- explicitly absolute) actually drop the offsets and warrant the warning.
-    if
-      (props.top or props.bottom or props.left or props.right)
-      and not self._explicitlyAbsolute
-      and self.positioning ~= Element._utils.enums.Positioning.RELATIVE
-    then
-      _warnCssPositioningWithoutAbsolute(self, props)
-    end
-
-    -- Handle top/right/bottom/left positioning with units
-    if props.top then
-      _resolveUnit(self, props.top, "top", viewportHeight, _ctx)
-    end
-    if props.right then
-      _resolveUnit(self, props.right, "right", viewportWidth, _ctx)
-    end
-    if props.bottom then
-      _resolveUnit(self, props.bottom, "bottom", viewportHeight, _ctx)
-    end
-    if props.left then
-      _resolveUnit(self, props.left, "left", viewportWidth, _ctx)
-    end
+    self:_resolveOffsets(props, _ctx, viewportWidth, viewportHeight)
 
     -- position: relative offsets are applied as visual deltas in
     -- LayoutEngine:layoutChildren (after the flex flow places children), so
@@ -1765,6 +1811,14 @@ function Element:_initPositioning(props)
 
   -- Update the LayoutEngine with actual layout properties
   -- (it was initialized early with defaults for auto-sizing calculations)
+  self:_syncLayoutEngine()
+
+  -- transform is bound by _applyProps; transition is bound by _applyProps (default {}).
+  -- (Previously set inline here; both are now registry-driven.)
+end
+
+--- Mirror resolved layout properties onto the element's LayoutEngine
+function Element:_syncLayoutEngine()
   self._layoutEngine.positioning = self.positioning
   if self.flexDirection then
     self._layoutEngine.flexDirection = self.flexDirection
@@ -1790,16 +1844,12 @@ function Element:_initPositioning(props)
   if self.gridColumns then
     self._layoutEngine.gridColumns = self.gridColumns
   end
-
   if self.columnGap then
     self._layoutEngine.columnGap = self.columnGap
   end
   if self.rowGap then
     self._layoutEngine.rowGap = self.rowGap
   end
-
-  -- transform is bound by _applyProps; transition is bound by _applyProps (default {}).
-  -- (Previously set inline here; both are now registry-driven.)
 end
 
 --- Phase 8 (ScrollManager instantiation + immediate-mode scrollbar restore) is

@@ -1,6 +1,27 @@
 local UTF8 = require((...):match("(.-)[^%.]+$") .. "UTF8")
 local utf8 = UTF8
 
+-- Static dispatch for handleKeyPress: key name -> TextEditor method name.
+-- Cursor keys share one handler (they dispatch on the key internally) and the
+-- Ctrl/Cmd-modified letter keys share one handler that checks the modifier.
+local KEY_HANDLERS = {
+  left = "_handleCursorKey",
+  right = "_handleCursorKey",
+  home = "_handleCursorKey",
+  ["end"] = "_handleCursorKey",
+  up = "_handleCursorKey",
+  down = "_handleCursorKey",
+  backspace = "_handleBackspace",
+  delete = "_handleDelete",
+  ["return"] = "_handleReturn",
+  kpenter = "_handleReturn",
+  a = "_handleCtrlKey",
+  c = "_handleCtrlKey",
+  x = "_handleCtrlKey",
+  v = "_handleCtrlKey",
+  escape = "_handleEscape",
+}
+
 ---@class TextEditor
 ---@field editable boolean
 ---@field multiline boolean
@@ -1146,143 +1167,181 @@ function TextEditor:handleKeyPress(element, key, scancode, isrepeat)
     return
   end
 
-  local modifiers = self._getModifiers()
-  local ctrl = modifiers.ctrl or modifiers.super
+  local handler = KEY_HANDLERS[key]
+  if handler then
+    local modifiers = self._getModifiers()
+    local ctrl = modifiers.ctrl or modifiers.super
 
-  -- Handle cursor movement with selection
-  if key == "left" or key == "right" or key == "home" or key == "end" or key == "up" or key == "down" then
-    if modifiers.shift and not self._selectionAnchor then
-      self._selectionAnchor = self._cursorPosition
+    if handler == "_handleCursorKey" then
+      self:_handleCursorKey(element, key, modifiers)
+    elseif handler == "_handleCtrlKey" then
+      self:_handleCtrlKey(element, key, ctrl)
+    else
+      self[handler](self, element, ctrl)
     end
+  end
 
-    if key == "left" then
-      if modifiers.super then
-        self:moveCursorToStart(element)
-        if not modifiers.shift then
-          self:clearSelection()
-        end
-      elseif modifiers.alt then
-        self:moveCursorToPreviousWord()
-      elseif self:hasSelection() and not modifiers.shift then
-        local startPos, _ = self:getSelection()
-        self._cursorPosition = startPos
-        self:clearSelection()
-      else
-        self:moveCursorBy(element, -1)
-      end
-    elseif key == "right" then
-      if modifiers.super then
-        self:moveCursorToEnd(element)
-        if not modifiers.shift then
-          self:clearSelection()
-        end
-      elseif modifiers.alt then
-        self:moveCursorToNextWord()
-      elseif self:hasSelection() and not modifiers.shift then
-        local _, endPos = self:getSelection()
-        self._cursorPosition = endPos
-        self:clearSelection()
-      else
-        self:moveCursorBy(element, 1)
-      end
-    elseif key == "home" then
-      if not self.multiline then
-        self:moveCursorToStart(element)
-      else
-        self:moveCursorToLineStart(element)
-      end
+  self:_saveState(element)
+end
+
+---Fire onTextChange when the text buffer changed during an edit
+---@param element Element The parent element
+---@param oldText string Text before the edit
+function TextEditor:_notifyTextChanged(element, oldText)
+  if self.onTextChange and self._textBuffer ~= oldText then
+    self.onTextChange(element, self._textBuffer, oldText)
+  end
+end
+
+---Handle cursor movement keys (left/right/home/end/up/down) with selection
+---@param element Element The parent element
+---@param key string -- Key name
+---@param modifiers table -- Keyboard modifiers
+function TextEditor:_handleCursorKey(element, key, modifiers)
+  if modifiers.shift and not self._selectionAnchor then
+    self._selectionAnchor = self._cursorPosition
+  end
+
+  if key == "left" then
+    if modifiers.super then
+      self:moveCursorToStart(element)
       if not modifiers.shift then
         self:clearSelection()
       end
-    elseif key == "end" then
-      if not self.multiline then
-        self:moveCursorToEnd(element)
-      else
-        self:moveCursorToLineEnd(element)
-      end
+    elseif modifiers.alt then
+      self:moveCursorToPreviousWord()
+    elseif self:hasSelection() and not modifiers.shift then
+      local startPos, _ = self:getSelection()
+      self._cursorPosition = startPos
+      self:clearSelection()
+    else
+      self:moveCursorBy(element, -1)
+    end
+  elseif key == "right" then
+    if modifiers.super then
+      self:moveCursorToEnd(element)
       if not modifiers.shift then
         self:clearSelection()
       end
-    elseif key == "up" or key == "down" then
-      if not modifiers.shift then
-        self:clearSelection()
-      end
+    elseif modifiers.alt then
+      self:moveCursorToNextWord()
+    elseif self:hasSelection() and not modifiers.shift then
+      local _, endPos = self:getSelection()
+      self._cursorPosition = endPos
+      self:clearSelection()
+    else
+      self:moveCursorBy(element, 1)
     end
-
-    -- Update selection if Shift is pressed
-    if modifiers.shift and self._selectionAnchor then
-      self:setSelection(element, self._selectionAnchor, self._cursorPosition)
-    elseif not modifiers.shift then
-      self._selectionAnchor = nil
+  elseif key == "home" then
+    if not self.multiline then
+      self:moveCursorToStart(element)
+    else
+      self:moveCursorToLineStart(element)
     end
+    if not modifiers.shift then
+      self:clearSelection()
+    end
+  elseif key == "end" then
+    if not self.multiline then
+      self:moveCursorToEnd(element)
+    else
+      self:moveCursorToLineEnd(element)
+    end
+    if not modifiers.shift then
+      self:clearSelection()
+    end
+  elseif key == "up" or key == "down" then
+    if not modifiers.shift then
+      self:clearSelection()
+    end
+  end
 
-    self:_resetCursorBlink(element)
+  -- Update selection if Shift is pressed
+  if modifiers.shift and self._selectionAnchor then
+    self:setSelection(element, self._selectionAnchor, self._cursorPosition)
+  elseif not modifiers.shift then
+    self._selectionAnchor = nil
+  end
 
-  -- Handle backspace and delete
-  elseif key == "backspace" then
-    local oldText = self._textBuffer
-    if self:hasSelection() then
-      self:deleteSelection(element)
-    elseif ctrl then
-      if self._cursorPosition > 0 then
-        self:deleteText(element, 0, self._cursorPosition)
-        self._cursorPosition = 0
-        self:_validateCursorPosition()
-      end
-    elseif self._cursorPosition > 0 then
-      local deleteStart = self._cursorPosition - 1
-      local deleteEnd = self._cursorPosition
-      self._cursorPosition = deleteStart
-      self:deleteText(element, deleteStart, deleteEnd)
+  self:_resetCursorBlink(element)
+end
+
+---Handle backspace (delete before cursor, Ctrl = delete to start)
+---@param element Element The parent element
+---@param ctrl boolean Whether Ctrl/Cmd is held
+function TextEditor:_handleBackspace(element, ctrl)
+  local oldText = self._textBuffer
+  if self:hasSelection() then
+    self:deleteSelection(element)
+  elseif ctrl then
+    if self._cursorPosition > 0 then
+      self:deleteText(element, 0, self._cursorPosition)
+      self._cursorPosition = 0
       self:_validateCursorPosition()
     end
+  elseif self._cursorPosition > 0 then
+    local deleteStart = self._cursorPosition - 1
+    local deleteEnd = self._cursorPosition
+    self._cursorPosition = deleteStart
+    self:deleteText(element, deleteStart, deleteEnd)
+    self:_validateCursorPosition()
+  end
 
-    if self.onTextChange and self._textBuffer ~= oldText then
-      self.onTextChange(element, self._textBuffer, oldText)
+  self:_notifyTextChanged(element, oldText)
+  self:_resetCursorBlink(element, true)
+end
+
+---Handle delete (delete at cursor)
+---@param element Element The parent element
+---@param ctrl boolean Whether Ctrl/Cmd is held
+function TextEditor:_handleDelete(element, ctrl)
+  local oldText = self._textBuffer
+  if self:hasSelection() then
+    self:deleteSelection(element)
+  else
+    local textLength = utf8.len(self._textBuffer or "")
+    if self._cursorPosition < textLength then
+      self:deleteText(element, self._cursorPosition, self._cursorPosition + 1)
     end
-    self:_resetCursorBlink(element, true)
-  elseif key == "delete" then
+  end
+
+  self:_notifyTextChanged(element, oldText)
+  self:_resetCursorBlink(element, true)
+end
+
+---Handle return/enter (insert newline in multiline, fire onEnter otherwise)
+---@param element Element The parent element
+---@param ctrl boolean Whether Ctrl/Cmd is held
+function TextEditor:_handleReturn(element, ctrl)
+  if self.multiline then
     local oldText = self._textBuffer
     if self:hasSelection() then
       self:deleteSelection(element)
-    else
-      local textLength = utf8.len(self._textBuffer or "")
-      if self._cursorPosition < textLength then
-        self:deleteText(element, self._cursorPosition, self._cursorPosition + 1)
-      end
     end
+    self:insertText(element, "\n")
 
-    if self.onTextChange and self._textBuffer ~= oldText then
-      self.onTextChange(element, self._textBuffer, oldText)
+    self:_notifyTextChanged(element, oldText)
+  else
+    if self.onEnter then
+      self.onEnter(element)
     end
-    self:_resetCursorBlink(element, true)
+  end
+  self:_resetCursorBlink(element, true)
+end
 
-  -- Handle return/enter
-  elseif key == "return" or key == "kpenter" then
-    if self.multiline then
-      local oldText = self._textBuffer
-      if self:hasSelection() then
-        self:deleteSelection(element)
-      end
-      self:insertText(element, "\n")
+---Handle Ctrl/Cmd-modified keys (a=select all, c=copy, x=cut, v=paste)
+---@param element Element The parent element
+---@param key string -- Key name
+---@param ctrl boolean Whether Ctrl/Cmd is held
+function TextEditor:_handleCtrlKey(element, key, ctrl)
+  if not ctrl then
+    return
+  end
 
-      if self.onTextChange and self._textBuffer ~= oldText then
-        self.onTextChange(element, self._textBuffer, oldText)
-      end
-    else
-      if self.onEnter then
-        self.onEnter(element)
-      end
-    end
-    self:_resetCursorBlink(element, true)
-
-  -- Handle Ctrl/Cmd+A (select all)
-  elseif ctrl and key == "a" then
+  if key == "a" then
     self:selectAll(element)
     self:_resetCursorBlink(element)
-
-  -- Handle Ctrl/Cmd+C (copy)
-  elseif ctrl and key == "c" then
+  elseif key == "c" then
     if self:hasSelection() then
       local selectedText = self:getSelectedText()
       if selectedText then
@@ -1290,26 +1349,21 @@ function TextEditor:handleKeyPress(element, key, scancode, isrepeat)
       end
     end
     self:_resetCursorBlink(element)
-
-  -- Handle Ctrl/Cmd+X (cut)
-  elseif ctrl and key == "x" then
+  elseif key == "x" then
+    local oldText
     if self:hasSelection() then
       local selectedText = self:getSelectedText()
       if selectedText then
         love.system.setClipboardText(selectedText)
-
-        local oldText = self._textBuffer
+        oldText = self._textBuffer
         self:deleteSelection(element)
-
-        if self.onTextChange and self._textBuffer ~= oldText then
-          self.onTextChange(element, self._textBuffer, oldText)
-        end
       end
     end
+    if oldText then
+      self:_notifyTextChanged(element, oldText)
+    end
     self:_resetCursorBlink(element, true)
-
-  -- Handle Ctrl/Cmd+V (paste)
-  elseif ctrl and key == "v" then
+  elseif key == "v" then
     local clipboardText = love.system.getClipboardText()
     if clipboardText and clipboardText ~= "" then
       local oldText = self._textBuffer
@@ -1320,23 +1374,22 @@ function TextEditor:handleKeyPress(element, key, scancode, isrepeat)
 
       self:insertText(element, clipboardText)
 
-      if self.onTextChange and self._textBuffer ~= oldText then
-        self.onTextChange(element, self._textBuffer, oldText)
-      end
+      self:_notifyTextChanged(element, oldText)
     end
     self:_resetCursorBlink(element, true)
-
-  -- Handle Escape
-  elseif key == "escape" then
-    if self:hasSelection() then
-      self:clearSelection()
-    else
-      self:blur(element)
-    end
-    self:_resetCursorBlink(element)
   end
+end
 
-  self:_saveState(element)
+---Handle escape (clear selection, or blur when nothing is selected)
+---@param element Element The parent element
+---@param ctrl boolean Whether Ctrl/Cmd is held
+function TextEditor:_handleEscape(element, ctrl)
+  if self:hasSelection() then
+    self:clearSelection()
+  else
+    self:blur(element)
+  end
+  self:_resetCursorBlink(element)
 end
 
 -- ====================

@@ -90,6 +90,7 @@ local testFiles = {
   "testing/__tests__/immediate_mode_branch_test.lua",
   "testing/__tests__/init_queue_test.lua",
   "testing/__tests__/input_event_test.lua",
+  "testing/__tests__/keyboard_navigation_test.lua",
   "testing/__tests__/layout_engine_test.lua",
   "testing/__tests__/module_loader_test.lua",
   "testing/__tests__/number_validation_test.lua",
@@ -159,20 +160,32 @@ if verbose then
 end
 
 -- Non-verbose mode
-local red = function(s) return "\027[31m" .. s .. "\027[0m" end
-local green = function(s) return "\027[32m" .. s .. "\027[0m" end
-local yellow = function(s) return "\027[33m" .. s .. "\027[0m" end
-local bold = function(s) return "\027[1m" .. s .. "\027[0m" end
+local red = function(s)
+  return "\027[31m" .. s .. "\027[0m"
+end
+local green = function(s)
+  return "\027[32m" .. s .. "\027[0m"
+end
+local yellow = function(s)
+  return "\027[33m" .. s .. "\027[0m"
+end
+local bold = function(s)
+  return "\027[1m" .. s .. "\027[0m"
+end
 
 local RED_X = red("\226\156\151")
 local GREEN_CHECK = green("\226\156\147")
 local YELLOW_DASH = yellow("-")
 
 local function extractLineNum(stackTrace)
-  if not stackTrace then return "?" end
+  if not stackTrace then
+    return "?"
+  end
   for line in stackTrace:gmatch("[^\n]+") do
     local _, _, ln = line:find(":(%d+):")
-    if ln then return ln end
+    if ln then
+      return ln
+    end
   end
   return "?"
 end
@@ -289,14 +302,26 @@ end
 local duration = string.format("%.3f", os.clock() - runner.result.startTime)
 print()
 if allPassed then
-  print(string.format("  %s Ran %d tests in %s seconds, 0 failures",
-    green(bold("All tests passed")), totalTests, duration))
+  print(
+    string.format("  %s Ran %d tests in %s seconds, 0 failures", green(bold("All tests passed")), totalTests, duration)
+  )
 else
   local parts = {}
-  if totalFail > 0 then table.insert(parts, string.format("%d failures", totalFail)) end
-  if totalErr > 0 then table.insert(parts, string.format("%d errors", totalErr)) end
-  print(string.format("  %s Ran %d tests in %s seconds - %s",
-    red(bold("Some tests FAILED")), totalTests, duration, table.concat(parts, ", ")))
+  if totalFail > 0 then
+    table.insert(parts, string.format("%d failures", totalFail))
+  end
+  if totalErr > 0 then
+    table.insert(parts, string.format("%d errors", totalErr))
+  end
+  print(
+    string.format(
+      "  %s Ran %d tests in %s seconds - %s",
+      red(bold("Some tests FAILED")),
+      totalTests,
+      duration,
+      table.concat(parts, ", ")
+    )
+  )
 end
 
 if enableCoverage and status then

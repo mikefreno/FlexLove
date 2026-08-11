@@ -79,13 +79,11 @@ function FONT_CACHE.get(size, fontPath)
   local cacheKey = fontPath and (fontPath .. ":" .. tostring(size)) or ("default:" .. tostring(size))
 
   if FONT_CACHE[cacheKey] then
-    -- Cache hit
     FONT_CACHE_STATS.hits = FONT_CACHE_STATS.hits + 1
     updateCacheAccess(cacheKey)
     return FONT_CACHE[cacheKey].font
   end
 
-  -- Cache miss
   FONT_CACHE_STATS.misses = FONT_CACHE_STATS.misses + 1
 
   local font

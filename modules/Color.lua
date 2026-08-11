@@ -18,7 +18,6 @@ end
 ---@param a number? Alpha component (0-1), defaults to 1
 ---@return Color color The new color instance
 function Color.new(r, g, b, a)
-  -- Sanitize and clamp color components
   local _, sanitizedR = Color.validateColorChannel(r or 0, 1)
   local _, sanitizedG = Color.validateColorChannel(g or 0, 1)
   local _, sanitizedB = Color.validateColorChannel(b or 0, 1)
@@ -49,7 +48,6 @@ end
 ---@param hexWithTag string Hex color string (e.g. "#RRGGBB" or "#RRGGBBAA")
 ---@return Color color The parsed color (returns white on error with warning)
 function Color.fromHex(hexWithTag)
-  -- Validate input type
   if type(hexWithTag) ~= "string" then
     Color._ErrorHandler:warn("Color", "VAL_004", {
       input = tostring(hexWithTag),
@@ -121,7 +119,6 @@ function Color.validateColorChannel(value, max)
     return false, nil
   end
 
-  -- Normalize to 0-1 range
   local normalized = value
   if max == 255 then
     normalized = value / 255
@@ -142,7 +139,6 @@ function Color.validateHexColor(hex)
     return false, "Hex color must be a string"
   end
 
-  -- Remove # prefix
   local cleanHex = hex:gsub("^#", "")
 
   -- Check length (3, 6, or 8 characters)
@@ -319,7 +315,6 @@ end
 ---@param t number Interpolation factor (0-1)
 ---@return Color color Interpolated color
 function Color.lerp(colorA, colorB, t)
-  -- Sanitize inputs
   if type(colorA) ~= "table" or getmetatable(colorA) ~= Color then
     colorA = Color.new(0, 0, 0, 1)
   end

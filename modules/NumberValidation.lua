@@ -43,7 +43,6 @@ end
 local function validateNumber(value, options)
   options = options or {}
 
-  -- Check if value is a number type
   if type(value) ~= "number" then
     if options.default ~= nil then
       return true, nil, options.default
@@ -51,7 +50,6 @@ local function validateNumber(value, options)
     return false, string.format("Value must be a number, got %s", type(value)), nil
   end
 
-  -- Check for NaN
   if isNaN(value) then
     if not options.allowNaN then
       if options.default ~= nil then
@@ -61,7 +59,6 @@ local function validateNumber(value, options)
     end
   end
 
-  -- Check for Infinity
   if isInfinity(value) then
     if not options.allowInfinity then
       if options.default ~= nil then

@@ -39,7 +39,6 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
 
   local regions = component.regions
 
-  -- Extract border dimensions from regions (in pixels)
   local left = regions.topLeft.w
   local right = regions.topRight.w
   local top = regions.topLeft.h
@@ -47,7 +46,6 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
   local centerW = regions.middleCenter.w
   local centerH = regions.middleCenter.h
 
-  -- Calculate content area (space remaining after borders)
   local contentWidth = width - left - right
   local contentHeight = height - top - bottom
 
@@ -55,7 +53,6 @@ function NinePatch.draw(component, atlas, x, y, width, height, opacity, elementS
   contentWidth = math.max(0, contentWidth)
   contentHeight = math.max(0, contentHeight)
 
-  -- Calculate stretch scales for edges and center
   local scaleX = contentWidth / centerW
   local scaleY = contentHeight / centerH
 

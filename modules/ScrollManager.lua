@@ -739,35 +739,42 @@ function ScrollManager:setState(state)
     return
   end
 
-  -- Support both old (scrollX) and new (_scrollX) field names for backward compatibility
+  -- Migrate legacy (pre-underscore) field names once at restore, so only the
+  -- canonical `_`-prefixed keys are read below
+  if state._scrollX == nil then
+    state._scrollX = state.scrollX
+  end
+  if state._scrollY == nil then
+    state._scrollY = state.scrollY
+  end
+  if state._scrollbarDragging == nil then
+    state._scrollbarDragging = state.scrollbarDragging
+  end
+  if state._hoveredScrollbar == nil then
+    state._hoveredScrollbar = state.hoveredScrollbar
+  end
+  if state._scrollbarDragOffset == nil then
+    state._scrollbarDragOffset = state.scrollbarDragOffset
+  end
+
   if state._scrollX ~= nil then
     self._scrollX = state._scrollX
-  elseif state.scrollX ~= nil then
-    self._scrollX = state.scrollX
   end
 
   if state._scrollY ~= nil then
     self._scrollY = state._scrollY
-  elseif state.scrollY ~= nil then
-    self._scrollY = state.scrollY
   end
 
   if state._scrollbarDragging ~= nil then
     self._scrollbarDragging = state._scrollbarDragging
-  elseif state.scrollbarDragging ~= nil then
-    self._scrollbarDragging = state.scrollbarDragging
   end
 
   if state._hoveredScrollbar ~= nil then
     self._hoveredScrollbar = state._hoveredScrollbar
-  elseif state.hoveredScrollbar ~= nil then
-    self._hoveredScrollbar = state.hoveredScrollbar
   end
 
   if state._scrollbarDragOffset ~= nil then
     self._scrollbarDragOffset = state._scrollbarDragOffset
-  elseif state.scrollbarDragOffset ~= nil then
-    self._scrollbarDragOffset = state.scrollbarDragOffset
   end
 
   -- Restore drag start positions for relative movement tracking

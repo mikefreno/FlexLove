@@ -25,7 +25,6 @@ local function sanitizePath(path)
   end
   path = tostring(path)
 
-  -- Trim whitespace
   path = path:match("^%s*(.-)%s*$") or ""
 
   -- Normalize separators to forward slash
@@ -51,10 +50,8 @@ local function isPathSafe(path, baseDir)
     return false, "Path is empty"
   end
 
-  -- Sanitize the path
   path = sanitizePath(path)
 
-  -- Check for suspicious patterns
   if path:match("%.%.") then
     return false, "Path contains '..' (parent directory reference)"
   end

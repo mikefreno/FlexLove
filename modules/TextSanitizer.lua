@@ -22,7 +22,6 @@ end
 --- @return string Sanitized text
 local function sanitizeText(text, options)
   local utf8 = require("utf8")
-  -- Handle nil or non-string inputs
   if text == nil then
     return ""
   end
@@ -30,7 +29,6 @@ local function sanitizeText(text, options)
     text = tostring(text)
   end
 
-  -- Default options
   options = options or {}
   local maxLength = options.maxLength or 10000
   local allowNewlines = options.allowNewlines ~= false -- default true

@@ -75,7 +75,6 @@ function Units.parse(value)
     return 0, "px"
   end
 
-  -- Default to pixels if no unit specified
   if unit == "" then
     unit = "px"
   end

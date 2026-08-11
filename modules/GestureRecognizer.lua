@@ -98,7 +98,6 @@ function GestureRecognizer:processTouchEvent(event)
   local touchId = event.touchId
   local gestures = {}
 
-  -- Update touch state
   if event.type == "touchpress" then
     self._touches[touchId] = {
       startX = event.x,
@@ -420,12 +419,10 @@ function GestureRecognizer:_detectPinch(event)
   local t1 = touches[1].touch
   local t2 = touches[2].touch
 
-  -- Calculate current distance
   local currentDx = t2.x - t1.x
   local currentDy = t2.y - t1.y
   local currentDistance = math.sqrt(currentDx * currentDx + currentDy * currentDy)
 
-  -- Calculate initial distance
   local initialDx = t2.startX - t1.startX
   local initialDy = t2.startY - t1.startY
   local initialDistance = math.sqrt(initialDx * initialDx + initialDy * initialDy)
@@ -434,7 +431,6 @@ function GestureRecognizer:_detectPinch(event)
     return nil
   end
 
-  -- Calculate scale
   local scale = currentDistance / initialDistance
   local pinchState = self._gestureStates.pinch
 
@@ -445,7 +441,6 @@ function GestureRecognizer:_detectPinch(event)
       pinchState.initialScale = scale
       pinchState.lastScale = scale
 
-      -- Calculate center point
       local centerX = (t1.x + t2.x) / 2
       local centerY = (t1.y + t2.y) / 2
 
@@ -500,10 +495,8 @@ function GestureRecognizer:_detectRotate(event)
   local t1 = touches[1].touch
   local t2 = touches[2].touch
 
-  -- Calculate current angle
   local currentAngle = math.atan2(t2.y - t1.y, t2.x - t1.x)
 
-  -- Calculate initial angle
   local initialAngle = math.atan2(t2.startY - t1.startY, t2.startX - t1.startX)
 
   -- Calculate rotation (in degrees)
@@ -518,7 +511,6 @@ function GestureRecognizer:_detectRotate(event)
       rotateState.initialRotation = rotation
       rotateState.lastRotation = rotation
 
-      -- Calculate center point
       local centerX = (t1.x + t2.x) / 2
       local centerY = (t1.y + t2.y) / 2
 

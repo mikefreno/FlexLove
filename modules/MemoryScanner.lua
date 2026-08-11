@@ -52,7 +52,6 @@ local function estimateTableSize(tbl, visited, depth)
   local size = 40 -- Base table overhead (approximate)
 
   for k, v in pairs(tbl) do
-    -- Key size
     if type(k) == "string" then
       size = size + #k + 24 -- String overhead
     elseif type(k) == "number" then

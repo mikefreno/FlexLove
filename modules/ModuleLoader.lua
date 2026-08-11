@@ -24,68 +24,56 @@ local function createNullObject(moduleName)
   -- Common method stubs that return safe defaults
   local metatable = {
     __index = function(_, key)
-      -- Common initialization method
       if key == "init" then
         return function()
           return stub
         end
       end
 
-      -- Common constructor method
       if key == "new" then
         return function()
           return stub
         end
       end
 
-      -- Common draw method
       if key == "draw" then
         return function() end
       end
 
-      -- Common update method
       if key == "update" then
         return function() end
       end
 
-      -- Common render method
       if key == "render" then
         return function() end
       end
 
-      -- Common cleanup method
       if key == "destroy" then
         return function() end
       end
 
-      -- Common cleanup method
       if key == "cleanup" then
         return function() end
       end
 
-      -- Common clear method
       if key == "clear" then
         return function() end
       end
 
-      -- Common reset method
       if key == "reset" then
         return function() end
       end
 
-      -- Common get method
       if key == "get" then
         return function()
           return nil
         end
       end
 
-      -- Common set method
       if key == "set" then
         return function() end
       end
 
-      -- Common load method
       if key == "load" then
         return function()
           return stub

@@ -122,6 +122,52 @@ function EventHandler:setState(state)
   self._hovered = state._hovered or false
 end
 
+--- Whether mouse events can be processed for this element: it has a handler,
+--- is enabled, and is either the active element, being dragged, or tracking a press
+---@param element Element The parent element
+---@param isActiveElement boolean Whether this is the top element at mouse position
+---@param isDragging boolean Whether any button is being dragged
+---@param hasTrackedPress boolean Whether any button is tracked as pressed
+---@return boolean canProcess
+function EventHandler:_canProcessMouseEvents(element, isActiveElement, isDragging, hasTrackedPress)
+  return (element.onEvent or self.onEvent or element.editable or element._selectState or element.selectOption)
+    and element.visibility ~= "hidden"
+    and not element.disabled
+    and (isActiveElement or isDragging or hasTrackedPress)
+end
+
+--- Clear pressed state for buttons that are no longer physically held
+function EventHandler:_resetReleasedPresses()
+  for _, button in ipairs({ 1, 2, 3 }) do
+    if self._pressed[button] and not love.mouse.isDown(button) then
+      self._pressed[button] = false
+      self._dragStartX[button] = nil
+      self._dragStartY[button] = nil
+    end
+  end
+end
+
+--- Fire a synthetic unhover event when hovering stops (mouse leaves, element
+--- becomes disabled, or another element occludes it)
+---@param element Element The parent element
+---@param mx number Mouse X position
+---@param my number Mouse Y position
+function EventHandler:_fireUnhover(element, mx, my)
+  self._hovered = false
+  if element.onEvent or self.onEvent then
+    local modifiers = EventHandler._utils.getModifiers()
+    local unhoverEvent = EventHandler._InputEvent.new({
+      type = "unhover",
+      button = 0,
+      x = mx,
+      y = my,
+      modifiers = modifiers,
+      clickCount = 0,
+    })
+    self:_invokeCallback(element, unhoverEvent)
+  end
+end
+
 --- Process mouse button events in the update cycle
 ---@param element Element The parent element
 ---@param mx number Mouse X position
@@ -136,79 +182,36 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
   end
 
   -- Check if currently dragging (allows drag continuation even if occluded)
+  -- and if any button is currently pressed (tracked state)
   local isDragging = false
-  for _, button in ipairs({ 1, 2, 3 }) do
-    if self._pressed[button] and love.mouse.isDown(button) then
-      isDragging = true
-      break
-    end
-  end
-
-  -- Check if any button is currently pressed (tracked state)
   local hasTrackedPress = false
   for _, button in ipairs({ 1, 2, 3 }) do
     if self._pressed[button] then
       hasTrackedPress = true
-      break
+      if love.mouse.isDown(button) then
+        isDragging = true
+      end
+      if isDragging and hasTrackedPress then
+        break
+      end
     end
   end
 
   -- Can only process events if we have handler, element is enabled, and is active or dragging or has tracked press
   -- Read onEvent from element (source of truth), fallback to handler cache for backwards compat
-  local canProcessEvents = (
-    element.onEvent
-    or self.onEvent
-    or element.editable
-    or element._selectState
-    or element.selectOption
-  )
-    and element.visibility ~= "hidden"
-    and not element.disabled
-    and (isActiveElement or isDragging or hasTrackedPress)
+  local canProcessEvents = self:_canProcessMouseEvents(element, isActiveElement, isDragging, hasTrackedPress)
 
   if not canProcessEvents then
     -- If not hovering and no buttons are physically pressed, reset all pressed states
     -- This ensures the pressed state is cleared when mouse leaves without button held
     if not isHovering and not isDragging then
-      for _, button in ipairs({ 1, 2, 3 }) do
-        if self._pressed[button] and not love.mouse.isDown(button) then
-          self._pressed[button] = false
-          self._dragStartX[button] = nil
-          self._dragStartY[button] = nil
-        end
-      end
+      self:_resetReleasedPresses()
     end
 
     -- Track hover state changes even when events can't be processed
     -- Fire synthetic unhover when element becomes disabled while hovered
-    if element.disabled and self._hovered then
-      self._hovered = false
-      if element.onEvent or self.onEvent then
-        local modifiers = EventHandler._utils.getModifiers()
-        local unhoverEvent = EventHandler._InputEvent.new({
-          type = "unhover",
-          button = 0,
-          x = mx,
-          y = my,
-          modifiers = modifiers,
-          clickCount = 0,
-        })
-        self:_invokeCallback(element, unhoverEvent)
-      end
-    elseif self._hovered and not isHovering then
-      self._hovered = false
-      if element.onEvent or self.onEvent then
-        local modifiers = EventHandler._utils.getModifiers()
-        local unhoverEvent = EventHandler._InputEvent.new({
-          type = "unhover",
-          button = 0,
-          x = mx,
-          y = my,
-          modifiers = modifiers,
-          clickCount = 0,
-        })
-        self:_invokeCallback(element, unhoverEvent)
-      end
+    if (element.disabled or not isHovering) and self._hovered then
+      self:_fireUnhover(element, mx, my)
     end
 
     if EventHandler._Performance and EventHandler._Performance.enabled then
@@ -237,70 +240,65 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
     self:_invokeCallback(element, hoverEvent)
   elseif not isHoveringAndActive and wasHovered then
     -- Just stopped hovering - fire unhover event
-    self._hovered = false
-    local modifiers = EventHandler._utils.getModifiers()
-    local unhoverEvent = EventHandler._InputEvent.new({
-      type = "unhover",
-      button = 0,
-      x = mx,
-      y = my,
-      modifiers = modifiers,
-      clickCount = 0,
-    })
-    self:_invokeCallback(element, unhoverEvent)
+    self:_fireUnhover(element, mx, my)
   end
 
   -- Process all three mouse buttons
   local buttons = { 1, 2, 3 } -- left, right, middle
 
   for _, button in ipairs(buttons) do
-    -- Check if this button was tracked as pressed
-    local wasPressed = self._pressed[button]
-    local isPhysicallyPressed = love.mouse.isDown(button)
-
-    if isHovering or isDragging or wasPressed then
-      if isPhysicallyPressed then
-        -- Button is pressed down
-        if not wasPressed then
-          -- Just pressed - fire press event (only if hovering)
-          if isHovering then
-            self:_handleMousePress(element, mx, my, button)
-          end
-        else
-          -- Button is still pressed - check for drag
-          self:_handleMouseDrag(element, mx, my, button, isHovering)
-        end
-      elseif wasPressed then
-        -- Button was just released
-        -- Only fire click and release events if mouse is still hovering AND element is active
-        -- (not occluded by another element)
-        if isHovering and isActiveElement then
-          self:_handleMouseRelease(element, mx, my, button)
-        else
-          -- Mouse left before release OR element is occluded - just clear the pressed state without firing events
-          self._pressed[button] = false
-          self._dragStartX[button] = nil
-          self._dragStartY[button] = nil
-        end
-      end
-    end
+    self:_processButton(element, mx, my, button, isHovering, isDragging, isActiveElement)
   end
 
   -- After processing events, reset pressed states for buttons that are no longer held
   -- This handles the case where mouse leaves while button is held, then released
   if not isHovering and not isDragging then
-    for _, button in ipairs({ 1, 2, 3 }) do
-      if self._pressed[button] and not love.mouse.isDown(button) then
-        self._pressed[button] = false
-        self._dragStartX[button] = nil
-        self._dragStartY[button] = nil
-      end
-    end
+    self:_resetReleasedPresses()
   end
 
   -- Stop performance timing
   if EventHandler._Performance and EventHandler._Performance.enabled then
     EventHandler._Performance:stopTimer("event_mouse")
+  end
+end
+
+--- Handle press, drag, and release for a single mouse button
+---@param element Element The parent element
+---@param mx number Mouse X position
+---@param my number Mouse Y position
+---@param button number Mouse button (1=left, 2=right, 3=middle)
+---@param isHovering boolean Whether mouse is over element
+---@param isDragging boolean Whether any button is being dragged
+---@param isActiveElement boolean Whether this is the top element at mouse position
+function EventHandler:_processButton(element, mx, my, button, isHovering, isDragging, isActiveElement)
+  local wasPressed = self._pressed[button]
+  local isPhysicallyPressed = love.mouse.isDown(button)
+
+  if isHovering or isDragging or wasPressed then
+    if isPhysicallyPressed then
+      -- Button is pressed down
+      if not wasPressed then
+        -- Just pressed - fire press event (only if hovering)
+        if isHovering then
+          self:_handleMousePress(element, mx, my, button)
+        end
+      else
+        -- Button is still pressed - check for drag
+        self:_handleMouseDrag(element, mx, my, button, isHovering)
+      end
+    elseif wasPressed then
+      -- Button was just released
+      -- Only fire click and release events if mouse is still hovering AND element is active
+      -- (not occluded by another element)
+      if isHovering and isActiveElement then
+        self:_handleMouseRelease(element, mx, my, button)
+      else
+        -- Mouse left before release OR element is occluded - just clear the pressed state without firing events
+        self._pressed[button] = false
+        self._dragStartX[button] = nil
+        self._dragStartY[button] = nil
+      end
+    end
   end
 end
 

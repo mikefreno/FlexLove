@@ -79,7 +79,8 @@ FlexLove.destroy()  -- call when you tear down the UI to release element state
 - **Layout/viewport**: `FlexLove.resize(w, h)`, `FlexLove.setMode("immediate"|"retained")`, `FlexLove.getMode()`
 - **Frame control (optional)**: `FlexLove.beginFrame()`, `FlexLove.endFrame()` — see note above
 - **Input hooks** (wire to the matching `love.*` callbacks): `textinput`, `keypressed`, `wheelmoved`, `touchpressed`, `touchmoved`, `touchreleased`
-- **Elements**: `FlexLove.new(props, callback?)`, `FlexLove.getById(id)`, `FlexLove.getElementAtPosition(x, y)`
+- **Elements**: `FlexLove.new(props, callback?)`, `FlexLove.getById(id)`, `FlexLove.getElementAtPosition(x, y)`, `FlexLove.findByText(pattern, {exact?})`
+- **Headless driving**: `FlexLove.Input` (`modules/Input.lua`) — `useVirtual(bool)`, `isVirtual()`, `setVirtualState({x,y,buttons,keys})`, `isDown(button)`, `getPosition()`, `isKeyDown(key, ...)`, `getModifiers()`. When virtual mode is on, all internal input polling (hover, press, scrollbar drag, keyboard modifiers) reads this state instead of `love.*`, letting a test harness drive the UI synchronously.
 - **Focus**: `FlexLove.getFocusedElement()`, `FlexLove.setFocusedElement(el)`, `FlexLove.clearFocus()`
 - **Keyboard nav**: `FlexLove.enableKeyboardNavigation(opts)` (also `init({ keyboardNavigation = opts })`) — or pass `true` for defaults
 - **Debug**: `FlexLove.setDebugDraw(bool)`, `FlexLove.getDebugDraw()`

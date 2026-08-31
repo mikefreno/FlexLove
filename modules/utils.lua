@@ -10,7 +10,7 @@ local TextSanitizer = req("TextSanitizer")
 local PathValidator = req("PathValidator")
 local FontCache = req("FontCache")
 local Enums = req("Enums")
-
+local Input = req("Input")
 -- ErrorHandler is injected via init() (safeLoadImage closes over this upvalue).
 local ErrorHandler = nil
 
@@ -21,15 +21,8 @@ local enums = Enums.enums
 -- lives in the focused sub-modules above and is re-exported below.
 
 --- Get current keyboard modifiers state
----@return {shift:boolean, ctrl:boolean, alt:boolean, super:boolean}
 local function getModifiers()
-  return {
-    shift = love.keyboard.isDown("lshift", "rshift"),
-    ctrl = love.keyboard.isDown("lctrl", "rctrl"),
-    alt = love.keyboard.isDown("lalt", "ralt"),
-    ---@diagnostic disable-next-line
-    super = love.keyboard.isDown("lgui", "rgui"), -- cmd/windows key
-  }
+  return Input.getModifiers()
 end
 
 local TEXT_SIZE_PRESETS = {

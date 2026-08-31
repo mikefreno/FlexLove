@@ -5,6 +5,8 @@ local function req(name)
   return require(modulePath .. name)
 end
 
+local Input = require(modulePath .. "Input")
+
 ---@class KeyboardNavigation
 ---@field config KeyboardNavigationConfig
 local KeyboardNavigation = {
@@ -131,7 +133,7 @@ function KeyboardNavigation:handleKeyPress(key, scancode, isrepeat)
   -- Check for next/previous navigation
   -- Tab with shift held = previous; Tab without shift = next
   if key == keys.next then
-    if love.keyboard.isDown("lshift") or love.keyboard.isDown("rshift") then
+    if Input.isKeyDown("lshift") or Input.isKeyDown("rshift") then
       return self:previousFocusable()
     end
     return self:nextFocusable()

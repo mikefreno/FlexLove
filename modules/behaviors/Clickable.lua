@@ -35,6 +35,7 @@
 
 local _pkg = (...):match("^(.-)behaviors%.") or "modules."
 local Behavior = require(_pkg .. "Behavior")
+local Input = require(_pkg .. "Input")
 
 -- Resolve the Element class from an element instance.
 -- Element instances are created via `setmetatable({}, Element)` in _construct,
@@ -135,7 +136,7 @@ local function onUpdate(element, dt)
     return
   end
 
-  local mx, my = love.mouse.getPosition()
+  local mx, my = Input.getPosition()
 
   -- Clickable area is the border box (x, y already includes padding)
   -- BORDER-BOX MODEL: Use stored border-box dimensions for hit detection

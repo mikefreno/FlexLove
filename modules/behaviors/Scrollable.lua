@@ -54,6 +54,7 @@
 
 local _pkg = (...):match("^(.-)behaviors%.") or "modules."
 local Behavior = require(_pkg .. "Behavior")
+local Input = require(_pkg .. "Input")
 
 -- Resolve the Element class from an element instance.
 -- `setmetatable({}, Element)` in `_construct` makes the instance metatable BE
@@ -194,7 +195,7 @@ local function onUpdate(element, dt)
 
   -- Scrollbar hover / drag / press interaction. Captures the mouse here so the
   -- interaction state is consistent across the rest of the frame's behaviors.
-  local mx, my = love.mouse.getPosition()
+  local mx, my = Input.getPosition()
   Element._ScrollManager.updateInteraction(element, mx, my)
 end
 

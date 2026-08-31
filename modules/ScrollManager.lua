@@ -1,3 +1,6 @@
+local modulePath = (...):match("(.-)[^%.]+$")
+local Input = require(modulePath .. "Input")
+
 ---@class ScrollManager
 ---@field overflow string -- "visible"|"hidden"|"auto"|"scroll"
 ---@field overflowX string? -- X-axis specific overflow (overrides overflow)
@@ -1414,7 +1417,7 @@ function ScrollManager.updateInteraction(element, mx, my)
     ScrollManager.syncToElement(element)
   end
 
-  if element._scrollbarDragging and love.mouse.isDown(1) then
+  if element._scrollbarDragging and Input.isDown(1) then
     ScrollManager._handleScrollbarDrag(element, mx, my)
   elseif element._scrollbarDragging then
     if sm then
@@ -1439,12 +1442,12 @@ function ScrollManager.updateInteraction(element, mx, my)
   )
 
   if hasScrollableOverflow and not element._scrollbarDragging then
-    if love.mouse.isDown(1) and not element._scrollbarPressHandled then
+    if Input.isDown(1) and not element._scrollbarPressHandled then
       local scrollbarPressed = ScrollManager._handleScrollbarPress(element, mx, my, 1)
       if scrollbarPressed then
         element._scrollbarPressHandled = true
       end
-    elseif not love.mouse.isDown(1) then
+    elseif not Input.isDown(1) then
       element._scrollbarPressHandled = false
     end
   end

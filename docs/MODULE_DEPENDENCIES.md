@@ -31,6 +31,7 @@ FlexLove.lua
 ├── RoundedRect            (rounded rectangle rendering)
 ├── Grid                   (grid layout utilities)
 ├── InputEvent             (input event abstraction)
+├── Input                  (input polling indirection: love or virtual source; read by EventHandler / Clickable / Scrollable / ScrollManager / KeyboardNavigation / utils / FlexLove core)
 ├── TextEditor             (text input/caret handling)
 │   └── requires: UTF8
 ├── LayoutEngine           (flexbox layout calculations)

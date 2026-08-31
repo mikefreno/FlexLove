@@ -41,6 +41,7 @@ local EventHandler = req("EventHandler")
 local ScrollManager = req("ScrollManager")
 ---@type ZIndex
 local ZIndex = req("ZIndex")
+local Input = req("Input")
 ---@type Element
 local Element = req("Element")
 ---@type Color
@@ -1004,11 +1005,11 @@ local function collectOpenSelects(element, results)
 end
 
 function flexlove._handleSelectPointerDismissal()
-  local isLeftDown = love.mouse.isDown(1)
+  local isLeftDown = Input.isDown(1)
   local wasLeftDown = flexlove._mouseButtonStates[1] or false
 
   if isLeftDown and not wasLeftDown then
-    local mx, my = love.mouse.getPosition()
+    local mx, my = Input.getPosition()
     local target = flexlove.getElementAtPosition(mx, my)
     local openSelects = {}
 
@@ -1138,6 +1139,40 @@ function flexlove.getElementAtPosition(x, y)
   -- No interactive elements, but return topmost blocking element if any
   -- This prevents clicks from passing through non-interactive overlays
   return blockingElements[1]
+end
+
+--- Find elements whose text matches a pattern, frontmost (topmost z) first.
+--- For automated UI driving: locate a button by label, then click its center.
+---@param pattern string Lua pattern matched against element.text
+---@param opts {exact?: boolean}? exact=true requires the full text to equal pattern
+---@return Element[] matches, highest effective z-index first
+function flexlove.findByText(pattern, opts)
+  opts = opts or {}
+  local exact = opts.exact == true
+  local seen, matches = {}, {}
+  local function visit(elem)
+    if seen[elem] then
+      return
+    end
+    seen[elem] = true
+    if type(elem.text) == "string" then
+      local hit = exact and elem.text == pattern or elem.text:find(pattern) ~= nil
+      if hit then
+        table.insert(matches, elem)
+      end
+    end
+    for _, child in ipairs(elem.children or {}) do
+      visit(child)
+    end
+  end
+  for _, root in ipairs(flexlove.topElements) do
+    visit(root)
+  end
+  local key = Context.getEffectiveZIndex
+  table.sort(matches, function(a, b)
+    return key(a) > key(b)
+  end)
+  return matches
 end
 
 --- Update all UI animations, interactions, and state changes each frame
@@ -1345,7 +1380,7 @@ end
 ---@param dx number
 ---@param dy number
 function flexlove.wheelmoved(dx, dy)
-  local mx, my = love.mouse.getPosition()
+  local mx, my = Input.getPosition()
   local element = Context.findScrollableAtPosition(mx, my)
 
   if element then
@@ -1859,5 +1894,6 @@ flexlove.Animation = Animation
 flexlove.Color = Color
 flexlove.Theme = Theme
 flexlove.enums = enums
+flexlove.Input = Input
 
 return flexlove

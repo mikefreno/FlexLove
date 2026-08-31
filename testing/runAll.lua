@@ -90,6 +90,7 @@ local testFiles = {
   "testing/__tests__/immediate_mode_branch_test.lua",
   "testing/__tests__/init_queue_test.lua",
   "testing/__tests__/input_event_test.lua",
+  "testing/__tests__/input_module_test.lua",
   "testing/__tests__/keyboard_navigation_test.lua",
   "testing/__tests__/layout_engine_test.lua",
   "testing/__tests__/module_loader_test.lua",

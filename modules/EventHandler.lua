@@ -1,3 +1,6 @@
+local modulePath = (...):match("(.-)[^%.]+$")
+local Input = require(modulePath .. "Input")
+
 ---@class EventHandler
 ---@field onEvent fun(element:Element, event:InputEvent)?
 ---@field onEventDeferred boolean?
@@ -139,7 +142,7 @@ end
 --- Clear pressed state for buttons that are no longer physically held
 function EventHandler:_resetReleasedPresses()
   for _, button in ipairs({ 1, 2, 3 }) do
-    if self._pressed[button] and not love.mouse.isDown(button) then
+    if self._pressed[button] and not Input.isDown(button) then
       self._pressed[button] = false
       self._dragStartX[button] = nil
       self._dragStartY[button] = nil
@@ -188,7 +191,7 @@ function EventHandler:processMouseEvents(element, mx, my, isHovering, isActiveEl
   for _, button in ipairs({ 1, 2, 3 }) do
     if self._pressed[button] then
       hasTrackedPress = true
-      if love.mouse.isDown(button) then
+      if Input.isDown(button) then
         isDragging = true
       end
       if isDragging and hasTrackedPress then
@@ -272,7 +275,7 @@ end
 ---@param isActiveElement boolean Whether this is the top element at mouse position
 function EventHandler:_processButton(element, mx, my, button, isHovering, isDragging, isActiveElement)
   local wasPressed = self._pressed[button]
-  local isPhysicallyPressed = love.mouse.isDown(button)
+  local isPhysicallyPressed = Input.isDown(button)
 
   if isHovering or isDragging or wasPressed then
     if isPhysicallyPressed then

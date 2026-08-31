@@ -57,6 +57,41 @@ function Input.setVirtualState(state)
   end
 end
 
+---Move the virtual mouse to a position.
+---@param x number
+---@param y number
+function Input.setPosition(x, y)
+  VirtualState.x = x
+  VirtualState.y = y
+end
+
+---Set or clear a virtual mouse button.
+---@param button integer 1=left 2=right 3=middle
+---@param down boolean
+function Input.setButton(button, down)
+  VirtualState.buttons[button] = (down == true) or nil
+end
+
+---Set or clear a virtual key ("lshift", "a", ...).
+---@param key string
+---@param down boolean
+function Input.setKey(key, down)
+  VirtualState.keys[key] = (down == true) or nil
+end
+
+---Copy of the current virtual state (for harness round-tripping).
+---@return {x: number, y: number, buttons: table<integer, boolean>, keys: table<string, boolean>}
+function Input.getVirtualState()
+  local buttons, keys = {}, {}
+  for b, v in pairs(VirtualState.buttons) do
+    buttons[b] = v
+  end
+  for k, v in pairs(VirtualState.keys) do
+    keys[k] = v
+  end
+  return { x = VirtualState.x, y = VirtualState.y, buttons = buttons, keys = keys }
+end
+
 ---Whether a mouse button is currently down.
 ---@param button integer 1=left 2=right 3=middle
 ---@return boolean

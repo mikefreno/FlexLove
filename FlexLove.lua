@@ -1041,42 +1041,40 @@ function flexlove.getElementAtPosition(x, y)
     scrollOffsetX = scrollOffsetX or 0
     scrollOffsetY = scrollOffsetY or 0
 
-    -- pointHitsElement is the single canonical bounds + display:none guard.
-    if Context.pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
-      -- Skip invisible/transparent elements and their entire subtree
-      if element.visibility == "hidden" or element.opacity <= 0 then
-        return
-      end
+    -- Prune display:none / invisible subtrees exactly like the draw path.
+    if element.display == false or element.visibility == "hidden" or element.opacity <= 0 then
+      return
+    end
 
-      -- Collect interactive elements (those with onEvent handlers)
+    -- pointHitsElement is the single canonical bounds + display:none guard.
+    local hitsSelf = Context.pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY)
+    -- Clipping ancestors prune descendants that fall outside their bounds, to
+    -- match overflow:hidden/scroll/auto. Non-clipping ancestors still overflow
+    -- visually, so their descendants MUST remain hit-testable (dropdown frames
+    -- under a trigger live outside the trigger's bounds).
+    local clipsChildren = Context.elementHasScrollableOverflow(element)
+
+    if hitsSelf then
+      -- Collect interactive elements (those with onEvent handlers). Options are
+      -- only interactive while their select parent is open.
       if
-        (element.onEvent or element.editable or element._selectState or element.selectOption) and not element.disabled
+        (element.onEvent or element.editable or element._selectState or element.selectOption)
+        and not element.disabled
+        and (not element.selectOption or Select.getActiveSelectParent(element))
       then
         table.insert(candidates, element)
       end
 
       -- Collect all visible elements for input blocking
       -- Elements with opacity > 0 block input to elements below them
-      if element.opacity > 0 then
-        table.insert(blockingElements, element)
-      end
+      table.insert(blockingElements, element)
+    end
 
-      -- Check if this element has scrollable overflow
-      local overflowX = element.overflowX or element.overflow
-      local overflowY = element.overflowY or element.overflow
-      local hasScrollableOverflow = (
-        overflowX == "scroll"
-        or overflowX == "auto"
-        or overflowY == "scroll"
-        or overflowY == "auto"
-        or overflowX == "hidden"
-        or overflowY == "hidden"
-      )
-
-      -- Accumulate scroll offset for children if this element has overflow clipping
+    -- Accumulate scroll offset for children if this element has overflow clipping
+    if hitsSelf or not clipsChildren then
       local childScrollOffsetX = scrollOffsetX
       local childScrollOffsetY = scrollOffsetY
-      if hasScrollableOverflow then
+      if clipsChildren then
         childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
         childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
       end
@@ -1408,8 +1406,15 @@ function flexlove._getTouchElementAtPosition(x, y)
     scrollOffsetX = scrollOffsetX or 0
     scrollOffsetY = scrollOffsetY or 0
 
+    if element.display == false or element.visibility == "hidden" or element.opacity <= 0 then
+      return
+    end
+
     -- pointHitsElement is the single canonical bounds + display:none guard.
-    if Context.pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
+    local hitsSelf = Context.pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY)
+    local clipsChildren = Context.elementHasScrollableOverflow(element)
+
+    if hitsSelf then
       -- Check if element is touch-enabled and interactive
       if
         element.touchEnabled
@@ -1418,23 +1423,15 @@ function flexlove._getTouchElementAtPosition(x, y)
       then
         table.insert(candidates, element)
       end
+    end
 
-      -- Check if this element has scrollable overflow (for touch scrolling)
-      local overflowX = element.overflowX or element.overflow
-      local overflowY = element.overflowY or element.overflow
-      local hasScrollableOverflow = (
-        overflowX == "scroll"
-        or overflowX == "auto"
-        or overflowY == "scroll"
-        or overflowY == "auto"
-        or overflowX == "hidden"
-        or overflowY == "hidden"
-      )
-
+    -- Non-clipping ancestors still overflow visually, so keep their descendants
+    -- hit-testable even when the point misses the ancestor's own bounds.
+    if hitsSelf or not clipsChildren then
       -- Accumulate scroll offset for children
       local childScrollOffsetX = scrollOffsetX
       local childScrollOffsetY = scrollOffsetY
-      if hasScrollableOverflow then
+      if clipsChildren then
         childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
         childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
       end

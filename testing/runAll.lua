@@ -108,6 +108,7 @@ local testFiles = {
   "testing/__tests__/scrollable_behavior_test.lua",
   "testing/__tests__/subsystem_delegation_test.lua",
   "testing/__tests__/scrollbar_placement_test.lua",
+  "testing/__tests__/select_frame_behavior_test.lua",
   "testing/__tests__/select_test.lua",
   "testing/__tests__/setproperty_dispatch_test.lua",
   "testing/__tests__/test_children_prop.lua",

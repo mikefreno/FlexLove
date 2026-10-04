@@ -70,14 +70,30 @@ end
 -- Returns `{ _props = {...} }` when there is at least one persistable prop and
 -- the element is in immediate mode; nil otherwise (retained mode no-op —
 -- state lives on the element directly there, so nothing to snapshot).
+-- Visual props the Select subsystem owns on its managed frame/anchor. These are
+-- recomputed every frame from the select open state, so persisting them as user
+-- prop mutations would freeze a recreated dropdown into `hidden`/`disabled`.
+local MANAGED_SELECT_VISUAL_PROPS = {
+  visibility = true,
+  disabled = true,
+  opacity = true,
+}
+
 local function saveState(element)
   local Element = ElementClass(element)
   if not Element._StateManager.isImmediateMode() then
     return nil
   end
+  local isManagedSelect = element._managedSelectFrame == true or element._managedSelectAnchor == true
   local props = {}
   for k, v in pairs(element) do
-    if type(k) == "string" and k:sub(1, 1) ~= "_" and type(v) ~= "table" and type(v) ~= "function" then
+    if
+      type(k) == "string"
+      and k:sub(1, 1) ~= "_"
+      and type(v) ~= "table"
+      and type(v) ~= "function"
+      and not (isManagedSelect and MANAGED_SELECT_VISUAL_PROPS[k])
+    then
       props[k] = v
     end
   end

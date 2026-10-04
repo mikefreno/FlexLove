@@ -45,17 +45,37 @@ function Select.initSelectParent(element, selectParentConfig)
       element._selectState.selectedLabel = state._selectSelectedLabel
     end
   end
+
+  Select.applyTriggerLabel(element)
 end
 
 ---Initialize selectOption on an element
 ---@param element Element
 ---@param selectOptionConfig table
 function Select.initSelectOption(element, selectOptionConfig)
+  local label = selectOptionConfig.label or element.text
   element.selectOption = {
     value = selectOptionConfig.value,
-    label = selectOptionConfig.label or element.text,
+    label = label,
     disabled = selectOptionConfig.disabled or false,
   }
+
+  -- Display the option label without requiring a duplicate `text` prop.
+  if (element.text == nil or element.text == "") and label ~= nil then
+    element.text = label
+  end
+end
+
+--- Show the selected label (or placeholder) on the select trigger.
+---@param element Element
+function Select.applyTriggerLabel(element)
+  if not element._selectState or type(element.selectParent) ~= "table" then
+    return
+  end
+  local label = element._selectState.selectedLabel or element._selectState.placeholder
+  if label ~= nil then
+    element.text = label
+  end
 end
 
 ---@param selectParent Element
@@ -95,6 +115,7 @@ function Select.syncOptionStates(selectParent)
 
   selectParent._selectState.selectedOption = selectedOption
   selectParent._selectState.selectedLabel = selectedLabel
+  Select.applyTriggerLabel(selectParent)
 end
 
 ---@param element Element
@@ -142,6 +163,30 @@ function Select.trackManagedFrame(element, frame)
   frame._managedSelectFrame = true
 end
 
+--- Place the managed anchor at the trigger's border-box bottom-left edge.
+--- Offsets resolve against the parent content box, so padding is subtracted to
+--- land on the trigger border box; x/y are applied immediately (not deferred to
+--- the next parent layout pass) to avoid one-resize-stale geometry.
+---@param element Element
+---@param anchor Element
+---@return number triggerBorderBoxWidth
+function Select.positionManagedAnchor(element, anchor)
+  local borderBoxWidth = element:getBorderBoxWidth()
+  local borderBoxHeight = element:getBorderBoxHeight()
+
+  anchor.left = -element.padding.left
+  anchor.top = borderBoxHeight - element.padding.top
+  anchor.width = borderBoxWidth
+  anchor.units.left = { value = anchor.left, unit = "px" }
+  anchor.units.top = { value = anchor.top, unit = "px" }
+  anchor.units.width = { value = borderBoxWidth, unit = "px" }
+  anchor.x = element.x
+  anchor.y = element.y + borderBoxHeight
+  anchor._borderBoxWidth = borderBoxWidth + anchor.padding.left + anchor.padding.right
+
+  return borderBoxWidth
+end
+
 ---@param element Element
 ---@return Element
 function Select.getOrCreateManagedAnchor(element)
@@ -165,6 +210,7 @@ function Select.getOrCreateManagedAnchor(element)
   anchor._managedSelectAnchor = true
   anchor._managedSelectOwner = element
   element._selectState.selectAnchor = anchor
+  Select.positionManagedAnchor(element, anchor)
   return anchor
 end
 
@@ -172,13 +218,7 @@ end
 ---@param frame Element
 function Select.applyManagedFrameLayout(element, frame)
   local anchor = Select.getOrCreateManagedAnchor(element)
-  local triggerBorderBoxWidth = element:getBorderBoxWidth()
-  anchor.left = 0
-  anchor.top = element:getBorderBoxHeight()
-  anchor.width = triggerBorderBoxWidth
-  anchor.units.left = { value = 0, unit = "px" }
-  anchor.units.top = { value = element:getBorderBoxHeight(), unit = "px" }
-  anchor.units.width = { value = triggerBorderBoxWidth, unit = "px" }
+  local triggerBorderBoxWidth = Select.positionManagedAnchor(element, anchor)
   frame._managedSelectMinimumBorderBoxWidth = triggerBorderBoxWidth
 
   frame.positioning = frame.positioning or Select._utils.enums.Positioning.RELATIVE
@@ -274,13 +314,7 @@ function Select.ensureFrameState(element)
   local frame = element._selectState.selectFrame
   local anchor = element._selectState.selectAnchor
   if anchor then
-    local triggerBorderBoxWidth = element:getBorderBoxWidth()
-    anchor.left = 0
-    anchor.top = element:getBorderBoxHeight()
-    anchor.width = triggerBorderBoxWidth
-    anchor.units.left = { value = 0, unit = "px" }
-    anchor.units.top = { value = element:getBorderBoxHeight(), unit = "px" }
-    anchor.units.width = { value = triggerBorderBoxWidth, unit = "px" }
+    local triggerBorderBoxWidth = Select.positionManagedAnchor(element, anchor)
     frame._managedSelectMinimumBorderBoxWidth = triggerBorderBoxWidth
     if frame.autosizing and frame.autosizing.width then
       local contentWidth = frame:calculateAutoWidth()
@@ -290,8 +324,6 @@ function Select.ensureFrameState(element)
     if frame.parent == anchor then
       anchor.width = math.max(triggerBorderBoxWidth, frame:getBorderBoxWidth())
       anchor.units.width = { value = anchor.width, unit = "px" }
-    end
-    if frame.parent == anchor then
       anchor:layoutChildren()
     end
   elseif frame.parent == element then
@@ -576,6 +608,20 @@ function Select.setSelectValue(element, value, optionElement)
   end
 end
 
+--- An option element is only actionable while its select parent is open.
+---@param element Element
+---@return Element? selectParent
+function Select.getActiveSelectParent(element)
+  if not element.selectOption then
+    return nil
+  end
+  local selectParent = element._selectParentElement or Select.findOwningSelectParent(element)
+  if not selectParent or not selectParent._selectState or not selectParent._selectState.open then
+    return nil
+  end
+  return selectParent
+end
+
 ---@param element Element
 function Select.handleRelease(element)
   if element.disabled then
@@ -583,7 +629,7 @@ function Select.handleRelease(element)
   end
 
   if element.selectOption then
-    local selectParent = element._selectParentElement or Select.findOwningSelectParent(element)
+    local selectParent = Select.getActiveSelectParent(element)
     if not selectParent then
       return
     end
@@ -632,6 +678,10 @@ function Select.restoreState(element, state)
   end
   element.ariaExpanded = element._selectState.open
   Select.syncOptionStates(element)
+  -- Restored open state must be reflected on the managed frame/anchor, else an
+  -- immediately-recreated trigger keeps a hidden, disabled dropdown.
+  Select.ensureFrameState(element)
+  Select.syncManagedFrameVisibility(element)
 end
 
 ---Clean up select-related resources (called from Element:destroy)

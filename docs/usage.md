@@ -72,6 +72,37 @@ FlexLove.destroy()  -- call when you tear down the UI to release element state
 - **Colors**: `Color.new(r, g, b, a)` (0–1 range) or `Color.fromHex("#RRGGBB")`
 - **Auto-sizing**: Omit `width`/`height` entirely (NOT `"auto"`) to let the element size to its content.
 
+## Select (dropdown)
+
+A trigger declares `selectParent`; its children declare `selectOption`. Pass the
+trigger an unattached `selectFrame` and FlexLöve reparents the options into it,
+shows/hides it with the open state, and pins it to the trigger's bottom-left edge.
+
+```lua
+local frame = FlexLove.new({
+  positioning = "flex", flexDirection = "vertical", gap = 2, padding = 4,
+})
+
+local trigger = FlexLove.new({
+  parent = body, width = 200, height = 40,
+  selectParent = {
+    value = "windowed", placeholder = "Choose",
+    selectFrame = frame,
+    onChange = function(_, value) print(value) end,
+  },
+})
+
+FlexLove.new({ parent = trigger, height = 32, selectOption = { value = "windowed", label = "Windowed" } })
+FlexLove.new({ parent = trigger, height = 32, selectOption = { value = "exclusive", label = "Fullscreen" } })
+```
+
+- An option's `label` renders automatically (no separate `text` needed).
+- The trigger shows the selected option's label, or `placeholder` when none is selected.
+- Options are interactive only while the dropdown is open.
+- The frame tracks the trigger's position and width across window resizes.
+- From code: `openSelect()` / `closeSelect()` / `toggleSelect()`, `getSelectValue()`,
+  `getSelectLabel()`, `setSelectValue(value)`, `isSelectOpen()`.
+
 ## Typical call surface
 
 - **Lifecycle**: `FlexLove.init(opts)`, `FlexLove.destroy()`

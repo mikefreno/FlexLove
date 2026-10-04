@@ -2507,6 +2507,12 @@ function Element:layoutChildren()
 
   -- Delegate layout to LayoutEngine
   self._layoutEngine:layoutChildren()
+
+  -- Keep the managed select dropdown anchor pinned to the trigger's border-box
+  -- bottom-left edge in the same pass (otherwise anchor.y lags one resize behind).
+  if self._selectState and self._selectState.selectFrame then
+    Element._Select.ensureFrameState(self)
+  end
 end
 
 --- Warn once per stale dimension property that holds a non-number value, which

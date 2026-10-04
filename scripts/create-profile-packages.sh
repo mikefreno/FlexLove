@@ -199,6 +199,20 @@ EOF
   done
   echo "     Copied ${module_count} modules"
 
+  # Copy module subdirectories (currently behaviors/). These are
+  # hard-required via req() in FlexLove.lua and must ship in every profile.
+  for dir in modules/*/; do
+    [ -d "$dir" ] || continue
+    # Strip the trailing slash: on BSD/macOS, `cp -r dir/ dest` copies the
+    # directory's *contents* instead of the directory itself.
+    dir="${dir%/}"
+    echo "  → Copying ${dir}/"
+    cp -r "$dir" "$BUILD_DIR/modules/" || {
+      echo -e "${RED}Error: Failed to copy ${dir}${NC}"
+      exit 1
+    }
+  done
+
   # Copy themes for default and full profiles
   if [ "$profile" == "default" ] || [ "$profile" == "full" ]; then
     echo "  → Copying themes/"

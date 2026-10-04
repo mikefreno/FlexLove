@@ -1042,7 +1042,7 @@ function flexlove.getElementAtPosition(x, y)
     scrollOffsetY = scrollOffsetY or 0
 
     -- Prune display:none / invisible subtrees exactly like the draw path.
-    if element.display == false or element.visibility == "hidden" or element.opacity <= 0 then
+    if element.display == false or element.visibility == "hidden" or (element.opacity or 1) <= 0 then
       return
     end
 
@@ -1406,7 +1406,7 @@ function flexlove._getTouchElementAtPosition(x, y)
     scrollOffsetX = scrollOffsetX or 0
     scrollOffsetY = scrollOffsetY or 0
 
-    if element.display == false or element.visibility == "hidden" or element.opacity <= 0 then
+    if element.display == false or element.visibility == "hidden" or (element.opacity or 1) <= 0 then
       return
     end
 

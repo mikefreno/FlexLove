@@ -342,25 +342,40 @@ function Context.findInteractiveAtPosition(x, y)
     scrollOffsetX = scrollOffsetX or 0
     scrollOffsetY = scrollOffsetY or 0
 
-    if not pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY) then
+    -- Prune invisible subtrees exactly like the draw path / getElementAtPosition.
+    if element.display == false or element.visibility == "hidden" or (element.opacity or 1) <= 0 then
       return
     end
 
-    -- Check if this element is interactive
-    if element.onEvent or element.themeComponent or element.editable then
-      table.insert(interactiveCandidates, element)
+    -- pointHitsElement is the single canonical bounds + display:none guard.
+    local hitsSelf = pointHitsElement(element, x, y, scrollOffsetX, scrollOffsetY)
+
+    if hitsSelf then
+      -- Check if this element is interactive
+      if element.onEvent or element.themeComponent or element.editable then
+        table.insert(interactiveCandidates, element)
+      end
     end
 
-    -- Recurse into children with accumulated scroll offset
-    local childScrollOffsetX = scrollOffsetX
-    local childScrollOffsetY = scrollOffsetY
-    if elementHasScrollableOverflow(element) then
-      childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
-      childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
-    end
+    -- Clipping ancestors prune descendants that fall outside their bounds, to
+    -- match overflow:hidden/scroll/auto. Non-clipping ancestors still overflow
+    -- visually, so their descendants MUST remain hit-testable — otherwise
+    -- dropdown options that render below their trigger's border box (managed
+    -- select frames) can never receive hover or press events.
+    local clipsChildren = elementHasScrollableOverflow(element)
 
-    for _, child in ipairs(element.children) do
-      collectInteractive(child, childScrollOffsetX, childScrollOffsetY)
+    if hitsSelf or not clipsChildren then
+      -- Recurse into children with accumulated scroll offset
+      local childScrollOffsetX = scrollOffsetX
+      local childScrollOffsetY = scrollOffsetY
+      if clipsChildren then
+        childScrollOffsetX = childScrollOffsetX + (element._scrollX or 0)
+        childScrollOffsetY = childScrollOffsetY + (element._scrollY or 0)
+      end
+
+      for _, child in ipairs(element.children) do
+        collectInteractive(child, childScrollOffsetX, childScrollOffsetY)
+      end
     end
   end
 

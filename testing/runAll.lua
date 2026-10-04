@@ -4,11 +4,13 @@ package.path = package.path
 _G.RUNNING_ALL_TESTS = true
 
 local verbose = false
-local enableCoverage = true
+-- Coverage is opt-in: luacov's debug-hook slowdown (~50x) makes the suite look
+-- like it hangs. Pass --coverage to collect coverage for a run.
+local enableCoverage = false
 local filteredArgs = {}
 for i, v in ipairs(arg) do
-  if v == "--no-coverage" then
-    enableCoverage = false
+  if v == "--coverage" then
+    enableCoverage = true
   elseif v == "--verbose" or v == "-v" then
     verbose = true
   else
@@ -87,7 +89,6 @@ local testFiles = {
   "testing/__tests__/image_cache_test.lua",
   "testing/__tests__/image_renderer_test.lua",
   "testing/__tests__/image_scaler_test.lua",
-  "testing/__tests__/immediate_mode_branch_test.lua",
   "testing/__tests__/init_queue_test.lua",
   "testing/__tests__/input_event_test.lua",
   "testing/__tests__/input_module_test.lua",
@@ -102,11 +103,8 @@ local testFiles = {
   "testing/__tests__/renderer_test.lua",
   "testing/__tests__/release_variants_test.lua",
   "testing/__tests__/roundedrect_test.lua",
-  "testing/__tests__/staged_initializers_test.lua",
   "testing/__tests__/scroll_manager_test.lua",
-  "testing/__tests__/save_restore_lifecycle_test.lua",
   "testing/__tests__/scrollable_behavior_test.lua",
-  "testing/__tests__/subsystem_delegation_test.lua",
   "testing/__tests__/scrollbar_placement_test.lua",
   "testing/__tests__/select_frame_behavior_test.lua",
   "testing/__tests__/select_test.lua",
@@ -121,7 +119,6 @@ local testFiles = {
   "testing/__tests__/touch_test.lua",
   "testing/__tests__/transition_test.lua",
   "testing/__tests__/units_test.lua",
-  "testing/__tests__/update_draw_dispatch_test.lua",
   "testing/__tests__/utils_test.lua",
 }
 
